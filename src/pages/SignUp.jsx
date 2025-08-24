@@ -184,48 +184,52 @@ const SignUp = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700 transition-colors duration-200">
             <div className="space-y-6">
-              {/* Success Alert */}
+              {/* Success SweetAlert */}
               {success && (
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 animate-fade-in">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mr-3 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100 animate-fade-in">
+                    <div className="text-center">
+                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
+                        <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         সফল!
-                      </p>
-                      <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                         {success}
                       </p>
+                      <button
+                        onClick={() => setSuccess('')}
+                        className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+                      >
+                        ঠিক আছে
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setSuccess('')}
-                      className="text-green-400 hover:text-green-600 dark:hover:text-green-300 transition-colors duration-200"
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               )}
 
-              {/* Error Alert */}
+              {/* Error SweetAlert */}
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 animate-fade-in">
-                  <div className="flex items-center">
-                    <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mr-3 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100 animate-fade-in">
+                    <div className="text-center">
+                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
+                        <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                         ত্রুটি!
-                      </p>
-                      <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                      </h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
                         {error}
                       </p>
+                      <button
+                        onClick={() => setError('')}
+                        className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+                      >
+                        ঠিক আছে
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setError('')}
-                      className="text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors duration-200"
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </button>
                   </div>
                 </div>
               )}
