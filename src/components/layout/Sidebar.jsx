@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import { navigation } from '../../constants/nav';
 import { useUIStore } from '../../store/ui';
+import { signOutUser } from '../../firebase/auth';
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { sidebarOpen, sidebarCollapsed, mobileSidebarOpen, closeMobileSidebar } = useUIStore();
   const [expandedItems, setExpandedItems] = useState(new Set());
 
@@ -32,10 +34,41 @@ const Sidebar = () => {
     return false;
   };
 
+  const handleLogout = async () => {
+    try {
+      const result = await signOutUser();
+      if (result.success) {
+        navigate('/login');
+      } else {
+        console.error('Logout failed:', result.error);
+        // Still redirect to login even if logout fails
+        navigate('/login');
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still redirect to login even if logout fails
+      navigate('/login');
+    }
+  };
+
   const renderNavItem = (item, level = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.has(item.name);
     const isItemActive = isParentActive(item);
+
+    // Handle logout action
+    if (item.action === 'logout') {
+      return (
+        <button
+          key={item.name}
+          onClick={handleLogout}
+          className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+        >
+          <item.icon className="w-5 h-5" />
+          {!sidebarCollapsed && <span>{item.name}</span>}
+        </button>
+      );
+    }
 
     return (
       <div key={item.name}>
@@ -110,12 +143,12 @@ const Sidebar = () => {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out
+        fixed inset-y-0 left-0 z-50 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out flex flex-col
         ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         ${sidebarCollapsed ? 'w-16' : 'w-64'}
       `}>
-        {/* Sidebar header */}
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
+        {/* Sidebar header - Fixed height */}
+        <div className="flex-shrink-0 flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">E</span>
@@ -136,10 +169,12 @@ const Sidebar = () => {
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
-          {navigation.map((item) => renderNavItem(item))}
-        </nav>
+        {/* Navigation - Scrollable area */}
+        <div className="flex-1 overflow-hidden">
+          <nav className="h-full px-3 py-4 space-y-2 overflow-y-auto sidebar-scrollbar">
+            {navigation.map((item) => renderNavItem(item))}
+          </nav>
+        </div>
       </div>
     </>
   );

@@ -1,361 +1,733 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Save, X, Mail, Phone, MapPin, Building } from 'lucide-react';
+import { 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Calendar, 
+  FileText, 
+  Image as ImageIcon, 
+  ToggleLeft, 
+  ToggleRight,
+  Save,
+  Building2,
+  Plane,
+  Home,
+  Users
+} from 'lucide-react';
+import Swal from 'sweetalert2';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const AddCustomer = () => {
-  const navigate = useNavigate();
+  const { isDark } = useTheme();
   const [formData, setFormData] = useState({
+    // কাস্টমার তথ্য
+    customerType: '',
     name: '',
-    phone: '',
+    mobile: '',
     email: '',
     address: '',
-    city: '',
-    postalCode: '',
-    country: 'বাংলাদেশ',
-    status: 'active',
-    notes: ''
+    division: '',
+    district: '',
+    upazila: '',
+    postCode: '',
+    
+    // পাসপোর্ট তথ্য
+    passportNumber: '',
+    issueDate: '',
+    expiryDate: '',
+    birthDate: '',
+    nidNumber: '',
+    
+    // অতিরিক্ত তথ্য
+    customerImage: null,
+    isActive: true,
+    notes: '',
+    referenceBy: ''
   });
-  const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const [imagePreview, setImagePreview] = useState(null);
+
+  // Dropdown options
+  const customerTypes = [
+    { value: 'hajj', label: 'হাজ্জ', icon: Home },
+    { value: 'umrah', label: 'ওমরাহ', icon: Home },
+    { value: 'air', label: 'এয়ার', icon: Plane }
+  ];
+
+  const divisions = [
+    'ঢাকা', 'চট্টগ্রাম', 'রাজশাহী', 'খুলনা', 'বরিশাল', 'সিলেট', 'রংপুর', 'ময়মনসিংহ'
+  ];
+
+  const districts = {
+    'ঢাকা': ['ঢাকা', 'গাজীপুর', 'নারায়ণগঞ্জ', 'টাঙ্গাইল', 'কিশোরগঞ্জ', 'মানিকগঞ্জ', 'মুন্সীগঞ্জ', 'রাজবাড়ী', 'মাদারীপুর', 'শরীয়তপুর', 'গোপালগঞ্জ', 'ফরিদপুর'],
+    'চট্টগ্রাম': ['চট্টগ্রাম', 'কক্সবাজার', 'নোয়াখালী', 'চাঁদপুর', 'লক্ষ্মীপুর', 'কুমিল্লা', 'ফেনী', 'ব্রাহ্মণবাড়িয়া'],
+    'রাজশাহী': ['রাজশাহী', 'নাটোর', 'নওগাঁ', 'জয়পুরহাট', 'পাবনা', 'সিরাজগঞ্জ', 'বগুড়া'],
+    'খুলনা': ['খুলনা', 'বাগেরহাট', 'সাতক্ষীরা', 'যশোর', 'মাগুরা', 'নড়াইল', 'কুষ্টিয়া', 'মেহেরপুর', 'চুয়াডাঙ্গা'],
+    'বরিশাল': ['বরিশাল', 'পটুয়াখালী', 'পিরোজপুর', 'ভোলা', 'ঝালকাঠি', 'বরগুনা'],
+    'সিলেট': ['সিলেট', 'হবিগঞ্জ', 'মৌলভীবাজার', 'সুনামগঞ্জ'],
+    'রংপুর': ['রংপুর', 'দিনাজপুর', 'কুড়িগ্রাম', 'লালমনিরহাট', 'নীলফামারী', 'পঞ্চগড়', 'ঠাকুরগাঁও'],
+    'ময়মনসিংহ': ['ময়মনসিংহ', 'জামালপুর', 'শেরপুর', 'নেত্রকোণা']
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked, files } = e.target;
     
-    // Clear error when user types
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
+    if (type === 'file') {
+      const file = files[0];
+      if (file) {
+        setFormData(prev => ({ ...prev, [name]: file }));
+        const reader = new FileReader();
+        reader.onloadend = () => setImagePreview(reader.result);
+        reader.readAsDataURL(file);
+      }
+    } else if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'নাম প্রয়োজন';
-    }
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'ফোন নম্বর প্রয়োজন';
-    } else if (!/^(\+880|880|0)?1[3-9]\d{8}$/.test(formData.phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'সঠিক ফোন নম্বর দিন';
-    }
-    
-    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'সঠিক ইমেইল ঠিকানা দিন';
-    }
-    
-    if (!formData.address.trim()) {
-      newErrors.address = 'ঠিকানা প্রয়োজন';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
     
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      console.log('Customer data:', formData);
+      // Success popup
+      Swal.fire({
+        title: 'সফল!',
+        text: 'সফলভাবে কাস্টমার যুক্ত হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB',
+        customClass: {
+          title: 'text-green-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      });
       
-      // Redirect to customer list
-      navigate('/customers');
+      // Reset form
+      setFormData({
+        customerType: '',
+        name: '',
+        mobile: '',
+        email: '',
+        address: '',
+        division: '',
+        district: '',
+        upazila: '',
+        postCode: '',
+        passportNumber: '',
+        issueDate: '',
+        expiryDate: '',
+        birthDate: '',
+        nidNumber: '',
+        customerImage: null,
+        isActive: true,
+        notes: '',
+        referenceBy: ''
+      });
+      setImagePreview(null);
+      
     } catch (error) {
-      console.error('Error adding customer:', error);
-    } finally {
-      setIsSubmitting(false);
+      // Error popup
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'কাস্টমার যুক্ত করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+        customClass: {
+          title: 'text-red-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      });
     }
   };
 
-  const handleCancel = () => {
-    navigate('/customers');
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      {/* Page Header */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Link
-              to="/customers"
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+    <div className={`min-h-screen p-4 lg:p-8 transition-colors duration-300 ${
+      isDark 
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+        : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+    }`}>
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
+            নতুন কাস্টমার যুক্ত করুন
+          </h1>
+          <p className={`mt-2 text-lg transition-colors duration-300 ${
+            isDark ? 'text-gray-300' : 'text-gray-600'
+          }`}>
+            আপনার ব্যবসায় নতুন কাস্টমার যোগ করুন
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* কাস্টমার তথ্য Section */}
+          <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
+              : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl">
+                <User className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">নতুন গ্রাহক যোগ করুন</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">নতুন গ্রাহকের তথ্য দিন</p>
+              <h2 className={`text-2xl font-bold transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-gray-800'
+              }`}>কাস্টমার তথ্য</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* কাস্টমারের ধরন */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  কাস্টমারের ধরন *
+                </label>
+                <div className="relative">
+                  <select
+                    name="customerType"
+                    value={formData.customerType}
+                    onChange={handleInputChange}
+                    required
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'bg-white border-gray-300'
+                    }`}
+                  >
+                    <option value="">ধরন নির্বাচন করুন</option>
+                    {customerTypes.map(type => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* নাম */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  নাম *
+                </label>
+                <div className="relative">
+                  <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="কাস্টমারের নাম লিখুন"
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* মোবাইল নাম্বার */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  মোবাইল নাম্বার *
+                </label>
+                <div className="relative">
+                  <Phone className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="tel"
+                    name="mobile"
+                    value={formData.mobile}
+                    onChange={handleInputChange}
+                    required
+                    placeholder="০১১-১২৩৪৫৬৭৮"
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* ইমেইল */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  ইমেইল
+                </label>
+                <div className="relative">
+                  <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="example@email.com"
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* বিভাগ */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  বিভাগ
+                </label>
+                <select
+                  name="division"
+                  value={formData.division}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                >
+                  <option value="">বিভাগ নির্বাচন করুন</option>
+                  {divisions.map(division => (
+                    <option key={division} value={division}>
+                      {division}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* জেলা */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  জেলা
+                </label>
+                <select
+                  name="district"
+                  value={formData.district}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300'
+                  }`}
+                >
+                  <option value="">জেলা নির্বাচন করুন</option>
+                  {formData.division && districts[formData.division]?.map(district => (
+                    <option key={district} value={district}>
+                      {district}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* উপজেলা */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  উপজেলা
+                </label>
+                <input
+                  type="text"
+                  name="upazila"
+                  value={formData.upazila}
+                  onChange={handleInputChange}
+                  placeholder="উপজেলার নাম"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+
+              {/* পোস্ট কোড */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  পোস্ট কোড
+                </label>
+                <input
+                  type="text"
+                  name="postCode"
+                  value={formData.postCode}
+                  onChange={handleInputChange}
+                  placeholder="১২৩৪"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+
+              {/* ঠিকানা - Full width */}
+              <div className="md:col-span-2 lg:col-span-3 space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  ঠিকানা
+                </label>
+                <div className="relative">
+                  <MapPin className={`absolute left-3 top-3 w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <textarea
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    rows="3"
+                    placeholder="বিস্তারিত ঠিকানা লিখুন..."
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <div className="px-4 sm:px-6 lg:px-8 py-6">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                  <User className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400" />
-                  মৌলিক তথ্য
-                </h3>
+
+
+          {/* পাসপোর্ট তথ্য Section */}
+          <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
+              : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-gradient-to-r from-green-500 to-green-600 rounded-xl">
+                <FileText className="w-6 h-6 text-white" />
               </div>
-              
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      নাম <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
-                        errors.name 
-                          ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
-                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                      } text-gray-900 dark:text-white`}
-                      placeholder="গ্রাহকের পূর্ণ নাম"
-                    />
-                    {errors.name && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.name}</p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      ফোন নম্বর <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleChange}
-                        className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
-                          errors.phone 
-                            ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
-                            : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                        } text-gray-900 dark:text-white`}
-                        placeholder="+880 1XXX-XXXXXX"
+              <h2 className={`text-2xl font-bold transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-gray-800'
+              }`}>পাসপোর্ট তথ্য</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* পাসপোর্ট নাম্বার */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  পাসপোর্ট নাম্বার
+                </label>
+                <input
+                  type="text"
+                  name="passportNumber"
+                  value={formData.passportNumber}
+                  onChange={handleInputChange}
+                  placeholder="A12345678"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+
+              {/* ইস্যু তারিখ */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  ইস্যু তারিখ
+                </label>
+                <div className="relative">
+                  <Calendar className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="date"
+                    name="issueDate"
+                    value={formData.issueDate}
+                    onChange={handleInputChange}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* মেয়াদ শেষের তারিখ */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  মেয়াদ শেষের তারিখ
+                </label>
+                <div className="relative">
+                  <Calendar className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="date"
+                    name="expiryDate"
+                    value={formData.expiryDate}
+                    onChange={handleInputChange}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* জন্ম তারিখ */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  জন্ম তারিখ
+                </label>
+                <div className="relative">
+                  <Calendar className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="date"
+                    name="birthDate"
+                    value={formData.birthDate}
+                    onChange={handleInputChange}
+                    className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* এনআইডি নাম্বার */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  এনআইডি নাম্বার
+                </label>
+                <input
+                  type="text"
+                  name="nidNumber"
+                  value={formData.nidNumber}
+                  onChange={handleInputChange}
+                  placeholder="১২৩৪৫৬৭৮৯০"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* অতিরিক্ত তথ্য Section */}
+          <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
+              : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl">
+                <ImageIcon className="w-6 h-6 text-white" />
+              </div>
+              <h2 className={`text-2xl font-bold transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-gray-800'
+              }`}>অতিরিক্ত তথ্য</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* কাস্টমার ছবি */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  কাস্টমার ছবি
+                </label>
+                <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors duration-200 ${
+                  isDark 
+                    ? 'border-gray-600 hover:border-purple-400' 
+                    : 'border-gray-300 hover:border-purple-400'
+                }`}>
+                  {imagePreview ? (
+                    <div className="space-y-4">
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className={`w-32 h-32 mx-auto rounded-lg object-cover border-2 transition-colors duration-300 ${
+                          isDark ? 'border-gray-600' : 'border-gray-200'
+                        }`}
                       />
-                    </div>
-                    {errors.phone && (
-                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.phone}</p>
-                    )}
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    ইমেইল
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
-                        errors.email 
-                          ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
-                          : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                      } text-gray-900 dark:text-white`}
-                      placeholder="customer@example.com"
-                    />
-                  </div>
-                  {errors.email && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.email}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Address Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                  <MapPin className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />
-                  ঠিকানা
-                </h3>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                <div>
-                  <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    ঠিকানা <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    id="address"
-                    name="address"
-                    rows={3}
-                    value={formData.address}
-                    onChange={handleChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm ${
-                      errors.address 
-                        ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
-                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700'
-                    } text-gray-900 dark:text-white`}
-                    placeholder="বিস্তারিত ঠিকানা"
-                  />
-                  {errors.address && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.address}</p>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      শহর
-                    </label>
-                    <input
-                      type="text"
-                      id="city"
-                      name="city"
-                      value={formData.city}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                      placeholder="শহরের নাম"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      পোস্টাল কোড
-                    </label>
-                    <input
-                      type="text"
-                      id="postalCode"
-                      name="postalCode"
-                      value={formData.postalCode}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                      placeholder="পোস্টাল কোড"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="country" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      দেশ
-                    </label>
-                    <div className="relative">
-                      <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <select
-                        id="country"
-                        name="country"
-                        value={formData.country}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, customerImage: null }));
+                          setImagePreview(null);
+                        }}
+                        className="text-red-500 hover:text-red-700 text-sm font-medium"
                       >
-                        <option value="বাংলাদেশ">বাংলাদেশ</option>
-                        <option value="ভারত">ভারত</option>
-                        <option value="পাকিস্তান">পাকিস্তান</option>
-                        <option value="শ্রীলঙ্কা">শ্রীলঙ্কা</option>
-                      </select>
+                        ছবি সরান
+                      </button>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <ImageIcon className={`w-12 h-12 mx-auto transition-colors duration-300 ${
+                        isDark ? 'text-gray-500' : 'text-gray-400'
+                      }`} />
+                      <div>
+                        <label htmlFor="customerImage" className="cursor-pointer">
+                          <span className="text-purple-600 hover:text-purple-700 font-medium">
+                            ছবি আপলোড করুন
+                          </span>
+                          <span className={`text-sm block mt-1 transition-colors duration-300 ${
+                            isDark ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                            PNG, JPG, GIF (সর্বোচ্চ ৫MB)
+                          </span>
+                        </label>
+                        <input
+                          id="customerImage"
+                          type="file"
+                          name="customerImage"
+                          accept="image/*"
+                          onChange={handleInputChange}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
 
-            {/* Additional Information */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-                  <User className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" />
-                  অতিরিক্ত তথ্য
-                </h3>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      অবস্থা
-                    </label>
-                    <select
-                      id="status"
-                      name="status"
-                      value={formData.status}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                    >
-                      <option value="active">সক্রিয়</option>
-                      <option value="inactive">নিষ্ক্রিয়</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    নোট
-                  </label>
-                  <textarea
-                    id="notes"
-                    name="notes"
-                    rows={3}
-                    value={formData.notes}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
-                    placeholder="গ্রাহক সম্পর্কে অতিরিক্ত তথ্য"
-                  />
+              {/* Active/Inactive Toggle */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  স্ট্যাটাস
+                </label>
+                <div className="flex items-center space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, isActive: true }))}
+                    className={`flex items-center space-x-2 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      formData.isActive 
+                        ? 'bg-green-100 text-green-700 border-2 border-green-300' 
+                        : isDark 
+                          ? 'bg-gray-700 text-gray-300 border-2 border-gray-600' 
+                          : 'bg-gray-100 text-gray-500 border-2 border-gray-200'
+                    }`}
+                  >
+                    <ToggleRight className="w-5 h-5" />
+                    <span className="font-medium">Active</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, isActive: false }))}
+                    className={`flex items-center space-x-2 px-4 py-3 rounded-xl transition-all duration-200 ${
+                      !formData.isActive 
+                        ? 'bg-red-100 text-red-700 border-2 border-red-300' 
+                        : isDark 
+                          ? 'bg-gray-700 text-gray-300 border-2 border-gray-600' 
+                          : 'bg-gray-100 text-gray-500 border-2 border-gray-200'
+                    }`}
+                  >
+                    <ToggleLeft className="w-5 h-5" />
+                    <span className="font-medium">Inactive</span>
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Form Actions */}
-            <div className="flex items-center justify-end space-x-3">
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
-              >
-                <X className="w-4 h-4 mr-2" />
-                বাতিল
-              </button>
-              
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="inline-flex items-center px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors duration-200 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {isSubmitting ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
-              </button>
+              {/* Reference By */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Reference By
+                </label>
+                <input
+                  type="text"
+                  name="referenceBy"
+                  value={formData.referenceBy}
+                  onChange={handleInputChange}
+                  placeholder="রেফারেন্সের নাম"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+
+              {/* নোট - Full width */}
+              <div className="md:col-span-2 space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  নোট
+                </label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  rows="4"
+                  placeholder="কাস্টমার সম্পর্কে অতিরিক্ত তথ্য লিখুন..."
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
             </div>
-          </form>
-        </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="text-center">
+            <button
+              type="submit"
+              className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 hover:from-blue-700 hover:via-purple-700 hover:to-green-700"
+            >
+              <Save className="w-6 h-6 mr-3 group-hover:rotate-12 transition-transform duration-300" />
+              কাস্টমার যুক্ত করুন
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

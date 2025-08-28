@@ -6,9 +6,253 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom CSS */
-body {
-  font-family: 'Hind Siliguri', sans-serif;
+/* Custom CSS for SweetAlert2 */
+.swal2-popup {
+  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+}
+
+.swal2-title {
+  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+  font-weight: 600 !important;
+}
+
+.swal2-content {
+  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+}
+
+.swal2-confirm,
+.swal2-cancel {
+  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+  font-weight: 500 !important;
+}
+
+/* Custom Sidebar Scrollbar */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+  border: 1px solid #f1f5f9;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #64748b;
+}
+
+/* Dark mode sidebar scrollbar */
+.dark .sidebar-scrollbar {
+  scrollbar-color: #6b7280 #374151;
+}
+
+.dark .sidebar-scrollbar::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark .sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border: 1px solid #374151;
+}
+
+.dark .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+.dark .sidebar-scrollbar::-webkit-scrollbar-thumb:active {
+  background: #d1d5db;
+}
+
+/* Responsive table improvements */
+@media (max-width: 640px) {
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table-responsive table {
+    min-width: 600px;
+  }
+}
+
+/* Custom scrollbar for better mobile experience */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark mode scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Improved focus states for better accessibility */
+.focus-visible:focus {
+  outline: 2px solid #8b5cf6;
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for all interactive elements */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Better mobile touch targets */
+button, 
+input, 
+select, 
+textarea {
+  min-height: 44px;
+}
+
+@media (max-width: 640px) {
+  button, 
+  input, 
+  select, 
+  textarea {
+    min-height: 48px;
+  }
+}
+
+/* Improved form styling */
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+/* Better table responsiveness */
+@media (max-width: 768px) {
+  .table-cell-responsive {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .table-cell-responsive:last-child {
+    border-bottom: none;
+  }
+}
+
+/* Enhanced modal responsiveness */
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+/* Better spacing for mobile */
+@media (max-width: 640px) {
+  .mobile-spacing {
+    padding: 1rem;
+  }
+  
+  .mobile-spacing > * + * {
+    margin-top: 1rem;
+  }
+}
+
+/* Improved button groups on mobile */
+@media (max-width: 640px) {
+  .button-group-mobile {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .button-group-mobile > * {
+    width: 100%;
+    margin: 0.25rem 0;
+  }
+}
+
+/* Better card responsiveness */
+@media (max-width: 640px) {
+  .card-mobile {
+    padding: 1rem;
+    margin: 0.5rem;
+  }
+}
+
+/* Enhanced form grid for mobile */
+@media (max-width: 768px) {
+  .form-grid-mobile {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Better navigation for mobile */
+@media (max-width: 640px) {
+  .nav-mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .nav-mobile > * {
+    margin: 0.25rem 0;
+  }
+}
+
+/* Improved search bar for mobile */
+@media (max-width: 640px) {
+  .search-mobile {
+    width: 100%;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Better filter layout for mobile */
+@media (max-width: 640px) {
+  .filter-mobile {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .filter-mobile > * {
+    width: 100%;
+  }
 }
 
 /* Animation Keyframes */
@@ -127,4 +371,47 @@ body {
 
 .dark .border-purple-200 {
   border-color: #7c3aed !important;
+}
+
+/* reCAPTCHA Isolation and Hiding */
+#recaptcha-container {
+  position: fixed !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -9999 !important;
+  border: none !important;
+  outline: none !important;
+  display: none !important;
+  isolation: isolate !important;
+  contain: layout style paint !important;
+}
+
+/* Hide reCAPTCHA iframe if it appears */
+#recaptcha-container iframe {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
+}
+
+/* Hide reCAPTCHA widget */
+.g-recaptcha {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Prevent reCAPTCHA from interfering */
+.grecaptcha-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
 }

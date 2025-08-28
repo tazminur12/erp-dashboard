@@ -28,7 +28,41 @@ import {
   Shield,
   Bell,
   Database,
-  ChevronDown
+  ChevronDown,
+  Wallet,
+  CreditCard as CreditCardIcon,
+  Banknote,
+  PiggyBank as PiggyBankIcon,
+  Calculator as CalculatorIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  FileText as FileTextIcon,
+  BarChart3 as BarChart3Icon,
+  Settings as SettingsIcon,
+  Bell as BellIcon,
+  Database as DatabaseIcon,
+  Shield as ShieldIcon,
+  Users as UsersIcon,
+  UserCircle as UserCircleIcon,
+  LogOut as LogOutIcon,
+  Plus as PlusIcon,
+  List as ListIcon,
+  Receipt as ReceiptIcon,
+  FileText as FileTextIcon2,
+  TrendingUp as TrendingUpIcon2,
+  TrendingDown as TrendingDownIcon2,
+  PiggyBank as PiggyBankIcon2,
+  Calculator as CalculatorIcon2,
+  Home as HomeIcon,
+  Utensils as UtensilsIcon,
+  Zap as ZapIcon,
+  Globe as GlobeIcon,
+  History as HistoryIcon,
+  BarChart3 as BarChart3Icon2,
+  Shield as ShieldIcon2,
+  Bell as BellIcon2,
+  Database as DatabaseIcon2,
+  ChevronDown as ChevronDownIcon
 } from 'lucide-react';
 
 export const navigation = [
@@ -50,8 +84,8 @@ export const navigation = [
     name: 'Transactions',
     icon: CreditCard,
     children: [
-      { name: 'Debit', href: '/transactions/debit', icon: TrendingDown },
-      { name: 'Credit', href: '/transactions/credit', icon: TrendingUp }
+      { name: 'Transactions List', href: '/transactions/list', icon: List },
+      { name: 'New Transaction', href: '/transactions/new', icon: Plus }
     ]
   },
   {
@@ -68,8 +102,11 @@ export const navigation = [
     name: 'Hajj & Umrah',
     icon: Building,
     children: [
-      { name: 'Agent List', href: '/hajj-umrah/agents', icon: List },
-      { name: 'Add Agent', href: '/hajj-umrah/add-agent', icon: Plus }
+      { name: 'Haji List', href: '/hajj-umrah/haji-list', icon: List },
+      { name: 'Add New Haji', href: '/hajj-umrah/add-haji', icon: Plus },
+      { name: 'Haj and Umrah Agent', href: '/hajj-umrah/agent', icon: Users },
+      { name: 'Haj and Umrah Package Creation', href: '/hajj-umrah/package-creation', icon: Plus },
+      { name: 'Haj & Umrah Package List', href: '/hajj-umrah/package-list', icon: List }
     ]
   },
   {
@@ -81,6 +118,22 @@ export const navigation = [
       { name: 'Reissue/Refund', href: '/air-ticketing/reissue-refund', icon: Receipt },
       { name: 'Airlines List', href: '/air-ticketing/airlines', icon: List },
       { name: 'Ticket Invoice', href: '/air-ticketing/invoice', icon: FileText }
+    ]
+  },
+  {
+    name: 'Account',
+    icon: Wallet,
+    children: [
+      { name: 'Account Overview', href: '/account', icon: BarChart3 },
+      { name: 'Income Management', href: '/account/income', icon: TrendingUp },
+      { name: 'Expense Management', href: '/account/expense', icon: TrendingDown },
+      { name: 'Savings & Investments', href: '/account/savings', icon: PiggyBank },
+      { name: 'Loans & Credit', href: '/account/loans', icon: Calculator },
+      { name: 'Bank Accounts', href: '/account/bank-accounts', icon: CreditCard },
+      { name: 'Credit Cards', href: '/account/credit-cards', icon: CreditCardIcon },
+      { name: 'Financial Reports', href: '/account/reports', icon: FileText },
+      { name: 'Budget Planning', href: '/account/budget', icon: BarChart3Icon },
+      { name: 'Tax Management', href: '/account/tax', icon: Receipt }
     ]
   },
   {
@@ -142,7 +195,8 @@ export const navigation = [
   },
   {
     name: 'Logout',
-    href: '/logout',
-    icon: LogOut
+    href: null,
+    icon: LogOut,
+    action: 'logout'
   }
 ];

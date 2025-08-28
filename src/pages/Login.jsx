@@ -1,27 +1,48 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, Phone, CheckCircle, XCircle } from 'lucide-react';
-import { signInWithEmail, signInWithPhone } from '../firebase';
+import { 
+  Mail, 
+  Building2, 
+  Monitor, 
+  BarChart3, 
+  TrendingUp, 
+  PieChart, 
+  ArrowRight, 
+  HelpCircle,
+  CheckCircle,
+  XCircle,
+  ChevronDown,
+  CreditCard,
+  Lock
+} from 'lucide-react';
+import { signInWithEmail, sendVerificationEmail } from '../firebase/auth';
+import { validateEmail } from '../lib/validation';
 
 const Login = () => {
   const [formData, setFormData] = useState({
+    branch: '',
     email: '',
-    phone: '',
-    password: ''
+    password: '',
+    employeeId: 'EMP001'
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [loginMethod, setLoginMethod] = useState('email'); // 'email' or 'phone'
   const navigate = useNavigate();
+
+  const branches = [
+    'Dhaka Main Branch',
+    'Chittagong Branch',
+    'Sylhet Branch',
+    'Rajshahi Branch',
+    'Khulna Branch'
+  ];
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
-    // Clear messages when user types
     if (error) setError('');
     if (success) setSuccess('');
   };
@@ -29,14 +50,12 @@ const Login = () => {
   const showSuccessAlert = (message) => {
     setSuccess(message);
     setError('');
-    // Auto hide after 3 seconds
     setTimeout(() => setSuccess(''), 3000);
   };
 
   const showErrorAlert = (message) => {
     setError(message);
     setSuccess('');
-    // Auto hide after 5 seconds
     setTimeout(() => setError(''), 5000);
   };
 
@@ -44,266 +63,306 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setSuccess('');
 
     try {
-      let result;
-      
-      if (loginMethod === 'email') {
-        if (!formData.email.trim()) {
-          showErrorAlert('ইমেইল প্রয়োজন');
-          setLoading(false);
-          return;
-        }
-        if (!formData.password.trim()) {
-          showErrorAlert('পাসওয়ার্ড প্রয়োজন');
-          setLoading(false);
-          return;
-        }
-        result = await signInWithEmail(formData.email, formData.password);
-      } else {
-        if (!formData.phone.trim()) {
-          showErrorAlert('ফোন নম্বর প্রয়োজন');
-          setLoading(false);
-          return;
-        }
-        if (!formData.password.trim()) {
-          showErrorAlert('পাসওয়ার্ড প্রয়োজন');
-          setLoading(false);
-          return;
-        }
-        // For phone login, we'll simulate it for now
-        result = await signInWithPhone(formData.phone);
+      if (!formData.branch) {
+        showErrorAlert('Please select a branch');
+        setLoading(false);
+        return;
+      }
+
+      if (!formData.email.trim()) {
+        showErrorAlert('Email address is required');
+        setLoading(false);
+        return;
       }
       
+      if (!formData.password.trim()) {
+        showErrorAlert('Password is required');
+        setLoading(false);
+        return;
+      }
+      
+      // Validate email format
+      const emailValidation = validateEmail(formData.email);
+      if (!emailValidation.isValid) {
+        showErrorAlert(emailValidation.message);
+        setLoading(false);
+        return;
+      }
+
+      // Attempt to sign in
+      const result = await signInWithEmail(formData.email, formData.password);
+      
       if (result.success) {
-        showSuccessAlert('সফলভাবে লগইন হয়েছে! ড্যাশবোর্ডে যাচ্ছি...');
-        console.log('Login successful:', result.user);
-        // Redirect to dashboard after 2 seconds
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 2000);
+        if (result.user.emailVerified) {
+          showSuccessAlert('Login successful! Redirecting to dashboard...');
+          setTimeout(() => {
+            navigate('/dashboard');
+          }, 2000);
+        } else {
+          // Email not verified, send verification email
+          const verificationResult = await sendVerificationEmail();
+          if (verificationResult.success) {
+            showErrorAlert('Please verify your email first. A new verification email has been sent.');
+          } else {
+            showErrorAlert('Please verify your email first. Check your inbox for verification link.');
+          }
+        }
       } else {
         showErrorAlert(result.error);
       }
-    } catch {
-      showErrorAlert('লগইনে সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+    } catch (error) {
+      showErrorAlert('Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-200">আবার স্বাগতম</h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
-            আপনার অ্যাকাউন্টে সাইন ইন করুন
+    <div className="min-h-screen flex">
+      {/* Left Section - Promotional Content */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-400 via-teal-500 to-blue-600 p-12 items-center justify-center">
+        <div className="text-center text-white max-w-lg">
+          {/* Logo and Brand */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 mr-4">
+              <Building2 className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl font-bold">Bin Rashid Group</h1>
+              <p className="text-sm text-blue-100">Excellence in Service</p>
+            </div>
+          </div>
+
+          {/* Dashboard Preview */}
+          <div className="relative mb-8">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="bg-white rounded-xl p-4 shadow-2xl">
+                {/* Mock Dashboard Content */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="bg-blue-500 h-8 rounded"></div>
+                  <div className="bg-blue-400 h-8 rounded"></div>
+                  <div className="bg-blue-600 h-6 rounded"></div>
+                  <div className="bg-blue-300 h-6 rounded"></div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="bg-blue-500 h-4 w-16 rounded"></div>
+                    <div className="bg-blue-400 h-4 w-12 rounded"></div>
+                  </div>
+                  <div className="bg-yellow-400 h-12 w-12 rounded-full"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Heading */}
+          <h2 className="text-4xl font-bold mb-4">Financial Management</h2>
+          <p className="text-lg text-blue-100 leading-relaxed">
+            Advanced accounting, transaction management, and financial reporting tools for complete business oversight.
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700 transition-colors duration-200">
-            <div className="space-y-6">
-              {/* Success SweetAlert */}
-              {success && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100 animate-fade-in">
-                    <div className="text-center">
-                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
-                        <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        সফল!
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        {success}
-                      </p>
-                      <button
-                        onClick={() => setSuccess('')}
-                        className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
-                      >
-                        ঠিক আছে
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+      </div>
 
-              {/* Error SweetAlert */}
-              {error && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100 animate-fade-in">
-                    <div className="text-center">
-                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-                        <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        ত্রুটি!
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        {error}
-                      </p>
-                      <button
-                        onClick={() => setError('')}
-                        className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
-                      >
-                        ঠিক আছে
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+      {/* Right Section - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
+        <div className="w-full max-w-md">
+          {/* Login Form Card */}
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">Employee Login</h2>
+              <p className="text-gray-600">Access your ERP dashboard securely</p>
+            </div>
 
-              {/* Login Method Toggle */}
-              <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 p-1">
-                <button
-                  type="button"
-                  onClick={() => setLoginMethod('email')}
-                  className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors duration-200 ${
-                    loginMethod === 'email'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  ইমেইল
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLoginMethod('phone')}
-                  className={`flex-1 py-2 px-4 text-sm font-medium rounded-md transition-colors duration-200 ${
-                    loginMethod === 'phone'
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'
-                  }`}
-                >
-                  ফোন নম্বর
-                </button>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Branch Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Branch
+                </label>
+                <div className="relative">
+                  <select
+                    name="branch"
+                    value={formData.branch}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                    required
+                  >
+                    <option value="">Choose your branch</option>
+                    {branches.map((branch, index) => (
+                      <option key={index} value={branch}>{branch}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+                </div>
               </div>
 
-              {/* Email Field */}
-              {loginMethod === 'email' && (
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">
-                    ইমেইল ঠিকানা
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                    </div>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
-                      placeholder="আপনার ইমেইল দিন"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Phone Field */}
-              {loginMethod === 'phone' && (
-                <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">
-                    ফোন নম্বর
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Phone className="h-5 w-5 text-gray-400 dark:text-gray-500" />
-                    </div>
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      autoComplete="tel"
-                      required
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
-                      placeholder="০১১১১১১১১১১"
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    ফোন নম্বর দিয়ে লগইন এখনও সক্রিয় নয়। ইমেইল ব্যবহার করুন।
-                  </p>
-                </div>
-              )}
-
-              {/* Password Field */}
+              {/* Email Input */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">
-                  পাসওয়ার্ড
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    <Mail className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="employee@company.com"
                     required
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Enter your registered email address
+                </p>
+              </div>
+
+              {/* Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="password"
+                    name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
-                    placeholder="আপনার পাসওয়ার্ড দিন"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter your password"
+                    required
                   />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400" />
-                    )}
-                  </button>
                 </div>
               </div>
 
-              {/* Forgot Password Link */}
-              <div className="flex items-center justify-end">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-200"
-                >
-                  পাসওয়ার্ড ভুলে গেছেন?
-                </Link>
+              {/* Employee ID (Optional) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Employee ID (Optional)
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="employeeId"
+                    value={formData.employeeId}
+                    onChange={handleChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="EMP001"
+                  />
+                  <CreditCard className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                </div>
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                {loading ? 'সাইন ইন হচ্ছে...' : 'সাইন ইন করুন'}
+                {loading ? (
+                  'Signing In...'
+                ) : (
+                  <>
+                    Sign In
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
               </button>
+
+              {/* Forgot Password Link */}
+              <div className="text-center">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+
+              {/* Need Help Link */}
+              <div className="text-center">
+                <button
+                  type="button"
+                  className="text-sm text-gray-500 hover:text-gray-700 flex items-center justify-center mx-auto"
+                >
+                  <HelpCircle className="h-4 w-4 mr-1" />
+                  Need Help?
+                </button>
+              </div>
+            </form>
+
+            {/* Sign Up Link */}
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{' '}
+                <Link
+                  to="/signup"
+                  className="font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Sign up here
+                </Link>
+              </p>
             </div>
           </div>
 
-          {/* Sign Up Link */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
-              অ্যাকাউন্ট নেই?{' '}
-              <Link
-                to="/signup"
-                className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-200"
-              >
-                সাইন আপ করুন
-              </Link>
-            </p>
+          {/* Help Button */}
+          <div className="fixed bottom-6 right-6">
+            <button className="bg-purple-500 text-white p-3 rounded-full shadow-lg hover:bg-purple-600 transition-colors duration-200">
+              <HelpCircle className="h-6 w-6" />
+            </button>
           </div>
-        </form>
+        </div>
       </div>
+
+      {/* Success Modal */}
+      {success && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Success!</h3>
+              <p className="text-sm text-gray-600 mb-6">{success}</p>
+              <button
+                onClick={() => setSuccess('')}
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {error && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <XCircle className="h-8 w-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Error!</h3>
+              <p className="text-sm text-gray-600 mb-6">{error}</p>
+              <button
+                onClick={() => setError('')}
+                className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

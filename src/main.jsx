@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import MainLayout from './layouts/MainLayout';
 import DashboardLayout from './components/layout/DashboardLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Hero from './components/Hero';
 import './index.css';
@@ -13,8 +14,8 @@ import CustomerList from './pages/Customers/CustomerList';
 import AddCustomer from './pages/Customers/AddCustomer';
 
 // Transaction pages
-import Debit from './pages/Transactions/Debit';
-import Credit from './pages/Transactions/Credit';
+import TransactionsList from './pages/Transactions/TransactionsList';
+import NewTransaction from './pages/Transactions/NewTransaction';
 
 // Vendor pages
 import VendorList from './pages/Vendors/VendorList';
@@ -23,8 +24,11 @@ import VendorPayment from './pages/Vendors/VendorPayment';
 import VendorDueReport from './pages/Vendors/VendorDueReport';
 
 // Hajj & Umrah pages
-import AgentList from './pages/HajjUmrah/AgentList';
-import AddAgent from './pages/HajjUmrah/AddAgent';
+import HajiList from './pages/HajjUmrah/HajiList';
+import AddNewHaji from './pages/HajjUmrah/AddNewHaji';
+import Agent from './pages/HajjUmrah/Agent';
+import PackageCreation from './pages/HajjUmrah/PackageCreation';
+import PackageList from './pages/HajjUmrah/PackageList';
 
 // Air Ticketing pages
 import NewTicket from './pages/AirTicketing/NewTicket';
@@ -32,6 +36,18 @@ import TicketList from './pages/AirTicketing/TicketList';
 import ReissueRefund from './pages/AirTicketing/ReissueRefund';
 import AirlinesList from './pages/AirTicketing/AirlinesList';
 import TicketInvoice from './pages/AirTicketing/TicketInvoice';
+
+// Account pages
+import AccountOverview from './pages/Account/AccountOverview';
+import IncomeManagement from './pages/Account/IncomeManagement';
+import ExpenseManagement from './pages/Account/ExpenseManagement';
+import SavingsInvestments from './pages/Account/SavingsInvestments';
+import LoansCredit from './pages/Account/LoansCredit';
+import BankAccounts from './pages/Account/BankAccounts';
+import CreditCards from './pages/Account/CreditCards';
+import FinancialReports from './pages/Account/FinancialReports';
+import BudgetPlanning from './pages/Account/BudgetPlanning';
+import TaxManagement from './pages/Account/TaxManagement';
 
 // Personal pages
 import PersonalIncome from './pages/Personal/Income';
@@ -72,7 +88,6 @@ import Profile from './pages/Profile/Profile';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
-import OTPVerification from './pages/OTPVerification';
 
 const router = createBrowserRouter([
   {
@@ -99,17 +114,16 @@ const router = createBrowserRouter([
         path: "forgot-password",
         element: <ForgotPassword />
       },
-      {
-        path: "otp-verification",
-        element: <OTPVerification />
-      }
+
     ]
   },
   {
     path: "/dashboard",
     element: (
       <ThemeProvider>
-        <DashboardLayout />
+        <ProtectedRoute>
+          <DashboardLayout />
+        </ProtectedRoute>
       </ThemeProvider>
     ),
     children: [
@@ -147,12 +161,12 @@ const router = createBrowserRouter([
     ),
     children: [
       {
-        path: "debit",
-        element: <Debit />
+        path: "list",
+        element: <TransactionsList />
       },
       {
-        path: "credit",
-        element: <Credit />
+        path: "new",
+        element: <NewTransaction />
       }
     ]
   },
@@ -191,12 +205,24 @@ const router = createBrowserRouter([
     ),
     children: [
       {
-        path: "agents",
-        element: <AgentList />
+        path: "haji-list",
+        element: <HajiList />
       },
       {
-        path: "add-agent",
-        element: <AddAgent />
+        path: "add-haji",
+        element: <AddNewHaji />
+      },
+      {
+        path: "agent",
+        element: <Agent />
+      },
+      {
+        path: "package-creation",
+        element: <PackageCreation />
+      },
+      {
+        path: "package-list",
+        element: <PackageList />
       }
     ]
   },
@@ -227,6 +253,56 @@ const router = createBrowserRouter([
       {
         path: "invoice",
         element: <TicketInvoice />
+      }
+    ]
+  },
+  {
+    path: "/account",
+    element: (
+      <ThemeProvider>
+        <DashboardLayout />
+      </ThemeProvider>
+    ),
+    children: [
+      {
+        index: true,
+        element: <AccountOverview />
+      },
+      {
+        path: "income",
+        element: <IncomeManagement />
+      },
+      {
+        path: "expense",
+        element: <ExpenseManagement />
+      },
+      {
+        path: "savings",
+        element: <SavingsInvestments />
+      },
+      {
+        path: "loans",
+        element: <LoansCredit />
+      },
+      {
+        path: "bank-accounts",
+        element: <BankAccounts />
+      },
+      {
+        path: "credit-cards",
+        element: <CreditCards />
+      },
+      {
+        path: "financial-reports",
+        element: <FinancialReports />
+      },
+      {
+        path: "budget-planning",
+        element: <BudgetPlanning />
+      },
+      {
+        path: "tax-management",
+        element: <TaxManagement />
       }
     ]
   },

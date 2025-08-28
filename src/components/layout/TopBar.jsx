@@ -1,32 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, User, Menu, Sun, Moon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Menu, 
+  Bell, 
+  User, 
+  Search, 
+  Sun, 
+  Moon, 
+  X,
+  LogOut
+} from 'lucide-react';
 import { useUIStore } from '../../store/ui';
 import { useTheme } from '../../contexts/ThemeContext';
-import { getCurrentUser, getUserEmail } from '../../firebase';
+import { signOutUser, getCurrentUser, onAuthStateChange } from '../../firebase/auth';
 import { Link } from 'react-router-dom';
 
 const TopBar = ({ pageTitle = 'Dashboard' }) => {
+  const navigate = useNavigate();
   const { toggleMobileSidebar } = useUIStore();
   const { isDark, toggleTheme } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [notifications] = useState([
-    { id: 1, message: 'নতুন গ্রাহক যোগ হয়েছে', time: '2 min ago', unread: true },
-    { id: 2, message: 'টিকিট বিক্রি সম্পন্ন', time: '1 hour ago', unread: true },
-    { id: 3, message: 'ভেন্ডর পেমেন্ট প্রাপ্ত', time: '3 hours ago', unread: false }
+    { id: 1, message: 'New customer added', time: '2 min ago', unread: true },
+    { id: 2, message: 'Ticket sale completed', time: '1 hour ago', unread: true },
+    { id: 3, message: 'Vendor payment received', time: '3 hours ago', unread: false }
   ]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     // Check if user is logged in
-    const currentUser = getCurrentUser();
-    if (currentUser) {
-      setIsLoggedIn(true);
-      setUserEmail(currentUser.email || getUserEmail() || '');
-    }
-  }, []);
+    const checkAuthState = () => {
+      const user = getCurrentUser();
+      if (user) {
+        setIsLoggedIn(true);
+        setUserEmail(user.email);
+      } else {
+        setIsLoggedIn(false);
+        setUserEmail('');
+      }
+    };
+
+    // Initial check
+    checkAuthState();
+
+    // Listen to auth state changes
+    const unsubscribe = onAuthStateChange((user) => {
+      if (user) {
+        setIsLoggedIn(true);
+        setUserEmail(user.email);
+      } else {
+        setIsLoggedIn(false);
+        setUserEmail('');
+        // Redirect to login if user is not authenticated
+        navigate('/login');
+      }
+    });
+
+    // Cleanup subscription
+    return () => unsubscribe();
+  }, [navigate]);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -179,7 +214,10 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
                     Settings
                   </Link>
                   <div className="border-t border-gray-200 dark:border-gray-700 my-1" />
-                  <button className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700">
+                  <button 
+                    onClick={handleLogout}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
                     Logout
                   </button>
                 </div>

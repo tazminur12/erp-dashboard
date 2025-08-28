@@ -1,242 +1,258 @@
 import React, { useState, useMemo } from 'react';
 import { 
-  Users, 
+  CreditCard, 
   Search, 
   Filter,
   Eye,
-  Edit,
-  Trash2,
-  Plus,
+  Download,
   ChevronLeft,
   ChevronRight,
   Calendar,
-  MapPin,
-  Phone,
-  Mail,
+  DollarSign,
   User,
+  Tag,
   MoreHorizontal,
   X,
-  RefreshCw,
-  Building2,
-  Plane,
-  Home
+  RefreshCw
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import Swal from 'sweetalert2';
 
-const CustomerList = () => {
+const TransactionsList = () => {
   const { isDark } = useTheme();
   
   // State management
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    status: '',
-    customerType: '',
-    registrationDate: ''
+    dateRange: '',
+    transactionType: '',
+    category: '',
+    paymentMethod: ''
   });
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
 
-
-  // Mock customer data
-  const customers = [
+  // Mock data for transactions
+  const transactions = [
     {
-      id: 'CUST-001',
-      name: 'আহমেদ হোসেন',
-      phone: '+880 1712-345678',
-      email: 'ahmed@example.com',
-      address: 'ঢাকা, বাংলাদেশ',
-      customerType: 'hajj',
-      status: 'active',
-      registrationDate: '2024-01-15',
-      passportNumber: 'A12345678',
-      totalTransactions: 5,
-      lastTransaction: '2024-01-20'
+      id: 'TXN-001',
+      customerName: 'আহমেদ হোসেন',
+      customerPhone: '+880 1712-345678',
+      customerEmail: 'ahmed@example.com',
+      type: 'credit',
+      category: 'হাজ্জ প্যাকেজ',
+      paymentMethod: 'ব্যাংক ট্রান্সফার',
+      amount: 150000,
+      date: '2024-01-15',
+      status: 'completed',
+      reference: 'REF-001',
+      notes: 'হাজ্জ প্যাকেজের জন্য পেমেন্ট'
     },
     {
-      id: 'CUST-002',
-      name: 'ফাতেমা বেগম',
-      phone: '+880 1812-345679',
-      email: 'fatema@example.com',
-      address: 'চট্টগ্রাম, বাংলাদেশ',
-      customerType: 'umrah',
-      status: 'active',
-      registrationDate: '2024-01-14',
-      passportNumber: 'B87654321',
-      totalTransactions: 3,
-      lastTransaction: '2024-01-18'
+      id: 'TXN-002',
+      customerName: 'ফাতেমা বেগম',
+      customerPhone: '+880 1812-345679',
+      customerEmail: 'fatema@example.com',
+      type: 'credit',
+      category: 'ওমরাহ প্যাকেজ',
+      paymentMethod: 'মোবাইল ব্যাংকিং',
+      amount: 85000,
+      date: '2024-01-14',
+      status: 'completed',
+      reference: 'REF-002',
+      notes: 'ওমরাহ প্যাকেজের জন্য পেমেন্ট'
     },
     {
-      id: 'CUST-003',
-      name: 'মোহাম্মদ আলী',
-      phone: '+880 1912-345680',
-      email: 'mohammad@example.com',
-      address: 'সিলেট, বাংলাদেশ',
-      customerType: 'air',
-      status: 'inactive',
-      registrationDate: '2024-01-10',
-      passportNumber: 'C11223344',
-      totalTransactions: 2,
-      lastTransaction: '2024-01-12'
+      id: 'TXN-003',
+      customerName: 'মোহাম্মদ আলী',
+      customerPhone: '+880 1912-345680',
+      customerEmail: 'mohammad@example.com',
+      type: 'debit',
+      category: 'এয়ার টিকেট',
+      paymentMethod: 'চেক',
+      amount: 45000,
+      date: '2024-01-13',
+      status: 'pending',
+      reference: 'REF-003',
+      notes: 'এয়ারলাইন টিকেটের জন্য পেমেন্ট'
     },
     {
-      id: 'CUST-004',
-      name: 'আয়েশা খাতুন',
-      phone: '+880 1612-345681',
-      email: 'ayesha@example.com',
-      address: 'রাজশাহী, বাংলাদেশ',
-      customerType: 'hajj',
-      status: 'active',
-      registrationDate: '2024-01-08',
-      passportNumber: 'D55667788',
-      totalTransactions: 7,
-      lastTransaction: '2024-01-22'
+      id: 'TXN-004',
+      customerName: 'আয়েশা খাতুন',
+      customerPhone: '+880 1612-345681',
+      customerEmail: 'ayesha@example.com',
+      type: 'credit',
+      category: 'ভিসা সার্ভিস',
+      paymentMethod: 'ব্যাংক ট্রান্সফার',
+      amount: 25000,
+      date: '2024-01-12',
+      status: 'completed',
+      reference: 'REF-004',
+      notes: 'ভিসা প্রক্রিয়াকরণের জন্য পেমেন্ট'
     },
     {
-      id: 'CUST-005',
-      name: 'রহমান মিয়া',
-      phone: '+880 1512-345682',
-      email: 'rahman@example.com',
-      address: 'খুলনা, বাংলাদেশ',
-      customerType: 'umrah',
-      status: 'active',
-      registrationDate: '2024-01-05',
-      passportNumber: 'E99887766',
-      totalTransactions: 4,
-      lastTransaction: '2024-01-19'
+      id: 'TXN-005',
+      customerName: 'রহমান মিয়া',
+      customerPhone: '+880 1512-345682',
+      customerEmail: 'rahman@example.com',
+      type: 'debit',
+      category: 'হোটেল বুকিং',
+      paymentMethod: 'মোবাইল ব্যাংকিং',
+      amount: 35000,
+      date: '2024-01-11',
+      status: 'completed',
+      reference: 'REF-005',
+      notes: 'হোটেল রিজার্ভেশনের জন্য পেমেন্ট'
     },
     {
-      id: 'CUST-006',
-      name: 'সাবরিনা আক্তার',
-      phone: '+880 1412-345683',
-      email: 'sabrina@example.com',
-      address: 'বরিশাল, বাংলাদেশ',
-      customerType: 'air',
-      status: 'inactive',
-      registrationDate: '2024-01-03',
-      passportNumber: 'F44332211',
-      totalTransactions: 1,
-      lastTransaction: '2024-01-05'
+      id: 'TXN-006',
+      customerName: 'সাবরিনা আক্তার',
+      customerPhone: '+880 1412-345683',
+      customerEmail: 'sabrina@example.com',
+      type: 'credit',
+      category: 'ইনসুরেন্স',
+      paymentMethod: 'ব্যাংক ট্রান্সফার',
+      amount: 18000,
+      date: '2024-01-10',
+      status: 'completed',
+      reference: 'REF-006',
+      notes: 'ভ্রমণ বীমার জন্য পেমেন্ট'
     },
     {
-      id: 'CUST-007',
-      name: 'ইমরান হোসেন',
-      phone: '+880 1312-345684',
-      email: 'imran@example.com',
-      address: 'রংপুর, বাংলাদেশ',
-      customerType: 'hajj',
-      status: 'active',
-      registrationDate: '2024-01-01',
-      passportNumber: 'G77889900',
-      totalTransactions: 6,
-      lastTransaction: '2024-01-21'
+      id: 'TXN-007',
+      customerName: 'ইমরান হোসেন',
+      customerPhone: '+880 1312-345684',
+      customerEmail: 'imran@example.com',
+      type: 'debit',
+      category: 'অন্যান্য সেবা',
+      paymentMethod: 'চেক',
+      amount: 22000,
+      date: '2024-01-09',
+      status: 'pending',
+      reference: 'REF-007',
+      notes: 'অন্যান্য ভ্রমণ সেবার জন্য পেমেন্ট'
     },
     {
-      id: 'CUST-008',
-      name: 'নাজমা খাতুন',
-      phone: '+880 1212-345685',
-      email: 'nazma@example.com',
-      address: 'ময়মনসিংহ, বাংলাদেশ',
-      customerType: 'umrah',
-      status: 'active',
-      registrationDate: '2023-12-28',
-      passportNumber: 'H11223344',
-      totalTransactions: 8,
-      lastTransaction: '2024-01-23'
+      id: 'TXN-008',
+      customerName: 'নাজমা খাতুন',
+      customerPhone: '+880 1212-345685',
+      customerEmail: 'nazma@example.com',
+      type: 'credit',
+      category: 'হাজ্জ প্যাকেজ',
+      paymentMethod: 'মোবাইল ব্যাংকিং',
+      amount: 200000,
+      date: '2024-01-08',
+      status: 'completed',
+      reference: 'REF-008',
+      notes: 'প্রিমিয়াম হাজ্জ প্যাকেজের জন্য পেমেন্ট'
     }
   ];
 
   // Filter options
   const filterOptions = {
-    status: [
-      { value: '', label: 'সব স্ট্যাটাস' },
-      { value: 'active', label: 'সক্রিয়' },
-      { value: 'inactive', label: 'নিষ্ক্রিয়' }
+    transactionType: [
+      { value: '', label: 'সব টাইপ' },
+      { value: 'credit', label: 'ক্রেডিট (আয়)' },
+      { value: 'debit', label: 'ডেবিট (ব্যয়)' }
     ],
-    customerType: [
-      { value: '', label: 'সব ধরন' },
-      { value: 'hajj', label: 'হাজ্জ' },
-      { value: 'umrah', label: 'ওমরাহ' },
-      { value: 'air', label: 'এয়ার টিকেট' }
+    category: [
+      { value: '', label: 'সব ক্যাটাগরি' },
+      { value: 'হাজ্জ প্যাকেজ', label: 'হাজ্জ প্যাকেজ' },
+      { value: 'ওমরাহ প্যাকেজ', label: 'ওমরাহ প্যাকেজ' },
+      { value: 'এয়ার টিকেট', label: 'এয়ার টিকেট' },
+      { value: 'ভিসা সার্ভিস', label: 'ভিসা সার্ভিস' },
+      { value: 'হোটেল বুকিং', label: 'হোটেল বুকিং' },
+      { value: 'ইনসুরেন্স', label: 'ইনসুরেন্স' },
+      { value: 'অন্যান্য সেবা', label: 'অন্যান্য সেবা' }
+    ],
+    paymentMethod: [
+      { value: '', label: 'সব পেমেন্ট মেথড' },
+      { value: 'ব্যাংক ট্রান্সফার', label: 'ব্যাংক ট্রান্সফার' },
+      { value: 'মোবাইল ব্যাংকিং', label: 'মোবাইল ব্যাংকিং' },
+      { value: 'চেক', label: 'চেক' }
     ]
   };
 
   // Filter and search logic
-  const filteredCustomers = useMemo(() => {
-    return customers.filter(customer => {
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(transaction => {
       const matchesSearch = 
-        customer.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone.includes(searchTerm) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase());
+        transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.customerPhone.includes(searchTerm) ||
+        transaction.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = !filters.status || customer.status === filters.status;
-      const matchesType = !filters.customerType || customer.customerType === filters.customerType;
+      const matchesType = !filters.transactionType || transaction.type === filters.transactionType;
+      const matchesCategory = !filters.category || transaction.category === filters.category;
+      const matchesPaymentMethod = !filters.paymentMethod || transaction.paymentMethod === filters.paymentMethod;
       
-      // Date filter logic
+      // Date range filter logic
       let matchesDate = true;
-      if (filters.registrationDate) {
-        const customerDate = new Date(customer.registrationDate);
+      if (filters.dateRange) {
+        const transactionDate = new Date(transaction.date);
         const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
         const lastWeek = new Date(today);
         lastWeek.setDate(lastWeek.getDate() - 7);
         const lastMonth = new Date(today);
         lastMonth.setMonth(lastMonth.getMonth() - 1);
         
-        switch (filters.registrationDate) {
+        switch (filters.dateRange) {
+          case 'today':
+            matchesDate = transactionDate.toDateString() === today.toDateString();
+            break;
+          case 'yesterday':
+            matchesDate = transactionDate.toDateString() === yesterday.toDateString();
+            break;
           case 'last-week':
-            matchesDate = customerDate >= lastWeek;
+            matchesDate = transactionDate >= lastWeek;
             break;
           case 'last-month':
-            matchesDate = customerDate >= lastMonth;
+            matchesDate = transactionDate >= lastMonth;
             break;
         }
       }
       
-      return matchesSearch && matchesStatus && matchesType && matchesDate;
+      return matchesSearch && matchesType && matchesCategory && matchesPaymentMethod && matchesDate;
     });
   }, [searchTerm, filters]);
 
   // Pagination logic
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentCustomers = filteredCustomers.slice(startIndex, endIndex);
+  const currentTransactions = filteredTransactions.slice(startIndex, endIndex);
 
   // Helper functions
-  const getStatusColor = (status) => {
-    return status === 'active'
+  const getTypeColor = (type) => {
+    return type === 'credit' 
       ? 'text-green-600 bg-green-100 dark:bg-green-900/20' 
       : 'text-red-600 bg-red-100 dark:bg-red-900/20';
   };
 
-  const getCustomerTypeIcon = (type) => {
-    switch (type) {
-      case 'hajj':
-        return <Home className="w-4 h-4 text-green-600" />;
-      case 'umrah':
-        return <Building2 className="w-4 h-4 text-blue-600" />;
-      case 'air':
-        return <Plane className="w-4 h-4 text-purple-600" />;
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
+      case 'cancelled':
+        return 'text-red-600 bg-red-100 dark:bg-red-900/20';
       default:
-        return <User className="w-4 h-4 text-gray-600" />;
+        return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
     }
   };
 
-  const getCustomerTypeLabel = (type) => {
-    switch (type) {
-      case 'hajj':
-        return 'হাজ্জ';
-      case 'umrah':
-        return 'ওমরাহ';
-      case 'air':
-        return 'এয়ার টিকেট';
-      default:
-        return 'অন্যান্য';
-    }
+  const formatAmount = (amount) => {
+    return new Intl.NumberFormat('bn-BD', {
+      style: 'currency',
+      currency: 'BDT',
+      minimumFractionDigits: 0
+    }).format(amount);
   };
 
   const formatDate = (dateString) => {
@@ -250,59 +266,34 @@ const CustomerList = () => {
   // Event handlers
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page when filters change
   };
 
   const clearFilters = () => {
     setFilters({
-      status: '',
-      customerType: '',
-      registrationDate: ''
+      dateRange: '',
+      transactionType: '',
+      category: '',
+      paymentMethod: ''
     });
     setSearchTerm('');
     setCurrentPage(1);
   };
 
-  const handleViewCustomer = (customer) => {
-    setSelectedCustomer(customer);
-    setShowCustomerModal(true);
+  const handleViewTransaction = (transaction) => {
+    setSelectedTransaction(transaction);
+    setShowTransactionModal(true);
   };
 
-  const handleEditCustomer = (customer) => {
-    // Navigate to edit page or open edit modal
-    window.location.href = `/customers/add?id=${customer.id}`;
-  };
-
-  const handleDeleteCustomer = (customer) => {
+  const handleDownloadPDF = (transaction) => {
     Swal.fire({
-      title: 'কাস্টমার মুছতে চান?',
-      text: `${customer.name} এর সব তথ্য মুছে যাবে!`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'হ্যাঁ, মুছুন',
-      cancelButtonText: 'না, বাতিল করুন',
-      confirmButtonColor: '#EF4444',
-      cancelButtonColor: '#6B7280',
-      background: isDark ? '#1F2937' : '#FEF2F2',
-      color: isDark ? '#F9FAFB' : '#111827'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        // Delete logic here
-        Swal.fire({
-          title: 'মুছে ফেলা হয়েছে!',
-          text: 'কাস্টমার সফলভাবে মুছে ফেলা হয়েছে।',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          background: isDark ? '#1F2937' : '#F0FDF4',
-          color: isDark ? '#F9FAFB' : '#111827'
-        });
-      }
+      title: 'PDF ডাউনলোড হচ্ছে...',
+      text: `${transaction.id} এর ইনভয়েস তৈরি হচ্ছে`,
+      icon: 'info',
+      showConfirmButton: false,
+      timer: 2000,
+      background: isDark ? '#1F2937' : '#F9FAFB'
     });
-  };
-
-  const handleNewTransaction = (customer) => {
-    // Navigate to new transaction page with customer pre-selected
-    window.location.href = `/transactions/new?customer=${customer.id}&name=${encodeURIComponent(customer.name)}`;
   };
 
   const goToPage = (page) => {
@@ -321,27 +312,29 @@ const CustomerList = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <CreditCard className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
-                  Customer List
+                  Transactions List
                 </h1>
                 <p className={`mt-2 text-lg transition-colors duration-300 ${
                   isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}>
-                  সব কাস্টমারের তালিকা এবং পরিচালনা
+                  সব লেনদেনের তালিকা এবং পরিচালনা
                 </p>
               </div>
             </div>
             
-            <button
-              onClick={() => window.location.href = '/customers/add'}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
-            >
-              <Plus className="w-5 h-5" />
-              + Add New Customer
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => window.location.href = '/transactions/new'}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+              >
+                <CreditCard className="w-5 h-5" />
+                নতুন লেনদেন
+              </button>
+            </div>
           </div>
         </div>
 
@@ -356,7 +349,7 @@ const CustomerList = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Customer ID, নাম, ফোন বা ইমেইল দিয়ে খুঁজুন..."
+                  placeholder="Transaction ID, নাম, ফোন বা ইমেইল দিয়ে খুঁজুন..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg ${
@@ -401,59 +394,15 @@ const CustomerList = () => {
           {/* Expanded Filters */}
           {showFilters && (
             <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Status Filter */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Date Range Filter */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    স্ট্যাটাস
+                    তারিখের পরিসর
                   </label>
                   <select
-                    value={filters.status}
-                    onChange={(e) => handleFilterChange('status', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                    }`}
-                  >
-                    {filterOptions.status.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Customer Type Filter */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    কাস্টমার টাইপ
-                  </label>
-                  <select
-                    value={filters.customerType}
-                    onChange={(e) => handleFilterChange('customerType', e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                    }`}
-                  >
-                    {filterOptions.customerType.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Registration Date Filter */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    নিবন্ধনের তারিখ
-                  </label>
-                  <select
-                    value={filters.registrationDate}
-                    onChange={(e) => handleFilterChange('registrationDate', e.target.value)}
+                    value={filters.dateRange}
+                    onChange={(e) => handleFilterChange('dateRange', e.target.value)}
                     className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white' 
@@ -461,8 +410,76 @@ const CustomerList = () => {
                     }`}
                   >
                     <option value="">সব তারিখ</option>
+                    <option value="today">আজ</option>
+                    <option value="yesterday">গতকাল</option>
                     <option value="last-week">গত সপ্তাহ</option>
                     <option value="last-month">গত মাস</option>
+                  </select>
+                </div>
+
+                {/* Transaction Type Filter */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    লেনদেনের ধরন
+                  </label>
+                  <select
+                    value={filters.transactionType}
+                    onChange={(e) => handleFilterChange('transactionType', e.target.value)}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {filterOptions.transactionType.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    ক্যাটাগরি
+                  </label>
+                  <select
+                    value={filters.category}
+                    onChange={(e) => handleFilterChange('category', e.target.value)}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {filterOptions.category.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Payment Method Filter */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    পেমেন্ট মেথড
+                  </label>
+                  <select
+                    value={filters.paymentMethod}
+                    onChange={(e) => handleFilterChange('paymentMethod', e.target.value)}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    {filterOptions.paymentMethod.map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -479,13 +496,13 @@ const CustomerList = () => {
               <span className={`text-sm transition-colors duration-300 ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                মোট কাস্টমার: <span className="font-semibold text-blue-600">{filteredCustomers.length}</span>
+                মোট ফলাফল: <span className="font-semibold text-blue-600">{filteredTransactions.length}</span>
               </span>
               {Object.values(filters).some(value => value !== '') && (
                 <span className={`text-sm transition-colors duration-300 ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`}>
-                  ফিল্টারকৃত ফলাফল: <span className="font-semibold">{currentCustomers.length}</span>
+                  ফিল্টারকৃত ফলাফল: <span className="font-semibold">{currentTransactions.length}</span>
                 </span>
               )}
             </div>
@@ -503,7 +520,7 @@ const CustomerList = () => {
           </div>
         </div>
 
-        {/* Customers Table */}
+        {/* Transactions Table */}
         <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border transition-colors duration-300 ${
           isDark ? 'border-gray-700' : 'border-gray-100'
         }`}>
@@ -512,31 +529,41 @@ const CustomerList = () => {
               <thead className={`bg-gray-50 dark:bg-gray-700`}>
                 <tr>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Customer Name
+                    Transaction ID
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Customer ID
+                    কাস্টমার
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Phone Number
+                    ধরন
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Email
+                    ক্যাটাগরি
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Address
+                    পেমেন্ট মেথড
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Status
+                    পরিমাণ
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Action
+                    তারিখ
+                  </th>
+                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                    অ্যাকশন
                   </th>
                 </tr>
               </thead>
               <tbody className={`divide-y divide-gray-200 dark:divide-gray-700`}>
-                {currentCustomers.map((customer) => (
-                  <tr key={customer.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200`}>
+                {currentTransactions.map((transaction) => (
+                  <tr key={transaction.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200`}>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
+                          {transaction.id}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
@@ -544,72 +571,62 @@ const CustomerList = () => {
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {customer.name}
+                            {transaction.customerName}
                           </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                            {getCustomerTypeIcon(customer.customerType)}
-                            {getCustomerTypeLabel(customer.customerType)}
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {transaction.customerPhone}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
-                        {customer.id}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(transaction.type)}`}>
+                        {transaction.type === 'credit' ? 'ক্রেডিট' : 'ডেবিট'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                        <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                        {customer.phone}
+                      <div className="flex items-center">
+                        <Tag className="w-4 h-4 text-gray-400 mr-2" />
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {transaction.category}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                        <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                        {customer.email}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                        <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="truncate max-w-32">{customer.address}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(customer.status)}`}>
-                        {customer.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                      <span className="text-sm text-gray-900 dark:text-white">
+                        {transaction.paymentMethod}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className={`text-sm font-semibold ${
+                        transaction.type === 'credit' 
+                          ? 'text-green-600 dark:text-green-400' 
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {formatAmount(transaction.amount)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
+                        <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                        {formatDate(transaction.date)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => handleViewCustomer(customer)}
+                          onClick={() => handleViewTransaction(transaction)}
                           className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200"
                           title="দেখুন"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleEditCustomer(customer)}
+                          onClick={() => handleDownloadPDF(transaction)}
                           className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
-                          title="এডিট"
+                          title="PDF ডাউনলোড"
                         >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCustomer(customer)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
-                          title="মুছুন"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleNewTransaction(customer)}
-                          className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300 p-2 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-all duration-200"
-                          title="নতুন লেনদেন"
-                        >
-                          <Plus className="w-4 h-4" />
+                          <Download className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -620,16 +637,16 @@ const CustomerList = () => {
           </div>
           
           {/* Empty State */}
-          {currentCustomers.length === 0 && (
+          {currentTransactions.length === 0 && (
             <div className="text-center py-12">
-              <Users className="w-16 h-16 mx-auto text-gray-400 mb-4" />
+              <CreditCard className="w-16 h-16 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                কোন কাস্টমার পাওয়া যায়নি
+                কোন লেনদেন পাওয়া যায়নি
               </h3>
               <p className="text-gray-500 dark:text-gray-400">
                 {searchTerm || Object.values(filters).some(value => value !== '')
-                  ? 'আপনার অনুসন্ধানের সাথে মিলে এমন কোন কাস্টমার নেই'
-                  : 'এখনও কোন কাস্টমার যোগ করা হয়নি'
+                  ? 'আপনার অনুসন্ধানের সাথে মিলে এমন কোন লেনদেন নেই'
+                  : 'এখনও কোন লেনদেন যোগ করা হয়নি'
                 }
               </p>
             </div>
@@ -651,7 +668,7 @@ const CustomerList = () => {
                 <span className={`text-sm transition-colors duration-300 ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`}>
-                  ({startIndex + 1}-{Math.min(endIndex, filteredCustomers.length)} এর {filteredCustomers.length})
+                  ({startIndex + 1}-{Math.min(endIndex, filteredTransactions.length)} এর {filteredTransactions.length})
                 </span>
               </div>
               
@@ -719,17 +736,17 @@ const CustomerList = () => {
         )}
       </div>
 
-      {/* Customer Details Modal */}
-      {showCustomerModal && selectedCustomer && (
+      {/* Transaction Details Modal */}
+      {showTransactionModal && selectedTransaction && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className={`w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto`}>
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  কাস্টমারের বিবরণ
+                  লেনদেনের বিবরণ
                 </h3>
                 <button
-                  onClick={() => setShowCustomerModal(false)}
+                  onClick={() => setShowTransactionModal(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
                 >
                   <X className="w-6 h-6" />
@@ -741,84 +758,92 @@ const CustomerList = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Customer ID
+                    Transaction ID
                   </label>
-                  <p className="text-gray-900 dark:text-white font-mono">{selectedCustomer.id}</p>
+                  <p className="text-gray-900 dark:text-white font-mono">{selectedTransaction.id}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    রেফারেন্স
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.reference}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     কাস্টমারের নাম
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.name}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerName}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     ফোন নম্বর
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.phone}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerPhone}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     ইমেইল
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.email}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerEmail}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    ঠিকানা
+                    লেনদেনের ধরন
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.address}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    কাস্টমার টাইপ
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {getCustomerTypeIcon(selectedCustomer.customerType)}
-                    <span className="text-gray-900 dark:text-white">
-                      {getCustomerTypeLabel(selectedCustomer.customerType)}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    স্ট্যাটাস
-                  </label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedCustomer.status)}`}>
-                    {selectedCustomer.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(selectedTransaction.type)}`}>
+                    {selectedTransaction.type === 'credit' ? 'ক্রেডিট' : 'ডেবিট'}
                   </span>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    নিবন্ধনের তারিখ
+                    ক্যাটাগরি
                   </label>
-                  <p className="text-gray-900 dark:text-white">{formatDate(selectedCustomer.registrationDate)}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.category}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    পাসপোর্ট নম্বর
+                    পেমেন্ট মেথড
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.passportNumber}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.paymentMethod}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    মোট লেনদেন
+                    পরিমাণ
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.totalTransactions}</p>
+                  <p className={`font-semibold ${
+                    selectedTransaction.type === 'credit' 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {formatAmount(selectedTransaction.amount)}
+                  </p>
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    তারিখ
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{formatDate(selectedTransaction.date)}</p>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                  নোট
+                </label>
+                <p className="text-gray-900 dark:text-white">{selectedTransaction.notes || 'কোন নোট নেই'}</p>
               </div>
             </div>
             
             <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
               <button
-                onClick={() => handleEditCustomer(selectedCustomer)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
+                onClick={() => handleDownloadPDF(selectedTransaction)}
+                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all duration-200"
               >
-                <Edit className="w-5 h-5" />
-                এডিট করুন
+                <Download className="w-5 h-5" />
+                PDF ডাউনলোড
               </button>
               <button
-                onClick={() => setShowCustomerModal(false)}
+                onClick={() => setShowTransactionModal(false)}
                 className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
               >
                 বন্ধ করুন
@@ -831,4 +856,4 @@ const CustomerList = () => {
   );
 };
 
-export default CustomerList;
+export default TransactionsList;
