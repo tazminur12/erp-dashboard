@@ -21,6 +21,7 @@ import TransactionsList from './pages/Transactions/TransactionsList';
 import NewTransaction from './pages/Transactions/NewTransaction';
 
 // Vendor pages
+import VendorDashboard from './pages/Vendors/VendorDashboard';
 import VendorList from './pages/Vendors/VendorList';
 import AddVendor from './pages/Vendors/AddVendor';
 // Removed VendorPayment, VendorDueReport
@@ -228,6 +229,10 @@ const router = createBrowserRouter([
       </ThemeProvider>
     ),
     children: [
+      {
+        path: "dashboard",
+        element: <VendorDashboard />
+      },
       {
         index: true,
         element: <VendorList />

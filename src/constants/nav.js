@@ -110,6 +110,7 @@ export const navigation = [
     name: 'Vendors',
     icon: Building2,
     children: [
+      { name: 'Vendor Dashboard', href: '/vendors/dashboard', icon: LayoutDashboard },
       { name: 'Vendor List', href: '/vendors', icon: List },
       { name: 'Add Vendor', href: '/vendors/add', icon: Plus }
     ]
