@@ -96,18 +96,24 @@ import FlyOvalAudit from './pages/FlyOval/Audit';
 // Excel Upload page
 import ExcelUploadPage from './pages/ExcelUpload/ExcelUploadPage';
 
-// Other Business pages
-import BusinessList from './pages/OtherBusiness/BusinessList';
-import AddBusiness from './pages/OtherBusiness/AddBusiness';
-import BusinessIncome from './pages/OtherBusiness/BusinessIncome';
-import BusinessExpense from './pages/OtherBusiness/BusinessExpense';
-import ProfitLossSummary from './pages/OtherBusiness/ProfitLossSummary';
 
 // Office Management pages
-import Salary from './pages/OfficeManagement/Salary';
-import OfficeRent from './pages/OfficeManagement/OfficeRent';
-import Food from './pages/OfficeManagement/Food';
-import Utilities from './pages/OfficeManagement/Utilities';
+import Payroll from './pages/OfficeManagement/HR Managment/Payroll';
+import Provident_Fund from './pages/OfficeManagement/HR Managment/Provident_Fund';
+import Sale_Target from './pages/OfficeManagement/HR Managment/Sale_Target';
+import Attendance from './pages/OfficeManagement/HR Managment/Attendance';
+import IncentivePlan from './pages/OfficeManagement/HR Managment/IncentivePlan';
+
+// Operating Expenses pages
+import OperatingExpenses from './pages/OfficeManagement/OperatingExpenses';
+import LegalComplianceCosts from './pages/OfficeManagement/LegalComplianceCosts';
+import MarketingBrandingExpenses from './pages/OfficeManagement/MarketingBrandingExpenses';
+import ITSoftwareExpenses from './pages/OfficeManagement/ITSoftwareExpenses';
+import FinancialBankCharges from './pages/OfficeManagement/FinancialBankCharges';
+import AssetPurchases from './pages/OfficeManagement/AssetPurchases';
+import MiscellaneousOperationalCosts from './pages/OfficeManagement/MiscellaneousOperationalCosts';
+import TaxRegulatoryPayments from './pages/OfficeManagement/TaxRegulatoryPayments';
+import RefundsReimbursements from './pages/OfficeManagement/RefundsReimbursements';
 
 
 // Money Exchange pages
@@ -562,36 +568,6 @@ const router = createBrowserRouter([
     ]
   },
   {
-    path: "/other-business",
-    element: (
-      <ThemeProvider>
-        <DashboardLayout />
-      </ThemeProvider>
-    ),
-    children: [
-      {
-        index: true,
-        element: <BusinessList />
-      },
-      {
-        path: "add",
-        element: <AddBusiness />
-      },
-      {
-        path: "income",
-        element: <BusinessIncome />
-      },
-      {
-        path: "expense",
-        element: <BusinessExpense />
-      },
-      {
-        path: "profit-loss",
-        element: <ProfitLossSummary />
-      }
-    ]
-  },
-  {
     path: "/office-management",
     element: (
       <ThemeProvider>
@@ -600,20 +576,61 @@ const router = createBrowserRouter([
     ),
     children: [
       {
-        path: "salary",
-        element: <Salary />
+        path: "hr/payroll",
+        element: <Payroll />
       },
       {
-        path: "rent",
-        element: <OfficeRent />
+        path: "hr/provident-fund",
+        element: <Provident_Fund/>
       },
       {
-        path: "food",
-        element: <Food />
+        path: "hr/sale-target",
+        element: <Sale_Target/>
       },
       {
-        path: "utilities",
-        element: <Utilities />
+        path: "hr/attendance",
+        element: <Attendance/>
+      },
+      {
+        path: "hr/incentive-plan",
+        element: <IncentivePlan/>
+      },
+      // Operating Expenses routes
+      {
+        path: "operating-expenses",
+        element: <OperatingExpenses />
+      },
+      {
+        path: "operating-expenses/legal-compliance",
+        element: <LegalComplianceCosts />
+      },
+      {
+        path: "operating-expenses/marketing-branding",
+        element: <MarketingBrandingExpenses />
+      },
+      {
+        path: "operating-expenses/it-software",
+        element: <ITSoftwareExpenses />
+      },
+      {
+        path: "operating-expenses/financial-bank",
+        element: <FinancialBankCharges />
+      },
+      {
+        path: "operating-expenses/asset-purchases",
+        element: <AssetPurchases />
+      },
+      {
+        path: "operating-expenses/miscellaneous",
+        element: <MiscellaneousOperationalCosts />
+      },
+      {
+        path: "operating-expenses/tax-regulatory",
+        element: <TaxRegulatoryPayments />
+      },
+      {
+        path: "operating-expenses/refunds",
+        element: <RefundsReimbursements />
       }
     ]
   },

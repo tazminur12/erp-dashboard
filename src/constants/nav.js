@@ -71,7 +71,11 @@ import {
   ClipboardList,
   BookOpen,
   FileCheck,
-  Eye
+  Eye,
+  Scale,
+  Megaphone,
+  Laptop,
+  RotateCcw
 } from 'lucide-react';
 
 export const navigation = [
@@ -256,26 +260,25 @@ export const navigation = [
     ]
   },
   {
-    name: 'Other Business',
-    icon: Briefcase,
-    children: [
-      { name: 'Business List', href: '/other-business', icon: List },
-      { name: 'Add Business', href: '/other-business/add', icon: Plus },
-      { name: 'Business Income', href: '/other-business/income', icon: TrendingUp },
-      { name: 'Business Expense', href: '/other-business/expense', icon: TrendingDown },
-      { name: 'Profit/Loss Summary', href: '/other-business/profit-loss', icon: BarChart3 }
-    ]
-  },
-  {
-    name: 'Office Management',
-    icon: Home,
-    children: [
-      { name: 'Salary', href: '/office-management/salary', icon: DollarSign },
-      { name: 'Office Rent', href: '/office-management/rent', icon: Building2 },
-      { name: 'Food', href: '/office-management/food', icon: Utensils },
-      { name: 'Utilities', href: '/office-management/utilities', icon: Zap }
-    ]
-  },
+  name: 'Office Management',
+  icon: Home,
+  children: [
+    {
+      name: 'HR Management',
+      icon: Users,
+      children: [
+        { name: 'Employeer', href: '/office-management/hr/employeer', icon: Users }, 
+        { name: 'Payroll', href: '/office-management/hr/payroll', icon: Receipt },
+        { name: 'Incentive Plan', href: '/office-management/hr/incentive-plan', icon: TrendingUp },
+        { name: 'Provident Fund', href: '/office-management/hr/provident-fund', icon: PiggyBank },
+        { name: 'Employee Sale Target', href: '/office-management/hr/sale-target', icon: BarChart3 },
+        { name: 'Employee Attendance', href: '/office-management/hr/attendance', icon: ClipboardList }
+      ]
+      
+    },
+    { name: 'Operating Expenses', href: '/office-management/operating-expenses', icon: DollarSign },
+  ]
+},
   {
     name: 'Money Exchange',
     icon: Globe,
