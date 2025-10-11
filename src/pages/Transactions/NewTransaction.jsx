@@ -376,7 +376,7 @@ const NewTransaction = () => {
         { number: 1, title: 'লেনদেন টাইপ', description: 'একাউন্ট টু একাউন্ট ট্রান্সফার' },
         { number: 2, title: 'ডেবিট একাউন্ট', description: 'ডেবিট একাউন্ট নির্বাচন করুন' },
         { number: 3, title: 'ক্রেডিট একাউন্ট', description: 'ক্রেডিট একাউন্ট নির্বাচন করুন' },
-        { number: 4, title: 'একাউন্ট ম্যানেজার', description: 'একাউন্ট ম্যানেজার নির্বাচন করুন' },
+        { number: 4, title: 'ট্রান্সফার বিবরণ', description: 'ট্রান্সফার পরিমাণ ও একাউন্ট ম্যানেজার নির্বাচন' },
         { number: 5, title: 'কনফার্মেশন', description: 'এসএমএস কনফার্মেশন এবং সংরক্ষণ' }
       ];
     } else {
@@ -1377,13 +1377,13 @@ const NewTransaction = () => {
           {currentStep === 4 && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'transfer' ? (
-                // Transfer: Account Manager Selection
+                // Transfer: Transfer Details and Account Manager Selection
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    একাউন্ট ম্যানেজার নির্বাচন করুন
+                    ট্রান্সফার বিবরণ ও একাউন্ট ম্যানেজার নির্বাচন
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    ট্রান্সফার অনুমোদনের জন্য একাউন্ট ম্যানেজার সিলেক্ট করুন
+                    ট্রান্সফার পরিমাণ লিখুন এবং অনুমোদনের জন্য একাউন্ট ম্যানেজার সিলেক্ট করুন
                   </p>
                 </div>
               ) : (
@@ -1400,66 +1400,8 @@ const NewTransaction = () => {
 
               <div className="max-w-6xl mx-auto">
                 {formData.transactionType === 'transfer' ? (
-                  // Transfer: Account Manager Selection and Transfer Details
+                  // Transfer: Transfer Details first, then Account Manager Selection
                   <div className="space-y-4 sm:space-y-6">
-                    {/* Account Manager Search Bar */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
-                        value={accountManagerSearchTerm}
-                        onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
-                        className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
-                          isDark 
-                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                            : 'border-gray-300'
-                        }`}
-                      />
-                    </div>
-
-                    {/* Account Manager List */}
-                    <div className="space-y-2 sm:space-y-3 max-h-60 sm:max-h-80 overflow-y-auto">
-                      {filteredAccountManagers.map((manager) => (
-                        <button
-                          key={manager.id}
-                          onClick={() => handleAccountManagerSelect(manager)}
-                          className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
-                            formData.accountManager?.id === manager.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                          }`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                formData.accountManager?.id === manager.id
-                                  ? 'bg-blue-100 dark:bg-blue-800'
-                                  : 'bg-gray-100 dark:bg-gray-700'
-                              }`}>
-                                <User className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                                  formData.accountManager?.id === manager.id
-                                    ? 'text-blue-600 dark:text-blue-400'
-                                    : 'text-gray-600 dark:text-gray-400'
-                                }`} />
-                              </div>
-                              <div className="text-left min-w-0 flex-1">
-                                <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
-                                  {manager.name}
-                                </h3>
-                                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                                  {manager.designation}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
-                                  📞 {manager.phone} • ✉️ {manager.email}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-
                     {/* Transfer Amount Input */}
                     <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 sm:p-6">
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -1533,6 +1475,64 @@ const NewTransaction = () => {
                           }`}
                         />
                       </div>
+                    </div>
+
+                    {/* Account Manager Search Bar */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
+                        value={accountManagerSearchTerm}
+                        onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Account Manager List */}
+                    <div className="space-y-2 sm:space-y-3 max-h-60 sm:max-h-80 overflow-y-auto">
+                      {filteredAccountManagers.map((manager) => (
+                        <button
+                          key={manager.id}
+                          onClick={() => handleAccountManagerSelect(manager)}
+                          className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
+                            formData.accountManager?.id === manager.id
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                formData.accountManager?.id === manager.id
+                                  ? 'bg-blue-100 dark:bg-blue-800'
+                                  : 'bg-gray-100 dark:bg-gray-700'
+                              }`}>
+                                <User className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                  formData.accountManager?.id === manager.id
+                                    ? 'text-blue-600 dark:text-blue-400'
+                                    : 'text-gray-600 dark:text-gray-400'
+                                }`} />
+                              </div>
+                              <div className="text-left min-w-0 flex-1">
+                                <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                  {manager.name}
+                                </h3>
+                                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                                  {manager.designation}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                  📞 {manager.phone} • ✉️ {manager.email}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ) : (
