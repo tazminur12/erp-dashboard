@@ -277,12 +277,10 @@ const AddCustomer = () => {
   const [districts, setDistricts] = useState([]);
   const [upazilas, setUpazilas] = useState([]);
   
-  // Customer types management - Backend validation compatible
-  const [customerTypes, setCustomerTypes] = useState([]);
-  const [customerTypesLoading, setCustomerTypesLoading] = useState(false);
-  const [showAddCustomerTypeModal, setShowAddCustomerTypeModal] = useState(false);
-  const [newCustomerType, setNewCustomerType] = useState({ value: '', label: '', icon: 'Home', prefix: '' });
-  const [editingCustomerType, setEditingCustomerType] = useState(null);
+  // Categories management - Integrated with CategoryManagement
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  // Customer type management is now handled by CategoryManagement component
   
   // Reference customer search states
   const [showReferenceSearchModal, setShowReferenceSearchModal] = useState(false);
@@ -316,33 +314,42 @@ const AddCustomer = () => {
       // Cloudinary configuration incomplete
     }
     
-    // Load customer types from backend
-    loadCustomerTypes();
+    // Load categories from backend
+    loadCategories();
   }, []);
 
-  // Load customer types from backend
-  const loadCustomerTypes = async () => {
+  // Load categories from backend - Integrated with CategoryManagement
+  const loadCategories = async () => {
     try {
-      setCustomerTypesLoading(true);
-      const response = await axiosSecure.get('/customer-types');
+      setCategoriesLoading(true);
+      const response = await axiosSecure.get('/categories');
       
       if (response.data.success) {
-        setCustomerTypes(response.data.customerTypes || []);
+        // Filter categories for customer types (type: 'customer' or 'service')
+        const customerCategories = (response.data.categories || []).filter(cat => 
+          cat.type === 'customer' || cat.type === 'service'
+        );
+        setCategories(customerCategories);
       } else {
-        // Fallback to default types if API fails
-        setCustomerTypes([
-          { value: 'haj', label: 'হাজ্জ', icon: 'Home', prefix: 'H' },
-          { value: 'umrah', label: 'ওমরাহ', icon: 'Home', prefix: 'U' }
+        // Fallback to default categories if API fails
+        setCategories([
+          { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
+          { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
+          { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
+          { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
         ]);
       }
     } catch (error) {
-      // Fallback to default types if API fails
-      setCustomerTypes([
-        { value: 'haj', label: 'হাজ্জ', icon: 'Home', prefix: 'H' },
-        { value: 'umrah', label: 'ওমরাহ', icon: 'Home', prefix: 'U' }
+      console.error('Error loading categories:', error);
+      // Fallback to default categories if API fails
+      setCategories([
+        { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
+        { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
+        { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
+        { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
       ]);
     } finally {
-      setCustomerTypesLoading(false);
+      setCategoriesLoading(false);
     }
   };
 
@@ -637,222 +644,9 @@ const AddCustomer = () => {
     setReferenceSearchResults([]);
   };
 
-  // Customer type management functions
-  const handleAddCustomerType = async () => {
-    if (!newCustomerType.value || !newCustomerType.label || !newCustomerType.prefix) {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'সব তথ্য পূরণ করুন (Value, Label, Prefix)',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
-      return;
-    }
-    
-    try {
-      const response = await axiosSecure.post('/customer-types', {
-        value: newCustomerType.value,
-        label: newCustomerType.label,
-        icon: newCustomerType.icon,
-        prefix: newCustomerType.prefix
-      });
-      
-      if (response.data.success) {
-        // Reload customer types from backend
-        await loadCustomerTypes();
-        
-        setNewCustomerType({ value: '', label: '', icon: 'Home', prefix: '' });
-        setShowAddCustomerTypeModal(false);
-        
-        // Show success message
-        Swal.fire({
-          title: 'সফল!',
-          text: 'নতুন কাস্টমার ধরন যোগ হয়েছে!',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F9FAFB',
-          customClass: {
-            title: 'text-green-600 font-bold text-xl',
-            popup: 'rounded-2xl shadow-2xl'
-          }
-        });
-      } else {
-        throw new Error(response.data.message || 'Failed to create customer type');
-      }
-    } catch (error) {
-      let errorMessage = 'কাস্টমার ধরন যোগ করতে সমস্যা হয়েছে।';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
-    }
-  };
+  // Customer type management is now handled by CategoryManagement component
 
-  const handleDeleteCustomerType = async (customerTypeId, valueToDelete) => {
-    Swal.fire({
-      title: 'নিশ্চিত করুন',
-      text: 'আপনি কি এই কাস্টমার ধরন মুছে ফেলতে চান?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
-      cancelButtonText: 'না, বাতিল করুন',
-      confirmButtonColor: '#EF4444',
-      cancelButtonColor: '#6B7280',
-      background: isDark ? '#1F2937' : '#F9FAFB',
-      customClass: {
-        title: 'text-red-600 font-bold text-xl',
-        popup: 'rounded-2xl shadow-2xl'
-      }
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const response = await axiosSecure.delete(`/customer-types/${customerTypeId}`, {
-            data: { value: valueToDelete }
-          });
-          
-          if (response.data.success) {
-            // Reload customer types from backend
-            await loadCustomerTypes();
-            
-            // If the deleted type was selected, clear the selection
-            if (formData.customerType === valueToDelete) {
-              setFormData(prev => ({ ...prev, customerType: '' }));
-            }
-            
-            Swal.fire({
-              title: 'মুছে ফেলা হয়েছে!',
-              text: 'কাস্টমার ধরন মুছে ফেলা হয়েছে।',
-              icon: 'success',
-              confirmButtonText: 'ঠিক আছে',
-              confirmButtonColor: '#10B981',
-              background: isDark ? '#1F2937' : '#F9FAFB',
-              customClass: {
-                title: 'text-green-600 font-bold text-xl',
-                popup: 'rounded-2xl shadow-2xl'
-              }
-            });
-          } else {
-            throw new Error(response.data.message || 'Failed to delete customer type');
-          }
-        } catch (error) {
-          let errorMessage = 'কাস্টমার ধরন মুছতে সমস্যা হয়েছে।';
-          
-          if (error.response?.data?.message) {
-            errorMessage = error.response.data.message;
-          } else if (error.message) {
-            errorMessage = error.message;
-          }
-          
-          Swal.fire({
-            title: 'ত্রুটি!',
-            text: errorMessage,
-            icon: 'error',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#EF4444',
-            background: isDark ? '#1F2937' : '#FEF2F2',
-            customClass: {
-              title: 'text-red-600 font-bold text-xl',
-              popup: 'rounded-2xl shadow-2xl'
-            }
-          });
-        }
-      }
-    });
-  };
 
-  // Update customer type
-  const handleUpdateCustomerType = async () => {
-    if (!editingCustomerType.value || !editingCustomerType.label || !editingCustomerType.prefix) {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'সব তথ্য পূরণ করুন (Value, Label, Prefix)',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
-      return;
-    }
-    
-    try {
-      const response = await axiosSecure.patch(`/customer-types/${editingCustomerType._id}`, {
-        value: editingCustomerType.value,
-        label: editingCustomerType.label,
-        icon: editingCustomerType.icon,
-        prefix: editingCustomerType.prefix
-      });
-      
-      if (response.data.success) {
-        // Reload customer types from backend
-        await loadCustomerTypes();
-        
-        setEditingCustomerType(null);
-        
-        // Show success message
-        Swal.fire({
-          title: 'সফল!',
-          text: 'কাস্টমার ধরন আপডেট হয়েছে!',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F9FAFB',
-          customClass: {
-            title: 'text-green-600 font-bold text-xl',
-            popup: 'rounded-2xl shadow-2xl'
-          }
-        });
-      } else {
-        throw new Error(response.data.message || 'Failed to update customer type');
-      }
-    } catch (error) {
-      let errorMessage = 'কাস্টমার ধরন আপডেট করতে সমস্যা হয়েছে।';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
-    }
-  };
 
   const handleInputChange = (e) => {
     const { name, value, type, checked, files } = e.target;
@@ -1054,6 +848,8 @@ const AddCustomer = () => {
       setFormData({
         customerType: '',
         name: '',
+        firstName: '',
+        lastName: '',
         mobile: '',
         whatsappNo: '',
         email: '',
@@ -1062,12 +858,22 @@ const AddCustomer = () => {
         district: '',
         upazila: '',
         postCode: '',
+        occupation: '',
         passportNumber: '',
         passportType: '',
         issueDate: '',
         expiryDate: '',
         dateOfBirth: '',
         nidNumber: '',
+        passportFirstName: '',
+        passportLastName: '',
+        nationality: '',
+        previousPassport: '',
+        gender: '',
+        fatherName: '',
+        motherName: '',
+        spouseName: '',
+        maritalStatus: '',
         customerImage: null,
         isActive: true,
         notes: '',
@@ -1290,26 +1096,26 @@ const AddCustomer = () => {
                     value={formData.customerType}
                     onChange={handleInputChange}
                     required
-                    disabled={customerTypesLoading}
+                    disabled={categoriesLoading}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'bg-white border-gray-300'
-                    } ${customerTypesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    } ${categoriesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <option value="">
-                      {customerTypesLoading ? 'লোড হচ্ছে...' : 'ধরন নির্বাচন করুন'}
+                      {categoriesLoading ? 'লোড হচ্ছে...' : 'ধরন নির্বাচন করুন'}
                     </option>
-                    {customerTypes.map(type => {
-                      const IconComponent = availableIcons.find(icon => icon.value === type.icon)?.icon || Home;
+                    {categories.map(category => {
+                      const IconComponent = availableIcons.find(icon => icon.value === category.icon)?.icon || Home;
                       return (
-                      <option key={type.value} value={type.value}>
-                        {type.label} ({type.prefix})
+                      <option key={category.value} value={category.value}>
+                        {category.label} ({category.prefix})
                       </option>
                       );
                     })}
                   </select>
-                  {customerTypesLoading && (
+                  {categoriesLoading && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                       <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                     </div>
@@ -1318,22 +1124,7 @@ const AddCustomer = () => {
                 
                 {/* Customer Type Management */}
                 <div className="mt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddCustomerTypeModal(true);
-                      setEditingCustomerType(null);
-                      setNewCustomerType({ value: '', label: '', icon: 'Home', prefix: '' });
-                    }}
-                    className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-md transition-all duration-200 ${
-                      isDark 
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
-                    }`}
-                  >
-                                      <Users className="w-3 h-3" />
-                  ধরন ব্যবস্থাপনা
-                  </button>
+                  {/* Customer type management is now handled by CategoryManagement component */}
                 </div>
               </div>
 
@@ -1397,7 +1188,7 @@ const AddCustomer = () => {
                     value={formData.mobile}
                     onChange={handleInputChange}
                     required
-                    placeholder="০১১-১২৩৪৫৬৭৮"
+                    placeholder="017xxxxxxxx"
                     className={`w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -1443,7 +1234,7 @@ const AddCustomer = () => {
                     name="whatsappNo"
                     value={formData.whatsappNo}
                     onChange={handleInputChange}
-                    placeholder="০১১-১২৩৪৫৬৭৮"
+                    placeholder="017xxxxxxxx"
                     disabled={useMobileAsWhatsApp}
                     className={`w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                       isDark 
@@ -1616,7 +1407,7 @@ const AddCustomer = () => {
                   name="postCode"
                   value={formData.postCode}
                   onChange={handleInputChange}
-                  placeholder="১২৩৪"
+                  placeholder="1234"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -2483,8 +2274,8 @@ const AddCustomer = () => {
         </div>
       )}
 
-      {/* Add Customer Type Modal */}
-      {showAddCustomerTypeModal && (
+      {/* Customer type management is now handled by CategoryManagement component */}
+      {false && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className={`max-w-2xl w-full rounded-2xl shadow-2xl transition-colors duration-300 ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'

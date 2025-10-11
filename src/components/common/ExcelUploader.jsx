@@ -19,7 +19,8 @@ import {
   ArrowRight,
   Info,
   Package,
-  Building
+  Building,
+  CreditCard
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -65,7 +66,20 @@ const ExcelUploader = ({
     'contactNo': { label: 'Contact No', icon: Phone, type: 'text', required: false },
     'dob': { label: 'Date of Birth', icon: Calendar, type: 'date', required: false },
     'nid': { label: 'NID', icon: Users, type: 'text', required: false },
-    'passport': { label: 'Passport', icon: Users, type: 'text', required: false }
+    'passport': { label: 'Passport', icon: Users, type: 'text', required: false },
+    'agentId': { label: 'Agent ID', icon: Users, type: 'text', required: true },
+    'method': { label: 'Payment Method', icon: CreditCard, type: 'text', required: true },
+    'bankName': { label: 'Bank Name', icon: Building, type: 'text', required: false },
+    'referenceNumber': { label: 'Reference Number', icon: CreditCard, type: 'text', required: false },
+    'time': { label: 'Time', icon: Calendar, type: 'text', required: false },
+    'notes': { label: 'Notes', icon: Info, type: 'text', required: false },
+    'customerName': { label: 'Customer Name', icon: Users, type: 'text', required: false },
+    'customerPhone': { label: 'Customer Phone', icon: Phone, type: 'text', required: false },
+    'productType': { label: 'Product Type', icon: Package, type: 'text', required: false },
+    'productName': { label: 'Product Name', icon: Package, type: 'text', required: false },
+    'quantity': { label: 'Quantity', icon: Package, type: 'number', required: false },
+    'unitPrice': { label: 'Unit Price', icon: DollarSign, type: 'number', required: false },
+    'netAmount': { label: 'Net Amount', icon: DollarSign, type: 'number', required: false }
   };
 
   const onDrop = useCallback((acceptedFiles) => {
@@ -106,17 +120,27 @@ const ExcelUploader = ({
           setExcelData(excelRows);
           setCurrentStep(2);
           
-          // Auto-map headers if possible
+          // Simple auto-mapping
           const autoMapping = {};
+          
           excelHeaders.forEach((header, index) => {
-            const headerLower = header?.toString().toLowerCase().trim();
+            if (!header) return;
+            
+            const headerLower = header.toString().toLowerCase().trim();
+            
+            // Simple direct matching
             Object.keys(fieldTypes).forEach(fieldKey => {
               const fieldLabel = fieldTypes[fieldKey].label.toLowerCase();
-              if (headerLower && (headerLower.includes(fieldLabel) || fieldLabel.includes(headerLower))) {
+              
+              // Direct match or contains match
+              if (headerLower === fieldLabel || 
+                  headerLower.includes(fieldLabel) || 
+                  fieldLabel.includes(headerLower)) {
                 autoMapping[fieldKey] = index;
               }
             });
           });
+          
           setMappedFields(autoMapping);
         }
       } catch (error) {
@@ -133,89 +157,53 @@ const ExcelUploader = ({
     const errors = [];
     const processedData = [];
 
-    excelData.forEach((row, rowIndex) => {
-      const rowErrors = [];
-      const rowData = {};
-
-      // Check required fields
-      requiredFields.forEach(field => {
-        const columnIndex = mappedFields[field];
-        if (columnIndex === undefined || columnIndex === null) {
-          rowErrors.push(`Required field "${fieldTypes[field]?.label}" is not mapped`);
-        } else {
-          const value = row[columnIndex];
-          if (!value || value.toString().trim() === '') {
-            rowErrors.push(`Required field "${fieldTypes[field]?.label}" is empty in row ${rowIndex + 2}`);
-          }
-        }
-      });
-
-      // Validate email format
-      if (mappedFields.email !== undefined && row[mappedFields.email]) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(row[mappedFields.email])) {
-          rowErrors.push(`Invalid email format in row ${rowIndex + 2}`);
-        }
-      }
-
-      // Validate phone format
-      if (mappedFields.phone !== undefined && row[mappedFields.phone]) {
-        const phoneRegex = /^[\+]?[0-9\s\-\(\)]{10,}$/;
-        if (!phoneRegex.test(row[mappedFields.phone].toString())) {
-          rowErrors.push(`Invalid phone format in row ${rowIndex + 2}`);
-        }
-      }
-
-      // Validate commission (if provided)
-      if (mappedFields.commission !== undefined && row[mappedFields.commission]) {
-        const commission = parseFloat(row[mappedFields.commission]);
-        if (isNaN(commission) || commission < 0 || commission > 100) {
-          rowErrors.push(`Invalid commission value in row ${rowIndex + 2} (must be between 0-100)`);
-        }
-      }
-
-      if (rowErrors.length > 0) {
-        errors.push({
-          row: rowIndex + 2,
-          errors: rowErrors
-        });
-      } else {
-        // Create processed row data
-        Object.keys(mappedFields).forEach(field => {
-          const columnIndex = mappedFields[field];
-          if (columnIndex !== undefined && columnIndex !== null && row[columnIndex]) {
-            let value = row[columnIndex];
-            
-            // Format data based on field type
-            switch (fieldTypes[field]?.type) {
-              case 'number':
-                value = parseFloat(value) || 0;
-                break;
-              case 'date':
-                if (value instanceof Date) {
-                  value = value.toISOString().split('T')[0];
-                } else if (typeof value === 'number') {
-                  // Excel date serial number
-                  const date = new Date((value - 25569) * 86400 * 1000);
-                  value = date.toISOString().split('T')[0];
-                } else {
-                  value = value.toString();
-                }
-                break;
-              default:
-                value = value.toString().trim();
-            }
-            
-            rowData[field] = value;
-          }
-        });
-        
-        processedData.push(rowData);
+    // Simple validation - only check if required fields are mapped
+    requiredFields.forEach(field => {
+      const columnIndex = mappedFields[field];
+      if (columnIndex === undefined || columnIndex === null) {
+        errors.push(`Required field "${fieldTypes[field]?.label}" is not mapped`);
       }
     });
 
-    setValidationErrors(errors);
-    return { errors, processedData };
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      return { errors, processedData: [] };
+    }
+
+    // Process all rows without strict validation
+    excelData.forEach((row, rowIndex) => {
+      const rowData = {};
+      
+      Object.keys(mappedFields).forEach(field => {
+        const columnIndex = mappedFields[field];
+        if (columnIndex !== undefined && columnIndex !== null && row[columnIndex] !== undefined) {
+          let value = row[columnIndex];
+          
+          // Simple formatting
+          if (fieldTypes[field]?.type === 'number') {
+            value = parseFloat(value) || 0;
+          } else if (fieldTypes[field]?.type === 'date') {
+            if (value instanceof Date) {
+              value = value.toISOString().split('T')[0];
+            } else if (typeof value === 'number') {
+              const date = new Date((value - 25569) * 86400 * 1000);
+              value = date.toISOString().split('T')[0];
+            } else {
+              value = value.toString();
+            }
+          } else {
+            value = value.toString().trim();
+          }
+          
+          rowData[field] = value;
+        }
+      });
+      
+      processedData.push(rowData);
+    });
+
+    setValidationErrors([]);
+    return { errors: [], processedData };
   };
 
   const handlePreview = () => {
@@ -235,24 +223,57 @@ const ExcelUploader = ({
   };
 
   const downloadSampleFile = () => {
+    let sample = [];
+    
     if (sampleData.length === 0) {
-      // Create sample data
-      const sample = [
-        ['Name', 'Email', 'Phone', 'Address', 'Commission'],
-        ['John Doe', 'john@example.com', '+8801712345678', 'Dhaka, Bangladesh', '5.5'],
-        ['Jane Smith', 'jane@example.com', '+8801712345679', 'Chittagong, Bangladesh', '4.8']
-      ];
+      // Create simple sample data based on accepted fields
+      const headers = acceptedFields.map(field => fieldTypes[field]?.label || field);
+      sample = [headers];
       
-      const ws = XLSX.utils.aoa_to_sheet(sample);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Sample Data');
-      XLSX.writeFile(wb, 'sample_agent_data.xlsx');
+      // Add simple sample rows
+      for (let i = 1; i <= 3; i++) {
+        const row = acceptedFields.map(field => {
+          switch (field) {
+            case 'name':
+              return `Sample Name ${i}`;
+            case 'email':
+              return `sample${i}@email.com`;
+            case 'phone':
+              return `+880171234567${i}`;
+            case 'passport':
+              return `A${i.toString().padStart(6, '0')}`;
+            case 'package':
+              return 'Standard Package';
+            case 'tradeName':
+              return `Business Name ${i}`;
+            case 'tradeLocation':
+              return 'Dhaka, Bangladesh';
+            case 'ownerName':
+              return `Owner Name ${i}`;
+            case 'contactNo':
+              return `+880171234567${i}`;
+            case 'totalAmount':
+              return '100000';
+            case 'paidAmount':
+              return '50000';
+            case 'status':
+              return 'Active';
+            case 'paymentStatus':
+              return 'Paid';
+            default:
+              return `Sample Data ${i}`;
+          }
+        });
+        sample.push(row);
+      }
     } else {
-      const ws = XLSX.utils.aoa_to_sheet(sampleData);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Sample Data');
-      XLSX.writeFile(wb, 'sample_data.xlsx');
+      sample = sampleData;
     }
+    
+    const ws = XLSX.utils.aoa_to_sheet(sample);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sample Data');
+    XLSX.writeFile(wb, 'simple_sample_data.xlsx');
   };
 
   const resetUploader = () => {
@@ -388,9 +409,15 @@ const ExcelUploader = ({
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                   <div className="flex items-center space-x-2">
                     <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    <p className="text-blue-800 dark:text-blue-400">
-                      Map the Excel columns to the required fields. Required fields are marked with *.
-                    </p>
+                    <div>
+                      <p className="text-blue-800 dark:text-blue-400">
+                        Select which Excel column matches each field. Required fields are marked with *.
+                      </p>
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        {Object.keys(mappedFields).length} fields auto-mapped. 
+                        Map the remaining fields manually if needed.
+                      </p>
+                    </div>
                   </div>
                 </div>
 

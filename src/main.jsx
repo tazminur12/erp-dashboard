@@ -121,6 +121,7 @@ import AllInvoices from './pages/SalesInvoice/List';
 
 // Settings pages
 import Users from './pages/Settings/Users';
+import CategoryManagement from './pages/Settings/CategoryManagement';
 import BackupRestore from './pages/Settings/BackupRestore';
 
 // Profile page
@@ -667,6 +668,10 @@ const router = createBrowserRouter([
       {
         path: "users",
         element: <Users />
+      },
+      {
+        path: "categories",
+        element: <CategoryManagement />
       },
       {
         path: "backup",

@@ -144,11 +144,11 @@ export const navigation = [
         ]
       },
       {
-        name: 'Hajj Package',
+        name: 'Package',
         icon: Package,
         children: [
-          { name: 'Hajj Package Overview', href: '/hajj-umrah/package-list', icon: List },
-          { name: 'Create Hajj Package', href: '/hajj-umrah/package-creation', icon: Plus }
+          { name: 'Package Overview', href: '/hajj-umrah/package-list', icon: List },
+          { name: 'Create Package', href: '/hajj-umrah/package-creation', icon: Plus }
         ]
       }
     ]
@@ -289,6 +289,7 @@ export const navigation = [
     icon: Settings,
     children: [
       { name: 'User Management', href: '/settings/users', icon: Users },
+      { name: 'Category Management', href: '/settings/categories', icon: Package },
       { name: 'Backup & Restore', href: '/settings/backup', icon: Database }
     ]
   },

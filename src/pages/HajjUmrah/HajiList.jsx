@@ -425,7 +425,7 @@ const HajiList = () => {
         columns={columns}
         searchable={false}
         exportable={false}
-        actions={true}
+        actions={false}
       />
 
       {/* Haji Details Modal */}

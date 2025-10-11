@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, MoreVertical, Receipt } from 'lucide-react';
+import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, MoreVertical, Receipt, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Modal, { ModalFooter } from '../../components/common/Modal';
+import ExcelUploader from '../../components/common/ExcelUploader';
 import Swal from 'sweetalert2';
 
 const DEMO_VENDORS = [
@@ -62,6 +63,7 @@ const VendorList = () => {
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [showExcelUploader, setShowExcelUploader] = useState(false);
   const [orderForm, setOrderForm] = useState({ vendorId: '', orderType: '', amount: '' });
   const [touched, setTouched] = useState({});
   const [orderVendorQuery, setOrderVendorQuery] = useState('');
@@ -127,6 +129,50 @@ const VendorList = () => {
     });
   };
 
+  const handleExcelDataProcessed = async (processedData) => {
+    try {
+      // Simulate API call to save data
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Convert processed data to vendor format
+      const newVendors = processedData.map((record, index) => ({
+        id: `VND-${String(Date.now() + index).padStart(4, '0')}`,
+        tradeName: record.tradeName || '',
+        tradeLocation: record.tradeLocation || '',
+        ownerName: record.ownerName || '',
+        contactNo: record.contactNo || '',
+        dob: record.dob || '',
+        nid: record.nid || '',
+        passport: record.passport || ''
+      }));
+      
+      // Add new vendors to the existing list
+      DEMO_VENDORS.push(...newVendors);
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Vendors Uploaded Successfully',
+        text: `Successfully uploaded ${processedData.length} vendor records!`,
+        confirmButtonColor: '#7c3aed'
+      });
+      
+      // Refresh the page to show new data
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Error processing Excel data:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Upload Failed',
+        text: 'Error processing Excel data. Please try again.',
+        confirmButtonColor: '#7c3aed'
+      });
+    } finally {
+      setShowExcelUploader(false);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -153,6 +199,12 @@ const VendorList = () => {
               placeholder="Search vendors..."
             />
           </div>
+          <button
+            onClick={() => setShowExcelUploader(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-3.5 py-2.5"
+          >
+            <Upload className="w-4 h-4" /> Excel Upload
+          </button>
           <button
             onClick={() => setIsCreateOpen(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-3.5 py-2.5"
@@ -371,6 +423,25 @@ const VendorList = () => {
         </form>
       </div>
       </Modal>
+
+      {/* Excel Uploader Modal */}
+      {showExcelUploader && (
+        <ExcelUploader
+          isOpen={showExcelUploader}
+          onClose={() => setShowExcelUploader(false)}
+          onDataProcessed={handleExcelDataProcessed}
+          title="Upload Vendor Data"
+          acceptedFields={['tradeName', 'tradeLocation', 'ownerName', 'contactNo', 'dob', 'nid', 'passport']}
+          requiredFields={['tradeName', 'tradeLocation', 'ownerName', 'contactNo']}
+          sampleData={[
+            ['Trade Name', 'Trade Location', 'Owner Name', 'Contact No', 'Date of Birth', 'NID', 'Passport'],
+            ['Miraj Traders', 'Dhaka, Bangladesh', 'Abdul Karim', '+8801711223344', '1984-05-12', '197845623412', 'BA1234567'],
+            ['Nazmul Enterprise', 'Chattogram', 'Nazmul Hasan', '+8801911334455', '1990-08-21', '199045623411', 'EC7654321'],
+            ['Green Line Supplies', 'Sylhet', 'Shahadat Hossain', '+8801555667788', '1988-12-01', '188845623499', 'ZP1122334'],
+            ['City Hardware', 'Khulna', 'Rubel Mia', '+8801311223344', '1982-03-30', '198245623477', 'AA9988776']
+          ]}
+        />
+      )}
     </div>
   );
 };

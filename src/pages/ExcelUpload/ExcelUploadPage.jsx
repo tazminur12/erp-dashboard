@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as XLSX from 'xlsx';
 import {
   FileSpreadsheet,
   Upload,
@@ -200,6 +201,110 @@ const ExcelUploadPage = () => {
               Upload and process data from Excel files
             </p>
           </div>
+        </div>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => {
+              // Get all available fields from dataTypes
+              const allFields = [];
+              Object.values(dataTypes).forEach(dataType => {
+                dataType.fields.forEach(field => {
+                  if (!allFields.includes(field)) {
+                    allFields.push(field);
+                  }
+                });
+              });
+              
+              // Create headers from available fields
+              const headers = allFields.map(field => {
+                const fieldConfig = {
+                  'name': 'Name',
+                  'email': 'Email',
+                  'phone': 'Phone',
+                  'address': 'Address',
+                  'passport': 'Passport',
+                  'package': 'Package',
+                  'agent': 'Agent',
+                  'totalAmount': 'Total Amount',
+                  'paidAmount': 'Paid Amount',
+                  'status': 'Status',
+                  'paymentStatus': 'Payment Status',
+                  'registrationDate': 'Registration Date',
+                  'departureDate': 'Departure Date',
+                  'tradeName': 'Trade Name',
+                  'tradeLocation': 'Trade Location',
+                  'ownerName': 'Owner Name',
+                  'contactNo': 'Contact No',
+                  'dob': 'Date of Birth',
+                  'nid': 'NID',
+                  'commission': 'Commission'
+                };
+                return fieldConfig[field] || field;
+              });
+              
+              // Create sample data
+              const sampleData = [headers];
+              
+              // Add sample rows
+              for (let i = 1; i <= 3; i++) {
+                const row = allFields.map(field => {
+                  switch (field) {
+                    case 'name':
+                      return `Sample Name ${i}`;
+                    case 'email':
+                      return `sample${i}@email.com`;
+                    case 'phone':
+                    case 'contactNo':
+                      return `+880171234567${i}`;
+                    case 'passport':
+                      return `A${i.toString().padStart(6, '0')}`;
+                    case 'package':
+                      return 'Standard Package';
+                    case 'agent':
+                      return `Agent Name ${i}`;
+                    case 'tradeName':
+                      return `Business Name ${i}`;
+                    case 'tradeLocation':
+                      return 'Dhaka, Bangladesh';
+                    case 'ownerName':
+                      return `Owner Name ${i}`;
+                    case 'address':
+                      return 'Dhaka, Bangladesh';
+                    case 'totalAmount':
+                      return '100000';
+                    case 'paidAmount':
+                      return '50000';
+                    case 'status':
+                      return 'Active';
+                    case 'paymentStatus':
+                      return 'Paid';
+                    case 'registrationDate':
+                      return '2024-01-15';
+                    case 'departureDate':
+                      return '2024-06-10';
+                    case 'dob':
+                      return '1990-01-01';
+                    case 'nid':
+                      return `123456789${i}`;
+                    case 'commission':
+                      return '5.5';
+                    default:
+                      return `Sample Data ${i}`;
+                  }
+                });
+                sampleData.push(row);
+              }
+              
+              const ws = XLSX.utils.aoa_to_sheet(sampleData);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, 'Simple Data');
+              XLSX.writeFile(wb, 'simple_sample_data.xlsx');
+            }}
+            className="flex items-center space-x-2 px-4 py-2 text-green-600 dark:text-green-400 border border-green-300 dark:border-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download Simple Sample</span>
+          </button>
         </div>
       </div>
 

@@ -24,10 +24,12 @@ import {
   PieChart,
   Target,
   Package,
-  ShoppingCart
+  ShoppingCart,
+  Upload
 } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import SmallStat from '../../components/common/SmallStat';
+import ExcelUploader from '../../components/common/ExcelUploader';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const SellHistory = () => {
@@ -35,6 +37,7 @@ const SellHistory = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showExcelUploader, setShowExcelUploader] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dateFilter, setDateFilter] = useState('all');
@@ -467,6 +470,59 @@ const SellHistory = () => {
     }
   };
 
+  const handleExcelDataProcessed = async (processedData) => {
+    setLoading(true);
+    
+    try {
+      // Simulate API call to save data
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Convert processed data to sellData format
+      const newSellRecords = processedData.map((record, index) => {
+        const totalAmount = parseFloat(record.totalAmount) || (parseFloat(record.quantity) || 1) * (parseFloat(record.unitPrice) || 0);
+        const commission = totalAmount * 0.05;
+        const netAmount = totalAmount - commission;
+        
+        return {
+          id: Date.now() + index,
+          transactionId: `SELL-${String(Date.now() + index).slice(-6)}`,
+          agentName: record.name || 'Unknown Agent',
+          agentId: record.agentId || `AG${String(index + 1).padStart(3, '0')}`,
+          customerName: record.customerName || '',
+          customerPhone: record.customerPhone || '',
+          productType: record.productType || 'Air Ticket',
+          productName: record.productName || '',
+          quantity: parseInt(record.quantity) || 1,
+          unitPrice: parseFloat(record.unitPrice) || 0,
+          totalAmount: totalAmount,
+          commission: commission,
+          netAmount: netAmount,
+          paymentMethod: record.method || 'Bank Transfer',
+          bankName: record.bankName || '',
+          referenceNumber: record.referenceNumber || '',
+          date: record.date || new Date().toISOString().split('T')[0],
+          time: record.time || new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
+          status: record.status || 'Pending',
+          processedBy: null,
+          processedAt: null,
+          notes: record.notes || ''
+        };
+      });
+      
+      setSellData(prev => [...prev, ...newSellRecords]);
+      
+      // Show success message
+      alert(`Successfully uploaded ${processedData.length} sales records!`);
+      
+    } catch (error) {
+      console.error('Error processing Excel data:', error);
+      alert('Error processing Excel data. Please try again.');
+    } finally {
+      setLoading(false);
+      setShowExcelUploader(false);
+    }
+  };
+
   return (
     <div className="space-y-6 p-3 sm:p-4 lg:p-6">
       {/* Header */}
@@ -488,6 +544,13 @@ const SellHistory = () => {
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Download className="w-4 h-4" />
             <span>Export</span>
+          </button>
+          <button 
+            onClick={() => setShowExcelUploader(true)}
+            className="flex items-center space-x-2 px-4 py-2 text-blue-600 dark:text-blue-400 border border-blue-300 dark:border-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Excel Upload</span>
           </button>
           <button 
             onClick={handleAddSale}
@@ -968,6 +1031,24 @@ const SellHistory = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Excel Uploader Modal */}
+      {showExcelUploader && (
+        <ExcelUploader
+          isOpen={showExcelUploader}
+          onClose={() => setShowExcelUploader(false)}
+          onDataProcessed={handleExcelDataProcessed}
+          title="Upload Sell History Data"
+          acceptedFields={['name', 'agentId', 'customerName', 'customerPhone', 'productType', 'productName', 'quantity', 'unitPrice', 'totalAmount', 'method', 'bankName', 'referenceNumber', 'date', 'time', 'status', 'notes']}
+          requiredFields={['agentId', 'customerName', 'productType', 'productName', 'quantity', 'unitPrice']}
+          sampleData={[
+            ['Agent Name', 'Agent ID', 'Customer Name', 'Customer Phone', 'Product Type', 'Product Name', 'Quantity', 'Unit Price', 'Total Amount', 'Payment Method', 'Bank Name', 'Reference Number', 'Date', 'Time', 'Status', 'Notes'],
+            ['Ahmed Rahman', 'AG001', 'Mohammad Ali', '+8801711111111', 'Air Ticket', 'Dhaka to Dubai', '2', '25000', '50000', 'Bank Transfer', 'BRAC Bank', 'BR123456789', '2024-01-15', '14:30', 'Pending', 'Economy class tickets'],
+            ['Fatima Begum', 'AG002', 'Rashida Khan', '+8801722222222', 'Visa Service', 'Saudi Umrah Visa', '1', '15000', '15000', 'Mobile Banking', 'Dutch Bangla Bank', 'DB987654321', '2024-01-15', '16:45', 'Pending', 'Urgent visa processing'],
+            ['Karim Uddin', 'AG003', 'Abdul Rahman', '+8801733333333', 'Hajj Package', 'Hajj 2024 Premium', '1', '450000', '450000', 'Bank Transfer', 'City Bank', 'CB456789123', '2024-01-14', '11:20', 'Completed', 'Premium Hajj package with accommodation']
+          ]}
+        />
       )}
     </div>
   );
