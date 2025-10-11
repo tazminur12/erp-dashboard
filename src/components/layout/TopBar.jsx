@@ -68,6 +68,17 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
     console.log('Searching for:', searchQuery);
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOutUser();
+      setIsLoggedIn(false);
+      setUserEmail('');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
   const unreadCount = notifications.filter(n => n.unread).length;
 
   return (

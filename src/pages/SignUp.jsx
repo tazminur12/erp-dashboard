@@ -1,28 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
+import { 
+  Mail, 
+  Building2, 
+  ArrowRight, 
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  HelpCircle,
+  CheckCircle,
+  XCircle,
+  MapPin,
+  Shield
+} from 'lucide-react';
 import { signUpWithEmail } from '../firebase/auth';
+import { validateEmail } from '../lib/validation';
 
 const SignUp = () => {
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    selectedBranch: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [branches, setBranches] = useState([]);
+  const [loadingBranches, setLoadingBranches] = useState(true);
   const navigate = useNavigate();
+
+  // Fetch branches from backend
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/branches/active`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setBranches(data.branches);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch branches:', error);
+        // Fallback to default branches if API fails
+        setBranches([
+          { branchId: 'main', branchName: 'Main Office', branchLocation: 'Dhaka, Bangladesh', branchCode: 'DH' },
+          { branchId: 'bogra', branchName: 'Bogra Branch', branchLocation: 'Bogra, Bangladesh', branchCode: 'BOG' },
+          { branchId: 'dupchanchia', branchName: 'Dupchanchia Branch', branchLocation: 'Dupchanchia, Bangladesh', branchCode: 'DUP' },
+          { branchId: 'chittagong', branchName: 'Chittagong Branch', branchLocation: 'Chittagong, Bangladesh', branchCode: 'CTG' },
+          { branchId: 'sylhet', branchName: 'Sylhet Branch', branchLocation: 'Sylhet, Bangladesh', branchCode: 'SYL' },
+          { branchId: 'rajshahi', branchName: 'Rajshahi Branch', branchLocation: 'Rajshahi, Bangladesh', branchCode: 'RAJ' },
+          { branchId: 'khulna', branchName: 'Khulna Branch', branchLocation: 'Khulna, Bangladesh', branchCode: 'KHU' },
+          { branchId: 'barisal', branchName: 'Barisal Branch', branchLocation: 'Barisal, Bangladesh', branchCode: 'BAR' },
+          { branchId: 'rangpur', branchName: 'Rangpur Branch', branchLocation: 'Rangpur, Bangladesh', branchCode: 'RAN' },
+          { branchId: 'mymensingh', branchName: 'Mymensingh Branch', branchLocation: 'Mymensingh, Bangladesh', branchCode: 'MYM' }
+        ]);
+      } finally {
+        setLoadingBranches(false);
+      }
+    };
+
+    fetchBranches();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
-    // Clear messages when user types
     if (error) setError('');
     if (success) setSuccess('');
   };
@@ -30,32 +80,30 @@ const SignUp = () => {
   const showSuccessAlert = (message) => {
     setSuccess(message);
     setError('');
-    // Auto hide after 4 seconds
-    setTimeout(() => setSuccess(''), 4000);
+    setTimeout(() => setSuccess(''), 3000);
   };
 
   const showErrorAlert = (message) => {
     setError(message);
     setSuccess('');
-    // Auto hide after 6 seconds
-    setTimeout(() => setError(''), 6000);
+    setTimeout(() => setError(''), 5000);
   };
 
   const validateForm = () => {
     if (!formData.displayName.trim()) {
-      showErrorAlert('Name is required');
+      showErrorAlert('Full name is required');
       return false;
     }
     
     if (!formData.email.trim()) {
-      showErrorAlert('Email is required');
+      showErrorAlert('Email address is required');
       return false;
     }
     
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      showErrorAlert('Please enter a valid email address');
+    // Validate email format
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      showErrorAlert(emailValidation.message);
       return false;
     }
     
@@ -73,6 +121,11 @@ const SignUp = () => {
       showErrorAlert('Passwords do not match');
       return false;
     }
+
+    if (!formData.selectedBranch) {
+      showErrorAlert('Please select a branch');
+      return false;
+    }
     
     return true;
   };
@@ -87,155 +140,229 @@ const SignUp = () => {
     setSuccess('');
 
     try {
-      const result = await signUpWithEmail(formData.email, formData.password, formData.displayName);
+      // Create Firebase account first
+      const firebaseResult = await signUpWithEmail(formData.email, formData.password, formData.displayName);
       
-      if (result.success) {
+      if (!firebaseResult.success) {
+        showErrorAlert(firebaseResult.error);
+        setLoading(false);
+        return;
+      }
+
+      // Now create user in backend
+      const backendResult = await createUserInBackend(
+        formData.email,
+        firebaseResult.user.uid,
+        formData.displayName,
+        formData.selectedBranch
+      );
+
+      if (backendResult.success) {
         showSuccessAlert('Account created successfully! Please check your email for verification link. Redirecting to login...');
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           navigate('/login');
         }, 3000);
       } else {
-        showErrorAlert(result.error);
+        showErrorAlert(backendResult.error || 'Failed to create user in system');
       }
-    } catch {
+    } catch (error) {
+      console.error('Sign up error:', error);
       showErrorAlert('Sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
+  // Create user in backend
+  const createUserInBackend = async (email, firebaseUid, displayName, branchId) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email,
+          firebaseUid,
+          displayName,
+          branchId,
+          role: 'user' // Default role for new users
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          return { success: true, user: data.user };
+        } else {
+          return { success: false, error: data.message };
+        }
+      } else {
+        const errorData = await response.json();
+        return { success: false, error: errorData.message || 'Failed to create user' };
+      }
+    } catch (error) {
+      console.error('Backend user creation error:', error);
+      return { success: false, error: 'Network error during user creation' };
+    }
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-200">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white transition-colors duration-200">Create New Account</h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
-            Create an account for your business
+    <div className="min-h-screen flex">
+      {/* Left Section - Promotional Content */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-400 via-teal-500 to-blue-600 p-12 items-center justify-center">
+        <div className="text-center text-white max-w-lg">
+          {/* Logo and Brand */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="bg-white/20 backdrop-blur-sm rounded-full p-3 mr-4">
+              <Building2 className="h-8 w-8 text-white" />
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl font-bold">Bin Rashid Group</h1>
+              <p className="text-sm text-blue-100">Excellence in Service</p>
+            </div>
+          </div>
+
+          {/* Dashboard Preview */}
+          <div className="relative mb-8">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+              <div className="bg-white rounded-xl p-4 shadow-2xl">
+                {/* Mock Dashboard Content */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="bg-blue-500 h-8 rounded"></div>
+                  <div className="bg-blue-400 h-8 rounded"></div>
+                  <div className="bg-blue-600 h-6 rounded"></div>
+                  <div className="bg-blue-300 h-6 rounded"></div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-2">
+                    <div className="bg-blue-500 h-4 w-16 rounded"></div>
+                    <div className="bg-blue-400 h-4 w-12 rounded"></div>
+                  </div>
+                  <div className="bg-yellow-400 h-12 w-12 rounded-full"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Heading */}
+          <h2 className="text-4xl font-bold mb-4">Join Our Team</h2>
+          <p className="text-lg text-blue-100 leading-relaxed">
+            Become part of our growing organization and access powerful financial management tools for your branch operations.
           </p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 border border-gray-200 dark:border-gray-700 transition-colors duration-200">
-            <div className="space-y-6">
-              {/* Success SweetAlert */}
-              {success && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100 animate-fade-in">
-                    <div className="text-center">
-                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/20 mb-4">
-                        <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        Success!
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        {success}
-                      </p>
-                      <button
-                        onClick={() => setSuccess('')}
-                        className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
-                      >
-                        OK
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+      </div>
 
-              {/* Error SweetAlert */}
-              {error && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100 animate-fade-in">
-                    <div className="text-center">
-                      <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
-                        <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                        Error!
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                        {error}
-                      </p>
-                      <button
-                        onClick={() => setError('')}
-                        className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
-                      >
-                        OK
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+      {/* Right Section - Sign Up Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 bg-gray-50">
+        <div className="w-full max-w-sm">
+          {/* Sign Up Form Card */}
+          <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Create Account</h2>
+              <p className="text-sm text-gray-600">Join our ERP system and start managing your branch</p>
+            </div>
 
-              {/* Display Name Field */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Full Name Input */}
               <div>
-                <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Full Name
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    <User className="h-4 w-4 text-gray-400" />
                   </div>
                   <input
-                    id="displayName"
-                    name="displayName"
                     type="text"
-                    autoComplete="name"
-                    required
+                    name="displayName"
                     value={formData.displayName}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     placeholder="Enter your full name"
+                    required
                   />
                 </div>
               </div>
 
-              {/* Email Field */}
+              {/* Email Input */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Email Address
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    <Mail className="h-4 w-4 text-gray-400" />
                   </div>
                   <input
-                    id="email"
-                    name="email"
                     type="email"
-                    autoComplete="email"
-                    required
+                    name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
-                    placeholder="Enter your email address"
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                    placeholder="employee@company.com"
+                    required
                   />
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-gray-500">
                   We'll send a verification link to this email
                 </p>
               </div>
 
-              {/* Password Field */}
+              {/* Branch Selection */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Branch
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MapPin className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <select
+                    name="selectedBranch"
+                    value={formData.selectedBranch}
+                    onChange={handleChange}
+                    className="w-full pl-9 pr-8 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-sm"
+                    required
+                    disabled={loadingBranches}
+                  >
+                    <option value="">
+                      {loadingBranches ? 'Loading branches...' : 'Choose your branch'}
+                    </option>
+                    {branches.map((branch) => (
+                      <option key={branch.branchId} value={branch.branchId}>
+                        {branch.branchName} - {branch.branchLocation}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Select the branch where you'll be working
+                </p>
+              </div>
+
+              {/* Password Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Password
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    <Lock className="h-4 w-4 text-gray-400" />
                   </div>
                   <input
-                    id="password"
-                    name="password"
                     type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    required
+                    name="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
+                    className="w-full pl-9 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     placeholder="Enter your password"
+                    required
                   />
                   <button
                     type="button"
@@ -243,36 +370,34 @@ const SignUp = () => {
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400" />
+                      <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400" />
+                      <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600" />
                     )}
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-gray-500">
                   Must be at least 6 characters long
                 </p>
               </div>
 
-              {/* Confirm Password Field */}
+              {/* Confirm Password Input */}
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 transition-colors duration-200">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Confirm Password
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                    <Lock className="h-4 w-4 text-gray-400" />
                   </div>
                   <input
-                    id="confirmPassword"
-                    name="confirmPassword"
                     type={showConfirmPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    required
+                    name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className="block w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-colors duration-200"
+                    className="w-full pl-9 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                     placeholder="Confirm your password"
+                    required
                   />
                   <button
                     type="button"
@@ -280,45 +405,112 @@ const SignUp = () => {
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400" />
+                      <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600" />
                     ) : (
-                      <Eye className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400" />
+                      <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600" />
                     )}
                   </button>
                 </div>
                 {formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                  <div className="mt-1 flex items-center text-red-600 dark:text-red-400">
-                    <XCircle className="w-4 h-4 mr-1" />
+                  <div className="mt-1 flex items-center text-red-600">
+                    <XCircle className="w-3 h-3 mr-1" />
                     <span className="text-xs">Passwords do not match</span>
-                    </div>
+                  </div>
                 )}
               </div>
 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 transition-colors duration-200 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                disabled={loading || loadingBranches}
+                className="w-full bg-blue-500 text-white py-2.5 px-4 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center text-sm font-medium"
               >
-                {loading ? 'Creating Account...' : 'Sign Up'}
+                {loading ? (
+                  'Creating Account...'
+                ) : (
+                  <>
+                    Create Account
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
               </button>
+
+              {/* Need Help Link */}
+              <div className="text-center">
+                <button
+                  type="button"
+                  className="text-xs text-gray-500 hover:text-gray-700 flex items-center justify-center mx-auto"
+                >
+                  <HelpCircle className="h-3 w-3 mr-1" />
+                  Need Help?
+                </button>
+              </div>
+            </form>
+
+            {/* Sign In Link */}
+            <div className="mt-4 text-center">
+              <p className="text-xs text-gray-600">
+                Already have an account?{' '}
+                <Link
+                  to="/login"
+                  className="font-medium text-blue-600 hover:text-blue-700"
+                >
+                  Sign in here
+                </Link>
+              </p>
             </div>
           </div>
 
-          {/* Sign In Link */}
-          <div className="text-center">
-            <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors duration-200">
-              Already have an account?{' '}
-              <Link
-                to="/login"
-                className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 transition-colors duration-200"
-              >
-                Sign in here
-              </Link>
-            </p>
+          {/* Help Button */}
+          <div className="fixed bottom-4 right-4">
+            <button className="bg-purple-500 text-white p-2.5 rounded-full shadow-lg hover:bg-purple-600 transition-colors duration-200">
+              <HelpCircle className="h-5 w-5" />
+            </button>
           </div>
-        </form>
+        </div>
       </div>
+
+      {/* Success Modal */}
+      {success && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Success!</h3>
+              <p className="text-sm text-gray-600 mb-6">{success}</p>
+              <button
+                onClick={() => setSuccess('')}
+                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 font-medium"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Modal */}
+      {error && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <XCircle className="h-8 w-8 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Error!</h3>
+              <p className="text-sm text-gray-600 mb-6">{error}</p>
+              <button
+                onClick={() => setError('')}
+                className="w-full bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 font-medium"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

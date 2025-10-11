@@ -11,6 +11,7 @@ const DashboardLayout = () => {
     const path = location.pathname;
     if (path === '/dashboard') return 'Dashboard';
     if (path.startsWith('/customers')) return 'Customers';
+    if (path.startsWith('/sales-invoice')) return 'Sales & Invoice';
     if (path.startsWith('/transactions')) return 'Transactions';
     if (path.startsWith('/vendors')) return 'Vendors';
     if (path.startsWith('/hajj-umrah')) return 'Hajj & Umrah';

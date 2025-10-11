@@ -20,14 +20,16 @@ export const formatDate = (date, format = null) => {
   const d = new Date(date);
   
   if (fmt === 'DD/MM/YYYY') {
-    return d.toLocaleDateString('bn-BD');
+    // Day/Month/Year in English (UK)
+    return d.toLocaleDateString('en-GB');
   } else if (fmt === 'MM/DD/YYYY') {
     return d.toLocaleDateString('en-US');
   } else if (fmt === 'YYYY-MM-DD') {
     return d.toISOString().split('T')[0];
   }
   
-  return d.toLocaleDateString('bn-BD');
+  // Default to English (UK)
+  return d.toLocaleDateString('en-GB');
 };
 
 // Time formatting
@@ -38,13 +40,15 @@ export const formatTime = (date, format = null) => {
   const d = new Date(date);
   
   if (fmt === '12h') {
-    return d.toLocaleTimeString('bn-BD', { 
+    // 12-hour clock in English (US)
+    return d.toLocaleTimeString('en-US', { 
       hour: '2-digit', 
       minute: '2-digit',
       hour12: true 
     });
   } else {
-    return d.toLocaleTimeString('bn-BD', { 
+    // 24-hour clock in English (UK)
+    return d.toLocaleTimeString('en-GB', { 
       hour: '2-digit', 
       minute: '2-digit',
       hour12: false 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, Eye, Search, Filter } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Swal from 'sweetalert2';
@@ -7,39 +8,33 @@ const Agent = () => {
   const [agents, setAgents] = useState([
     {
       id: 1,
-      name: 'আব্দুল করিম',
-      licenseNo: 'HAJ001',
-      contact: '+8801712345678',
-      address: 'ঢাকা, বাংলাদেশ',
-      email: 'karim@hajjagency.com',
-      status: 'Active',
-      experience: '5 years',
-      commission: '10%',
-      totalBookings: 45
+      tradeName: 'Green Line Supplies',
+      tradeLocation: 'Sylhet',
+      ownerName: 'Shahadat Hossain',
+      contactNo: '+8801555667788',
+      dob: '1988-12-01',
+      nid: '188845623499',
+      passport: 'ZP1122334'
     },
     {
       id: 2,
-      name: 'ফাতেমা খাতুন',
-      licenseNo: 'HAJ002',
-      contact: '+8801812345678',
-      address: 'চট্টগ্রাম, বাংলাদেশ',
-      email: 'fatema@hajjagency.com',
-      status: 'Active',
-      experience: '3 years',
-      commission: '8%',
-      totalBookings: 32
+      tradeName: 'Nazmul Enterprise',
+      tradeLocation: 'Chattogram',
+      ownerName: 'Nazmul Hasan',
+      contactNo: '+8801911334455',
+      dob: '1990-08-21',
+      nid: '199045623411',
+      passport: 'EC7654321'
     },
     {
       id: 3,
-      name: 'মুহাম্মদ সাবির',
-      licenseNo: 'HAJ003',
-      contact: '+8801912345678',
-      address: 'সিলেট, বাংলাদেশ',
-      email: 'sabir@hajjagency.com',
-      status: 'Inactive',
-      experience: '7 years',
-      commission: '12%',
-      totalBookings: 78
+      tradeName: 'Miraj Traders',
+      tradeLocation: 'Dhaka, Bangladesh',
+      ownerName: 'Abdul Karim',
+      contactNo: '+8801711223344',
+      dob: '1984-05-12',
+      nid: '197845623412',
+      passport: 'BA1234567'
     }
   ]);
 
@@ -48,27 +43,25 @@ const Agent = () => {
   const [modalType, setModalType] = useState('add'); // add, edit, view, delete
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
-    licenseNo: '',
-    contact: '',
-    address: '',
-    email: '',
-    experience: '',
-    commission: '',
-    status: 'Active'
+    tradeName: '',
+    tradeLocation: '',
+    ownerName: '',
+    contactNo: '',
+    dob: '',
+    nid: '',
+    passport: ''
   });
 
   const handleAdd = () => {
     setModalType('add');
     setFormData({
-      name: '',
-      licenseNo: '',
-      contact: '',
-      address: '',
-      email: '',
-      experience: '',
-      commission: '',
-      status: 'Active'
+      tradeName: '',
+      tradeLocation: '',
+      ownerName: '',
+      contactNo: '',
+      dob: '',
+      nid: '',
+      passport: ''
     });
     setShowModal(true);
   };
@@ -77,14 +70,13 @@ const Agent = () => {
     setModalType('edit');
     setSelectedAgent(agent);
     setFormData({
-      name: agent.name,
-      licenseNo: agent.licenseNo,
-      contact: agent.contact,
-      address: agent.address,
-      email: agent.email,
-      experience: agent.experience,
-      commission: agent.commission,
-      status: agent.status
+      tradeName: agent.tradeName || '',
+      tradeLocation: agent.tradeLocation || '',
+      ownerName: agent.ownerName || '',
+      contactNo: agent.contactNo || '',
+      dob: agent.dob || '',
+      nid: agent.nid || '',
+      passport: agent.passport || ''
     });
     setShowModal(true);
   };
@@ -98,7 +90,7 @@ const Agent = () => {
   const handleDelete = (agent) => {
     Swal.fire({
       title: 'আপনি কি নিশ্চিত?',
-      text: `${agent.name} এর তথ্য মুছে ফেলতে চান? এই কাজটি অপরিবর্তনীয়।`,
+      text: `${agent.tradeName} এর তথ্য মুছে ফেলতে চান? এই কাজটি অপরিবর্তনীয়।`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
@@ -112,7 +104,7 @@ const Agent = () => {
         
         Swal.fire({
           title: 'মুছে ফেলা হয়েছে!',
-          text: `${agent.name} এর তথ্য সফলভাবে মুছে ফেলা হয়েছে।`,
+          text: `${agent.tradeName} এর তথ্য সফলভাবে মুছে ফেলা হয়েছে।`,
           icon: 'success',
           confirmButtonColor: '#059669',
           confirmButtonText: 'ঠিক আছে'
@@ -127,8 +119,7 @@ const Agent = () => {
     if (modalType === 'add') {
       const newAgent = {
         id: Date.now(),
-        ...formData,
-        totalBookings: 0
+        ...formData
       };
       setAgents(prev => [...prev, newAgent]);
       
@@ -165,24 +156,15 @@ const Agent = () => {
     }));
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'Inactive':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      case 'Pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-    }
-  };
+  // status removed in new schema
 
   const filteredAgents = agents.filter(agent =>
-    agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agent.licenseNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    agent.contact.includes(searchTerm) ||
-    agent.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (agent.tradeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (agent.tradeLocation || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (agent.ownerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (agent.contactNo || '').includes(searchTerm) ||
+    (agent.nid || '').includes(searchTerm) ||
+    (agent.passport || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -198,17 +180,17 @@ const Agent = () => {
               হজ্জ ও উমরাহ এজেন্ট তালিকা
             </h1>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              সব এজেন্টদের তথ্য ব্যবস্থাপনা
+              এজেন্টের ট্রেড তথ্য ব্যবস্থাপনা
             </p>
           </div>
         </div>
-        <button
-          onClick={handleAdd}
+        <Link
+          to="/hajj-umrah/agent/add"
           className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           <span className="text-sm sm:text-base">নতুন এজেন্ট যোগ করুন</span>
-        </button>
+        </Link>
       </div>
 
       {/* Search and Filter */}
@@ -219,7 +201,7 @@ const Agent = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                placeholder="নাম, লাইসেন্স নম্বর, বা যোগাযোগ দিয়ে সার্চ করুন..."
+                placeholder="ট্রেড নাম, লোকেশন, মালিক, ফোন, NID, পাসপোর্ট দিয়ে সার্চ করুন..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -239,30 +221,13 @@ const Agent = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-700/50">
               <tr>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  এজেন্ট
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  লাইসেন্স নম্বর
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  যোগাযোগ
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  ঠিকানা
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  স্ট্যাটাস
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  অভিজ্ঞতা
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  কমিশন
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  মোট বুকিং
-                </th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ট্রেড নাম</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">লোকেশন</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">মালিক</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">যোগাযোগ</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">জন্ম তারিখ</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">NID</th>
+                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">Passport</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   অ্যাকশন
                 </th>
@@ -276,55 +241,24 @@ const Agent = () => {
                       <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
                         <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
                           <span className="text-xs sm:text-sm font-medium text-purple-600 dark:text-purple-400">
-                            {agent.name.charAt(0)}
+                            {(agent.tradeName || '?').charAt(0)}
                           </span>
                         </div>
                       </div>
                       <div className="ml-2 sm:ml-4 min-w-0 flex-1">
                         <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {agent.name}
+                          {agent.tradeName}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {agent.email}
-                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{agent.tradeLocation}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-900 dark:text-white font-mono truncate block">
-                      {agent.licenseNo}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
-                      {agent.contact}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
-                      {agent.address}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(agent.status)}`}>
-                      {agent.status}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
-                      {agent.experience}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
-                      {agent.commission}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
-                      {agent.totalBookings}
-                    </span>
-                  </td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-white">{agent.tradeLocation}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-white">{agent.ownerName}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-white">{agent.contactNo}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 hidden lg:table-cell text-xs sm:text-sm text-gray-900 dark:text-white">{agent.dob || '-'}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 hidden xl:table-cell text-xs sm:text-sm text-gray-900 dark:text-white">{agent.nid || '-'}</td>
+                  <td className="px-3 sm:px-6 py-3 sm:py-4 hidden xl:table-cell text-xs sm:text-sm text-gray-900 dark:text-white">{agent.passport || '-'}</td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
                       <button
@@ -373,62 +307,46 @@ const Agent = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  নাম
+                  ট্রেড নাম
                 </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.name}</p>
+                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.tradeName}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  লাইসেন্স নম্বর
+                  লোকেশন
                 </label>
-                <p className="text-sm text-gray-900 dark:text-white font-mono">{selectedAgent.licenseNo}</p>
+                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.tradeLocation}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  মালিকের নাম
+                </label>
+                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.ownerName}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   যোগাযোগ
                 </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.contact}</p>
+                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.contactNo}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  ইমেইল
+                  জন্ম তারিখ
                 </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.email}</p>
+                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.dob || '-'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  স্ট্যাটাস
+                  NID
                 </label>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedAgent.status)}`}>
-                  {selectedAgent.status}
-                </span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  অভিজ্ঞতা
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.experience}</p>
+                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.nid || '-'}</p>
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                ঠিকানা
+                Passport
               </label>
-              <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.address}</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  কমিশন
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.commission}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  মোট বুকিং
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.totalBookings}</p>
-              </div>
+              <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.passport || '-'}</p>
             </div>
           </div>
         )}
@@ -438,30 +356,30 @@ const Agent = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  নাম <span className="text-red-500">*</span>
+                  ট্রেড নাম <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  name="name"
-                  value={formData.name}
+                  name="tradeName"
+                  value={formData.tradeName}
                   onChange={handleInputChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="এজেন্টের নাম"
+                  placeholder="ট্রেড নাম"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  লাইসেন্স নম্বর <span className="text-red-500">*</span>
+                  ট্রেড লোকেশন <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  name="licenseNo"
-                  value={formData.licenseNo}
+                  name="tradeLocation"
+                  value={formData.tradeLocation}
                   onChange={handleInputChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="লাইসেন্স নম্বর"
+                  placeholder="লোকেশন"
                 />
               </div>
             </div>
@@ -469,89 +387,65 @@ const Agent = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  যোগাযোগ <span className="text-red-500">*</span>
+                  মালিকের নাম <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="tel"
-                  name="contact"
-                  value={formData.contact}
+                  type="text"
+                  name="ownerName"
+                  value={formData.ownerName}
                   onChange={handleInputChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="+8801712345678"
+                  placeholder="মালিকের নাম"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  ইমেইল
+                  যোগাযোগ নম্বর <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
+                  type="tel"
+                  name="contactNo"
+                  value={formData.contactNo}
                   onChange={handleInputChange}
+                  required
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="example@email.com"
+                  placeholder="+8801XXXXXXXXX"
                 />
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                ঠিকানা <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                required
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                placeholder="বিস্তারিত ঠিকানা"
-              />
-            </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  অভিজ্ঞতা
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">জন্ম তারিখ</label>
                 <input
-                  type="text"
-                  name="experience"
-                  value={formData.experience}
+                  type="date"
+                  name="dob"
+                  value={formData.dob}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="5 years"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  কমিশন
-                </label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">NID</label>
                 <input
                   type="text"
-                  name="commission"
-                  value={formData.commission}
+                  name="nid"
+                  value={formData.nid}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="10%"
+                  placeholder="NID"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  স্ট্যাটাস
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Passport</label>
+                <input
+                  type="text"
+                  name="passport"
+                  value={formData.passport}
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                >
-                  <option value="Active">সক্রিয়</option>
-                  <option value="Inactive">নিষ্ক্রিয়</option>
-                  <option value="Pending">অপেক্ষমান</option>
-                </select>
+                  placeholder="Passport"
+                />
               </div>
             </div>
 
@@ -578,3 +472,4 @@ const Agent = () => {
 };
 
 export default Agent;
+

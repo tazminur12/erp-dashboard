@@ -1,42 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentUser, onAuthStateChange } from '../firebase/auth';
+import { useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkAuth = () => {
-      const user = getCurrentUser();
-      if (user && user.emailVerified) {
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
-        navigate('/login');
-      }
-      setIsLoading(false);
-    };
+  React.useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, loading, navigate]);
 
-    // Initial check
-    checkAuth();
-
-    // Listen to auth state changes
-    const unsubscribe = onAuthStateChange((user) => {
-      if (user && user.emailVerified) {
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
-        navigate('/login');
-      }
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
@@ -47,7 +23,13 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  return isAuthenticated ? children : null;
+  // If user is not authenticated, don't render anything
+  if (!isAuthenticated) {
+    return null;
+  }
+
+  // User is authenticated, show the protected content
+  return children;
 };
 
 export default ProtectedRoute;

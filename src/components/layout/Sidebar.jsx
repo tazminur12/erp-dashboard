@@ -29,7 +29,15 @@ const Sidebar = () => {
   const isParentActive = (item) => {
     if (item.href) return isActive(item.href);
     if (item.children) {
-      return item.children.some(child => isActive(child.href));
+      return item.children.some(child => {
+        // Check if child has href and is active
+        if (child.href) return isActive(child.href);
+        // Check if child has nested children and any of them are active
+        if (child.children) {
+          return child.children.some(grandChild => grandChild.href && isActive(grandChild.href));
+        }
+        return false;
+      });
     }
     return false;
   };
@@ -97,20 +105,71 @@ const Sidebar = () => {
             
             {isExpanded && !sidebarCollapsed && (
               <div className="ml-6 mt-1 space-y-1">
-                {item.children.map((child) => (
-                  <Link
-                    key={child.name}
-                    to={child.href}
-                    className={`flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors duration-200 ${
-                      isActive(child.href)
-                        ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400'
-                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    <child.icon className="w-4 h-4" />
-                    <span>{child.name}</span>
-                  </Link>
-                ))}
+                {item.children.map((child) => {
+                  // Check if child has its own children (nested structure)
+                  const hasGrandChildren = child.children && child.children.length > 0;
+                  const isChildExpanded = expandedItems.has(child.name);
+                  
+                  if (hasGrandChildren) {
+                    return (
+                      <div key={child.name}>
+                        <button
+                          onClick={() => toggleExpanded(child.name)}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors duration-200 ${
+                            isParentActive(child)
+                              ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400'
+                              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <child.icon className="w-4 h-4" />
+                            <span>{child.name}</span>
+                          </div>
+                          <ChevronDown 
+                            className={`w-4 h-4 transition-transform duration-200 ${
+                              isChildExpanded ? 'rotate-180' : ''
+                            }`} 
+                          />
+                        </button>
+                        
+                        {isChildExpanded && (
+                          <div className="ml-6 mt-1 space-y-1">
+                            {child.children.map((grandChild) => (
+                              <Link
+                                key={grandChild.name}
+                                to={grandChild.href}
+                                className={`flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors duration-200 ${
+                                  isActive(grandChild.href)
+                                    ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400'
+                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                                }`}
+                              >
+                                <grandChild.icon className="w-4 h-4" />
+                                <span>{grandChild.name}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  } else {
+                    // Regular child without nested children
+                    return (
+                      <Link
+                        key={child.name}
+                        to={child.href}
+                        className={`flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors duration-200 ${
+                          isActive(child.href)
+                            ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400'
+                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        <child.icon className="w-4 h-4" />
+                        <span>{child.name}</span>
+                      </Link>
+                    );
+                  }
+                })}
               </div>
             )}
           </div>

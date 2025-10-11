@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Users, 
   Search, 
@@ -19,15 +19,24 @@ import {
   RefreshCw,
   Building2,
   Plane,
-  Home
+  Home,
+  FileText
 } from 'lucide-react';
+import { formatDate as formatDateShared } from '../../lib/format';
 import { useTheme } from '../../contexts/ThemeContext';
 import Swal from 'sweetalert2';
+import useAxiosSecure from '../../hooks/UseAxiosSecure';
 
 const CustomerList = () => {
   const { isDark } = useTheme();
+  const axiosSecure = useAxiosSecure();
   
   // State management
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     status: '',
@@ -37,117 +46,59 @@ const CustomerList = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  // Service data management
+  const [serviceTypes, setServiceTypes] = useState([]);
+  const [serviceStatuses, setServiceStatuses] = useState([]);
+  const [serviceTypesLoading, setServiceTypesLoading] = useState(false);
+  const [serviceStatusesLoading, setServiceStatusesLoading] = useState(false);
+  const [editingService, setEditingService] = useState(null);
 
 
-  // Mock customer data
-  const customers = [
-    {
-      id: 'CUST-001',
-      name: 'আহমেদ হোসেন',
-      phone: '+880 1712-345678',
-      email: 'ahmed@example.com',
-      address: 'ঢাকা, বাংলাদেশ',
-      customerType: 'hajj',
-      status: 'active',
-      registrationDate: '2024-01-15',
-      passportNumber: 'A12345678',
-      totalTransactions: 5,
-      lastTransaction: '2024-01-20'
-    },
-    {
-      id: 'CUST-002',
-      name: 'ফাতেমা বেগম',
-      phone: '+880 1812-345679',
-      email: 'fatema@example.com',
-      address: 'চট্টগ্রাম, বাংলাদেশ',
-      customerType: 'umrah',
-      status: 'active',
-      registrationDate: '2024-01-14',
-      passportNumber: 'B87654321',
-      totalTransactions: 3,
-      lastTransaction: '2024-01-18'
-    },
-    {
-      id: 'CUST-003',
-      name: 'মোহাম্মদ আলী',
-      phone: '+880 1912-345680',
-      email: 'mohammad@example.com',
-      address: 'সিলেট, বাংলাদেশ',
-      customerType: 'air',
-      status: 'inactive',
-      registrationDate: '2024-01-10',
-      passportNumber: 'C11223344',
-      totalTransactions: 2,
-      lastTransaction: '2024-01-12'
-    },
-    {
-      id: 'CUST-004',
-      name: 'আয়েশা খাতুন',
-      phone: '+880 1612-345681',
-      email: 'ayesha@example.com',
-      address: 'রাজশাহী, বাংলাদেশ',
-      customerType: 'hajj',
-      status: 'active',
-      registrationDate: '2024-01-08',
-      passportNumber: 'D55667788',
-      totalTransactions: 7,
-      lastTransaction: '2024-01-22'
-    },
-    {
-      id: 'CUST-005',
-      name: 'রহমান মিয়া',
-      phone: '+880 1512-345682',
-      email: 'rahman@example.com',
-      address: 'খুলনা, বাংলাদেশ',
-      customerType: 'umrah',
-      status: 'active',
-      registrationDate: '2024-01-05',
-      passportNumber: 'E99887766',
-      totalTransactions: 4,
-      lastTransaction: '2024-01-19'
-    },
-    {
-      id: 'CUST-006',
-      name: 'সাবরিনা আক্তার',
-      phone: '+880 1412-345683',
-      email: 'sabrina@example.com',
-      address: 'বরিশাল, বাংলাদেশ',
-      customerType: 'air',
-      status: 'inactive',
-      registrationDate: '2024-01-03',
-      passportNumber: 'F44332211',
-      totalTransactions: 1,
-      lastTransaction: '2024-01-05'
-    },
-    {
-      id: 'CUST-007',
-      name: 'ইমরান হোসেন',
-      phone: '+880 1312-345684',
-      email: 'imran@example.com',
-      address: 'রংপুর, বাংলাদেশ',
-      customerType: 'hajj',
-      status: 'active',
-      registrationDate: '2024-01-01',
-      passportNumber: 'G77889900',
-      totalTransactions: 6,
-      lastTransaction: '2024-01-21'
-    },
-    {
-      id: 'CUST-008',
-      name: 'নাজমা খাতুন',
-      phone: '+880 1212-345685',
-      email: 'nazma@example.com',
-      address: 'ময়মনসিংহ, বাংলাদেশ',
-      customerType: 'umrah',
-      status: 'active',
-      registrationDate: '2023-12-28',
-      passportNumber: 'H11223344',
-      totalTransactions: 8,
-      lastTransaction: '2024-01-23'
-    }
-  ];
+  // Load customers from backend API
+  useEffect(() => {
+    const loadCustomers = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await axiosSecure.get('/customers');
+        
+        if (response.data.success) {
+          // Backend returns: { success: true, count: 5, customers: [...] }
+          const customersData = response.data.customers || [];
+          setCustomers(customersData);
+        } else {
+          setError(response.data.message || 'Failed to load customers');
+        }
+      } catch (error) {
+        setError('Failed to load customers. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadCustomers();
+  }, [axiosSecure]);
+
+  // Load service types from backend API
+  useEffect(() => {
+    const loadServiceTypes = async () => {
+      try {
+        setServiceTypesLoading(true);
+        const response = await axiosSecure.get('/api/services');
+        const serviceTypesData = response?.data?.services || response?.data || [];
+        setServiceTypes(Array.isArray(serviceTypesData) ? serviceTypesData : []);
+      } catch (error) {
+        console.error('Failed to load service types:', error);
+        setServiceTypes([]);
+      } finally {
+        setServiceTypesLoading(false);
+      }
+    };
+    
+    loadServiceTypes();
+  }, [axiosSecure]);
 
   // Filter options
   const filterOptions = {
@@ -167,11 +118,15 @@ const CustomerList = () => {
   // Filter and search logic
   const filteredCustomers = useMemo(() => {
     return customers.filter(customer => {
+      // Handle both 'id' and 'customerId' fields
+      const customerId = customer.id || customer.customerId || '';
+      const customerName = customer.name || '';
+      const customerPhone = customer.phone || customer.mobile || '';
+      
       const matchesSearch = 
-        customer.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        customer.phone.includes(searchTerm) ||
-        customer.email.toLowerCase().includes(searchTerm.toLowerCase());
+        customerId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customerPhone.includes(searchTerm);
       
       const matchesStatus = !filters.status || customer.status === filters.status;
       const matchesType = !filters.customerType || customer.customerType === filters.customerType;
@@ -179,12 +134,12 @@ const CustomerList = () => {
       // Date filter logic
       let matchesDate = true;
       if (filters.registrationDate) {
-        const customerDate = new Date(customer.registrationDate);
+        const customerDate = new Date(customer.createdAt || customer.registrationDate);
         const today = new Date();
         const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
+        lastWeek.setDate(today.getDate() - 7);
         const lastMonth = new Date(today);
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        lastMonth.setMonth(today.getMonth() - 1);
         
         switch (filters.registrationDate) {
           case 'last-week':
@@ -198,7 +153,7 @@ const CustomerList = () => {
       
       return matchesSearch && matchesStatus && matchesType && matchesDate;
     });
-  }, [searchTerm, filters]);
+  }, [customers, searchTerm, filters]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
@@ -213,14 +168,37 @@ const CustomerList = () => {
       : 'text-red-600 bg-red-100 dark:bg-red-900/20';
   };
 
+  const getServiceStatusColor = (status) => {
+    if (!status) return 'text-gray-500 bg-gray-100 dark:bg-gray-900/20';
+    
+    const statusLower = status.toLowerCase();
+    
+    if (statusLower.includes('pending') || statusLower.includes('waiting') || statusLower.includes('processing')) {
+      return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/20';
+    }
+    if (statusLower.includes('approved') || statusLower.includes('confirmed') || statusLower.includes('completed') || statusLower.includes('active')) {
+      return 'text-green-600 bg-green-100 dark:bg-green-900/20';
+    }
+    if (statusLower.includes('rejected') || statusLower.includes('cancelled') || statusLower.includes('failed') || statusLower.includes('inactive')) {
+      return 'text-red-600 bg-red-100 dark:bg-red-900/20';
+    }
+    if (statusLower.includes('review') || statusLower.includes('verification') || statusLower.includes('document')) {
+      return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
+    }
+    if (statusLower.includes('on hold') || statusLower.includes('suspended') || statusLower.includes('paused')) {
+      return 'text-orange-600 bg-orange-100 dark:bg-orange-900/20';
+    }
+    
+    // Default color for unknown status
+    return 'text-gray-600 bg-gray-100 dark:bg-gray-900/20';
+  };
+
   const getCustomerTypeIcon = (type) => {
     switch (type) {
-      case 'hajj':
+      case 'Haj':
         return <Home className="w-4 h-4 text-green-600" />;
-      case 'umrah':
+      case 'Umrah':
         return <Building2 className="w-4 h-4 text-blue-600" />;
-      case 'air':
-        return <Plane className="w-4 h-4 text-purple-600" />;
       default:
         return <User className="w-4 h-4 text-gray-600" />;
     }
@@ -228,24 +206,16 @@ const CustomerList = () => {
 
   const getCustomerTypeLabel = (type) => {
     switch (type) {
-      case 'hajj':
+      case 'Haj':
         return 'হাজ্জ';
-      case 'umrah':
+      case 'Umrah':
         return 'ওমরাহ';
-      case 'air':
-        return 'এয়ার টিকেট';
       default:
         return 'অন্যান্য';
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('bn-BD', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+
 
   // Event handlers
   const handleFilterChange = (key, value) => {
@@ -264,17 +234,27 @@ const CustomerList = () => {
   };
 
   const handleViewCustomer = (customer) => {
-    setSelectedCustomer(customer);
-    setShowCustomerModal(true);
+    // Navigate to customer details page
+    window.location.href = `/customers/details/${customer.id || customer.customerId}`;
   };
 
-  const handleEditCustomer = (customer) => {
-    // Navigate to edit page or open edit modal
-    window.location.href = `/customers/add?id=${customer.id}`;
-  };
-
-  const handleDeleteCustomer = (customer) => {
+  const handleEditCustomer = async (customer) => {
+    try {
+      // Navigate to edit page with customer ID
+      window.location.href = `/customers/edit?id=${customer.id || customer.customerId}`;
+    } catch (error) {
     Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'এডিট পেজে যেতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444'
+      });
+    }
+  };
+
+  const handleDeleteCustomer = async (customer) => {
+    const result = await Swal.fire({
       title: 'কাস্টমার মুছতে চান?',
       text: `${customer.name} এর সব তথ্য মুছে যাবে!`,
       icon: 'warning',
@@ -285,9 +265,17 @@ const CustomerList = () => {
       cancelButtonColor: '#6B7280',
       background: isDark ? '#1F2937' : '#FEF2F2',
       color: isDark ? '#F9FAFB' : '#111827'
-    }).then((result) => {
+    });
+
       if (result.isConfirmed) {
-        // Delete logic here
+      try {
+        const customerId = customer.id || customer.customerId;
+        const response = await axiosSecure.delete(`/customers/${customerId}`);
+        
+        if (response.data.success) {
+          // Remove customer from local state
+          setCustomers(prev => prev.filter(c => (c.id || c.customerId) !== customerId));
+          
         Swal.fire({
           title: 'মুছে ফেলা হয়েছে!',
           text: 'কাস্টমার সফলভাবে মুছে ফেলা হয়েছে।',
@@ -296,38 +284,210 @@ const CustomerList = () => {
           background: isDark ? '#1F2937' : '#F0FDF4',
           color: isDark ? '#F9FAFB' : '#111827'
         });
+        } else {
+          throw new Error(response.data.message || 'Failed to delete customer');
+        }
+      } catch (error) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'কাস্টমার মুছতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2',
+          color: isDark ? '#F9FAFB' : '#111827'
+        });
       }
-    });
+    }
   };
 
   const handleNewTransaction = (customer) => {
     // Navigate to new transaction page with customer pre-selected
-    window.location.href = `/transactions/new?customer=${customer.id}&name=${encodeURIComponent(customer.name)}`;
+    const customerId = customer.id || customer.customerId;
+    window.location.href = `/transactions/new?customer=${customerId}&name=${encodeURIComponent(customer.name)}`;
+  };
+
+  // Update customer status (active/inactive)
+  const handleStatusToggle = async (customer) => {
+    try {
+      const customerId = customer.id || customer.customerId;
+      const newStatus = customer.status === 'active' ? 'inactive' : 'active';
+      
+      const response = await axiosSecure.patch(`/customers/${customerId}`, {
+        status: newStatus
+      });
+      
+      if (response.data.success) {
+        // Update customer status in local state
+        setCustomers(prev => prev.map(c => 
+          (c.id || c.customerId) === customerId 
+            ? { ...c, status: newStatus }
+            : c
+        ));
+        
+        Swal.fire({
+          title: 'সফল!',
+          text: `কাস্টমার স্ট্যাটাস ${newStatus === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে।`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F0FDF4',
+          color: isDark ? '#F9FAFB' : '#111827'
+        });
+      } else {
+        throw new Error(response.data.message || 'Failed to update customer status');
+      }
+    } catch (error) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'কাস্টমার স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+        color: isDark ? '#F9FAFB' : '#111827'
+        });
+    }
+  };
+
+  // Load service statuses when service type changes
+  const loadServiceStatuses = async (serviceType) => {
+    if (!serviceType) {
+      setServiceStatuses([]);
+      return;
+    }
+    
+    try {
+      setServiceStatusesLoading(true);
+      const response = await axiosSecure.get(`/api/services/${serviceType}/statuses`);
+      const statusesData = response?.data?.statuses || response?.data || [];
+      setServiceStatuses(Array.isArray(statusesData) ? statusesData : []);
+    } catch (error) {
+      console.error('Failed to load service statuses:', error);
+      setServiceStatuses([]);
+    } finally {
+      setServiceStatusesLoading(false);
+    }
+  };
+
+  // Handle service type edit
+  const handleServiceTypeEdit = async (customer, newServiceType) => {
+    try {
+      const customerId = customer.id || customer.customerId;
+      
+      const response = await axiosSecure.patch(`/customers/${customerId}`, {
+        serviceType: newServiceType,
+        serviceStatus: '' // Reset service status when service type changes
+      });
+      
+      if (response.data.success) {
+        // Update customer service type in local state
+        setCustomers(prev => prev.map(c => 
+          (c.id || c.customerId) === customerId 
+            ? { ...c, serviceType: newServiceType, serviceStatus: '' }
+            : c
+        ));
+        
+        setEditingService(null);
+        
+        Swal.fire({
+          title: 'সফল!',
+          text: 'সার্ভিস টাইপ আপডেট করা হয়েছে',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F0FDF4',
+          color: isDark ? '#F9FAFB' : '#111827'
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'সার্ভিস টাইপ আপডেট করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+        color: isDark ? '#F9FAFB' : '#111827'
+      });
+    }
+  };
+
+  // Handle service status edit
+  const handleServiceStatusEdit = async (customer, newServiceStatus) => {
+    try {
+      const customerId = customer.id || customer.customerId;
+      
+      const response = await axiosSecure.patch(`/customers/${customerId}`, {
+        serviceStatus: newServiceStatus
+      });
+      
+      if (response.data.success) {
+        // Update customer service status in local state
+        setCustomers(prev => prev.map(c => 
+          (c.id || c.customerId) === customerId 
+            ? { ...c, serviceStatus: newServiceStatus }
+            : c
+        ));
+        
+        setEditingService(null);
+        
+        Swal.fire({
+          title: 'সফল!',
+          text: 'সার্ভিস স্ট্যাটাস আপডেট করা হয়েছে',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F0FDF4',
+          color: isDark ? '#F9FAFB' : '#111827'
+        });
+      }
+    } catch (error) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'সার্ভিস স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+        color: isDark ? '#F9FAFB' : '#111827'
+      });
+    }
   };
 
   const goToPage = (page) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
   };
 
+  // Format date function (English)
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      return `${formatDateShared(dateString)} ${new Date(dateString).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+    } catch (e) {
+      return 'Invalid Date';
+    }
+  };
+
   return (
-    <div className={`min-h-screen p-4 lg:p-8 transition-colors duration-300 ${
+    <div className={`min-h-screen p-2 lg:p-4 transition-colors duration-300 ${
       isDark 
         ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
         : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
     }`}>
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+        <div className="mb-4 lg:mb-6">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 lg:gap-3">
+              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg lg:rounded-xl flex items-center justify-center">
+                <Users className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
                   Customer List
                 </h1>
-                <p className={`mt-2 text-lg transition-colors duration-300 ${
+                <p className={`mt-1 lg:mt-2 text-sm lg:text-base transition-colors duration-300 ${
                   isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}>
                   সব কাস্টমারের তালিকা এবং পরিচালনা
@@ -337,29 +497,50 @@ const CustomerList = () => {
             
             <button
               onClick={() => window.location.href = '/customers/add'}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+              className="flex items-center gap-2 px-4 lg:px-6 py-2 lg:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg lg:rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm lg:text-base"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4 lg:w-5 lg:h-5" />
               + Add New Customer
             </button>
           </div>
         </div>
 
+        {/* Loading and Error States */}
+        {loading && (
+          <div className="mb-6 text-center py-8">
+            <div className="inline-flex items-center gap-2 text-lg text-gray-600 dark:text-gray-300">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              কাস্টমার তথ্য লোড হচ্ছে...
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+              <div className="w-5 h-5 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center">
+                !
+              </div>
+              {error}
+            </div>
+          </div>
+        )}
+
         {/* Search and Filters Section */}
-        <div className={`mb-6 bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border transition-colors duration-300 ${
+        <div className={`mb-4 lg:mb-6 bg-white dark:bg-gray-800 rounded-xl lg:rounded-2xl shadow-lg lg:shadow-xl p-4 lg:p-6 border transition-colors duration-300 ${
           isDark ? 'border-gray-700' : 'border-gray-100'
         }`}>
-          <div className="flex flex-col lg:flex-row gap-4">
+          <div className="flex flex-col lg:flex-row gap-3 lg:gap-4">
             {/* Search Bar */}
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Customer ID, নাম, ফোন বা ইমেইল দিয়ে খুঁজুন..."
+                  placeholder="Customer ID, নাম বা ফোন দিয়ে খুঁজুন..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg ${
+                  className={`w-full pl-10 lg:pl-12 pr-4 py-2 lg:py-3 border rounded-lg lg:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm lg:text-base ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                       : 'border-gray-300'
@@ -504,45 +685,91 @@ const CustomerList = () => {
         </div>
 
         {/* Customers Table */}
-        <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border transition-colors duration-300 ${
+        <div className={`bg-white dark:bg-gray-800 rounded-xl lg:rounded-2xl shadow-lg lg:shadow-xl border transition-colors duration-300 ${
           isDark ? 'border-gray-700' : 'border-gray-100'
         }`}>
+
+          
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className={`bg-gray-50 dark:bg-gray-700`}>
                 <tr>
-                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     Customer Name
                   </th>
-                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     Customer ID
                   </th>
-                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     Phone Number
                   </th>
-                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
-                    Email
-                  </th>
-                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     Address
                   </th>
-                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                    Service Type
+                  </th>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                    Service Status
+                  </th>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     Status
                   </th>
-                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                  <th className={`px-3 lg:px-6 py-3 lg:py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     Action
                   </th>
                 </tr>
               </thead>
               <tbody className={`divide-y divide-gray-200 dark:divide-gray-700`}>
-                {currentCustomers.map((customer) => (
-                  <tr key={customer.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200`}>
-                    <td className="px-6 py-4">
+                {currentCustomers.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center">
+                      <div className="text-gray-500 dark:text-gray-400">
+                        {loading ? (
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            কাস্টমার তথ্য লোড হচ্ছে...
+                          </div>
+                        ) : error ? (
+                          <div className="text-red-500">
+                            ❌ {error}
+                          </div>
+                        ) : (
+                          <div>
+                            📭 কোন কাস্টমার পাওয়া যায়নি
+                            <br />
+                            <span className="text-sm">মোট কাস্টমার: {customers.length}, ফিল্টার করা: {filteredCustomers.length}</span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  currentCustomers.map((customer, index) => (
+                  <tr key={customer.id || customer.customerId || `customer-${index}`} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200`}>
+                    <td className="px-3 lg:px-6 py-3 lg:py-4">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center ring-2 ring-white dark:ring-gray-700">
+                          {customer.customerImage ? (
+                            <img
+                              src={typeof customer.customerImage === 'string' 
+                                ? customer.customerImage 
+                                : customer.customerImage.cloudinaryUrl || customer.customerImage.downloadURL}
+                              alt={customer.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                            />
+                          ) : null}
+                          <div className="w-full h-full hidden items-center justify-center text-sm font-semibold text-blue-700 dark:text-blue-300">
+                            {(customer.name || 'N A').split(' ').slice(0,2).map(s => s.charAt(0)).join('').toUpperCase()}
+                          </div>
+                          {!customer.customerImage && (
+                            <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                              {(customer.name || 'N A').split(' ').slice(0,2).map(s => s.charAt(0)).join('').toUpperCase()}
+                            </span>
+                          )}
                         </div>
-                        <div className="ml-3">
+                        <div className="ml-3 lg:ml-4">
                           <div className="text-sm font-semibold text-gray-900 dark:text-white">
                             {customer.name}
                           </div>
@@ -553,35 +780,130 @@ const CustomerList = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                       <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
-                        {customer.id}
+                        {customer.id || customer.customerId || 'N/A'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-900 dark:text-white">
                         <Phone className="w-4 h-4 text-gray-400 mr-2" />
-                        {customer.phone}
+                        {customer.phone || customer.mobile || 'N/A'}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900 dark:text-white">
-                        <Mail className="w-4 h-4 text-gray-400 mr-2" />
-                        {customer.email}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 lg:px-6 py-3 lg:py-4">
                       <div className="flex items-center text-sm text-gray-900 dark:text-white">
                         <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="truncate max-w-32">{customer.address}</span>
+                        <span className="truncate max-w-32">{customer.address || 'N/A'}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(customer.status)}`}>
-                        {customer.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                      </span>
+                    <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
+                      {editingService?.customerId === (customer.id || customer.customerId) && editingService?.field === 'serviceType' ? (
+                        <select
+                          value={customer.serviceType || ''}
+                          onChange={(e) => {
+                            const newServiceType = e.target.value;
+                            handleServiceTypeEdit(customer, newServiceType);
+                          }}
+                          onBlur={() => setEditingService(null)}
+                          className={`text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                            isDark 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300'
+                          }`}
+                          autoFocus
+                        >
+                          <option value="">Select Service</option>
+                          {serviceTypes.map((service) => {
+                            const value = service?.id || service?.value || service?.slug || service;
+                            const label = service?.name || service?.label || service?.title || service;
+                            return (
+                              <option key={String(value)} value={String(value)}>
+                                {String(label)}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <button
+                          onClick={() => setEditingService({ customerId: customer.id || customer.customerId, field: 'serviceType' })}
+                          className={`text-sm px-2 py-1 rounded-lg border hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 ${
+                            isDark 
+                              ? 'border-gray-600 text-gray-300 hover:text-white' 
+                              : 'border-gray-300 text-gray-700 hover:text-purple-600'
+                          }`}
+                          title="Click to edit service type"
+                        >
+                          {customer.serviceType ? 
+                            serviceTypes.find(s => (s?.id || s?.value || s?.slug || s) === customer.serviceType)?.name || 
+                            serviceTypes.find(s => (s?.id || s?.value || s?.slug || s) === customer.serviceType)?.label || 
+                            serviceTypes.find(s => (s?.id || s?.value || s?.slug || s) === customer.serviceType)?.title || 
+                            customer.serviceType
+                            : 'Not Set'
+                          }
+                        </button>
+                      )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
+                      {editingService?.customerId === (customer.id || customer.customerId) && editingService?.field === 'serviceStatus' ? (
+                        <select
+                          value={customer.serviceStatus || ''}
+                          onChange={(e) => {
+                            const newServiceStatus = e.target.value;
+                            handleServiceStatusEdit(customer, newServiceStatus);
+                          }}
+                          onBlur={() => setEditingService(null)}
+                          disabled={!customer.serviceType}
+                          className={`text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
+                            isDark 
+                              ? 'bg-gray-700 border-gray-600 text-white' 
+                              : 'bg-white border-gray-300'
+                          } ${!customer.serviceType ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          autoFocus
+                        >
+                          <option value="">Select Status</option>
+                          {serviceStatuses.map((status) => {
+                            const value = status?.id || status?.value || status?.slug || status;
+                            const label = status?.name || status?.label || status?.title || status;
+                            return (
+                              <option key={String(value)} value={String(value)}>
+                                {String(label)}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (customer.serviceType) {
+                              loadServiceStatuses(customer.serviceType);
+                              setEditingService({ customerId: customer.id || customer.customerId, field: 'serviceStatus' });
+                            }
+                          }}
+                          disabled={!customer.serviceType}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:scale-105 transition-all duration-200 ${getServiceStatusColor(customer.serviceStatus)} ${!customer.serviceType ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={customer.serviceType ? "Click to edit service status" : "Select service type first"}
+                        >
+                          {customer.serviceStatus ? 
+                            serviceStatuses.find(s => (s?.id || s?.value || s?.slug || s) === customer.serviceStatus)?.name || 
+                            serviceStatuses.find(s => (s?.id || s?.value || s?.slug || s) === customer.serviceStatus)?.label || 
+                            serviceStatuses.find(s => (s?.id || s?.value || s?.slug || s) === customer.serviceStatus)?.title || 
+                            customer.serviceStatus
+                            : 'Not Set'
+                          }
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => handleStatusToggle(customer)}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:scale-105 transition-all duration-200 ${getStatusColor(customer.status || 'active')}`}
+                        title="স্ট্যাটাস পরিবর্তন করতে ক্লিক করুন"
+                      >
+                        {(customer.status || 'active') === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                      </button>
+                    </td>
+                    <td className="px-3 lg:px-6 py-3 lg:py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => handleViewCustomer(customer)}
@@ -614,7 +936,8 @@ const CustomerList = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                ))
+                )}
               </tbody>
             </table>
           </div>
@@ -719,114 +1042,6 @@ const CustomerList = () => {
         )}
       </div>
 
-      {/* Customer Details Modal */}
-      {showCustomerModal && selectedCustomer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className={`w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto`}>
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                  কাস্টমারের বিবরণ
-                </h3>
-                <button
-                  onClick={() => setShowCustomerModal(false)}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    Customer ID
-                  </label>
-                  <p className="text-gray-900 dark:text-white font-mono">{selectedCustomer.id}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    কাস্টমারের নাম
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    ফোন নম্বর
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.phone}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    ইমেইল
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.email}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    ঠিকানা
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.address}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    কাস্টমার টাইপ
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {getCustomerTypeIcon(selectedCustomer.customerType)}
-                    <span className="text-gray-900 dark:text-white">
-                      {getCustomerTypeLabel(selectedCustomer.customerType)}
-                    </span>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    স্ট্যাটাস
-                  </label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedCustomer.status)}`}>
-                    {selectedCustomer.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    নিবন্ধনের তারিখ
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{formatDate(selectedCustomer.registrationDate)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    পাসপোর্ট নম্বর
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.passportNumber}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
-                    মোট লেনদেন
-                  </label>
-                  <p className="text-gray-900 dark:text-white">{selectedCustomer.totalTransactions}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-              <button
-                onClick={() => handleEditCustomer(selectedCustomer)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
-              >
-                <Edit className="w-5 h-5" />
-                এডিট করুন
-              </button>
-              <button
-                onClick={() => setShowCustomerModal(false)}
-                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
-              >
-                বন্ধ করুন
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

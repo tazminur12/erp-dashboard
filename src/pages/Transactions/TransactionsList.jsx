@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   CreditCard, 
   Search, 
@@ -13,13 +13,23 @@ import {
   Tag,
   MoreHorizontal,
   X,
-  RefreshCw
+  RefreshCw,
+  Loader2,
+  Edit,
+  Trash2,
+  Save
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import Swal from 'sweetalert2';
+import { formatDate as formatDateShared } from '../../lib/format';
 
 const TransactionsList = () => {
   const { isDark } = useTheme();
+  const { userProfile } = useAuth();
+  const axiosSecure = useAxiosSecure();
   
   // State management
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,122 +44,88 @@ const TransactionsList = () => {
   const [itemsPerPage] = useState(10);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [selectedTransactions, setSelectedTransactions] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [editLoading, setEditLoading] = useState(false);
 
-  // Mock data for transactions
-  const transactions = [
-    {
-      id: 'TXN-001',
-      customerName: 'আহমেদ হোসেন',
-      customerPhone: '+880 1712-345678',
-      customerEmail: 'ahmed@example.com',
-      type: 'credit',
-      category: 'হাজ্জ প্যাকেজ',
-      paymentMethod: 'ব্যাংক ট্রান্সফার',
-      amount: 150000,
-      date: '2024-01-15',
-      status: 'completed',
-      reference: 'REF-001',
-      notes: 'হাজ্জ প্যাকেজের জন্য পেমেন্ট'
-    },
-    {
-      id: 'TXN-002',
-      customerName: 'ফাতেমা বেগম',
-      customerPhone: '+880 1812-345679',
-      customerEmail: 'fatema@example.com',
-      type: 'credit',
-      category: 'ওমরাহ প্যাকেজ',
-      paymentMethod: 'মোবাইল ব্যাংকিং',
-      amount: 85000,
-      date: '2024-01-14',
-      status: 'completed',
-      reference: 'REF-002',
-      notes: 'ওমরাহ প্যাকেজের জন্য পেমেন্ট'
-    },
-    {
-      id: 'TXN-003',
-      customerName: 'মোহাম্মদ আলী',
-      customerPhone: '+880 1912-345680',
-      customerEmail: 'mohammad@example.com',
-      type: 'debit',
-      category: 'এয়ার টিকেট',
-      paymentMethod: 'চেক',
-      amount: 45000,
-      date: '2024-01-13',
-      status: 'pending',
-      reference: 'REF-003',
-      notes: 'এয়ারলাইন টিকেটের জন্য পেমেন্ট'
-    },
-    {
-      id: 'TXN-004',
-      customerName: 'আয়েশা খাতুন',
-      customerPhone: '+880 1612-345681',
-      customerEmail: 'ayesha@example.com',
-      type: 'credit',
-      category: 'ভিসা সার্ভিস',
-      paymentMethod: 'ব্যাংক ট্রান্সফার',
-      amount: 25000,
-      date: '2024-01-12',
-      status: 'completed',
-      reference: 'REF-004',
-      notes: 'ভিসা প্রক্রিয়াকরণের জন্য পেমেন্ট'
-    },
-    {
-      id: 'TXN-005',
-      customerName: 'রহমান মিয়া',
-      customerPhone: '+880 1512-345682',
-      customerEmail: 'rahman@example.com',
-      type: 'debit',
-      category: 'হোটেল বুকিং',
-      paymentMethod: 'মোবাইল ব্যাংকিং',
-      amount: 35000,
-      date: '2024-01-11',
-      status: 'completed',
-      reference: 'REF-005',
-      notes: 'হোটেল রিজার্ভেশনের জন্য পেমেন্ট'
-    },
-    {
-      id: 'TXN-006',
-      customerName: 'সাবরিনা আক্তার',
-      customerPhone: '+880 1412-345683',
-      customerEmail: 'sabrina@example.com',
-      type: 'credit',
-      category: 'ইনসুরেন্স',
-      paymentMethod: 'ব্যাংক ট্রান্সফার',
-      amount: 18000,
-      date: '2024-01-10',
-      status: 'completed',
-      reference: 'REF-006',
-      notes: 'ভ্রমণ বীমার জন্য পেমেন্ট'
-    },
-    {
-      id: 'TXN-007',
-      customerName: 'ইমরান হোসেন',
-      customerPhone: '+880 1312-345684',
-      customerEmail: 'imran@example.com',
-      type: 'debit',
-      category: 'অন্যান্য সেবা',
-      paymentMethod: 'চেক',
-      amount: 22000,
-      date: '2024-01-09',
-      status: 'pending',
-      reference: 'REF-007',
-      notes: 'অন্যান্য ভ্রমণ সেবার জন্য পেমেন্ট'
-    },
-    {
-      id: 'TXN-008',
-      customerName: 'নাজমা খাতুন',
-      customerPhone: '+880 1212-345685',
-      customerEmail: 'nazma@example.com',
-      type: 'credit',
-      category: 'হাজ্জ প্যাকেজ',
-      paymentMethod: 'মোবাইল ব্যাংকিং',
-      amount: 200000,
-      date: '2024-01-08',
-      status: 'completed',
-      reference: 'REF-008',
-      notes: 'প্রিমিয়াম হাজ্জ প্যাকেজের জন্য পেমেন্ট'
+  // Load transactions on component mount and when filters change
+  useEffect(() => {
+    loadTransactions();
+  }, [currentPage, filters, searchTerm]);
+
+  const loadTransactions = async () => {
+    try {
+      setLoading(true);
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString()
+      });
+
+      // Add filters to query parameters
+      if (filters.transactionType) params.append('transactionType', filters.transactionType);
+      if (filters.category) params.append('category', filters.category);
+      if (filters.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
+      if (searchTerm) params.append('search', searchTerm);
+
+      // Add date range filters
+      if (filters.dateRange) {
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const lastWeek = new Date(today);
+        lastWeek.setDate(lastWeek.getDate() - 7);
+        const lastMonth = new Date(today);
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        
+        switch (filters.dateRange) {
+          case 'today':
+            params.append('dateFrom', today.toISOString().split('T')[0]);
+            params.append('dateTo', today.toISOString().split('T')[0]);
+            break;
+          case 'yesterday':
+            params.append('dateFrom', yesterday.toISOString().split('T')[0]);
+            params.append('dateTo', yesterday.toISOString().split('T')[0]);
+            break;
+          case 'last-week':
+            params.append('dateFrom', lastWeek.toISOString().split('T')[0]);
+            params.append('dateTo', today.toISOString().split('T')[0]);
+            break;
+          case 'last-month':
+            params.append('dateFrom', lastMonth.toISOString().split('T')[0]);
+            params.append('dateTo', today.toISOString().split('T')[0]);
+            break;
+        }
+      }
+
+      const response = await axiosSecure.get(`/transactions?${params.toString()}`);
+      
+      if (response.data.success) {
+        setTransactions(response.data.transactions || []);
+        setTotalCount(response.data.totalCount || 0);
+        setTotalPages(response.data.totalPages || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load transactions:', error);
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'লেনদেন লোড করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   // Filter options
   const filterOptions = {
@@ -176,56 +152,8 @@ const TransactionsList = () => {
     ]
   };
 
-  // Filter and search logic
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(transaction => {
-      const matchesSearch = 
-        transaction.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.customerPhone.includes(searchTerm) ||
-        transaction.customerEmail.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesType = !filters.transactionType || transaction.type === filters.transactionType;
-      const matchesCategory = !filters.category || transaction.category === filters.category;
-      const matchesPaymentMethod = !filters.paymentMethod || transaction.paymentMethod === filters.paymentMethod;
-      
-      // Date range filter logic
-      let matchesDate = true;
-      if (filters.dateRange) {
-        const transactionDate = new Date(transaction.date);
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        const lastMonth = new Date(today);
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        
-        switch (filters.dateRange) {
-          case 'today':
-            matchesDate = transactionDate.toDateString() === today.toDateString();
-            break;
-          case 'yesterday':
-            matchesDate = transactionDate.toDateString() === yesterday.toDateString();
-            break;
-          case 'last-week':
-            matchesDate = transactionDate >= lastWeek;
-            break;
-          case 'last-month':
-            matchesDate = transactionDate >= lastMonth;
-            break;
-        }
-      }
-      
-      return matchesSearch && matchesType && matchesCategory && matchesPaymentMethod && matchesDate;
-    });
-  }, [searchTerm, filters]);
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentTransactions = filteredTransactions.slice(startIndex, endIndex);
+  // Since filtering is now handled by the API, we use the transactions directly
+  const currentTransactions = transactions;
 
   // Helper functions
   const getTypeColor = (type) => {
@@ -255,13 +183,7 @@ const TransactionsList = () => {
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('bn-BD', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
+  const formatDate = (dateString) => formatDateShared(dateString);
 
   // Event handlers
   const handleFilterChange = (key, value) => {
@@ -280,24 +202,376 @@ const TransactionsList = () => {
     setCurrentPage(1);
   };
 
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1); // Reset to first page when search changes
+  };
+
   const handleViewTransaction = (transaction) => {
     setSelectedTransaction(transaction);
     setShowTransactionModal(true);
   };
 
-  const handleDownloadPDF = (transaction) => {
-    Swal.fire({
-      title: 'PDF ডাউনলোড হচ্ছে...',
-      text: `${transaction.id} এর ইনভয়েস তৈরি হচ্ছে`,
-      icon: 'info',
-      showConfirmButton: false,
-      timer: 2000,
+  const handleEditTransaction = (transaction) => {
+    setEditingTransaction(transaction);
+    setEditFormData({
+      transactionType: transaction.transactionType,
+      category: transaction.category,
+      paymentMethod: transaction.paymentMethod,
+      paymentDetails: {
+        bankName: transaction.paymentDetails?.bankName || '',
+        accountNumber: transaction.paymentDetails?.accountNumber || '',
+        chequeNumber: transaction.paymentDetails?.chequeNumber || '',
+        mobileProvider: transaction.paymentDetails?.mobileProvider || '',
+        transactionId: transaction.paymentDetails?.transactionId || '',
+        amount: transaction.paymentDetails?.amount || '',
+        reference: transaction.paymentDetails?.reference || ''
+      },
+      notes: transaction.notes || '',
+      date: transaction.date ? new Date(transaction.date).toISOString().split('T')[0] : ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleDeleteTransaction = async (transaction) => {
+    const result = await Swal.fire({
+      title: 'লেনদেন মুছে ফেলুন?',
+      text: `আপনি কি ${transaction.transactionId} লেনদেনটি মুছে ফেলতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+      cancelButtonText: 'বাতিল করুন',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
       background: isDark ? '#1F2937' : '#F9FAFB'
     });
+
+    if (result.isConfirmed) {
+      try {
+        setEditLoading(true);
+        const response = await axiosSecure.delete(`/transactions/${transaction.transactionId}`);
+        
+        if (response.data.success) {
+          Swal.fire({
+            title: 'সফল!',
+            text: 'লেনদেন সফলভাবে মুছে ফেলা হয়েছে।',
+            icon: 'success',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#10B981',
+            background: isDark ? '#1F2937' : '#F9FAFB'
+          });
+          
+          // Reload transactions
+          loadTransactions();
+        } else {
+          throw new Error(response.data.message || 'Delete failed');
+        }
+      } catch (error) {
+        console.error('Delete transaction error:', error);
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: error.response?.data?.message || 'লেনদেন মুছতে সমস্যা হয়েছে।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2'
+        });
+      } finally {
+        setEditLoading(false);
+      }
+    }
+  };
+
+  const handleDownloadPDF = async (transaction) => {
+    try {
+      // Show loading alert
+      Swal.fire({
+        title: 'PDF তৈরি হচ্ছে...',
+        text: `${transaction.transactionId} এর রিসিট তৈরি হচ্ছে`,
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+
+      // Prepare transaction data for PDF
+      const pdfData = {
+        transactionId: transaction.transactionId || transaction._id,
+        transactionType: transaction.transactionType,
+        customerId: transaction.customerId,
+        customerName: transaction.customerName,
+        customerPhone: transaction.customerPhone,
+        customerEmail: transaction.customerEmail,
+        category: transaction.category,
+        paymentMethod: transaction.paymentMethod,
+        paymentDetails: transaction.paymentDetails,
+        notes: transaction.notes,
+        date: transaction.date,
+        createdBy: userProfile?.email || 'unknown_user',
+        branchId: userProfile?.branchId || 'main_branch'
+      };
+
+      // Try to generate PDF with HTML rendering first
+      let result = await generateTransactionPDF(pdfData, isDark);
+      
+      // If HTML rendering fails, fallback to simple PDF
+      if (!result.success) {
+        console.log('HTML PDF generation failed, trying simple PDF...');
+        result = generateSimplePDF(pdfData);
+      }
+
+      // Close loading alert
+      Swal.close();
+
+      if (result.success) {
+        Swal.fire({
+          title: 'সফল!',
+          text: `PDF সফলভাবে ডাউনলোড হয়েছে: ${result.filename}`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F9FAFB',
+          customClass: {
+            title: 'text-green-600 font-bold text-xl',
+            popup: 'rounded-2xl shadow-2xl'
+          }
+        });
+      } else {
+        throw new Error(result.error || 'PDF generation failed');
+      }
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      Swal.close();
+      
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: `PDF তৈরি করতে সমস্যা হয়েছে: ${error.message}`,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+        customClass: {
+          title: 'text-red-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      });
+    }
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setEditFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setEditFormData(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleUpdateTransaction = async () => {
+    try {
+      setEditLoading(true);
+      
+      // Validate required fields
+      if (!editFormData.transactionType || !editFormData.category || !editFormData.paymentMethod) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'সব প্রয়োজনীয় ক্ষেত্র পূরণ করুন।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2'
+        });
+        return;
+      }
+
+      const updateData = {
+        transactionType: editFormData.transactionType,
+        category: editFormData.category,
+        paymentMethod: editFormData.paymentMethod,
+        paymentDetails: {
+          bankName: editFormData.paymentDetails.bankName || null,
+          accountNumber: editFormData.paymentDetails.accountNumber || null,
+          chequeNumber: editFormData.paymentDetails.chequeNumber || null,
+          mobileProvider: editFormData.paymentDetails.mobileProvider || null,
+          transactionId: editFormData.paymentDetails.transactionId || null,
+          amount: parseFloat(editFormData.paymentDetails.amount) || 0,
+          reference: editFormData.paymentDetails.reference || null
+        },
+        notes: editFormData.notes || null,
+        date: editFormData.date
+      };
+
+      const response = await axiosSecure.patch(`/transactions/${editingTransaction.transactionId}`, updateData);
+      
+      if (response.data.success) {
+        Swal.fire({
+          title: 'সফল!',
+          text: 'লেনদেন সফলভাবে আপডেট হয়েছে।',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F9FAFB'
+        });
+        
+        // Close modal and reload transactions
+        setShowEditModal(false);
+        setEditingTransaction(null);
+        loadTransactions();
+      } else {
+        throw new Error(response.data.message || 'Update failed');
+      }
+    } catch (error) {
+      console.error('Update transaction error:', error);
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.response?.data?.message || 'লেনদেন আপডেট করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   const goToPage = (page) => {
     setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  // Handle individual transaction selection
+  const handleSelectTransaction = (transactionId) => {
+    setSelectedTransactions(prev => {
+      if (prev.includes(transactionId)) {
+        return prev.filter(id => id !== transactionId);
+      } else {
+        return [...prev, transactionId];
+      }
+    });
+  };
+
+  // Handle select all transactions
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedTransactions([]);
+    } else {
+      setSelectedTransactions(currentTransactions.map(t => t.transactionId || t._id));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  // Bulk PDF download
+  const handleBulkDownloadPDF = async () => {
+    if (selectedTransactions.length === 0) {
+      Swal.fire({
+        title: 'সতর্কতা!',
+        text: 'কোন লেনদেন নির্বাচন করা হয়নি।',
+        icon: 'warning',
+        confirmButtonText: 'ঠিক আছে',
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+      return;
+    }
+
+    try {
+      // Show loading alert
+      Swal.fire({
+        title: 'PDF তৈরি হচ্ছে...',
+        text: `${selectedTransactions.length}টি লেনদেনের PDF তৈরি হচ্ছে`,
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Generate PDF for each selected transaction
+      for (const transactionId of selectedTransactions) {
+        const transaction = currentTransactions.find(t => (t.transactionId || t._id) === transactionId);
+        if (transaction) {
+          const pdfData = {
+            transactionId: transaction.transactionId || transaction._id,
+            transactionType: transaction.transactionType,
+            customerId: transaction.customerId,
+            customerName: transaction.customerName,
+            customerPhone: transaction.customerPhone,
+            customerEmail: transaction.customerEmail,
+            category: transaction.category,
+            paymentMethod: transaction.paymentMethod,
+            paymentDetails: transaction.paymentDetails,
+            notes: transaction.notes,
+            date: transaction.date,
+            createdBy: userProfile?.email || 'unknown_user',
+            branchId: userProfile?.branchId || 'main_branch'
+          };
+
+          try {
+            let result = await generateTransactionPDF(pdfData, isDark);
+            if (!result.success) {
+              result = generateSimplePDF(pdfData);
+            }
+            if (result.success) {
+              successCount++;
+            } else {
+              errorCount++;
+            }
+          } catch (error) {
+            console.error(`PDF generation error for ${transactionId}:`, error);
+            errorCount++;
+          }
+        }
+      }
+
+      // Close loading alert
+      Swal.close();
+
+      // Show results
+      if (successCount > 0) {
+        Swal.fire({
+          title: 'সফল!',
+          text: `${successCount}টি PDF সফলভাবে ডাউনলোড হয়েছে${errorCount > 0 ? `, ${errorCount}টি ব্যর্থ` : ''}`,
+          icon: successCount === selectedTransactions.length ? 'success' : 'warning',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F9FAFB'
+        });
+      } else {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'কোন PDF তৈরি করা যায়নি।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2'
+        });
+      }
+
+      // Clear selections
+      setSelectedTransactions([]);
+      setSelectAll(false);
+
+    } catch (error) {
+      console.error('Bulk PDF generation error:', error);
+      Swal.close();
+      
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: `PDF তৈরি করতে সমস্যা হয়েছে: ${error.message}`,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+    }
   };
 
   return (
@@ -327,6 +601,15 @@ const TransactionsList = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              {selectedTransactions.length > 0 && (
+                <button
+                  onClick={handleBulkDownloadPDF}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+                >
+                  <Download className="w-5 h-5" />
+                  PDF ডাউনলোড ({selectedTransactions.length})
+                </button>
+              )}
               <button
                 onClick={() => window.location.href = '/transactions/new'}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
@@ -351,7 +634,7 @@ const TransactionsList = () => {
                   type="text"
                   placeholder="Transaction ID, নাম, ফোন বা ইমেইল দিয়ে খুঁজুন..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -496,13 +779,18 @@ const TransactionsList = () => {
               <span className={`text-sm transition-colors duration-300 ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                মোট ফলাফল: <span className="font-semibold text-blue-600">{filteredTransactions.length}</span>
+                মোট ফলাফল: <span className="font-semibold text-blue-600">{totalCount}</span>
               </span>
-              {Object.values(filters).some(value => value !== '') && (
+              <span className={`text-sm transition-colors duration-300 ${
+                isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                বর্তমান পৃষ্ঠা: <span className="font-semibold">{currentTransactions.length}</span>
+              </span>
+              {selectedTransactions.length > 0 && (
                 <span className={`text-sm transition-colors duration-300 ${
-                  isDark ? 'text-gray-400' : 'text-gray-500'
+                  isDark ? 'text-green-400' : 'text-green-600'
                 }`}>
-                  ফিল্টারকৃত ফলাফল: <span className="font-semibold">{currentTransactions.length}</span>
+                  নির্বাচিত: <span className="font-semibold">{selectedTransactions.length}</span>
                 </span>
               )}
             </div>
@@ -528,6 +816,14 @@ const TransactionsList = () => {
             <table className="w-full">
               <thead className={`bg-gray-50 dark:bg-gray-700`}>
                 <tr>
+                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                    <input
+                      type="checkbox"
+                      checked={selectAll}
+                      onChange={handleSelectAll}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                    />
+                  </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     Transaction ID
                   </th>
@@ -555,15 +851,36 @@ const TransactionsList = () => {
                 </tr>
               </thead>
               <tbody className={`divide-y divide-gray-200 dark:divide-gray-700`}>
-                {currentTransactions.map((transaction) => (
-                  <tr key={transaction.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
-                          {transaction.id}
-                        </span>
+                {loading ? (
+                  <tr>
+                    <td colSpan="9" className="px-6 py-12 text-center">
+                      <div className="flex items-center justify-center gap-3">
+                        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+                        <span className="text-gray-600 dark:text-gray-400">লেনদেন লোড হচ্ছে...</span>
                       </div>
                     </td>
+                  </tr>
+                ) : currentTransactions.map((transaction) => {
+                  const transactionId = transaction.transactionId || transaction._id;
+                  const isSelected = selectedTransactions.includes(transactionId);
+                  
+                  return (
+                    <tr key={transactionId} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelectTransaction(transactionId)}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <span className="text-sm font-mono font-semibold text-gray-900 dark:text-white">
+                            {transaction.transactionId}
+                          </span>
+                        </div>
+                      </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
@@ -580,8 +897,8 @@ const TransactionsList = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(transaction.type)}`}>
-                        {transaction.type === 'credit' ? 'ক্রেডিট' : 'ডেবিট'}
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(transaction.transactionType)}`}>
+                        {transaction.transactionType === 'credit' ? 'ক্রেডিট' : 'ডেবিট'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -594,16 +911,19 @@ const TransactionsList = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900 dark:text-white">
-                        {transaction.paymentMethod}
+                        {transaction.paymentMethod === 'bank' ? 'ব্যাংক ট্রান্সফার' : 
+                         transaction.paymentMethod === 'cheque' ? 'চেক' : 
+                         transaction.paymentMethod === 'mobile-banking' ? 'মোবাইল ব্যাংকিং' : 
+                         transaction.paymentMethod}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className={`text-sm font-semibold ${
-                        transaction.type === 'credit' 
+                        transaction.transactionType === 'credit' 
                           ? 'text-green-600 dark:text-green-400' 
                           : 'text-red-600 dark:text-red-400'
                       }`}>
-                        {formatAmount(transaction.amount)}
+                        {formatAmount(transaction.paymentDetails?.amount || 0)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -622,16 +942,31 @@ const TransactionsList = () => {
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
+                          onClick={() => handleEditTransaction(transaction)}
+                          className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-300 p-2 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-all duration-200"
+                          title="সম্পাদনা করুন"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
                           onClick={() => handleDownloadPDF(transaction)}
                           className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
                           title="PDF ডাউনলোড"
                         >
                           <Download className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => handleDeleteTransaction(transaction)}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
+                          title="মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -668,7 +1003,7 @@ const TransactionsList = () => {
                 <span className={`text-sm transition-colors duration-300 ${
                   isDark ? 'text-gray-400' : 'text-gray-500'
                 }`}>
-                  ({startIndex + 1}-{Math.min(endIndex, filteredTransactions.length)} এর {filteredTransactions.length})
+                  ({((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalCount)} এর {totalCount})
                 </span>
               </div>
               
@@ -760,13 +1095,13 @@ const TransactionsList = () => {
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     Transaction ID
                   </label>
-                  <p className="text-gray-900 dark:text-white font-mono">{selectedTransaction.id}</p>
+                  <p className="text-gray-900 dark:text-white font-mono">{selectedTransaction.transactionId}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     রেফারেন্স
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedTransaction.reference}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.paymentDetails?.reference || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
@@ -790,8 +1125,8 @@ const TransactionsList = () => {
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     লেনদেনের ধরন
                   </label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(selectedTransaction.type)}`}>
-                    {selectedTransaction.type === 'credit' ? 'ক্রেডিট' : 'ডেবিট'}
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(selectedTransaction.transactionType)}`}>
+                    {selectedTransaction.transactionType === 'credit' ? 'ক্রেডিট' : 'ডেবিট'}
                   </span>
                 </div>
                 <div>
@@ -804,18 +1139,23 @@ const TransactionsList = () => {
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     পেমেন্ট মেথড
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedTransaction.paymentMethod}</p>
+                  <p className="text-gray-900 dark:text-white">
+                    {selectedTransaction.paymentMethod === 'bank' ? 'ব্যাংক ট্রান্সফার' : 
+                     selectedTransaction.paymentMethod === 'cheque' ? 'চেক' : 
+                     selectedTransaction.paymentMethod === 'mobile-banking' ? 'মোবাইল ব্যাংকিং' : 
+                     selectedTransaction.paymentMethod}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     পরিমাণ
                   </label>
                   <p className={`font-semibold ${
-                    selectedTransaction.type === 'credit' 
+                    selectedTransaction.transactionType === 'credit' 
                       ? 'text-green-600 dark:text-green-400' 
                       : 'text-red-600 dark:text-red-400'
                   }`}>
-                    {formatAmount(selectedTransaction.amount)}
+                    {formatAmount(selectedTransaction.paymentDetails?.amount || 0)}
                   </p>
                 </div>
                 <div>
@@ -847,6 +1187,317 @@ const TransactionsList = () => {
                 className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
               >
                 বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Transaction Modal */}
+      {showEditModal && editingTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className={`w-full max-w-4xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto`}>
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  লেনদেন সম্পাদনা করুন
+                </h3>
+                <button
+                  onClick={() => setShowEditModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Transaction Type */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  লেনদেনের ধরন *
+                </label>
+                <select
+                  name="transactionType"
+                  value={editFormData.transactionType}
+                  onChange={handleEditInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="credit">ক্রেডিট (আয়)</option>
+                  <option value="debit">ডেবিট (ব্যয়)</option>
+                </select>
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  ক্যাটাগরি *
+                </label>
+                <select
+                  name="category"
+                  value={editFormData.category}
+                  onChange={handleEditInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="hajj">হাজ্জ & উমরাহ</option>
+                  <option value="air-ticket">এয়ার টিকেট</option>
+                  <option value="visa">ভিসা সার্ভিস</option>
+                  <option value="hotel">হোটেল বুকিং</option>
+                  <option value="insurance">ইনসুরেন্স</option>
+                  <option value="other">অন্যান্য সেবা</option>
+                </select>
+              </div>
+
+              {/* Payment Method */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  পেমেন্ট মেথড *
+                </label>
+                <select
+                  name="paymentMethod"
+                  value={editFormData.paymentMethod}
+                  onChange={handleEditInputChange}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">নির্বাচন করুন</option>
+                  <option value="bank">ব্যাংক ট্রান্সফার</option>
+                  <option value="cheque">চেক</option>
+                  <option value="mobile-banking">মোবাইল ব্যাংকিং</option>
+                </select>
+              </div>
+
+              {/* Payment Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    পরিমাণ *
+                  </label>
+                  <input
+                    type="number"
+                    name="paymentDetails.amount"
+                    value={editFormData.paymentDetails?.amount || ''}
+                    onChange={handleEditInputChange}
+                    placeholder="0.00"
+                    min="0"
+                    step="0.01"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    তারিখ *
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={editFormData.date}
+                    onChange={handleEditInputChange}
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+
+                {editFormData.paymentMethod === 'bank' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        ব্যাংকের নাম
+                      </label>
+                      <input
+                        type="text"
+                        name="paymentDetails.bankName"
+                        value={editFormData.paymentDetails?.bankName || ''}
+                        onChange={handleEditInputChange}
+                        placeholder="ব্যাংকের নাম"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        অ্যাকাউন্ট নম্বর
+                      </label>
+                      <input
+                        type="text"
+                        name="paymentDetails.accountNumber"
+                        value={editFormData.paymentDetails?.accountNumber || ''}
+                        onChange={handleEditInputChange}
+                        placeholder="অ্যাকাউন্ট নম্বর"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {editFormData.paymentMethod === 'cheque' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        চেক নম্বর
+                      </label>
+                      <input
+                        type="text"
+                        name="paymentDetails.chequeNumber"
+                        value={editFormData.paymentDetails?.chequeNumber || ''}
+                        onChange={handleEditInputChange}
+                        placeholder="চেক নম্বর"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        ব্যাংকের নাম
+                      </label>
+                      <input
+                        type="text"
+                        name="paymentDetails.bankName"
+                        value={editFormData.paymentDetails?.bankName || ''}
+                        onChange={handleEditInputChange}
+                        placeholder="ব্যাংকের নাম"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {editFormData.paymentMethod === 'mobile-banking' && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        প্রোভাইডার
+                      </label>
+                      <input
+                        type="text"
+                        name="paymentDetails.mobileProvider"
+                        value={editFormData.paymentDetails?.mobileProvider || ''}
+                        onChange={handleEditInputChange}
+                        placeholder="মোবাইল ব্যাংকিং প্রোভাইডার"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        ট্রানজেকশন আইডি
+                      </label>
+                      <input
+                        type="text"
+                        name="paymentDetails.transactionId"
+                        value={editFormData.paymentDetails?.transactionId || ''}
+                        onChange={handleEditInputChange}
+                        placeholder="ট্রানজেকশন আইডি"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    রেফারেন্স
+                  </label>
+                  <input
+                    type="text"
+                    name="paymentDetails.reference"
+                    value={editFormData.paymentDetails?.reference || ''}
+                    onChange={handleEditInputChange}
+                    placeholder="রেফারেন্স"
+                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  নোট
+                </label>
+                <textarea
+                  name="notes"
+                  value={editFormData.notes}
+                  onChange={handleEditInputChange}
+                  rows="3"
+                  placeholder="লেনদেন সম্পর্কে অতিরিক্ত তথ্য লিখুন..."
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                onClick={handleUpdateTransaction}
+                disabled={editLoading}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-medium transition-all duration-200"
+              >
+                {editLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    আপডেট হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    আপডেট করুন
+                  </>
+                )}
               </button>
             </div>
           </div>
