@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Plus, Edit, Trash2, Eye, Search, Filter } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Eye, Search, Filter, Upload, FileSpreadsheet } from 'lucide-react';
 import Modal from '../../components/common/Modal';
+import ExcelUploader from '../../components/common/ExcelUploader';
 import Swal from 'sweetalert2';
 
 const Agent = () => {
@@ -40,6 +41,7 @@ const Agent = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showExcelUploader, setShowExcelUploader] = useState(false);
   const [modalType, setModalType] = useState('add'); // add, edit, view, delete
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [formData, setFormData] = useState({
@@ -156,6 +158,28 @@ const Agent = () => {
     }));
   };
 
+  const handleExcelUpload = () => {
+    setShowExcelUploader(true);
+  };
+
+  const handleExcelDataProcessed = (processedData) => {
+    const newAgents = processedData.map((agentData, index) => ({
+      id: Date.now() + index,
+      ...agentData
+    }));
+
+    setAgents(prev => [...prev, ...newAgents]);
+    setShowExcelUploader(false);
+    
+    Swal.fire({
+      title: 'সফল!',
+      text: `${newAgents.length} টি এজেন্ট Excel থেকে যোগ করা হয়েছে!`,
+      icon: 'success',
+      confirmButtonColor: '#059669',
+      confirmButtonText: 'ঠিক আছে'
+    });
+  };
+
   // status removed in new schema
 
   const filteredAgents = agents.filter(agent =>
@@ -184,13 +208,22 @@ const Agent = () => {
             </p>
           </div>
         </div>
-        <Link
-          to="/hajj-umrah/agent/add"
-          className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors w-full sm:w-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="text-sm sm:text-base">নতুন এজেন্ট যোগ করুন</span>
-        </Link>
+        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
+          <button
+            onClick={handleExcelUpload}
+            className="bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            <span className="text-sm sm:text-base">Excel Upload</span>
+          </button>
+          <Link
+            to="/hajj-umrah/agent/add"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm sm:text-base">নতুন এজেন্ট যোগ করুন</span>
+          </Link>
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -467,6 +500,24 @@ const Agent = () => {
           </form>
         )}
       </Modal>
+
+      {/* Excel Uploader Modal */}
+      {showExcelUploader && (
+        <ExcelUploader
+          isOpen={showExcelUploader}
+          onClose={() => setShowExcelUploader(false)}
+          onDataProcessed={handleExcelDataProcessed}
+          title="Upload Hajj & Umrah Agent Data from Excel"
+          acceptedFields={['tradeName', 'tradeLocation', 'ownerName', 'contactNo', 'dob', 'nid', 'passport']}
+          requiredFields={['tradeName', 'tradeLocation', 'ownerName', 'contactNo']}
+          sampleData={[
+            ['Trade Name', 'Trade Location', 'Owner Name', 'Contact No', 'Date of Birth', 'NID', 'Passport'],
+            ['Green Line Supplies', 'Sylhet', 'Shahadat Hossain', '+8801555667788', '1988-12-01', '188845623499', 'ZP1122334'],
+            ['Nazmul Enterprise', 'Chattogram', 'Nazmul Hasan', '+8801911334455', '1990-08-21', '199045623411', 'EC7654321'],
+            ['Miraj Traders', 'Dhaka, Bangladesh', 'Abdul Karim', '+8801711223344', '1984-05-12', '197845623412', 'BA1234567']
+          ]}
+        />
+      )}
     </div>
   );
 };

@@ -48,6 +48,7 @@ import {
   Plus as PlusIcon,
   List as ListIcon,
   Receipt as ReceiptIcon,
+  FileSpreadsheet,
   FileText as FileTextIcon2,
   TrendingUp as TrendingUpIcon2,
   TrendingDown as TrendingDownIcon2,
@@ -79,6 +80,12 @@ export const navigation = [
     href: '/dashboard',
     icon: LayoutDashboard,
     current: true
+  },
+  {
+    name: 'Excel Upload',
+    href: '/excel-upload',
+    icon: FileSpreadsheet,
+    current: false
   },
   {
     name: 'Customers',

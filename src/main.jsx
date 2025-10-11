@@ -93,6 +93,9 @@ import FlyOvalLedger from './pages/FlyOval/Ledger';
 import FlyOvalReports from './pages/FlyOval/Reports';
 import FlyOvalAudit from './pages/FlyOval/Audit';
 
+// Excel Upload page
+import ExcelUploadPage from './pages/ExcelUpload/ExcelUploadPage';
+
 // Other Business pages
 import BusinessList from './pages/OtherBusiness/BusinessList';
 import AddBusiness from './pages/OtherBusiness/AddBusiness';
@@ -173,6 +176,22 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <Dashboard />
+      }
+    ]
+  },
+  {
+    path: "/excel-upload",
+    element: (
+      <ThemeProvider>
+        <ProtectedRoute>
+          <DashboardLayout />
+        </ProtectedRoute>
+      </ThemeProvider>
+    ),
+    children: [
+      {
+        index: true,
+        element: <ExcelUploadPage />
       }
     ]
   },

@@ -22,10 +22,13 @@ import {
   RefreshCw,
   UserPlus,
   Settings,
-  Star
+  Star,
+  FileSpreadsheet,
+  Upload
 } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import SmallStat from '../../components/common/SmallStat';
+import ExcelUploader from '../../components/common/ExcelUploader';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const AgentList = () => {
@@ -33,6 +36,7 @@ const AgentList = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showExcelUploader, setShowExcelUploader] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -334,6 +338,31 @@ const AgentList = () => {
     }
   };
 
+  const handleExcelUpload = () => {
+    setShowExcelUploader(true);
+  };
+
+  const handleExcelDataProcessed = (processedData) => {
+    // Process the uploaded Excel data
+    const newAgents = processedData.map((agentData, index) => ({
+      id: Date.now() + index,
+      ...agentData,
+      joinDate: agentData.joinDate || new Date().toISOString().split('T')[0],
+      status: 'Active',
+      totalTransactions: 0,
+      totalRevenue: 0,
+      rating: 0,
+      lastActivity: new Date().toISOString().split('T')[0],
+      documents: []
+    }));
+
+    setAgentData(prev => [...prev, ...newAgents]);
+    setShowExcelUploader(false);
+    
+    // Show success message
+    alert(`Successfully added ${newAgents.length} agents from Excel file!`);
+  };
+
   return (
     <div className="space-y-6 p-3 sm:p-4 lg:p-6">
       {/* Header */}
@@ -355,6 +384,13 @@ const AgentList = () => {
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Download className="w-4 h-4" />
             <span>Export</span>
+          </button>
+          <button 
+            onClick={handleExcelUpload}
+            className="flex items-center space-x-2 px-4 py-2 text-green-600 dark:text-green-400 border border-green-300 dark:border-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Excel</span>
           </button>
           <button 
             onClick={handleAddAgent}
@@ -616,6 +652,24 @@ const AgentList = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Excel Uploader Modal */}
+      {showExcelUploader && (
+        <ExcelUploader
+          isOpen={showExcelUploader}
+          onClose={() => setShowExcelUploader(false)}
+          onDataProcessed={handleExcelDataProcessed}
+          title="Upload Agent Data from Excel"
+          acceptedFields={['name', 'email', 'phone', 'address', 'commission']}
+          requiredFields={['name', 'email', 'phone']}
+          sampleData={[
+            ['Name', 'Email', 'Phone', 'Address', 'Commission'],
+            ['Ahmed Rahman', 'ahmed.rahman@example.com', '+8801712345678', 'Dhaka, Bangladesh', '5.5'],
+            ['Fatima Begum', 'fatima.begum@example.com', '+8801712345679', 'Chittagong, Bangladesh', '5.0'],
+            ['Karim Uddin', 'karim.uddin@example.com', '+8801712345680', 'Sylhet, Bangladesh', '4.8']
+          ]}
+        />
       )}
     </div>
   );

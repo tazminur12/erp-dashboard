@@ -15,11 +15,14 @@ import {
   User,
   CreditCard,
   CheckCircle,
-  Clock
+  Clock,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import FilterBar from '../../components/common/FilterBar';
 import Modal from '../../components/common/Modal';
+import ExcelUploader from '../../components/common/ExcelUploader';
 
 const HajiList = () => {
   const navigate = useNavigate();
@@ -29,6 +32,7 @@ const HajiList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedHaji, setSelectedHaji] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showExcelUploader, setShowExcelUploader] = useState(false);
   const [filters, setFilters] = useState({
     status: 'all',
     package: 'all',
@@ -137,6 +141,32 @@ const HajiList = () => {
     if (window.confirm(`Are you sure you want to delete ${haji.name}?`)) {
       setHajis(hajis.filter(h => h.id !== haji.id));
     }
+  };
+
+  const handleExcelUpload = () => {
+    setShowExcelUploader(true);
+  };
+
+  const handleExcelDataProcessed = (processedData) => {
+    // Process the uploaded Excel data
+    const newHajis = processedData.map((hajiData, index) => ({
+      id: `H${String(Date.now() + index).slice(-3)}`,
+      ...hajiData,
+      status: hajiData.status || 'pending',
+      paymentStatus: hajiData.paymentStatus || 'pending',
+      registrationDate: hajiData.registrationDate || new Date().toISOString().split('T')[0],
+      departureDate: hajiData.departureDate || '',
+      agent: hajiData.agent || '',
+      totalAmount: parseFloat(hajiData.totalAmount) || 0,
+      paidAmount: parseFloat(hajiData.paidAmount) || 0,
+      dueAmount: parseFloat(hajiData.totalAmount) - parseFloat(hajiData.paidAmount) || 0
+    }));
+
+    setHajis(prev => [...prev, ...newHajis]);
+    setShowExcelUploader(false);
+    
+    // Show success message
+    alert(`Successfully added ${newHajis.length} Haji from Excel file!`);
   };
 
   const getStatusBadge = (status) => {
@@ -305,6 +335,13 @@ const HajiList = () => {
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Download className="w-4 h-4" />
             <span>Export</span>
+          </button>
+          <button 
+            onClick={handleExcelUpload}
+            className="flex items-center space-x-2 px-4 py-2 text-green-600 dark:text-green-400 border border-green-300 dark:border-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Excel</span>
           </button>
           <Link
             to="/hajj-umrah/haji/add"
@@ -485,6 +522,44 @@ const HajiList = () => {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Excel Uploader Modal */}
+      {showExcelUploader && (
+        <ExcelUploader
+          isOpen={showExcelUploader}
+          onClose={() => setShowExcelUploader(false)}
+          onDataProcessed={handleExcelDataProcessed}
+          title="Upload Haji Data from Excel"
+          acceptedFields={[
+            'name', 'passport', 'phone', 'email', 'address', 
+            'package', 'agent', 'totalAmount', 'paidAmount', 
+            'status', 'paymentStatus', 'registrationDate', 'departureDate'
+          ]}
+          requiredFields={['name', 'passport', 'phone', 'email', 'package']}
+          sampleData={[
+            [
+              'Name', 'Passport', 'Phone', 'Email', 'Address', 
+              'Package', 'Agent', 'Total Amount', 'Paid Amount', 
+              'Status', 'Payment Status', 'Registration Date', 'Departure Date'
+            ],
+            [
+              'Md. Abdul Rahman', 'A1234567', '+8801712345678', 'abdul.rahman@email.com', 
+              'Dhaka, Bangladesh', 'Premium Hajj 2024', 'Al-Hijrah Travels', '450000', '450000', 
+              'confirmed', 'paid', '2024-01-15', '2024-06-10'
+            ],
+            [
+              'Fatima Begum', 'B2345678', '+8801712345679', 'fatima.begum@email.com', 
+              'Chittagong, Bangladesh', 'Standard Umrah 2024', 'Madina Tours', '180000', '90000', 
+              'pending', 'partial', '2024-02-20', '2024-03-15'
+            ],
+            [
+              'Md. Karim Uddin', 'C3456789', '+8801712345680', 'karim.uddin@email.com', 
+              'Sylhet, Bangladesh', 'Deluxe Hajj 2024', 'Al-Hijrah Travels', '550000', '550000', 
+              'confirmed', 'paid', '2024-01-10', '2024-06-05'
+            ]
+          ]}
+        />
       )}
     </div>
   );
