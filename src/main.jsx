@@ -103,6 +103,10 @@ import Provident_Fund from './pages/OfficeManagement/HR Managment/Provident_Fund
 import Sale_Target from './pages/OfficeManagement/HR Managment/Sale_Target';
 import Attendance from './pages/OfficeManagement/HR Managment/Attendance';
 import IncentivePlan from './pages/OfficeManagement/HR Managment/IncentivePlan';
+import EmployeeList from './pages/OfficeManagement/HR Managment/EmployeeList';
+import AddEmployee from './pages/OfficeManagement/HR Managment/AddEmployee';
+import EmployeeProfile from './pages/OfficeManagement/HR Managment/EmployeeProfile';
+import EditEmployee from './pages/OfficeManagement/HR Managment/EditEmployee';
 
 // Operating Expenses pages
 import OperatingExpenses from './pages/OfficeManagement/OperatingExpenses';
@@ -575,6 +579,22 @@ const router = createBrowserRouter([
       </ThemeProvider>
     ),
     children: [
+      {
+        path: "hr/employee/list",
+        element: <EmployeeList />
+      },
+      {
+        path: "hr/employee/add",
+        element: <AddEmployee />
+      },
+      {
+        path: "hr/employee/profile/:id",
+        element: <EmployeeProfile />
+      },
+      {
+        path: "hr/employee/edit/:id",
+        element: <EditEmployee />
+      },
       {
         path: "hr/payroll",
         element: <Payroll />

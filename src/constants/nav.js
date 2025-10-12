@@ -267,7 +267,7 @@ export const navigation = [
       name: 'HR Management',
       icon: Users,
       children: [
-        { name: 'Employeer', href: '/office-management/hr/employeer', icon: Users }, 
+        { name: 'Employeers', href: '/office-management/hr/employee/list', icon: Users }, 
         { name: 'Payroll', href: '/office-management/hr/payroll', icon: Receipt },
         { name: 'Incentive Plan', href: '/office-management/hr/incentive-plan', icon: TrendingUp },
         { name: 'Provident Fund', href: '/office-management/hr/provident-fund', icon: PiggyBank },
