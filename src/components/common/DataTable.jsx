@@ -9,7 +9,10 @@ const DataTable = ({
   exportable = true,
   actions = true,
   pageSize = 10,
-  className = ''
+  className = '',
+  onEdit,
+  onDelete,
+  customActions
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -86,11 +89,19 @@ const DataTable = ({
 
   // Action handlers
   const handleEdit = (item) => {
-    console.log('Edit:', item);
+    if (onEdit) {
+      onEdit(item);
+    } else {
+      console.log('Edit:', item);
+    }
   };
 
   const handleDelete = (item) => {
-    console.log('Delete:', item);
+    if (onDelete) {
+      onDelete(item);
+    } else {
+      console.log('Delete:', item);
+    }
   };
 
   const handlePrint = (item) => {
@@ -168,29 +179,33 @@ const DataTable = ({
                 ))}
                 {actions && (
                   <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors duration-200"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handlePrint(item)}
-                        className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 transition-colors duration-200"
-                        title="Print"
-                      >
-                        <Printer className="w-4 h-4" />
-                      </button>
-                    </div>
+                    {customActions ? (
+                      customActions(item)
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item)}
+                          className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors duration-200"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handlePrint(item)}
+                          className="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-300 transition-colors duration-200"
+                          title="Print"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </td>
                 )}
               </tr>

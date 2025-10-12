@@ -66,7 +66,6 @@ const ExcelUploader = ({
     'contactNo': { label: 'Contact No', icon: Phone, type: 'text', required: false },
     'dob': { label: 'Date of Birth', icon: Calendar, type: 'date', required: false },
     'nid': { label: 'NID', icon: Users, type: 'text', required: false },
-    'passport': { label: 'Passport', icon: Users, type: 'text', required: false },
     'agentId': { label: 'Agent ID', icon: Users, type: 'text', required: true },
     'method': { label: 'Payment Method', icon: CreditCard, type: 'text', required: true },
     'bankName': { label: 'Bank Name', icon: Building, type: 'text', required: false },

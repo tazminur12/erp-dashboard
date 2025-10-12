@@ -11,6 +11,18 @@ const Sidebar = () => {
   const { sidebarOpen, sidebarCollapsed, mobileSidebarOpen, closeMobileSidebar } = useUIStore();
   const [expandedItems, setExpandedItems] = useState(new Set());
 
+  // Helper function to render icon (supports both React components and emoji strings)
+  const renderIcon = (icon, className) => {
+    if (typeof icon === 'string') {
+      // If it's a string (emoji), render as text
+      return <span className={className}>{icon}</span>;
+    } else {
+      // If it's a React component, render normally
+      const IconComponent = icon;
+      return <IconComponent className={className} />;
+    }
+  };
+
   const toggleExpanded = (itemName) => {
     const newExpanded = new Set(expandedItems);
     if (newExpanded.has(itemName)) {
@@ -72,7 +84,7 @@ const Sidebar = () => {
           onClick={handleLogout}
           className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors duration-200 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
         >
-          <item.icon className="w-5 h-5" />
+          {renderIcon(item.icon, "w-5 h-5")}
           {!sidebarCollapsed && <span>{item.name}</span>}
         </button>
       );
@@ -91,7 +103,7 @@ const Sidebar = () => {
               }`}
             >
               <div className="flex items-center space-x-3">
-                <item.icon className="w-5 h-5" />
+                {renderIcon(item.icon, "w-5 h-5")}
                 {!sidebarCollapsed && <span>{item.name}</span>}
               </div>
               {!sidebarCollapsed && (
@@ -144,7 +156,7 @@ const Sidebar = () => {
                                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                                 }`}
                               >
-                                <grandChild.icon className="w-4 h-4" />
+                                {renderIcon(grandChild.icon, "w-4 h-4")}
                                 <span>{grandChild.name}</span>
                               </Link>
                             ))}
@@ -163,10 +175,10 @@ const Sidebar = () => {
                             ? 'bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400'
                             : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700'
                         }`}
-                      >
-                        <child.icon className="w-4 h-4" />
-                        <span>{child.name}</span>
-                      </Link>
+                              >
+                                {renderIcon(child.icon, "w-4 h-4")}
+                                <span>{child.name}</span>
+                              </Link>
                     );
                   }
                 })}
@@ -182,7 +194,7 @@ const Sidebar = () => {
                 : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
-            <item.icon className="w-5 h-5" />
+            {renderIcon(item.icon, "w-5 h-5")}
             {!sidebarCollapsed && <span>{item.name}</span>}
           </Link>
         )}

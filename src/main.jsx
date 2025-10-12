@@ -66,6 +66,10 @@ import BreedingRecords from './pages/MirajIndustries/BreedingRecords';
 import FinancialReport from './pages/MirajIndustries/FinancialReport';
 import EmployeeManagement from './pages/MirajIndustries/EmployeeManagement';
 
+// Hajj Management pages
+import HajjManagementDashboard from './pages/HajjManagement/HajjManagementDashboard';
+import HajjManagement from './pages/HajjManagement/HajjManagement';
+
 // Account pages
 import AccountOverview from './pages/Account/AccountOverview';
 import IncomeManagement from './pages/Account/IncomeManagement';
@@ -454,6 +458,38 @@ const router = createBrowserRouter([
       {
         path: "employee-management",
         element: <EmployeeManagement />
+      }
+    ]
+  },
+  {
+    path: "/hajj-management",
+    element: (
+      <ThemeProvider>
+        <ProtectedRoute>
+          <DashboardLayout />
+        </ProtectedRoute>
+      </ThemeProvider>
+    ),
+    children: [
+      {
+        path: "dashboard",
+        element: <HajjManagementDashboard />
+      },
+      {
+        index: true,
+        element: <HajjManagement />
+      },
+      {
+        path: "list",
+        element: <HajjManagement />
+      },
+      {
+        path: "add",
+        element: <HajjManagement />
+      },
+      {
+        path: "reports",
+        element: <HajjManagement />
       }
     ]
   },

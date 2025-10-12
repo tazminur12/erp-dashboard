@@ -128,7 +128,7 @@ export const navigation = [
   },
   {
     name: 'Hajj & Umrah',
-    icon: Building,
+    icon: '🕋',
     children: [
       { name: 'Dashboard', href: '/hajj-umrah', icon: LayoutDashboard },
       {
@@ -231,6 +231,17 @@ export const navigation = [
       { name: 'প্রজনন ও বাচ্চা প্রসব', href: '/miraj-industries/breeding-records', icon: Plus },
       { name: 'আয়-খরচ রিপোর্ট', href: '/miraj-industries/financial-report', icon: BarChart3 },
       { name: 'কর্মচারী ব্যবস্থাপনা', href: '/miraj-industries/employee-management', icon: Users }
+    ]
+  },
+  {
+    name: 'হজ্জ ব্যবস্থাপনা',
+    icon: Building,
+    children: [
+      { name: 'ড্যাশবোর্ড', href: '/hajj-management/dashboard', icon: LayoutDashboard },
+      { name: 'হাজী ব্যবস্থাপনা', href: '/hajj-management', icon: Users },
+      { name: 'হাজী তালিকা', href: '/hajj-management/list', icon: List },
+      { name: 'নতুন হাজী যোগ', href: '/hajj-management/add', icon: Plus },
+      { name: 'রিপোর্ট ও বিশ্লেষণ', href: '/hajj-management/reports', icon: BarChart3 }
     ]
   },
   {

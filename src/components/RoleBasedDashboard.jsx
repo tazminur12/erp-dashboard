@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import useUserRole from '../hooks/useUserRole';
 import { USER_ROLES, ROLE_DISPLAY_NAMES } from '../hooks/useUserRole';
+import ProfessionalDashboard from './ProfessionalDashboard';
 
 const RoleBasedDashboard = () => {
   const userRole = useUserRole();
+  const [showProfessionalView, setShowProfessionalView] = useState(true);
 
   const renderSuperAdminDashboard = () => (
     <div className="space-y-6">
@@ -294,7 +296,44 @@ const RoleBasedDashboard = () => {
 
   return (
     <div className="p-6">
-      {renderDashboard()}
+      {/* Dashboard View Toggle */}
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {showProfessionalView ? 'প্রফেশনাল ড্যাশবোর্ড' : 'রোল ভিত্তিক ড্যাশবোর্ড'}
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {showProfessionalView 
+              ? 'সব ব্যবসায়িক মডিউলের সামগ্রিক দৃশ্য' 
+              : `${ROLE_DISPLAY_NAMES[userRole.role]} ব্যবহারকারীর জন্য কাস্টমাইজড ভিউ`
+            }
+          </p>
+        </div>
+        <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+          <button
+            onClick={() => setShowProfessionalView(true)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              showProfessionalView
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            প্রফেশনাল ভিউ
+          </button>
+          <button
+            onClick={() => setShowProfessionalView(false)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              !showProfessionalView
+                ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            রোল ভিউ
+          </button>
+        </div>
+      </div>
+
+      {showProfessionalView ? <ProfessionalDashboard /> : renderDashboard()}
     </div>
   );
 };

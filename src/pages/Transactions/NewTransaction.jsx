@@ -16,6 +16,9 @@ import {
   Receipt,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  TrendingUp,
+  TrendingDown,
   Loader2,
   ArrowRightLeft
 } from 'lucide-react';
@@ -40,6 +43,12 @@ const NewTransaction = () => {
     customerPhone: '',
     customerEmail: '',
     
+    // Customer Bank Account Details
+    customerBankAccount: {
+      bankName: '',
+      accountNumber: ''
+    },
+    
     // Step 3: Category (for credit/debit)
     category: '',
     
@@ -57,6 +66,22 @@ const NewTransaction = () => {
       transactionId: '',
       amount: '',
       reference: ''
+    },
+    
+    // Account Selection for Credit/Debit transactions
+    sourceAccount: {
+      id: '',
+      name: '',
+      bankName: '',
+      accountNumber: '',
+      balance: 0
+    },
+    destinationAccount: {
+      id: '',
+      name: '',
+      bankName: '',
+      accountNumber: '',
+      balance: 0
     },
     
     // Account Transfer Fields
@@ -101,6 +126,8 @@ const NewTransaction = () => {
   const [debitAccountSearchTerm, setDebitAccountSearchTerm] = useState('');
   const [creditAccountSearchTerm, setCreditAccountSearchTerm] = useState('');
   const [accountManagerSearchTerm, setAccountManagerSearchTerm] = useState('');
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [errors, setErrors] = useState({});
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(false);
@@ -118,11 +145,19 @@ const NewTransaction = () => {
     },
     {
       id: 'ACC-002',
-      name: 'হজ্জ ও উমরাহ একাউন্ট',
+      name: 'হজ্জ একাউন্ট',
       bankName: 'ইসলামী ব্যাংক বাংলাদেশ লিমিটেড',
       accountNumber: '2345678901',
-      balance: 850000,
+      balance: 450000,
       type: 'hajj'
+    },
+    {
+      id: 'ACC-006',
+      name: 'উমরাহ একাউন্ট',
+      bankName: 'ইসলামী ব্যাংক বাংলাদেশ লিমিটেড',
+      accountNumber: '6789012345',
+      balance: 400000,
+      type: 'umrah'
     },
     {
       id: 'ACC-003',
@@ -320,14 +355,133 @@ const NewTransaction = () => {
     }
   };
 
-  // Categories
-  const categories = [
-    { id: 'hajj', name: 'হাজ্জ & উমরাহ', icon: '🕋', description: 'হাজ্জ এবং উমরাহ প্যাকেজ' },
+  // Categories with main categories and sub-categories
+  const categoryGroups = [
+    {
+      id: 'travel-tourism',
+      name: 'ভ্রমণ ও পর্যটন',
+      icon: '✈️',
+      description: 'ভ্রমণ এবং পর্যটন সংক্রান্ত সব সেবা',
+      subCategories: [
+    { id: 'hajj', name: 'হাজ্জ', icon: '🕋', description: 'হাজ্জ প্যাকেজ এবং সেবা' },
+    { id: 'umrah', name: 'উমরাহ', icon: '🕌', description: 'উমরাহ প্যাকেজ এবং সেবা' },
     { id: 'air-ticket', name: 'এয়ার টিকেট', icon: '✈️', description: 'বিমান টিকেট এবং ভ্রমণ' },
     { id: 'visa', name: 'ভিসা সার্ভিস', icon: '📋', description: 'ভিসা প্রক্রিয়াকরণ এবং সহায়তা' },
     { id: 'hotel', name: 'হোটেল বুকিং', icon: '🏨', description: 'হোটেল রিজার্ভেশন' },
-    { id: 'insurance', name: 'ইনসুরেন্স', icon: '🛡️', description: 'ভ্রমণ এবং স্বাস্থ্য বীমা' },
-    { id: 'other', name: 'অন্যান্য সেবা', icon: '🔧', description: 'অন্যান্য ভ্রমণ সেবা' }
+        { id: 'insurance', name: 'ইনসুরেন্স', icon: '🛡️', description: 'ভ্রমণ এবং স্বাস্থ্য বীমা' }
+      ]
+    },
+    {
+      id: 'financial-services',
+      name: 'আর্থিক সেবা',
+      icon: '💰',
+      description: 'আর্থিক লেনদেন এবং ব্যাংকিং সেবা',
+      subCategories: [
+        { id: 'loan-giving', name: 'লোন দেওয়া', icon: '💰', description: 'অন্যের কাছে ঋণ প্রদান' },
+        { id: 'loan-receiving', name: 'লোন নেওয়া', icon: '💸', description: 'অন্যের কাছ থেকে ঋণ গ্রহণ' },
+        { id: 'money-exchange', name: 'মানি এক্সচেঞ্জ', icon: '💱', description: 'মুদ্রা বিনিময় সেবা' },
+        { id: 'investment', name: 'বিনিয়োগ', icon: '📈', description: 'বিভিন্ন বিনিয়োগ কার্যক্রম' },
+        { id: 'savings', name: 'সঞ্চয়', icon: '🏦', description: 'ব্যাংক সঞ্চয় এবং জমা' }
+      ]
+    },
+    {
+      id: 'business-operations',
+      name: 'ব্যবসায়িক কার্যক্রম',
+      icon: '🏢',
+      description: 'ব্যবসায়িক পরিচালনা এবং কার্যক্রম',
+      subCategories: [
+        { id: 'fly-oval', name: 'ফ্লাই ওভাল', icon: '🛫', description: 'ফ্লাই ওভাল লিমিটেড সেবা' },
+        { id: 'sales', name: 'বিক্রয়', icon: '🛒', description: 'পণ্য এবং সেবা বিক্রয়' },
+        { id: 'invoice', name: 'ইনভয়েস', icon: '🧾', description: 'বিল এবং ইনভয়েস সেবা' },
+        { id: 'vendor-management', name: 'ভেন্ডর ব্যবস্থাপনা', icon: '🏪', description: 'সরবরাহকারী ব্যবস্থাপনা' },
+        { id: 'customer-service', name: 'গ্রাহক সেবা', icon: '🎧', description: 'গ্রাহক সেবা এবং সহায়তা' }
+      ]
+    },
+    {
+      id: 'agriculture-livestock',
+      name: 'কৃষি ও গবাদি পশু',
+      icon: '🐄',
+      description: 'কৃষি এবং গবাদি পশু ব্যবস্থাপনা',
+      subCategories: [
+        { id: 'cattle-business', name: 'গবাদি পশু ব্যবসা', icon: '🐄', description: 'মিরাজ ইন্ডাস্ট্রিজ গবাদি পশু ব্যবস্থাপনা' },
+        { id: 'milk-production', name: 'দুধ উৎপাদন', icon: '🥛', description: 'দুধ উৎপাদন এবং বিক্রয়' },
+        { id: 'feed-management', name: 'খাদ্য ব্যবস্থাপনা', icon: '🌾', description: 'গবাদি পশুর খাদ্য ব্যবস্থাপনা' },
+        { id: 'breeding', name: 'প্রজনন সেবা', icon: '🐂', description: 'গবাদি পশুর প্রজনন ব্যবস্থাপনা' }
+      ]
+    },
+    {
+      id: 'office-administration',
+      name: 'অফিস ও প্রশাসন',
+      icon: '🏢',
+      description: 'অফিস ব্যবস্থাপনা এবং প্রশাসনিক কাজ',
+      subCategories: [
+        { id: 'office-management', name: 'অফিস ব্যবস্থাপনা', icon: '🏢', description: 'অফিস পরিচালনা এবং ব্যবস্থাপনা' },
+        { id: 'hr-services', name: 'এইচআর সেবা', icon: '👥', description: 'মানব সম্পদ ব্যবস্থাপনা' },
+        { id: 'payroll', name: 'বেতন-ভাতা', icon: '💳', description: 'কর্মচারী বেতন এবং ভাতা' },
+        { id: 'attendance', name: 'হাজিরা', icon: '📅', description: 'কর্মচারী উপস্থিতি ব্যবস্থাপনা' }
+      ]
+    },
+    {
+      id: 'technology-it',
+      name: 'প্রযুক্তি ও আইটি',
+      icon: '💻',
+      description: 'তথ্য প্রযুক্তি এবং ডিজিটাল সেবা',
+      subCategories: [
+        { id: 'it-services', name: 'আইটি সেবা', icon: '💻', description: 'তথ্য প্রযুক্তি সেবা' },
+        { id: 'software', name: 'সফটওয়্যার', icon: '📱', description: 'সফটওয়্যার বিক্রয় এবং সেবা' },
+        { id: 'digital-services', name: 'ডিজিটাল সেবা', icon: '🌐', description: 'ডিজিটাল মার্কেটিং এবং সেবা' }
+      ]
+    },
+    {
+      id: 'education-training',
+      name: 'শিক্ষা ও প্রশিক্ষণ',
+      icon: '📚',
+      description: 'শিক্ষামূলক এবং প্রশিক্ষণ সেবা',
+      subCategories: [
+        { id: 'education', name: 'শিক্ষা', icon: '📚', description: 'শিক্ষামূলক সেবা এবং কোর্স' },
+        { id: 'training', name: 'প্রশিক্ষণ', icon: '🎓', description: 'পেশাগত প্রশিক্ষণ সেবা' }
+      ]
+    },
+    {
+      id: 'healthcare-medical',
+      name: 'স্বাস্থ্য ও চিকিৎসা',
+      icon: '🏥',
+      description: 'স্বাস্থ্য সেবা এবং চিকিৎসা সংক্রান্ত',
+      subCategories: [
+        { id: 'medical', name: 'চিকিৎসা', icon: '🏥', description: 'চিকিৎসা সেবা এবং সরঞ্জাম' },
+        { id: 'healthcare', name: 'স্বাস্থ্য সেবা', icon: '⚕️', description: 'স্বাস্থ্য সেবা এবং পরিচর্যা' }
+      ]
+    },
+    {
+      id: 'transport-logistics',
+      name: 'পরিবহন ও সরবরাহ',
+      icon: '🚚',
+      description: 'পরিবহন এবং লজিস্টিক্স সেবা',
+      subCategories: [
+        { id: 'transportation', name: 'পরিবহন', icon: '🚚', description: 'পণ্য পরিবহন সেবা' },
+        { id: 'logistics', name: 'লজিস্টিক্স', icon: '📦', description: 'পণ্য সরবরাহ ব্যবস্থাপনা' }
+      ]
+    },
+    {
+      id: 'consultation-services',
+      name: 'পরামর্শ ও সহায়তা',
+      icon: '💼',
+      description: 'পরামর্শ এবং সহায়তা সেবা',
+      subCategories: [
+        { id: 'consultation', name: 'পরামর্শ', icon: '💼', description: 'ব্যবসায়িক পরামর্শ সেবা' },
+        { id: 'legal', name: 'আইনি সেবা', icon: '⚖️', description: 'আইনি পরামর্শ এবং সহায়তা' },
+        { id: 'maintenance', name: 'রক্ষণাবেক্ষণ', icon: '🔧', description: 'সরঞ্জাম রক্ষণাবেক্ষণ সেবা' }
+      ]
+    },
+    {
+      id: 'other-services',
+      name: 'অন্যান্য সেবা',
+      icon: '🔧',
+      description: 'অন্যান্য ব্যবসায়িক সেবা',
+      subCategories: [
+        { id: 'other', name: 'অন্যান্য সেবা', icon: '🔧', description: 'অন্যান্য ব্যবসায়িক সেবা' }
+      ]
+    }
   ];
 
   // Payment methods
@@ -379,11 +533,19 @@ const NewTransaction = () => {
         { number: 4, title: 'ট্রান্সফার বিবরণ', description: 'ট্রান্সফার পরিমাণ ও একাউন্ট ম্যানেজার নির্বাচন' },
         { number: 5, title: 'কনফার্মেশন', description: 'এসএমএস কনফার্মেশন এবং সংরক্ষণ' }
       ];
+    } else if (formData.transactionType === 'debit') {
+      return [
+        { number: 1, title: 'লেনদেন টাইপ', description: 'ডেবিট (ব্যয়) নির্বাচন করুন' },
+        { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
+        { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
+        { number: 4, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+        { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+      ];
     } else {
       return [
-        { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট বা ডেবিট নির্বাচন করুন' },
-        { number: 2, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
-        { number: 3, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
+        { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
+        { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
+        { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
         { number: 4, title: 'সিলেক্ট ইনভয়েস', description: 'ইনভয়েস সিলেক্ট করুন' },
         { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
         { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
@@ -462,6 +624,48 @@ const NewTransaction = () => {
     }));
   };
 
+  const toggleCategoryGroup = (groupId) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId]
+    }));
+  };
+
+  const handleCategorySelect = (categoryId) => {
+    setFormData(prev => ({ ...prev, category: categoryId }));
+    setErrors(prev => ({ ...prev, category: '' }));
+  };
+
+  const handleAccountSelectForTransaction = (account, type) => {
+    setFormData(prev => ({
+      ...prev,
+      [type]: {
+        id: account.id,
+        name: account.name,
+        bankName: account.bankName,
+        accountNumber: account.accountNumber,
+        balance: account.balance
+      }
+    }));
+  };
+
+  // Filter categories based on search term
+  const filteredCategoryGroups = categoryGroups.map(group => {
+    const filteredSubCategories = group.subCategories.filter(subCategory =>
+      subCategory.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+      subCategory.description.toLowerCase().includes(categorySearchTerm.toLowerCase())
+    );
+    
+    return {
+      ...group,
+      subCategories: filteredSubCategories
+    };
+  }).filter(group => 
+    group.subCategories.length > 0 ||
+    group.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+    group.description.toLowerCase().includes(categorySearchTerm.toLowerCase())
+  );
+
   const validateStep = (step) => {
     const newErrors = {};
 
@@ -505,6 +709,8 @@ const NewTransaction = () => {
       }
     } else {
       // Regular credit/debit validation flow
+      if (formData.transactionType === 'debit') {
+        // Debit flow: skip invoice step
       switch (step) {
         case 1:
           if (!formData.transactionType) {
@@ -514,13 +720,55 @@ const NewTransaction = () => {
           }
           break;
         case 2:
+            if (!formData.category) {
+              newErrors.category = 'ক্যাটাগরি নির্বাচন করুন';
+            }
+            break;
+          case 3:
           if (!formData.customerId) {
             newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
           }
           break;
-        case 3:
+          case 4:
+            if (!formData.paymentMethod) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
+            } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
+            }
+            if (!formData.paymentDetails.amount) {
+              newErrors.amount = 'পরিমাণ লিখুন';
+            } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
+              newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
+            }
+            // Validate customer bank account details for bank transfer
+            if (formData.paymentMethod === 'bank-transfer') {
+              if (!formData.customerBankAccount.bankName) {
+                newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+              }
+              if (!formData.customerBankAccount.accountNumber) {
+                newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+              }
+            }
+            break;
+        }
+      } else {
+        // Credit flow: include invoice step
+        switch (step) {
+          case 1:
+            if (!formData.transactionType) {
+              newErrors.transactionType = 'লেনদেনের ধরন নির্বাচন করুন';
+            } else if (!['credit', 'debit', 'transfer'].includes(formData.transactionType)) {
+              newErrors.transactionType = 'লেনদেনের ধরন অবৈধ';
+            }
+            break;
+          case 2:
           if (!formData.category) {
             newErrors.category = 'ক্যাটাগরি নির্বাচন করুন';
+          }
+          break;
+          case 3:
+            if (!formData.customerId) {
+              newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
           }
           break;
         case 4:
@@ -539,7 +787,17 @@ const NewTransaction = () => {
           } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
             newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
           }
+          // Validate customer bank account details for bank transfer
+          if (formData.paymentMethod === 'bank-transfer') {
+            if (!formData.customerBankAccount.bankName) {
+              newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+            }
+            if (!formData.customerBankAccount.accountNumber) {
+              newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+            }
+          }
           break;
+        }
       }
     }
 
@@ -549,7 +807,14 @@ const NewTransaction = () => {
 
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      const maxSteps = formData.transactionType === 'transfer' ? 5 : 6;
+      let maxSteps;
+      if (formData.transactionType === 'transfer') {
+        maxSteps = 5;
+      } else if (formData.transactionType === 'debit') {
+        maxSteps = 5;
+      } else {
+        maxSteps = 6;
+      }
       setCurrentStep(prev => Math.min(prev + 1, maxSteps));
     }
   };
@@ -590,6 +855,10 @@ const NewTransaction = () => {
           amount: amount,
           reference: formData.paymentDetails.reference || null
         },
+        customerBankAccount: {
+          bankName: formData.customerBankAccount.bankName || null,
+          accountNumber: formData.customerBankAccount.accountNumber || null
+        },
         notes: formData.notes || null,
         date: formData.date,
         createdBy: userProfile?.email || 'unknown_user',
@@ -625,6 +894,10 @@ const NewTransaction = () => {
           customerName: '',
           customerPhone: '',
           customerEmail: '',
+          customerBankAccount: {
+            bankName: '',
+            accountNumber: ''
+          },
           category: '',
           selectedInvoice: null,
           invoiceId: '',
@@ -669,6 +942,7 @@ const NewTransaction = () => {
               customerName: formData.customerName,
               customerPhone: formData.customerPhone,
               customerEmail: formData.customerEmail,
+              customerBankAccount: formData.customerBankAccount,
               category: formData.category,
               paymentMethod: formData.paymentMethod,
               paymentDetails: formData.paymentDetails,
@@ -814,7 +1088,14 @@ const NewTransaction = () => {
   );
 
   const selectedPaymentMethod = paymentMethods.find(method => method.id === formData.paymentMethod);
-  const selectedCategory = categories.find(cat => cat.id === formData.category);
+  
+  // Find selected category from all sub-categories
+  const selectedCategory = categoryGroups
+    .flatMap(group => group.subCategories)
+    .find(cat => cat.id === formData.category);
+
+  // Get default business account (main business account)
+  const defaultBusinessAccount = accounts.find(account => account.type === 'business') || accounts[0];
 
   return (
     <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${
@@ -1026,7 +1307,7 @@ const NewTransaction = () => {
             </div>
           )}
 
-          {/* Step 2: Customer Selection (for credit/debit) or Debit Account Selection (for transfer) */}
+          {/* Step 2: Category Selection (for credit/debit) or Debit Account Selection (for transfer) */}
           {currentStep === 2 && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'transfer' ? (
@@ -1040,21 +1321,20 @@ const NewTransaction = () => {
                   </p>
                 </div>
               ) : (
-                // Credit/Debit: Customer Selection
+                // Credit/Debit: Category Selection
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    কাস্টমার নির্বাচন করুন
+                    সেবার ক্যাটাগরি নির্বাচন করুন
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    লেনদেনের জন্য কাস্টমার সিলেক্ট করুন
+                    আপনি কোন ধরনের সেবা প্রদান করছেন?
                   </p>
                 </div>
               )}
 
-              <div className="max-w-4xl mx-auto">
                 {formData.transactionType === 'transfer' ? (
                   // Transfer: Debit Account List
-                  <>
+                <div className="max-w-4xl mx-auto">
                     {/* Debit Account Search Bar */}
                     <div className="relative mb-3 sm:mb-4">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1116,10 +1396,13 @@ const NewTransaction = () => {
                                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                                 : account.type === 'hajj'
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                : account.type === 'umrah'
+                                ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
                                 : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
                             }`}>
                               {account.type === 'business' ? 'ব্যবসায়িক' : 
                                account.type === 'hajj' ? 'হজ্জ' : 
+                               account.type === 'umrah' ? 'উমরাহ' :
                                account.type === 'airline' ? 'এয়ারলাইন' :
                                account.type === 'visa' ? 'ভিসা' : 'সঞ্চয়'}
                             </span>
@@ -1128,22 +1411,19 @@ const NewTransaction = () => {
                       </button>
                     ))}
                     </div>
-                  </>
+                </div>
                 ) : (
-                  // Credit/Debit: Customer Selection
+                // Credit/Debit: Category Selection
                   <>
-                    {/* Search Bar */}
-                    <div className="relative mb-3 sm:mb-4">
+                  {/* Category Search Bar */}
+                  <div className="relative mb-4 sm:mb-6 max-w-md mx-auto">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      {searchLoading && (
-                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
-                      )}
                       <input
                         type="text"
-                        placeholder="নাম, ফোন নম্বর বা ইমেইল দিয়ে খুঁজুন..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className={`w-full pl-10 pr-10 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                      placeholder="ক্যাটাগরি খুঁজুন..."
+                      value={categorySearchTerm}
+                      onChange={(e) => setCategorySearchTerm(e.target.value)}
+                      className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                           isDark 
                             ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                             : 'border-gray-300'
@@ -1151,77 +1431,107 @@ const NewTransaction = () => {
                       />
                     </div>
 
-                    {/* Customer List */}
-                    <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
-                      {customersLoading ? (
-                        <div className="flex items-center justify-center py-6 sm:py-8">
-                          <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
-                          <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">কাস্টমার লোড হচ্ছে...</span>
+                  {/* Category Groups */}
+                  <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4">
+                    {filteredCategoryGroups.map((group) => (
+                      <div key={group.id} className={`rounded-lg border transition-all duration-200 ${
+                        isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-white'
+                      }`}>
+                        {/* Main Category Header */}
+                        <button
+                          onClick={() => toggleCategoryGroup(group.id)}
+                          className={`w-full p-3 sm:p-4 rounded-lg transition-all duration-200 hover:bg-opacity-80 ${
+                            expandedCategories[group.id] 
+                              ? 'bg-blue-50 dark:bg-blue-900/20' 
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="text-2xl sm:text-3xl">{group.icon}</div>
+                              <div className="text-left">
+                                <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                                  {group.name}
+                                </h3>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {group.description}
+                                </p>
                         </div>
-                      ) : filteredCustomers.length > 0 ? (
-                        filteredCustomers.map((customer) => (
+                            </div>
+                            <div className={`transform transition-transform duration-200 ${
+                              expandedCategories[group.id] ? 'rotate-180' : ''
+                            }`}>
+                              <ChevronDown className="w-5 h-5 text-gray-500" />
+                            </div>
+                          </div>
+                        </button>
+
+                        {/* Sub Categories */}
+                        {expandedCategories[group.id] && (
+                          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                              {group.subCategories.map((subCategory) => (
                           <button
-                            key={customer.id || customer.customerId}
-                            onClick={() => handleCustomerSelect(customer)}
-                            className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
-                              formData.customerId === (customer.id || customer.customerId)
+                                  key={subCategory.id}
+                                  onClick={() => handleCategorySelect(subCategory.id)}
+                                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 text-left ${
+                                    formData.category === subCategory.id
                                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                 : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
                             }`}
                           >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <div className="text-left min-w-0 flex-1">
-                                  <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                                    {customer.name}
-                                  </h3>
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-lg sm:text-xl">{subCategory.icon}</div>
+                                    <div className="min-w-0 flex-1">
+                                      <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                        {subCategory.name}
+                                      </h4>
                                   <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                    {customer.mobile || customer.phone} • {customer.email}
+                                        {subCategory.description}
                                   </p>
-                                  <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
-                                    {customer.customerType || 'সাধারণ'}
-                                  </span>
                                 </div>
-                              </div>
-                              {formData.customerId === (customer.id || customer.customerId) && (
-                                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
+                                    {formData.category === subCategory.id && (
+                                      <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
                               )}
                             </div>
                           </button>
-                        ))
-                      ) : (
-                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                          {searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই'}
+                              ))}
+                            </div>
                         </div>
                       )}
                     </div>
-                  </>
-                )}
+                    ))}
 
-                {/* Error Messages */}
-                {formData.transactionType === 'transfer' ? (
-                  errors.debitAccount && (
+                    {filteredCategoryGroups.length === 0 && (
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-3">🔍</div>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                          {categorySearchTerm ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই'}
+                        </p>
+                        {categorySearchTerm && (
+                          <button
+                            onClick={() => setCategorySearchTerm('')}
+                            className="mt-2 text-blue-600 hover:text-blue-700 text-sm underline"
+                          >
+                            সব ক্যাটাগরি দেখুন
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {errors.category && (
                     <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
                       <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {errors.debitAccount}
+                      {errors.category}
                     </p>
-                  )
-                ) : (
-                  errors.customerId && (
-                    <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
-                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {errors.customerId}
-                    </p>
-                  )
-                )}
-              </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
-          {/* Step 3: Category Selection (for credit/debit) or Credit Account Selection (for transfer) */}
+          {/* Step 3: Customer Selection (for credit/debit) or Credit Account Selection (for transfer) */}
           {currentStep === 3 && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'transfer' ? (
@@ -1235,13 +1545,13 @@ const NewTransaction = () => {
                   </p>
                 </div>
               ) : (
-                // Credit/Debit: Category Selection
+                // Credit/Debit: Customer Selection
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    সেবার ক্যাটাগরি নির্বাচন করুন
+                    কাস্টমার নির্বাচন করুন
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    আপনি কোন ধরনের সেবা প্রদান করছেন?
+                    লেনদেনের জন্য কাস্টমার সিলেক্ট করুন
                   </p>
                 </div>
               )}
@@ -1312,10 +1622,13 @@ const NewTransaction = () => {
                                   ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                                   : account.type === 'hajj'
                                   ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                                  : account.type === 'umrah'
+                                  ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
                                   : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
                               }`}>
                                 {account.type === 'business' ? 'ব্যবসায়িক' : 
                                  account.type === 'hajj' ? 'হজ্জ' : 
+                                 account.type === 'umrah' ? 'উমরাহ' :
                                  account.type === 'airline' ? 'এয়ারলাইন' :
                                  account.type === 'visa' ? 'ভিসা' : 'সঞ্চয়'}
                               </span>
@@ -1333,47 +1646,87 @@ const NewTransaction = () => {
                   )}
                 </div>
               ) : (
-                // Credit/Debit: Category Selection
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 max-w-6xl mx-auto">
-                    {categories.map((category) => (
+                // Credit/Debit: Customer Selection
+                <div className="max-w-4xl mx-auto">
+                  {/* Search Bar */}
+                  <div className="relative mb-3 sm:mb-4">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    {searchLoading && (
+                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 animate-spin" />
+                    )}
+                    <input
+                      type="text"
+                      placeholder="নাম, ফোন নম্বর বা ইমেইল দিয়ে খুঁজুন..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className={`w-full pl-10 pr-10 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                        isDark 
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                          : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Customer List */}
+                  <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
+                    {customersLoading ? (
+                      <div className="flex items-center justify-center py-6 sm:py-8">
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
+                        <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">কাস্টমার লোড হচ্ছে...</span>
+                      </div>
+                    ) : filteredCustomers.length > 0 ? (
+                      filteredCustomers.map((customer) => (
                       <button
-                        key={category.id}
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, category: category.id }));
-                          setErrors(prev => ({ ...prev, category: '' }));
-                        }}
-                        className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
-                          formData.category === category.id
+                          key={customer.id || customer.customerId}
+                          onClick={() => handleCustomerSelect(customer)}
+                          className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                            formData.customerId === (customer.id || customer.customerId)
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                             : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
                         }`}
                       >
-                        <div className="text-center">
-                          <div className="text-xl sm:text-2xl mb-2">{category.icon}</div>
-                          <h3 className="font-semibold text-gray-900 dark:text-white mb-1 text-xs sm:text-sm">
-                            {category.name}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div className="text-left min-w-0 flex-1">
+                                <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                  {customer.name}
                           </h3>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {category.description}
-                          </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                  {customer.mobile || customer.phone} • {customer.email}
+                                </p>
+                                <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
+                                  {customer.customerType || 'সাধারণ'}
+                                </span>
+                              </div>
+                            </div>
+                            {formData.customerId === (customer.id || customer.customerId) && (
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
+                            )}
                         </div>
                       </button>
-                    ))}
+                      ))
+                    ) : (
+                      <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                        {searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই'}
+                      </div>
+                    )}
                   </div>
 
-                  {errors.category && (
+                  {errors.customerId && (
                     <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
                       <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {errors.category}
+                      {errors.customerId}
                     </p>
                   )}
-                </>
+                </div>
               )}
             </div>
           )}
 
-          {/* Step 4: Invoice Selection (for credit/debit) or Account Manager Selection (for transfer) */}
+          {/* Step 4: Invoice Selection (for credit only) or Account Manager Selection (for transfer) or Payment Method (for debit) */}
           {currentStep === 4 && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'transfer' ? (
@@ -1386,8 +1739,18 @@ const NewTransaction = () => {
                     ট্রান্সফার পরিমাণ লিখুন এবং অনুমোদনের জন্য একাউন্ট ম্যানেজার সিলেক্ট করুন
                   </p>
                 </div>
+              ) : formData.transactionType === 'debit' ? (
+                // Debit: Payment Method Selection
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    পেমেন্ট মেথড নির্বাচন করুন
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    পেমেন্টের ধরন এবং বিবরণ নির্বাচন করুন
+                  </p>
+                </div>
               ) : (
-                // Credit/Debit: Invoice Selection
+                // Credit: Invoice Selection
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
                     ইনভয়েস নির্বাচন করুন
@@ -1535,8 +1898,272 @@ const NewTransaction = () => {
                       ))}
                     </div>
                   </div>
+                ) : formData.transactionType === 'debit' ? (
+                  // Debit: Payment Method Selection
+                  <>
+
+                    {/* Payment Method Selection */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                      {paymentMethods.map((method) => (
+                      <button
+                        key={method.id}
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, paymentMethod: method.id }));
+                          setErrors(prev => ({ ...prev, paymentMethod: '' }));
+                        }}
+                        className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
+                          formData.paymentMethod === method.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className="text-center">
+                          <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${method.color} rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3`}>
+                            <method.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                          </div>
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm">
+                            {method.name}
+                          </h3>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+
+                  {/* Account Selection */}
+                  {selectedPaymentMethod && (
+                    <div className="mb-4 sm:mb-6">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-blue-600" />
+                        অ্যাকাউন্ট নির্বাচন
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        {/* Source Account */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            আমাদের অ্যাকাউন্ট (যেখান থেকে টাকা যাবে) *
+                          </label>
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="অ্যাকাউন্ট খুঁজুন..."
+                              value={formData.sourceAccount.name || ''}
+                              onChange={(e) => {
+                                // This will be handled by account selection dropdown
+                              }}
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                  : 'border-gray-300'
+                              }`}
+                              readOnly
+                            />
+                          </div>
+                          
+                          {/* Account Selection Dropdown */}
+                          <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                            {accounts.map((account) => (
+                              <button
+                                key={account.id}
+                                onClick={() => handleAccountSelectForTransaction(account, 'sourceAccount')}
+                                className={`w-full p-2 rounded-lg border-2 transition-all duration-200 text-left ${
+                                  formData.sourceAccount.id === account.id
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                    : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <CreditCard className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                        {account.name}
+                                      </h4>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                        {account.bankName} - {account.accountNumber}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-xs font-semibold text-green-600 dark:text-green-400">
+                                      ৳{account.balance.toLocaleString()}
+                                    </p>
+                                    {formData.sourceAccount.id === account.id && (
+                                      <CheckCircle className="w-4 h-4 text-blue-500 mt-1" />
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Destination Account */}
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            কাস্টমার (যার কাছে টাকা যাবে)
+                          </label>
+                          <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 mb-3">
+                            <div className="flex items-center gap-2">
+                              <User className="w-5 h-5 text-blue-600" />
+                              <div>
+                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                  {formData.customerName}
+                                </h4>
+                                {formData.customerPhone && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    📞 {formData.customerPhone}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Customer Bank Account Details */}
+                          {formData.paymentMethod === 'bank-transfer' && (
+                            <div className="space-y-3">
+                              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                কাস্টমারের ব্যাংক একাউন্ট বিবরণ *
+                              </h4>
+                              
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                  ব্যাংকের নাম
+                                </label>
+                                <input
+                                  type="text"
+                                  name="customerBankAccount.bankName"
+                                  value={formData.customerBankAccount.bankName}
+                                  onChange={handleInputChange}
+                                  placeholder="ব্যাংকের নাম লিখুন..."
+                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
+                                    isDark 
+                                      ? 'bg-white border-gray-300 text-gray-900' 
+                                      : 'border-gray-300'
+                                  } ${errors.customerBankName ? 'border-red-500 focus:ring-red-500' : ''}`}
+                                />
+                                {errors.customerBankName && (
+                                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {errors.customerBankName}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                  একাউন্ট নম্বর
+                                </label>
+                                <input
+                                  type="text"
+                                  name="customerBankAccount.accountNumber"
+                                  value={formData.customerBankAccount.accountNumber}
+                                  onChange={handleInputChange}
+                                  placeholder="একাউন্ট নম্বর লিখুন..."
+                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
+                                    isDark 
+                                      ? 'bg-white border-gray-300 text-gray-900' 
+                                      : 'border-gray-300'
+                                  } ${errors.customerAccountNumber ? 'border-red-500 focus:ring-red-500' : ''}`}
+                                />
+                                {errors.customerAccountNumber && (
+                                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {errors.customerAccountNumber}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment Details Form */}
+                  {selectedPaymentMethod && (
+                    <div className={`p-3 sm:p-4 rounded-lg border-2 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800`}>
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                        <selectedPaymentMethod.icon className="w-4 h-4 text-blue-600" />
+                        {selectedPaymentMethod.name} - বিবরণ
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        {/* Amount */}
+                        <div className="sm:col-span-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            পরিমাণ *
+                          </label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="number"
+                              name="paymentDetails.amount"
+                              value={formData.paymentDetails.amount}
+                              onChange={handleInputChange}
+                              placeholder="0.00"
+                              min="0"
+                              step="0.01"
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-white border-gray-300 text-gray-900' 
+                                  : 'border-gray-300'
+                              } ${errors.amount ? 'border-red-500 focus:ring-red-500' : ''}`}
+                            />
+                          </div>
+                          {errors.amount && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {errors.amount}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Dynamic Fields based on Payment Method */}
+                        {selectedPaymentMethod.fields.map((field) => (
+                          <div key={field}>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                              {field === 'bankName' && 'ব্যাংকের নাম'}
+                              {field === 'accountNumber' && 'অ্যাকাউন্ট নম্বর'}
+                              {field === 'chequeNumber' && 'চেক নম্বর'}
+                              {field === 'mobileProvider' && 'মোবাইল ব্যাংকিং প্রোভাইডার'}
+                              {field === 'transactionId' && 'ট্রানজেকশন আইডি'}
+                              {field === 'reference' && 'রেফারেন্স'}
+                            </label>
+                            <input
+                              type="text"
+                              name={`paymentDetails.${field}`}
+                              value={formData.paymentDetails[field]}
+                              onChange={handleInputChange}
+                              placeholder={`${field === 'bankName' ? 'ব্যাংকের নাম' : 
+                                           field === 'accountNumber' ? 'অ্যাকাউন্ট নম্বর' :
+                                           field === 'chequeNumber' ? 'চেক নম্বর' :
+                                           field === 'mobileProvider' ? 'প্রোভাইডার' :
+                                           field === 'transactionId' ? 'ট্রানজেকশন আইডি' :
+                                           'রেফারেন্স'} লিখুন...`}
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                                isDark 
+                                  ? 'bg-white border-gray-300 text-gray-900' 
+                                  : 'border-gray-300'
+                              }`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                    {errors.paymentMethod && 
+                      <p className="text-red-500 text-center mt-4 flex items-center justify-center gap-2">
+                        <AlertCircle className="w-5 h-5" />
+                        {errors.paymentMethod}
+                      </p>
+                    }
+                  </>
                 ) : (
-                  // Credit/Debit: Invoice Selection
+                  // Credit: Invoice Selection
                   <>
                     {/* Invoice Search */}
                     <div className="mb-4 sm:mb-6">
@@ -1655,7 +2282,7 @@ const NewTransaction = () => {
             </div>
           )}
 
-          {/* Step 5: Payment Method (for credit/debit) or Confirmation with SMS (for transfer) */}
+          {/* Step 5: Payment Method (for credit only) or Confirmation with SMS (for transfer) or Confirmation (for debit) */}
           {currentStep === 5 && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'transfer' ? (
@@ -1668,8 +2295,18 @@ const NewTransaction = () => {
                     এসএমএস কনফার্মেশন এবং ট্রান্সফার সম্পূর্ণ করুন
                   </p>
                 </div>
+              ) : formData.transactionType === 'debit' ? (
+                // Debit: Confirmation
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    তথ্য যাচাই এবং কনফার্মেশন
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    সব তথ্য সঠিক কিনা যাচাই করুন এবং কনফার্ম করুন
+                  </p>
+                </div>
               ) : (
-                // Credit/Debit: Payment Method Selection
+                // Credit: Payment Method Selection
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
                     পেমেন্ট মেথড নির্বাচন করুন
@@ -1774,9 +2411,116 @@ const NewTransaction = () => {
                     </div>
                   )}
                 </div>
-              ) : (
-                // Credit/Debit: Payment Method Selection
+              ) : formData.transactionType === 'debit' ? (
+                // Debit: Confirmation
                 <div className="max-w-6xl mx-auto">
+                  {/* Transaction Summary */}
+                  <div className={`p-3 sm:p-4 rounded-lg border-2 border-gray-200 dark:border-gray-600 mb-3 sm:mb-4 ${
+                    isDark ? 'bg-gray-700' : 'bg-gray-50'
+                  }`}>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                      <Receipt className="w-4 h-4 text-blue-600" />
+                      লেনদেনের সারসংক্ষেপ
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">লেনদেনের ধরন:</span>
+                          <span className="font-semibold text-red-600">
+                            ডেবিট (ব্যয়)
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">কাস্টমার:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {formData.customerName}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">ক্যাটাগরি:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {selectedCategory?.name}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">পেমেন্ট মেথড:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {selectedPaymentMethod?.name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">পরিমাণ:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            ৳{formData.paymentDetails.amount}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">তারিখ:</span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {new Date(formData.date).toLocaleDateString('bn-BD')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Notes */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                      অতিরিক্ত নোট
+                    </label>
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleInputChange}
+                      rows="2"
+                      placeholder="লেনদেন সম্পর্কে অতিরিক্ত তথ্য লিখুন..."
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
+                        isDark 
+                          ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                          : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+                    <button
+                      onClick={handleSubmit}
+                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span className="hidden sm:inline">লেনদেন সংরক্ষণ করুন</span>
+                      <span className="sm:hidden">সংরক্ষণ করুন</span>
+                    </button>
+                    
+                    <button
+                      onClick={generatePDF}
+                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="hidden sm:inline">PDF ডাউনলোড করুন</span>
+                      <span className="sm:hidden">PDF ডাউনলোড</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {}} // Email functionality
+                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span className="hidden sm:inline">ইমেইল পাঠান</span>
+                      <span className="sm:hidden">ইমেইল</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                // Credit: Payment Method Selection
+                <div className="max-w-6xl mx-auto">
+
                   {/* Payment Method Selection */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
                     {paymentMethods.map((method) => (
@@ -1803,6 +2547,102 @@ const NewTransaction = () => {
                     </button>
                   ))}
                 </div>
+
+
+                {/* Account Selection */}
+                {selectedPaymentMethod && (
+                  <div className="mb-4 sm:mb-6">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-blue-600" />
+                      অ্যাকাউন্ট নির্বাচন
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                      {/* Source Account */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          আমাদের অ্যাকাউন্ট (যেখানে টাকা আসবে) *
+                        </label>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="অ্যাকাউন্ট খুঁজুন..."
+                            value={formData.sourceAccount.name || ''}
+                            onChange={(e) => {
+                              // This will be handled by account selection dropdown
+                            }}
+                            className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                              isDark 
+                                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                : 'border-gray-300'
+                            }`}
+                            readOnly
+                          />
+                        </div>
+                        
+                        {/* Account Selection Dropdown */}
+                        <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                          {accounts.map((account) => (
+                            <button
+                              key={account.id}
+                              onClick={() => handleAccountSelectForTransaction(account, 'sourceAccount')}
+                              className={`w-full p-2 rounded-lg border-2 transition-all duration-200 text-left ${
+                                formData.sourceAccount.id === account.id
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <CreditCard className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                      {account.name}
+                                    </h4>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                      {account.bankName} - {account.accountNumber}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <p className="text-xs font-semibold text-green-600 dark:text-green-400">
+                                    ৳{account.balance.toLocaleString()}
+                                  </p>
+                                  {formData.sourceAccount.id === account.id && (
+                                    <CheckCircle className="w-4 h-4 text-blue-500 mt-1" />
+                                  )}
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Destination Account */}
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          কাস্টমার (যার কাছ থেকে টাকা আসবে)
+                        </label>
+                        <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+                          <div className="flex items-center gap-2">
+                            <User className="w-5 h-5 text-blue-600" />
+                            <div>
+                              <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                {formData.customerName}
+                              </h4>
+                              {formData.customerPhone && (
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  📞 {formData.customerPhone}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Payment Details Form */}
                 {selectedPaymentMethod && (
@@ -1888,7 +2728,7 @@ const NewTransaction = () => {
             </div>
           )}
 
-          {/* Step 6: Confirmation */}
+          {/* Step 6: Confirmation (for credit only) */}
           {currentStep === 6 && (
             <div className="p-3 sm:p-4 lg:p-6">
               <div className="text-center mb-4 sm:mb-6">
@@ -2036,9 +2876,9 @@ const NewTransaction = () => {
 
           <button
             onClick={nextStep}
-            disabled={currentStep === 6}
+            disabled={currentStep === (formData.transactionType === 'credit' ? 6 : 5)}
             className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-              currentStep === 6
+              currentStep === (formData.transactionType === 'credit' ? 6 : 5)
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}
