@@ -36,18 +36,24 @@ import Agent from './pages/HajjUmrah/Agent';
 import AddAgent from './pages/HajjUmrah/AddAgent';
 import PackageCreation from './pages/HajjUmrah/PackageCreation';
 import PackageList from './pages/HajjUmrah/PackageList';
+import AddUmrahHaji from './pages/HajjUmrah/AddUmrahHaji';
+import UmrahHajiList from './pages/HajjUmrah/UmrahHajiList';
 
 // Air Ticketing pages
 import NewTicket from './pages/AirTicketing/NewTicket';
 import TicketList from './pages/AirTicketing/TicketList';
 import TicketInvoice from './pages/AirTicketing/TicketInvoice';
 import AgentList from './pages/AirTicketing/AgentList';
+import TicketCheck from './pages/AirTicketing/TicketCheck';
+import OldTicketReissue from './pages/AirTicketing/OldTicketReissue';
+import AirlineList from './pages/AirTicketing/AirlineList';
 
 // Visa Processing pages
-import VisaProcessingLayout from './pages/VisaProcessing/VisaProcessingLayout';
-import VisaOverview from './pages/VisaProcessing/VisaOverview';
-import SaudiUmrahVisa from './pages/VisaProcessing/SaudiUmrahVisa';
-import CreateNewVisa from './pages/VisaProcessing/CreateNewVisa';
+import VisaProcessingDashboard from './pages/VisaProcessing/VisaProcessingDashboard';
+import ApplicantManagement from './pages/VisaProcessing/ApplicantManagement';
+import VisaTracking from './pages/VisaProcessing/VisaTracking';
+import VisaPayment from './pages/VisaProcessing/VisaPayment';
+import VisaDocuments from './pages/VisaProcessing/VisaDocuments';
 
 // Loan pages
 import LoanDashboard from './pages/Loan/LoanDashboard';
@@ -68,7 +74,6 @@ import EmployeeManagement from './pages/MirajIndustries/EmployeeManagement';
 
 // Hajj Management pages
 import HajjManagementDashboard from './pages/HajjManagement/HajjManagementDashboard';
-import HajjManagement from './pages/HajjManagement/HajjManagement';
 
 // Account pages
 import AccountOverview from './pages/Account/AccountOverview';
@@ -84,6 +89,7 @@ import TaxManagement from './pages/Account/TaxManagement';
 
 // Personal pages
 import PersonalIncome from './pages/Personal/Income';
+import AddIncome from './pages/Personal/AddIncome';
 import PersonalExpense from './pages/Personal/Expense';
 import PersonalSavings from './pages/Personal/Savings';
 import PersonalLoans from './pages/Personal/Loans';
@@ -191,22 +197,6 @@ const router = createBrowserRouter([
       {
         index: true,
         element: <Dashboard />
-      }
-    ]
-  },
-  {
-    path: "/excel-upload",
-    element: (
-      <ThemeProvider>
-        <ProtectedRoute>
-          <DashboardLayout />
-        </ProtectedRoute>
-      </ThemeProvider>
-    ),
-    children: [
-      {
-        index: true,
-        element: <ExcelUploadPage />
       }
     ]
   },
@@ -336,6 +326,24 @@ const router = createBrowserRouter([
     ]
   },
   {
+    path: "/umrah",
+    element: (
+      <ThemeProvider>
+        <DashboardLayout />
+      </ThemeProvider>
+    ),
+    children: [
+      {
+        path: "haji-list",
+        element: <UmrahHajiList />
+      },
+      {
+        path: "haji/add",
+        element: <AddUmrahHaji />
+      }
+    ]
+  },
+  {
     path: "/air-ticketing",
     element: (
       <ThemeProvider>
@@ -358,6 +366,18 @@ const router = createBrowserRouter([
       {
         path: "agent",
         element: <AgentList />
+      },
+      {
+        path: "old/ticket-check",
+        element: <TicketCheck />
+      },
+      {
+        path: "old/ticket-reissue",
+        element: <OldTicketReissue />
+      },
+      {
+        path: "airline",
+        element: <AirlineList />
       }
     ]
   },
@@ -365,23 +385,29 @@ const router = createBrowserRouter([
     path: "/visa-processing",
     element: (
       <ThemeProvider>
-        <ProtectedRoute>
-          <VisaProcessingLayout />
-        </ProtectedRoute>
+          <DashboardLayout />
       </ThemeProvider>
     ),
     children: [
       {
         index: true,
-        element: <VisaOverview />
+        element: <VisaProcessingDashboard />
       },
       {
-        path: "saudi-umrah",
-        element: <SaudiUmrahVisa />
+        path: "applicants",
+        element: <ApplicantManagement />
       },
       {
-        path: "create-new",
-        element: <CreateNewVisa />
+        path: "tracking",
+        element: <VisaTracking />
+      },
+      {
+        path: "payment",
+        element: <VisaPayment />
+      },
+      {
+        path: "documents",
+        element: <VisaDocuments />
       }
     ]
   },
@@ -477,19 +503,19 @@ const router = createBrowserRouter([
       },
       {
         index: true,
-        element: <HajjManagement />
+        element: null
       },
       {
         path: "list",
-        element: <HajjManagement />
+        element: null
       },
       {
         path: "add",
-        element: <HajjManagement />
+        element: null
       },
       {
         path: "reports",
-        element: <HajjManagement />
+        element: null
       }
     ]
   },
@@ -555,6 +581,10 @@ const router = createBrowserRouter([
         path: "income",
         element: <PersonalIncome />
       },
+          {
+            path: "income/add",
+            element: <AddIncome />
+          },
       {
         path: "expense",
         element: <PersonalExpense />
@@ -745,6 +775,10 @@ const router = createBrowserRouter([
       {
         path: "categories",
         element: <CategoryManagement />
+      },
+      {
+        path: "excel-upload",
+        element: <ExcelUploadPage />
       },
       {
         path: "backup",

@@ -1,4 +1,7 @@
-export { default as VisaProcessingLayout } from './VisaProcessingLayout';
-export { default as VisaOverview } from './VisaOverview';
-export { default as SaudiUmrahVisa } from './SaudiUmrahVisa';
-export { default as CreateNewVisa } from './CreateNewVisa';
+export { default as VisaProcessingDashboard } from './VisaProcessingDashboard';
+export { default as ApplicantManagement } from './ApplicantManagement';
+export { default as VisaTracking } from './VisaTracking';
+export { default as VisaPayment } from './VisaPayment';
+export { default as VisaDocuments } from './VisaDocuments';
+
+// Removed VisaProcessingLayout, VisaOverview, CreateNewVisa per request

@@ -86,12 +86,6 @@ export const navigation = [
     current: true
   },
   {
-    name: 'Excel Upload',
-    href: '/excel-upload',
-    icon: FileSpreadsheet,
-    current: false
-  },
-  {
     name: 'Customers',
     icon: Users,
     children: [
@@ -132,11 +126,19 @@ export const navigation = [
     children: [
       { name: 'Dashboard', href: '/hajj-umrah', icon: LayoutDashboard },
       {
-        name: 'All Haji',
+        name: 'Hajj',
         icon: Users,
         children: [
           { name: 'Haji List', href: '/hajj-umrah/haji-list', icon: List },
           { name: 'Add New Haji', href: '/hajj-umrah/haji/add', icon: Plus }
+        ]
+      },
+      {
+        name: 'Umrah Haji',
+        icon: Users,
+        children: [
+          { name: 'Umrah Haji List', href: '/umrah/haji-list', icon: List },
+          { name: 'Add New Umrah Haji', href: '/umrah/haji/add', icon: Plus }
         ]
       },
       {
@@ -161,39 +163,32 @@ export const navigation = [
     name: 'Air Ticketing',
     icon: Plane,
     children: [
+      { name: 'Dashboard', href: '/air-ticketing', icon: LayoutDashboard },
       { name: 'New Ticket Sale', href: '/air-ticketing/new-ticket', icon: Plus },
-      { name: 'Ticket List', href: '/air-ticketing/tickets', icon: List },
+      { name: 'Manage Booking', href: '/air-ticketing/tickets', icon: List },
       { name: 'Ticket Invoice', href: '/air-ticketing/invoice', icon: FileText },
-      { name: 'Air Ticket Agent', href: '/air-ticketing/agent', icon: Users }
+      { name: 'B2B Agent', href: '/air-ticketing/agent', icon: Users },
+      {
+        name: 'Old Ticketing Service',
+        icon: History,
+        children: [
+          { name: 'Ticket Check', href: '/air-ticketing/old/ticket-check', icon: FileCheck },
+          { name: 'Old Ticket Reissue', href: '/air-ticketing/old/ticket-reissue', icon: RotateCcw }
+        ]
+      },
+      { name: 'Airline List', href: '/air-ticketing/airline', icon: List }
     ]
   },
+
   {
-    name: 'Visa Processing',
+    name: 'Visa Management',
     icon: FileTextIcon3,
     children: [
-      { name: 'Overview', href: '/visa-processing', icon: List },
-      { name: 'Saudi Umrah Visa', href: '/visa-processing/saudi-umrah', icon: List },
-      { name: 'Saudi Ziyarah Visa', href: '/visa-processing/saudi-ziyarah', icon: List },
-      { name: 'Saudi Other Visas', href: '/visa-processing/saudi-other', icon: List },
-      { name: 'Indian Tourist Visa', href: '/visa-processing/indian-tourist', icon: List },
-      { name: 'Indian Medical Visa', href: '/visa-processing/indian-medical', icon: List },
-      { name: 'Indian Business Visa', href: '/visa-processing/indian-business', icon: List },
-      { name: 'Malaysia Tourist Visa', href: '/visa-processing/malaysia-tourist', icon: List },
-      { name: 'Malaysia Other Visas', href: '/visa-processing/malaysia-other', icon: List },
-      { name: 'Dubai Tourist Visa', href: '/visa-processing/dubai-tourist', icon: List },
-      { name: 'Dubai Business Visa', href: '/visa-processing/dubai-business', icon: List },
-      { name: 'Dubai Other Visas', href: '/visa-processing/dubai-other', icon: List },
-      { name: 'Qatar Tourist Visa', href: '/visa-processing/qatar-tourist', icon: List },
-      { name: 'Qatar Business Visa', href: '/visa-processing/qatar-business', icon: List },
-      { name: 'Qatar Other Visas', href: '/visa-processing/qatar-other', icon: List },
-      { name: 'China Tourist Visa', href: '/visa-processing/china-tourist', icon: List },
-      { name: 'China Business Visa', href: '/visa-processing/china-business', icon: List },
-      { name: 'China Other Visas', href: '/visa-processing/china-other', icon: List },
-      { name: 'Thailand Tourist Visa', href: '/visa-processing/thailand-tourist', icon: List },
-      { name: 'Thailand Business Visa', href: '/visa-processing/thailand-business', icon: List },
-      { name: 'Thailand Medical Visa', href: '/visa-processing/thailand-medical', icon: List },
-      { name: 'Thailand Other Visas', href: '/visa-processing/thailand-other', icon: List },
-      { name: 'Create New Visa', href: '/visa-processing/create-new', icon: Plus }
+      { name: 'Dashboard', href: '/visa-processing', icon: LayoutDashboard },
+      { name: 'Applicant Management', href: '/visa-processing/applicants', icon: Users },
+      { name: 'Visa Tracking', href: '/visa-processing/tracking', icon: Search },
+      { name: 'Payment', href: '/visa-processing/payment', icon: CreditCard },
+      { name: 'Documents', href: '/visa-processing/documents', icon: FileText },
     ]
   },
   {
@@ -234,17 +229,6 @@ export const navigation = [
     ]
   },
   {
-    name: 'হজ্জ ব্যবস্থাপনা',
-    icon: Building,
-    children: [
-      { name: 'ড্যাশবোর্ড', href: '/hajj-management/dashboard', icon: LayoutDashboard },
-      { name: 'হাজী ব্যবস্থাপনা', href: '/hajj-management', icon: Users },
-      { name: 'হাজী তালিকা', href: '/hajj-management/list', icon: List },
-      { name: 'নতুন হাজী যোগ', href: '/hajj-management/add', icon: Plus },
-      { name: 'রিপোর্ট ও বিশ্লেষণ', href: '/hajj-management/reports', icon: BarChart3 }
-    ]
-  },
-  {
     name: 'Account',
     icon: Wallet,
     children: [
@@ -265,6 +249,7 @@ export const navigation = [
     icon: User,
     children: [
       { name: 'Personal Income', href: '/personal/income', icon: TrendingUp },
+      { name: 'Add Personal Income', href: '/personal/income/add', icon: Plus },
       { name: 'Personal Expense', href: '/personal/expense', icon: TrendingDown },
       { name: 'Personal Savings', href: '/personal/savings', icon: PiggyBank },
       { name: 'Personal Loans', href: '/personal/loans', icon: Calculator }
@@ -304,6 +289,7 @@ export const navigation = [
     children: [
       { name: 'User Management', href: '/settings/users', icon: Users },
       { name: 'Category Management', href: '/settings/categories', icon: Package },
+      { name: 'Excel Upload', href: '/settings/excel-upload', icon: FileSpreadsheet },
       { name: 'Backup & Restore', href: '/settings/backup', icon: Database }
     ]
   },
