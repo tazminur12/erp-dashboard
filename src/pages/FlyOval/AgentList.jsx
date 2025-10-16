@@ -172,7 +172,12 @@ const AgentList = () => {
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="font-medium text-gray-900 dark:text-white">{value}</span>
+              <button
+                onClick={() => navigate(`/fly-oval/agents/details/${item.id}`)}
+                className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-pointer"
+              >
+                {value}
+              </button>
               <span className="text-sm text-gray-500 dark:text-gray-400">({item.agentId})</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">{item.email}</p>
@@ -245,8 +250,7 @@ const AgentList = () => {
   };
 
   const handleViewAgent = (agent) => {
-    setSelectedAgent(agent);
-    setShowViewModal(true);
+    navigate(`/fly-oval/agents/details/${agent.id}`);
   };
 
   const handleSubmit = (e) => {

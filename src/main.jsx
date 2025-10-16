@@ -99,6 +99,8 @@ import PersonalLoans from './pages/Personal/Loans';
 import FlyOvalDashboard from './pages/FlyOval/Dashboard';
 import FlyOvalAgentList from './pages/FlyOval/AgentList';
 import AddFlyOvalAgent from './pages/FlyOval/AddAgent';
+import AgentDetails from './pages/FlyOval/AgentDetails';
+import EditAgent from './pages/FlyOval/EditAgent';
 import FlyOvalTopUpHistory from './pages/FlyOval/TopUpHistory';
 import FlyOvalSellHistory from './pages/FlyOval/SellHistory';
 import FlyOvalLedger from './pages/FlyOval/Ledger';
@@ -625,6 +627,14 @@ const router = createBrowserRouter([
       {
         path: "agents/add",
         element: <AddFlyOvalAgent />
+      },
+      {
+        path: "agents/details/:id",
+        element: <AgentDetails />
+      },
+      {
+        path: "agents/edit/:id",
+        element: <EditAgent />
       },
       {
         path: "topup-history",
