@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Users, Save, RotateCcw, X } from 'lucide-react';
+import { Users, Save, RotateCcw, X, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useSecureAxios from '../../hooks/UseAxiosSecure.js';
 import Swal from 'sweetalert2';
@@ -13,6 +13,7 @@ const initialFormState = {
   dob: '',
   email: '',
   phone: '',
+  whatsappNumber: '',
   onWhatsapp: false,
   division: '',
   district: '',
@@ -104,6 +105,10 @@ const AddAgent = () => {
       const phoneRegex = /^\+?[0-9\-()\s]{6,20}$/;
       if (!phoneRegex.test(form.phone.trim())) newErrors.phone = 'Enter a valid phone number';
     }
+    if (form.whatsappNumber.trim()) {
+      const whatsappRegex = /^\+?[0-9\-()\s]{6,20}$/;
+      if (!whatsappRegex.test(form.whatsappNumber.trim())) newErrors.whatsappNumber = 'Enter a valid WhatsApp number';
+    }
     if (!form.division.trim()) newErrors.division = 'Division is required';
     if (!form.district.trim()) newErrors.district = 'District is required';
     if (!form.upazila.trim()) newErrors.upazila = 'Upazila is required';
@@ -115,7 +120,17 @@ const AddAgent = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    
+    if (name === 'onWhatsapp' && checked) {
+      // If checking "Number is on WhatsApp", auto-fill WhatsApp field with phone number
+      setForm((prev) => ({ 
+        ...prev, 
+        [name]: checked,
+        whatsappNumber: prev.phone || ''
+      }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    }
   };
 
   const handleBlur = (e) => {
@@ -132,6 +147,24 @@ const AddAgent = () => {
     navigate('/fly-oval/agents');
   };
 
+  const handleWhatsAppClick = (phoneNumber) => {
+    if (!phoneNumber.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No WhatsApp Number',
+        text: 'Please enter a WhatsApp number first'
+      });
+      return;
+    }
+    
+    // Clean the phone number (remove spaces, dashes, etc.)
+    const cleanNumber = phoneNumber.replace(/[^\d+]/g, '');
+    
+    // Open WhatsApp with the number
+    const whatsappUrl = `https://wa.me/${cleanNumber}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setTouched({
@@ -142,6 +175,7 @@ const AddAgent = () => {
       dob: touched.dob || false,
       email: true,
       phone: true,
+      whatsappNumber: touched.whatsappNumber || false,
       onWhatsapp: touched.onWhatsapp || false,
       division: true,
       district: true,
@@ -163,6 +197,7 @@ const AddAgent = () => {
         dob: form.dob.trim(),
         email: form.email.trim(),
         phone: form.phone.trim(),
+        whatsappNumber: form.whatsappNumber.trim(),
         onWhatsapp: Boolean(form.onWhatsapp),
         division: form.division,
         district: form.district,
@@ -320,9 +355,45 @@ const AddAgent = () => {
               <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
             )}
             <div className="mt-2 flex items-center gap-2">
-              <input id="onWhatsapp" name="onWhatsapp" type="checkbox" checked={form.onWhatsapp} onChange={handleChange} className="h-4 w-4" />
+              <input 
+                id="onWhatsapp" 
+                name="onWhatsapp" 
+                type="checkbox" 
+                checked={form.onWhatsapp} 
+                onChange={handleChange} 
+                className="h-4 w-4 focus:outline-none focus:ring-0 focus:ring-offset-0" 
+              />
               <label htmlFor="onWhatsapp" className="text-sm text-gray-700 dark:text-gray-300">Number is on WhatsApp</label>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">WhatsApp Number</label>
+            <div className="relative">
+              <input
+                type="tel"
+                name="whatsappNumber"
+                value={form.whatsappNumber}
+                onChange={handleChange}
+                onBlur={handleBlur}
+                className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 pr-10 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${hasError('whatsappNumber') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
+                placeholder="e.g. +8801XXXXXXXXX"
+                autoComplete="tel"
+              />
+              {form.whatsappNumber.trim() && (
+                <button
+                  type="button"
+                  onClick={() => handleWhatsAppClick(form.whatsappNumber)}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors"
+                  title="Open WhatsApp"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+            {hasError('whatsappNumber') && (
+              <p className="mt-1 text-sm text-red-600">{errors.whatsappNumber}</p>
+            )}
           </div>
 
           <div>

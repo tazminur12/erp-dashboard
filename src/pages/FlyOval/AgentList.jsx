@@ -45,95 +45,119 @@ const AgentList = () => {
   const [agentData, setAgentData] = useState([
     {
       id: 1,
+      agentId: 'AG001',
       name: 'Ahmed Rahman',
+      tradeName: 'Rahman Travels',
       email: 'ahmed.rahman@example.com',
       phone: '+8801712345678',
-      address: 'Dhaka, Bangladesh',
-      joinDate: '2023-01-15',
-      status: 'Active',
-      totalTransactions: 145,
-      totalRevenue: 125000,
-      commission: 5.5,
-      rating: 4.8,
-      lastActivity: '2024-01-15',
-      documents: ['NID', 'Passport', 'Trade License']
+      whatsappNumber: '+8801712345678',
+      onWhatsapp: true,
+      nid: '1234567890123',
+      dob: '1985-03-15',
+      division: 'Dhaka',
+      district: 'Dhaka',
+      upazila: 'Dhanmondi',
+      category: 'B2B',
+      remarks: 'Excellent performance, high customer satisfaction',
+      status: 'Active'
     },
     {
       id: 2,
+      agentId: 'AG002',
       name: 'Fatima Begum',
+      tradeName: 'Begum Tours & Travels',
       email: 'fatima.begum@example.com',
       phone: '+8801712345679',
-      address: 'Chittagong, Bangladesh',
-      joinDate: '2023-02-20',
-      status: 'Active',
-      totalTransactions: 132,
-      totalRevenue: 98000,
-      commission: 5.0,
-      rating: 4.6,
-      lastActivity: '2024-01-14',
-      documents: ['NID', 'Passport']
+      whatsappNumber: '+8801712345679',
+      onWhatsapp: true,
+      nid: '2345678901234',
+      dob: '1988-07-22',
+      division: 'Chittagong',
+      district: 'Chittagong',
+      upazila: 'Panchlaish',
+      category: 'Corporate',
+      remarks: 'Reliable agent with good connections',
+      status: 'Active'
     },
     {
       id: 3,
+      agentId: 'AG003',
       name: 'Karim Uddin',
+      tradeName: 'Uddin Aviation Services',
       email: 'karim.uddin@example.com',
       phone: '+8801712345680',
-      address: 'Sylhet, Bangladesh',
-      joinDate: '2023-03-10',
-      status: 'Active',
-      totalTransactions: 128,
-      totalRevenue: 87000,
-      commission: 4.8,
-      rating: 4.5,
-      lastActivity: '2024-01-13',
-      documents: ['NID', 'Trade License']
+      whatsappNumber: '+8801712345680',
+      onWhatsapp: true,
+      nid: '3456789012345',
+      dob: '1990-11-08',
+      division: 'Sylhet',
+      district: 'Sylhet',
+      upazila: 'Zindabazar',
+      category: 'Partner',
+      remarks: 'Good track record, expanding business',
+      status: 'Active'
     },
     {
       id: 4,
+      agentId: 'AG004',
       name: 'Rashida Khan',
+      tradeName: 'Khan Travel Agency',
       email: 'rashida.khan@example.com',
       phone: '+8801712345681',
-      address: 'Rajshahi, Bangladesh',
-      joinDate: '2023-04-05',
-      status: 'Inactive',
-      totalTransactions: 115,
-      totalRevenue: 76000,
-      commission: 4.5,
-      rating: 4.3,
-      lastActivity: '2023-12-20',
-      documents: ['NID', 'Passport', 'Trade License']
+      whatsappNumber: '+8801812345681',
+      onWhatsapp: false,
+      nid: '4567890123456',
+      dob: '1982-12-03',
+      division: 'Rajshahi',
+      district: 'Rajshahi',
+      upazila: 'Boalia',
+      category: 'B2B',
+      remarks: 'On temporary leave',
+      status: 'Inactive'
     },
     {
       id: 5,
+      agentId: 'AG005',
       name: 'Mohammad Ali',
+      tradeName: 'Ali International Travels',
       email: 'mohammad.ali@example.com',
       phone: '+8801712345682',
-      address: 'Khulna, Bangladesh',
-      joinDate: '2023-05-12',
-      status: 'Suspended',
-      totalTransactions: 108,
-      totalRevenue: 65000,
-      commission: 4.2,
-      rating: 4.1,
-      lastActivity: '2023-11-15',
-      documents: ['NID']
+      whatsappNumber: '+8801712345682',
+      onWhatsapp: true,
+      nid: '5678901234567',
+      dob: '1979-05-18',
+      division: 'Khulna',
+      district: 'Khulna',
+      upazila: 'Khalishpur',
+      category: 'Corporate',
+      remarks: 'Under investigation for policy violation',
+      status: 'Suspended'
     }
   ]);
 
   const [formData, setFormData] = useState({
+    agentId: '',
     name: '',
+    tradeName: '',
+    nid: '',
+    dob: '',
     email: '',
     phone: '',
-    address: '',
-    commission: '',
-    documents: []
+    whatsappNumber: '',
+    onWhatsapp: false,
+    division: '',
+    district: '',
+    upazila: '',
+    category: '',
+    remarks: '',
+    status: 'Active'
   });
 
   // Calculate statistics
   const totalAgents = agentData.length;
   const activeAgents = agentData.filter(agent => agent.status === 'Active').length;
-  const totalRevenue = agentData.reduce((sum, agent) => sum + agent.totalRevenue, 0);
-  const totalTransactions = agentData.reduce((sum, agent) => sum + agent.totalTransactions, 0);
+  const inactiveAgents = agentData.filter(agent => agent.status === 'Inactive').length;
+  const suspendedAgents = agentData.filter(agent => agent.status === 'Suspended').length;
 
   // Table columns configuration
   const columns = [
@@ -149,10 +173,7 @@ const AgentList = () => {
           <div>
             <div className="flex items-center space-x-2">
               <span className="font-medium text-gray-900 dark:text-white">{value}</span>
-              <div className="flex items-center space-x-1">
-                <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                <span className="text-sm text-gray-500 dark:text-gray-400">{item.rating}</span>
-              </div>
+              <span className="text-sm text-gray-500 dark:text-gray-400">({item.agentId})</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">{item.email}</p>
           </div>
@@ -195,62 +216,6 @@ const AgentList = () => {
         );
       }
     },
-    {
-      key: 'totalTransactions',
-      header: 'Transactions',
-      sortable: true,
-      render: (value) => (
-        <span className="font-semibold text-blue-600 dark:text-blue-400">
-          {value}
-        </span>
-      )
-    },
-    {
-      key: 'totalRevenue',
-      header: 'Revenue',
-      sortable: true,
-      render: (value) => (
-        <span className="font-semibold text-green-600 dark:text-green-400">
-          ৳{value.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      key: 'commission',
-      header: 'Commission',
-      sortable: true,
-      render: (value) => (
-        <span className="font-medium text-gray-900 dark:text-white">
-          {value}%
-        </span>
-      )
-    },
-    {
-      key: 'joinDate',
-      header: 'Join Date',
-      sortable: true,
-      render: (value) => (
-        <div className="flex items-center space-x-2">
-          <Calendar className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-900 dark:text-white">
-            {new Date(value).toLocaleDateString()}
-          </span>
-        </div>
-      )
-    },
-    {
-      key: 'lastActivity',
-      header: 'Last Activity',
-      sortable: true,
-      render: (value) => (
-        <div className="flex items-center space-x-2">
-          <Activity className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-900 dark:text-white">
-            {new Date(value).toLocaleDateString()}
-          </span>
-        </div>
-      )
-    }
   ];
 
   const handleAddAgent = () => {
@@ -260,12 +225,21 @@ const AgentList = () => {
   const handleEditAgent = (agent) => {
     setSelectedAgent(agent);
     setFormData({
+      agentId: agent.agentId || '',
       name: agent.name,
+      tradeName: agent.tradeName || '',
+      nid: agent.nid || '',
+      dob: agent.dob || '',
       email: agent.email,
       phone: agent.phone,
-      address: agent.address,
-      commission: agent.commission.toString(),
-      documents: agent.documents
+      whatsappNumber: agent.whatsappNumber || '',
+      onWhatsapp: agent.onWhatsapp || false,
+      division: agent.division || '',
+      district: agent.district || '',
+      upazila: agent.upazila || '',
+      category: agent.category || '',
+      remarks: agent.remarks || '',
+      status: agent.status
     });
     setShowEditModal(true);
   };
@@ -296,12 +270,21 @@ const AgentList = () => {
       
       setLoading(false);
       setFormData({
+        agentId: '',
         name: '',
+        tradeName: '',
+        nid: '',
+        dob: '',
         email: '',
         phone: '',
-        address: '',
-        commission: '',
-        documents: []
+        whatsappNumber: '',
+        onWhatsapp: false,
+        division: '',
+        district: '',
+        upazila: '',
+        category: '',
+        remarks: '',
+        status: 'Active'
       });
     }, 1000);
   };
@@ -391,16 +374,16 @@ const AgentList = () => {
           color="green"
         />
         <SmallStat
-          label="Total Revenue"
-          value={`৳${totalRevenue.toLocaleString()}`}
-          icon={DollarSign}
-          color="purple"
+          label="Inactive Agents"
+          value={inactiveAgents.toString()}
+          icon={XCircle}
+          color="gray"
         />
         <SmallStat
-          label="Total Transactions"
-          value={totalTransactions.toString()}
-          icon={TrendingUp}
-          color="yellow"
+          label="Suspended Agents"
+          value={suspendedAgents.toString()}
+          icon={AlertCircle}
+          color="red"
         />
       </div>
 
@@ -572,50 +555,52 @@ const AgentList = () => {
                   </div>
                   <div className="flex items-center space-x-3 md:col-span-2">
                     <MapPin className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-900 dark:text-white">{selectedAgent.address}</span>
+                    <span className="text-gray-900 dark:text-white">{selectedAgent.division}, {selectedAgent.district}, {selectedAgent.upazila}</span>
                   </div>
                 </div>
 
-                {/* Performance Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Agent Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                        {selectedAgent.totalTransactions}
+                      <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                        {selectedAgent.agentId}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Total Transactions</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Agent ID</div>
                     </div>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        ৳{selectedAgent.totalRevenue.toLocaleString()}
+                      <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                        {selectedAgent.category || 'N/A'}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</div>
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                        {selectedAgent.commission}%
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Commission Rate</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">Category</div>
                     </div>
                   </div>
                 </div>
 
-                {/* Documents */}
+                {/* Additional Information */}
                 <div>
-                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Documents</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAgent.documents.map((doc, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 rounded-full text-sm"
-                      >
-                        {doc}
-                      </span>
-                    ))}
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Additional Information</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">NID:</span>
+                      <span className="text-sm text-gray-900 dark:text-white">{selectedAgent.nid || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Date of Birth:</span>
+                      <span className="text-sm text-gray-900 dark:text-white">{selectedAgent.dob || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">WhatsApp:</span>
+                      <span className="text-sm text-gray-900 dark:text-white">{selectedAgent.whatsappNumber || 'N/A'}</span>
+                    </div>
+                    {selectedAgent.remarks && (
+                      <div className="mt-3">
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Remarks:</span>
+                        <p className="text-sm text-gray-900 dark:text-white mt-1">{selectedAgent.remarks}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

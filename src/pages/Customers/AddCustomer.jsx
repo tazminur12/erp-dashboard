@@ -1188,7 +1188,7 @@ const AddCustomer = () => {
                     id="useMobileAsWhatsApp"
                     checked={useMobileAsWhatsApp}
                     onChange={handleWhatsAppCheckboxChange}
-                    className="w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                    className="w-3 h-3 text-blue-600 bg-gray-100 border-gray-300 rounded focus:outline-none focus:ring-0 focus:ring-offset-0"
                   />
                   <label htmlFor="useMobileAsWhatsApp" className={`text-xs transition-colors duration-300 ${
                     isDark ? 'text-gray-300' : 'text-gray-600'
@@ -1231,14 +1231,23 @@ const AddCustomer = () => {
                     <button
                       type="button"
                       onClick={() => {
+                        if (!formData.whatsappNo.trim()) {
+                          Swal.fire({
+                            icon: 'warning',
+                            title: 'No WhatsApp Number',
+                            text: 'Please enter a WhatsApp number first'
+                          });
+                          return;
+                        }
+                        
                         const num = formData.whatsappNo.replace(/\D/g, '');
                         const url = `https://wa.me/88${num}`;
                         window.open(url, '_blank');
                       }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors"
                       title="Open WhatsApp"
                     >
-                      <MessageCircle className="w-4 h-4 text-green-600" />
+                      <MessageCircle className="w-5 h-5" />
                     </button>
                   )}
                 </div>
