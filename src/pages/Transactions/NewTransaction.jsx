@@ -138,6 +138,18 @@ const NewTransaction = () => {
   // Bank accounts state
   const [accounts, setAccounts] = useState([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
+  const [accountSearchTerm, setAccountSearchTerm] = useState('');
+  
+  // Filter accounts based on search term
+  const filteredAccounts = accounts.filter(account => {
+    if (!accountSearchTerm) return true;
+    const searchLower = accountSearchTerm.toLowerCase();
+    return (
+      account.name.toLowerCase().includes(searchLower) ||
+      account.bankName.toLowerCase().includes(searchLower) ||
+      account.accountNumber.includes(searchLower)
+    );
+  });
   
   // Fetch bank accounts from backend
   useEffect(() => {
@@ -612,6 +624,8 @@ const NewTransaction = () => {
         balance: account.balance
       }
     }));
+    // Clear search term after selection
+    setAccountSearchTerm('');
   };
 
   // Filter categories based on search term
@@ -1994,16 +2008,13 @@ const NewTransaction = () => {
                             <input
                               type="text"
                               placeholder="অ্যাকাউন্ট খুঁজুন..."
-                              value={formData.sourceAccount.name || ''}
-                              onChange={(e) => {
-                                // This will be handled by account selection dropdown
-                              }}
+                              value={accountSearchTerm}
+                              onChange={(e) => setAccountSearchTerm(e.target.value)}
                               className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                                 isDark 
                                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                                   : 'border-gray-300'
                               }`}
-                              readOnly
                             />
                           </div>
                           
@@ -2014,14 +2025,18 @@ const NewTransaction = () => {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                                 <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
                               </div>
-                            ) : accounts.length === 0 ? (
+                            ) : filteredAccounts.length === 0 ? (
                               <div className="text-center py-4 text-gray-500 dark:text-gray-400">
                                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <p className="text-sm">কোন অ্যাকাউন্ট পাওয়া যায়নি</p>
-                                <p className="text-xs mt-1">ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন</p>
+                                <p className="text-sm">
+                                  {accountSearchTerm ? 'খোঁজার সাথে মিলে যাওয়া কোন অ্যাকাউন্ট পাওয়া যায়নি' : 'কোন অ্যাকাউন্ট পাওয়া যায়নি'}
+                                </p>
+                                <p className="text-xs mt-1">
+                                  {accountSearchTerm ? 'অন্য নাম দিয়ে খুঁজুন' : 'ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন'}
+                                </p>
                               </div>
                             ) : (
-                              accounts.map((account) => (
+                              filteredAccounts.map((account) => (
                               <button
                                 key={account.id}
                                 onClick={() => handleAccountSelectForTransaction(account, 'sourceAccount')}
@@ -2074,16 +2089,13 @@ const NewTransaction = () => {
                             <input
                               type="text"
                               placeholder="অ্যাকাউন্ট খুঁজুন..."
-                              value={formData.destinationAccount.name || ''}
-                              onChange={(e) => {
-                                // This will be handled by account selection dropdown
-                              }}
+                              value={accountSearchTerm}
+                              onChange={(e) => setAccountSearchTerm(e.target.value)}
                               className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                                 isDark 
                                   ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                                   : 'border-gray-300'
                               }`}
-                              readOnly
                             />
                           </div>
                           
@@ -2094,14 +2106,18 @@ const NewTransaction = () => {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                                 <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
                               </div>
-                            ) : accounts.length === 0 ? (
+                            ) : filteredAccounts.length === 0 ? (
                               <div className="text-center py-4 text-gray-500 dark:text-gray-400">
                                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                <p className="text-sm">কোন অ্যাকাউন্ট পাওয়া যায়নি</p>
-                                <p className="text-xs mt-1">ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন</p>
+                                <p className="text-sm">
+                                  {accountSearchTerm ? 'খোঁজার সাথে মিলে যাওয়া কোন অ্যাকাউন্ট পাওয়া যায়নি' : 'কোন অ্যাকাউন্ট পাওয়া যায়নি'}
+                                </p>
+                                <p className="text-xs mt-1">
+                                  {accountSearchTerm ? 'অন্য নাম দিয়ে খুঁজুন' : 'ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন'}
+                                </p>
                               </div>
                             ) : (
-                              accounts.map((account) => (
+                              filteredAccounts.map((account) => (
                               <button
                                 key={account.id}
                                 onClick={() => handleAccountSelectForTransaction(account, 'destinationAccount')}
@@ -2712,16 +2728,13 @@ const NewTransaction = () => {
                           <input
                             type="text"
                             placeholder="অ্যাকাউন্ট খুঁজুন..."
-                            value={formData.sourceAccount.name || ''}
-                            onChange={(e) => {
-                              // This will be handled by account selection dropdown
-                            }}
+                            value={accountSearchTerm}
+                            onChange={(e) => setAccountSearchTerm(e.target.value)}
                             className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                               isDark 
                                 ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                                 : 'border-gray-300'
                             }`}
-                            readOnly
                           />
                         </div>
                         
@@ -2732,14 +2745,18 @@ const NewTransaction = () => {
                               <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                               <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
                             </div>
-                          ) : accounts.length === 0 ? (
+                          ) : filteredAccounts.length === 0 ? (
                             <div className="text-center py-4 text-gray-500 dark:text-gray-400">
                               <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm">কোন অ্যাকাউন্ট পাওয়া যায়নি</p>
-                              <p className="text-xs mt-1">ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন</p>
+                              <p className="text-sm">
+                                {accountSearchTerm ? 'খোঁজার সাথে মিলে যাওয়া কোন অ্যাকাউন্ট পাওয়া যায়নি' : 'কোন অ্যাকাউন্ট পাওয়া যায়নি'}
+                              </p>
+                              <p className="text-xs mt-1">
+                                {accountSearchTerm ? 'অন্য নাম দিয়ে খুঁজুন' : 'ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন'}
+                              </p>
                             </div>
                           ) : (
-                            accounts.map((account) => (
+                            filteredAccounts.map((account) => (
                             <button
                               key={account.id}
                               onClick={() => handleAccountSelectForTransaction(account, 'sourceAccount')}
