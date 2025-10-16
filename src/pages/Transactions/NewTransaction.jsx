@@ -135,57 +135,40 @@ const NewTransaction = () => {
   const [agentResults, setAgentResults] = useState([]);
   const [agentLoading, setAgentLoading] = useState(false);
   
-  // Mock account data
-  const [accounts] = useState([
-    {
-      id: 'ACC-001',
-      name: 'প্রধান ব্যবসায়িক একাউন্ট',
-      bankName: 'সোনালী ব্যাংক লিমিটেড',
-      accountNumber: '1234567890',
-      balance: 1500000,
-      type: 'business'
-    },
-    {
-      id: 'ACC-002',
-      name: 'হজ্জ একাউন্ট',
-      bankName: 'ইসলামী ব্যাংক বাংলাদেশ লিমিটেড',
-      accountNumber: '2345678901',
-      balance: 450000,
-      type: 'hajj'
-    },
-    {
-      id: 'ACC-006',
-      name: 'উমরাহ একাউন্ট',
-      bankName: 'ইসলামী ব্যাংক বাংলাদেশ লিমিটেড',
-      accountNumber: '6789012345',
-      balance: 400000,
-      type: 'umrah'
-    },
-    {
-      id: 'ACC-003',
-      name: 'এয়ার টিকেটিং একাউন্ট',
-      bankName: 'ডাচ-বাংলা ব্যাংক লিমিটেড',
-      accountNumber: '3456789012',
-      balance: 420000,
-      type: 'airline'
-    },
-    {
-      id: 'ACC-004',
-      name: 'ভিসা প্রসেসিং একাউন্ট',
-      bankName: 'সিটি ব্যাংক লিমিটেড',
-      accountNumber: '4567890123',
-      balance: 680000,
-      type: 'visa'
-    },
-    {
-      id: 'ACC-005',
-      name: 'সাধারণ সঞ্চয় একাউন্ট',
-      bankName: 'প্রাইম ব্যাংক লিমিটেড',
-      accountNumber: '5678901234',
-      balance: 320000,
-      type: 'savings'
-    }
-  ]);
+  // Bank accounts state
+  const [accounts, setAccounts] = useState([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  
+  // Fetch bank accounts from backend
+  useEffect(() => {
+    const fetchBankAccounts = async () => {
+      try {
+        setAccountsLoading(true);
+        const response = await axiosSecure.get('/bank-accounts');
+        const bankAccounts = response?.data?.data || [];
+        
+        // Transform the data to match the expected format
+        const transformedAccounts = bankAccounts.map(account => ({
+          id: account._id,
+          name: account.bankName,
+          bankName: account.bankName,
+          accountNumber: account.accountNumber,
+          balance: account.currentBalance || account.initialBalance || 0,
+          type: account.accountType?.toLowerCase() || 'current'
+        }));
+        
+        setAccounts(transformedAccounts);
+      } catch (error) {
+        console.error('Failed to fetch bank accounts:', error);
+        // Fallback to empty array if API fails
+        setAccounts([]);
+      } finally {
+        setAccountsLoading(false);
+      }
+    };
+    
+    fetchBankAccounts();
+  }, [axiosSecure]);
   
   // Mock account managers
   const [accountManagers] = useState([
@@ -722,6 +705,14 @@ const NewTransaction = () => {
             } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
               newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
             }
+            // Validate source account (where money goes from)
+            if (!formData.sourceAccount.id) {
+              newErrors.sourceAccount = 'সোর্স একাউন্ট নির্বাচন করুন';
+            }
+            // Validate destination account (where money comes to)
+            if (!formData.destinationAccount.id) {
+              newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
+            }
             // Validate customer bank account details for bank transfer
             if (formData.paymentMethod === 'bank-transfer') {
               if (!formData.customerBankAccount.bankName) {
@@ -768,6 +759,14 @@ const NewTransaction = () => {
             newErrors.amount = 'পরিমাণ লিখুন';
           } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
             newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
+          }
+          // Validate source account (where money goes from)
+          if (!formData.sourceAccount.id) {
+            newErrors.sourceAccount = 'সোর্স একাউন্ট নির্বাচন করুন';
+          }
+          // Validate destination account (where money comes to)
+          if (!formData.destinationAccount.id) {
+            newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
           }
           // Validate customer bank account details for bank transfer
           if (formData.paymentMethod === 'bank-transfer') {
@@ -841,6 +840,20 @@ const NewTransaction = () => {
           bankName: formData.customerBankAccount.bankName || null,
           accountNumber: formData.customerBankAccount.accountNumber || null
         },
+        sourceAccount: {
+          id: formData.sourceAccount.id,
+          name: formData.sourceAccount.name,
+          bankName: formData.sourceAccount.bankName,
+          accountNumber: formData.sourceAccount.accountNumber,
+          balance: formData.sourceAccount.balance
+        },
+        destinationAccount: {
+          id: formData.destinationAccount.id,
+          name: formData.destinationAccount.name,
+          bankName: formData.destinationAccount.bankName,
+          accountNumber: formData.destinationAccount.accountNumber,
+          balance: formData.destinationAccount.balance
+        },
         notes: formData.notes || null,
         date: formData.date,
         createdBy: userProfile?.email || 'unknown_user',
@@ -892,6 +905,20 @@ const NewTransaction = () => {
             transactionId: '',
             amount: '',
             reference: ''
+          },
+          sourceAccount: {
+            id: '',
+            name: '',
+            bankName: '',
+            accountNumber: '',
+            balance: 0
+          },
+          destinationAccount: {
+            id: '',
+            name: '',
+            bankName: '',
+            accountNumber: '',
+            balance: 0
           },
           notes: '',
           date: new Date().toISOString().split('T')[0]
@@ -1982,7 +2009,19 @@ const NewTransaction = () => {
                           
                           {/* Account Selection Dropdown */}
                           <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-                            {accounts.map((account) => (
+                            {accountsLoading ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
+                              </div>
+                            ) : accounts.length === 0 ? (
+                              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                                <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">কোন অ্যাকাউন্ট পাওয়া যায়নি</p>
+                                <p className="text-xs mt-1">ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন</p>
+                              </div>
+                            ) : (
+                              accounts.map((account) => (
                               <button
                                 key={account.id}
                                 onClick={() => handleAccountSelectForTransaction(account, 'sourceAccount')}
@@ -2014,16 +2053,104 @@ const NewTransaction = () => {
                                   </div>
                                 </div>
                               </button>
-                            ))}
+                              ))
+                            )}
                           </div>
+                          {errors.sourceAccount && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {errors.sourceAccount}
+                            </p>
+                          )}
                         </div>
 
-                        {/* Destination Account */}
+                        {/* Destination Account - Our Company Account */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            কাস্টমার (যার কাছে টাকা যাবে)
+                            আমাদের অ্যাকাউন্ট (যেখানে টাকা আসবে) *
                           </label>
-                          <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 mb-3">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="অ্যাকাউন্ট খুঁজুন..."
+                              value={formData.destinationAccount.name || ''}
+                              onChange={(e) => {
+                                // This will be handled by account selection dropdown
+                              }}
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                  : 'border-gray-300'
+                              }`}
+                              readOnly
+                            />
+                          </div>
+                          
+                          {/* Destination Account Selection Dropdown */}
+                          <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                            {accountsLoading ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
+                              </div>
+                            ) : accounts.length === 0 ? (
+                              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                                <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">কোন অ্যাকাউন্ট পাওয়া যায়নি</p>
+                                <p className="text-xs mt-1">ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন</p>
+                              </div>
+                            ) : (
+                              accounts.map((account) => (
+                              <button
+                                key={account.id}
+                                onClick={() => handleAccountSelectForTransaction(account, 'destinationAccount')}
+                                className={`w-full p-2 rounded-lg border-2 transition-all duration-200 text-left ${
+                                  formData.destinationAccount.id === account.id
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                    : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    <CreditCard className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                        {account.name}
+                                      </h4>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                        {account.bankName} - {account.accountNumber}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-xs font-semibold text-green-600 dark:text-green-400">
+                                      ৳{account.balance.toLocaleString()}
+                                    </p>
+                                    {formData.destinationAccount.id === account.id && (
+                                      <CheckCircle className="w-4 h-4 text-blue-500 mt-1" />
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+                              ))
+                            )}
+                          </div>
+                          {errors.destinationAccount && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {errors.destinationAccount}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Customer Information Section */}
+                      <div className="mt-4 sm:mt-6">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                          কাস্টমার (যার কাছে টাকা যাবে)
+                        </h4>
+                        <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 mb-3">
                             <div className="flex items-center gap-2">
                               <User className="w-5 h-5 text-blue-600" />
                               <div>
@@ -2037,7 +2164,6 @@ const NewTransaction = () => {
                                 )}
                               </div>
                             </div>
-                          </div>
                           
                           {/* Customer Bank Account Details */}
                           {formData.paymentMethod === 'bank-transfer' && (
@@ -2601,7 +2727,19 @@ const NewTransaction = () => {
                         
                         {/* Account Selection Dropdown */}
                         <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
-                          {accounts.map((account) => (
+                          {accountsLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                              <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
+                            </div>
+                          ) : accounts.length === 0 ? (
+                            <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                              <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                              <p className="text-sm">কোন অ্যাকাউন্ট পাওয়া যায়নি</p>
+                              <p className="text-xs mt-1">ব্যাংক অ্যাকাউন্ট সেটিংস থেকে অ্যাকাউন্ট যোগ করুন</p>
+                            </div>
+                          ) : (
+                            accounts.map((account) => (
                             <button
                               key={account.id}
                               onClick={() => handleAccountSelectForTransaction(account, 'sourceAccount')}
@@ -2633,7 +2771,8 @@ const NewTransaction = () => {
                                 </div>
                               </div>
                             </button>
-                          ))}
+                            ))
+                          )}
                         </div>
                       </div>
 
