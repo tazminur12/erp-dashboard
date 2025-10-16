@@ -13,7 +13,6 @@ import './index.css';
 // Customer pages
 import CustomerList from './pages/Customers/CustomerList';
 import AddCustomer from './pages/Customers/AddCustomer';
-import EditCustomer from './pages/Customers/EditCustomer';
 import CustomerDetails from './pages/Customers/CustomerDetails';
 
 // Transaction pages
@@ -24,6 +23,7 @@ import NewTransaction from './pages/Transactions/NewTransaction';
 import VendorDashboard from './pages/Vendors/VendorDashboard';
 import VendorList from './pages/Vendors/VendorList';
 import AddVendor from './pages/Vendors/AddVendor';
+import EditVendor from './pages/Vendors/EditVendor';
 // Removed VendorPayment, VendorDueReport
 import VendorDetails from './pages/Vendors/VendorDetails';
 
@@ -47,6 +47,7 @@ import AgentList from './pages/AirTicketing/AgentList';
 import TicketCheck from './pages/AirTicketing/TicketCheck';
 import OldTicketReissue from './pages/AirTicketing/OldTicketReissue';
 import AirlineList from './pages/AirTicketing/AirlineList';
+import AirlineDetails from './pages/AirTicketing/AirlineDetails';
 
 // Visa Processing pages
 import VisaProcessingDashboard from './pages/VisaProcessing/VisaProcessingDashboard';
@@ -97,6 +98,7 @@ import PersonalLoans from './pages/Personal/Loans';
 // Fly Oval Limited pages
 import FlyOvalDashboard from './pages/FlyOval/Dashboard';
 import FlyOvalAgentList from './pages/FlyOval/AgentList';
+import AddFlyOvalAgent from './pages/FlyOval/AddAgent';
 import FlyOvalTopUpHistory from './pages/FlyOval/TopUpHistory';
 import FlyOvalSellHistory from './pages/FlyOval/SellHistory';
 import FlyOvalLedger from './pages/FlyOval/Ledger';
@@ -141,6 +143,7 @@ import AllInvoices from './pages/SalesInvoice/List';
 
 // Settings pages
 import Users from './pages/Settings/Users';
+import CustomerManagment from './pages/Settings/CustomerManagment';
 import CategoryManagement from './pages/Settings/CategoryManagement';
 import BackupRestore from './pages/Settings/BackupRestore';
 
@@ -218,10 +221,6 @@ const router = createBrowserRouter([
         element: <AddCustomer />
       },
       {
-        path: "edit",
-        element: <EditCustomer />
-      },
-      {
         path: "details/:id",
         element: <CustomerDetails />
       }
@@ -268,6 +267,10 @@ const router = createBrowserRouter([
       {
         path: ":id",
         element: <VendorDetails />
+      },
+      {
+        path: ":id/edit",
+        element: <EditVendor />
       },
       {
         path: "payment",
@@ -378,6 +381,10 @@ const router = createBrowserRouter([
       {
         path: "airline",
         element: <AirlineList />
+      },
+      {
+        path: "airline/:id",
+        element: <AirlineDetails />
       }
     ]
   },
@@ -616,6 +623,10 @@ const router = createBrowserRouter([
         element: <FlyOvalAgentList />
       },
       {
+        path: "agents/add",
+        element: <AddFlyOvalAgent />
+      },
+      {
         path: "topup-history",
         element: <FlyOvalTopUpHistory />
       },
@@ -771,6 +782,10 @@ const router = createBrowserRouter([
       {
         path: "users",
         element: <Users />
+      },
+      {
+        path: "customer-types",
+        element: <CustomerManagment />
       },
       {
         path: "categories",

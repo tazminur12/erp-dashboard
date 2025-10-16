@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Building2, 
@@ -20,115 +20,131 @@ import {
   Users,
   Package,
   Activity,
-  User
+  User,
+  ShoppingCart,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+  RefreshCw
 } from 'lucide-react';
 import CardWidget from '../../components/common/CardWidget';
 import SmallStat from '../../components/common/SmallStat';
+import useSecureAxios from '../../hooks/UseAxiosSecure.js';
+import useAxios from '../../hooks/Axios.js';
+import Swal from 'sweetalert2';
 
-// Mock data for demonstration
-const DEMO_VENDORS = [
-  {
-    id: 'VND-0001',
-    tradeName: 'Miraj Traders',
-    tradeLocation: 'Dhaka, Bangladesh',
-    ownerName: 'Abdul Karim',
-    contactNo: '+8801711223344',
-    dob: '1984-05-12',
-    nid: '197845623412',
-    passport: 'BA1234567',
-    status: 'active',
-    totalOrders: 45,
-    totalAmount: 1250000,
-    lastOrderDate: '2024-01-15',
-    joinDate: '2023-01-15'
-  },
-  {
-    id: 'VND-0002',
-    tradeName: 'Nazmul Enterprise',
-    tradeLocation: 'Chattogram',
-    ownerName: 'Nazmul Hasan',
-    contactNo: '+8801911334455',
-    dob: '1990-08-21',
-    nid: '199045623411',
-    passport: 'EC7654321',
-    status: 'active',
-    totalOrders: 32,
-    totalAmount: 890000,
-    lastOrderDate: '2024-01-12',
-    joinDate: '2023-03-20'
-  },
-  {
-    id: 'VND-0003',
-    tradeName: 'Green Line Supplies',
-    tradeLocation: 'Sylhet',
-    ownerName: 'Shahadat Hossain',
-    contactNo: '+8801555667788',
-    dob: '1988-12-01',
-    nid: '188845623499',
-    passport: 'ZP1122334',
-    status: 'inactive',
-    totalOrders: 18,
-    totalAmount: 450000,
-    lastOrderDate: '2023-12-20',
-    joinDate: '2023-06-10'
-  },
-  {
-    id: 'VND-0004',
-    tradeName: 'City Hardware',
-    tradeLocation: 'Khulna',
-    ownerName: 'Rubel Mia',
-    contactNo: '+8801311223344',
-    dob: '1982-03-30',
-    nid: '198245623477',
-    passport: 'AA9988776',
-    status: 'active',
-    totalOrders: 67,
-    totalAmount: 2100000,
-    lastOrderDate: '2024-01-18',
-    joinDate: '2022-11-05'
-  },
-  {
-    id: 'VND-0005',
-    tradeName: 'Delta Foods',
-    tradeLocation: 'Rajshahi',
-    ownerName: 'Sajid Khan',
-    contactNo: '+8801811227788',
-    dob: '1992-10-15',
-    nid: '199245623401',
-    passport: 'PK5566778',
-    status: 'active',
-    totalOrders: 28,
-    totalAmount: 680000,
-    lastOrderDate: '2024-01-14',
-    joinDate: '2023-08-15'
-  }
-];
+// Initial stats shape matching API response
+const initialStats = {
+  total: 0,
+  today: 0,
+  thisMonth: 0,
+  withNID: 0,
+  withPassport: 0,
+  byLocation: []
+};
+
+// Initial dashboard data
+const initialDashboardData = {
+  overview: null,
+  summary: null,
+  vendorAnalytics: null,
+  orderAnalytics: null
+};
 
 const VendorDashboard = () => {
+  const axiosSecure = useSecureAxios();
+  const axiosPublic = useAxios();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortBy, setSortBy] = useState('totalAmount');
+  const [sortBy, setSortBy] = useState('tradeName');
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(initialStats);
+  const [dashboardData, setDashboardData] = useState(initialDashboardData);
+  const [showComprehensiveView, setShowComprehensiveView] = useState(false);
 
-  // Calculate dashboard statistics
-  const stats = useMemo(() => {
-    const totalVendors = DEMO_VENDORS.length;
-    const activeVendors = DEMO_VENDORS.filter(v => v.status === 'active').length;
-    const totalOrders = DEMO_VENDORS.reduce((sum, v) => sum + v.totalOrders, 0);
-    const totalAmount = DEMO_VENDORS.reduce((sum, v) => sum + v.totalAmount, 0);
-    const avgOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch dashboard data in parallel
+      const [vendorAnalyticsRes, orderAnalyticsRes] = await Promise.all([
+        axiosSecure.get('/vendors/analytics'),
+        axiosSecure.get('/orders/analytics')
+      ]);
 
-    return {
-      totalVendors,
-      activeVendors,
-      totalOrders,
-      totalAmount,
-      avgOrderValue
+      setDashboardData({
+        overview: null,
+        summary: null,
+        vendorAnalytics: vendorAnalyticsRes.data,
+        orderAnalytics: orderAnalyticsRes.data
+      });
+
+    } catch (error) {
+      console.error('Error loading comprehensive dashboard data:', error);
+      // Don't show error for comprehensive data as it's optional
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchDashboardData();
+  };
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch vendor data and comprehensive dashboard data in parallel
+        const [statsRes, vendorsRes] = await Promise.all([
+          axiosSecure.get('/vendors/stats/overview'),
+          axiosSecure.get('/vendors')
+        ]);
+
+        const apiStats = statsRes.data?.stats || {};
+        setStats({
+          total: apiStats.total || 0,
+          today: apiStats.today || 0,
+          thisMonth: apiStats.thisMonth || 0,
+          withNID: apiStats.withNID || 0,
+          withPassport: apiStats.withPassport || 0,
+          byLocation: Array.isArray(apiStats.byLocation) ? apiStats.byLocation : []
+        });
+
+        const vendorsData = vendorsRes.data?.vendors || vendorsRes.data || [];
+        const transformed = vendorsData.map(v => ({
+          vendorId: v.vendorId || v.id || v._id,
+          tradeName: v.tradeName || '',
+          tradeLocation: v.tradeLocation || '',
+          ownerName: v.ownerName || '',
+          contactNo: v.contactNo || '',
+          dob: v.dob || '',
+          nid: v.nid || '',
+          passport: v.passport || '',
+          status: v.isActive === false ? 'inactive' : 'active'
+        }));
+        setVendors(transformed);
+
+        // Fetch comprehensive dashboard data
+        await fetchDashboardData();
+
+      } catch (error) {
+        const serverMsg = error?.response?.data?.message || error?.message || 'Unknown error';
+        console.error('Error loading vendor dashboard:', serverMsg);
+        Swal.fire({
+          icon: 'error',
+          title: 'Load failed',
+          text: `Could not load vendor stats/data. ${serverMsg}`,
+          confirmButtonColor: '#7c3aed'
+        });
+      } finally {
+        setLoading(false);
+      }
     };
-  }, []);
+    fetchAll();
+  }, [axiosSecure]);
 
   // Filter and sort vendors
   const filteredVendors = useMemo(() => {
-    let filtered = DEMO_VENDORS.filter(vendor => {
+    let filtered = vendors.filter(vendor => {
       const matchesSearch = vendor.tradeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           vendor.ownerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           vendor.tradeLocation.toLowerCase().includes(searchQuery.toLowerCase());
@@ -139,28 +155,17 @@ const VendorDashboard = () => {
     // Sort vendors
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'totalAmount':
-          return b.totalAmount - a.totalAmount;
-        case 'totalOrders':
-          return b.totalOrders - a.totalOrders;
         case 'tradeName':
           return a.tradeName.localeCompare(b.tradeName);
-        case 'lastOrderDate':
-          return new Date(b.lastOrderDate) - new Date(a.lastOrderDate);
         default:
           return 0;
       }
     });
 
     return filtered;
-  }, [searchQuery, statusFilter, sortBy]);
+  }, [searchQuery, statusFilter, sortBy, vendors]);
 
-  // Top performing vendors
-  const topVendors = useMemo(() => {
-    return DEMO_VENDORS
-      .sort((a, b) => b.totalAmount - a.totalAmount)
-      .slice(0, 5);
-  }, []);
+  const byLocation = useMemo(() => Array.isArray(stats.byLocation) ? stats.byLocation : [], [stats.byLocation]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -176,6 +181,13 @@ const VendorDashboard = () => {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowComprehensiveView(!showComprehensiveView)}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5"
+          >
+            <BarChart3 className="w-4 h-4" /> 
+            {showComprehensiveView ? 'Vendor View' : 'Comprehensive View'}
+          </button>
           <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5">
             <Download className="w-4 h-4" /> Export
           </button>
@@ -190,51 +202,162 @@ const VendorDashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <CardWidget
-          title="Total Vendors"
-          value={stats.totalVendors}
-          icon={Building2}
-          trend="+12%"
-          trendValue="vs last month"
-          trendType="up"
-        />
-        <CardWidget
-          title="Active Vendors"
-          value={stats.activeVendors}
-          icon={Users}
-          trend="+8%"
-          trendValue="vs last month"
-          trendType="up"
-        />
-        <CardWidget
-          title="Total Orders"
-          value={stats.totalOrders.toLocaleString()}
-          icon={Package}
-          trend="+15%"
-          trendValue="vs last month"
-          trendType="up"
-        />
-        <CardWidget
-          title="Total Revenue"
-          value={`৳${(stats.totalAmount / 1000000).toFixed(1)}M`}
-          icon={DollarSign}
-          trend="+22%"
-          trendValue="vs last month"
-          trendType="up"
-        />
-        <CardWidget
-          title="Avg Order Value"
-          value={`৳${stats.avgOrderValue.toLocaleString()}`}
-          icon={TrendingUp}
-          trend="+5%"
-          trendValue="vs last month"
-          trendType="up"
-        />
+        <CardWidget title="Total Vendors" value={stats.total} icon={Building2} trend="" trendValue="" trendType="neutral" />
+        <CardWidget title="Active Vendors" value={vendors.filter(v => v.status === 'active').length} icon={Users} trend="" trendValue="" trendType="neutral" />
+        <CardWidget title="Added Today" value={stats.today} icon={Clock} trend="" trendValue="" trendType="neutral" />
+        <CardWidget title="Added This Month" value={stats.thisMonth} icon={Calendar} trend="" trendValue="" trendType="neutral" />
+        <CardWidget title="With NID / Passport" value={`${stats.withNID} / ${stats.withPassport}`} icon={CreditCard} trend="" trendValue="" trendType="neutral" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Vendor List */}
-        <div className="lg:col-span-2">
+      {/* Comprehensive Dashboard Header */}
+      {showComprehensiveView && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Analytics Dashboard</h3>
+            <button 
+              onClick={handleRefresh}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-3 py-2"
+            >
+              <RefreshCw className="w-4 h-4" /> Refresh
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Analytics */}
+      {showComprehensiveView && dashboardData.vendorAnalytics && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Vendor Analytics</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total Vendors</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">{dashboardData.vendorAnalytics.totalVendors}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Active Vendors</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">{dashboardData.vendorAnalytics.activeVendors}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Inactive Vendors</span>
+                <span className="font-semibold text-red-600 dark:text-red-400">{dashboardData.vendorAnalytics.inactiveVendors}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">New This Month</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">{dashboardData.vendorAnalytics.newThisMonth}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top Vendors by Location</h3>
+            <div className="space-y-3">
+              {dashboardData.vendorAnalytics.topLocations?.map((location, index) => (
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
+                      {location.count}
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{location.location}</div>
+                  </div>
+                </div>
+              )) || (
+                <div className="text-gray-500 dark:text-gray-400 text-sm">No location data available</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Order Analytics */}
+      {showComprehensiveView && dashboardData.orderAnalytics && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Order Status Overview</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Completed</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">{dashboardData.orderAnalytics.completedOrders}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Pending</span>
+                <span className="font-semibold text-yellow-600 dark:text-yellow-400">{dashboardData.orderAnalytics.pendingOrders}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Cancelled</span>
+                <span className="font-semibold text-red-600 dark:text-red-400">{dashboardData.orderAnalytics.cancelledOrders}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Processing</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">{dashboardData.orderAnalytics.processingOrders}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Revenue Analytics</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">${dashboardData.orderAnalytics.totalRevenue?.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">This Month</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">${dashboardData.orderAnalytics.monthlyRevenue?.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Average Order</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">${dashboardData.orderAnalytics.averageOrderValue?.toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Order Trends</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Today's Orders</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{dashboardData.orderAnalytics.todayOrders}</span>
+                  {dashboardData.orderAnalytics.todayOrdersChange > 0 ? (
+                    <ArrowUpRight className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <ArrowDownRight className="w-4 h-4 text-red-600" />
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">This Week</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{dashboardData.orderAnalytics.weeklyOrders}</span>
+                  {dashboardData.orderAnalytics.weeklyOrdersChange > 0 ? (
+                    <ArrowUpRight className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <ArrowDownRight className="w-4 h-4 text-red-600" />
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400">This Month</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{dashboardData.orderAnalytics.monthlyOrders}</span>
+                  {dashboardData.orderAnalytics.monthlyOrdersChange > 0 ? (
+                    <ArrowUpRight className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <ArrowDownRight className="w-4 h-4 text-red-600" />
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Vendor List - Only show in normal view */}
+      {!showComprehensiveView && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Vendor List */}
+          <div className="lg:col-span-2">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between flex-wrap gap-4">
@@ -269,18 +392,19 @@ const VendorDashboard = () => {
                     onChange={(e) => setSortBy(e.target.value)}
                     className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
-                    <option value="totalAmount">Sort by Revenue</option>
-                    <option value="totalOrders">Sort by Orders</option>
                     <option value="tradeName">Sort by Name</option>
-                    <option value="lastOrderDate">Sort by Last Order</option>
                   </select>
                 </div>
               </div>
             </div>
 
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredVendors.map((vendor) => (
-                <div key={vendor.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+              {loading ? (
+                <div className="p-6 text-center text-gray-500 dark:text-gray-400">Loading vendors...</div>
+              ) : filteredVendors.length === 0 ? (
+                <div className="p-6 text-center text-gray-500 dark:text-gray-400">No vendors found</div>
+              ) : filteredVendors.map((vendor) => (
+                <div key={vendor.vendorId} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
@@ -289,7 +413,7 @@ const VendorDashboard = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Link 
-                            to={`/vendors/${vendor.id}`}
+                            to={`/vendors/${vendor.vendorId}`}
                             className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400"
                           >
                             {vendor.tradeName}
@@ -319,17 +443,9 @@ const VendorDashboard = () => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-6">
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          ৳{vendor.totalAmount.toLocaleString()}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {vendor.totalOrders} orders
-                        </div>
-                      </div>
                       <div className="flex items-center space-x-2">
                         <Link
-                          to={`/vendors/${vendor.id}`}
+                          to={`/vendors/${vendor.vendorId}`}
                           className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />
@@ -349,30 +465,23 @@ const VendorDashboard = () => {
           </div>
         </div>
 
-        {/* Top Performers & Recent Activity */}
+        {/* By Location & Quick Actions */}
         <div className="space-y-6">
-          {/* Top Performing Vendors */}
+          {/* Vendors by Location */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top Performers</h3>
-            <div className="space-y-4">
-              {topVendors.map((vendor, index) => (
-                <div key={vendor.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                      index === 0 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400' :
-                      index === 1 ? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' :
-                      index === 2 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400' :
-                      'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-                    }`}>
-                      {index + 1}
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Vendors by Location</h3>
+            <div className="space-y-3">
+              {loading ? (
+                <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+              ) : byLocation.length === 0 ? (
+                <div className="text-gray-500 dark:text-gray-400">No location data</div>
+              ) : byLocation.map((loc, idx) => (
+                <div key={idx} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
+                      {loc.count}
                     </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{vendor.tradeName}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{vendor.totalOrders} orders</div>
-                    </div>
-                  </div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    ৳{(vendor.totalAmount / 1000000).toFixed(1)}M
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{loc._id || 'Unknown'}</div>
                   </div>
                 </div>
               ))}
@@ -420,6 +529,22 @@ const VendorDashboard = () => {
           </div>
         </div>
       </div>
+      )}
+
+      {/* No Comprehensive Data State */}
+      {showComprehensiveView && !dashboardData.vendorAnalytics && !dashboardData.orderAnalytics && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No Dashboard Data</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">Unable to load comprehensive dashboard data. Please check your connection and try again.</p>
+          <button 
+            onClick={handleRefresh}
+            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2"
+          >
+            <RefreshCw className="w-4 h-4" /> Retry
+          </button>
+        </div>
+      )}
     </div>
   );
 };

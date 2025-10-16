@@ -1,0 +1,297 @@
+diff --git a/src/pages/Settings/CategoryManagement.jsx b/src/pages/Settings/CategoryManagement.jsx
+index d5c3d48..c4f5d9a 100644
+--- a/src/pages/Settings/CategoryManagement.jsx
++++ b/src/pages/Settings/CategoryManagement.jsx
+@@ -94,28 +94,16 @@ const CategoryManagement = () => {
+   const loadCategories = async () => {
+     try {
+       setLoading(true);
+-      const response = await axiosSecure.get('/categories');
++      const response = await axiosSecure.get('/customer-types');
+       
+       if (response.data.success) {
+-        setCategories(response.data.categories || []);
++        setCategories(response.data.customerTypes || []);
+       } else {
+-        // Fallback to default categories if API fails
+-        setCategories([
+-          { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
+-          { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
+-          { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
+-          { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
+-        ]);
++        setCategories([]);
+       }
+     } catch (error) {
+       console.error('Error loading categories:', error);
+-      // Fallback to default categories if API fails
+-      setCategories([
+-        { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
+-        { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
+-        { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
+-        { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
+-      ]);
++      setCategories([]);
+     } finally {
+       setLoading(false);
+     }
+@@ -143,7 +131,7 @@ const CategoryManagement = () => {
+     try {
+       if (editingCategory) {
+         // Update existing category
+-        const response = await axiosSecure.put(`/categories/${editingCategory.id}`, {
++        const response = await axiosSecure.put(`/customer-types/${editingCategory.id}`, {
+           value: formData.value,
+           label: formData.label,
+           prefix: formData.prefix,
+@@ -173,7 +161,7 @@ const CategoryManagement = () => {
+         }
+       } else {
+         // Create new category
+-        const response = await axiosSecure.post('/categories', {
++        const response = await axiosSecure.post('/customer-types', {
+           value: formData.value,
+           label: formData.label,
+           prefix: formData.prefix,
+@@ -237,8 +225,132 @@ const CategoryManagement = () => {
+     });
+   };
+ 
+-  const handleDelete = async (categoryId, valueToDelete) => {
+-    Swal.fire({
++  // Check if customers are using this customer type
++  const checkCustomersUsingType = async (customerTypeValue) => {
++    try {
++      const response = await axiosSecure.get(`/customers?type=${customerTypeValue}`);
++      if (response.data.success) {
++        const customers = response.data.customers || [];
++        return customers.length;
++      }
++      return 0;
++    } catch (error) {
++      console.error('Error checking customers using type:', error);
++      return 0;
++    }
++  };
++
++  // View customers using this type
++  const viewCustomersUsingType = async (customerTypeValue, customerTypeLabel) => {
++    try {
++      const response = await axiosSecure.get(`/customers?type=${customerTypeValue}`);
++      if (response.data.success) {
++        const customers = response.data.customers || [];
++        
++        if (customers.length === 0) {
++          Swal.fire({
++            title: 'কোন কাস্টমার নেই',
++            text: 'এই টাইপের কোন কাস্টমার পাওয়া যায়নি।',
++            icon: 'info',
++            confirmButtonText: 'ঠিক আছে',
++            background: isDark ? '#1F2937' : '#F9FAFB',
++            customClass: {
++              title: 'text-blue-600 font-bold text-xl',
++              popup: 'rounded-2xl shadow-2xl'
++            }
++          });
++          return;
++        }
++
++        // Create customer list HTML
++        const customerList = customers.map(customer => 
++          `<div class="flex justify-between items-center p-2 border-b border-gray-200 dark:border-gray-600">
++            <div>
++              <div class="font-medium text-gray-900 dark:text-white">${customer.name}</div>
++              <div class="text-sm text-gray-500 dark:text-gray-400">ID: ${customer.customerId || customer.id}</div>
++            </div>
++            <div class="text-sm text-gray-500 dark:text-gray-400">
++              ${customer.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
++            </div>
++          </div>`
++        ).join('');
++
++        Swal.fire({
++          title: `${customerTypeLabel} টাইপের কাস্টমার (${customers.length} জন)`,
++          html: `
++            <div class="max-h-64 overflow-y-auto">
++              ${customerList}
++            </div>
++          `,
++          icon: 'info',
++          confirmButtonText: 'ঠিক আছে',
++          background: isDark ? '#1F2937' : '#F9FAFB',
++          customClass: {
++            title: 'text-blue-600 font-bold text-xl',
++            popup: 'rounded-2xl shadow-2xl'
++          }
++        });
++      }
++    } catch (error) {
++      console.error('Error fetching customers:', error);
++      Swal.fire({
++        title: 'ত্রুটি!',
++        text: 'কাস্টমার তালিকা লোড করতে সমস্যা হয়েছে।',
++        icon: 'error',
++        confirmButtonText: 'ঠিক আছে',
++        confirmButtonColor: '#EF4444',
++        background: isDark ? '#1F2937' : '#FEF2F2',
++        customClass: {
++          title: 'text-red-600 font-bold text-xl',
++          popup: 'rounded-2xl shadow-2xl'
++        }
++      });
++    }
++  };
++
++  const handleDelete = async (categoryId, valueToDelete, categoryLabel) => {
++    // First check if customers are using this type
++    const customerCount = await checkCustomersUsingType(valueToDelete);
++    
++    if (customerCount > 0) {
++      // Show enhanced confirmation with customer count and options
++      const result = await Swal.fire({
++        title: 'কাস্টমার টাইপ মুছতে পারবেন না',
++        html: `
++          <div class="text-center">
++            <div class="text-red-500 mb-4">
++              <svg class="w-16 h-16 mx-auto" fill="currentColor" viewBox="0 0 20 20">
++                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
++              </svg>
++            </div>
++            <p class="text-lg mb-2">এই কাস্টমার টাইপ <strong>${customerCount} জন কাস্টমার</strong> ব্যবহার করছে।</p>
++            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
++              কাস্টমার টাইপ মুছতে হলে আগে এই কাস্টমারদের অন্য টাইপে পরিবর্তন করতে হবে।
++            </p>
++          </div>
++        `,
++        icon: 'warning',
++        showCancelButton: true,
++        confirmButtonText: 'কাস্টমার দেখুন',
++        cancelButtonText: 'বাতিল করুন',
++        confirmButtonColor: '#3B82F6',
++        cancelButtonColor: '#6B7280',
++        background: isDark ? '#1F2937' : '#F9FAFB',
++        customClass: {
++          title: 'text-red-600 font-bold text-xl',
++          popup: 'rounded-2xl shadow-2xl'
++        }
++      });
++
++      if (result.isConfirmed) {
++        // Show customers using this type
++        await viewCustomersUsingType(valueToDelete, categoryLabel);
++      }
++      return;
++    }
++
++    // If no customers are using this type, proceed with normal deletion
++    const confirmResult = await Swal.fire({
+       title: 'নিশ্চিত করুন',
+       text: 'আপনি কি এই ক্যাটাগরি মুছে ফেলতে চান?',
+       icon: 'warning',
+@@ -252,56 +364,56 @@ const CategoryManagement = () => {
+         title: 'text-red-600 font-bold text-xl',
+         popup: 'rounded-2xl shadow-2xl'
+       }
+-    }).then(async (result) => {
+-      if (result.isConfirmed) {
+-        try {
+-          const response = await axiosSecure.delete(`/categories/${categoryId}`, {
+-            data: { value: valueToDelete }
+-          });
+-          
+-          if (response.data.success) {
+-            // Reload categories from backend
+-            await loadCategories();
+-            
+-            Swal.fire({
+-              title: 'মুছে ফেলা হয়েছে!',
+-              text: 'ক্যাটাগরি মুছে ফেলা হয়েছে।',
+-              icon: 'success',
+-              confirmButtonText: 'ঠিক আছে',
+-              confirmButtonColor: '#10B981',
+-              background: isDark ? '#1F2937' : '#F9FAFB',
+-              customClass: {
+-                title: 'text-green-600 font-bold text-xl',
+-                popup: 'rounded-2xl shadow-2xl'
+-              }
+-            });
+-          } else {
+-            throw new Error(response.data.message || 'Failed to delete category');
+-          }
+-        } catch (error) {
+-          let errorMessage = 'ক্যাটাগরি মুছতে সমস্যা হয়েছে।';
+-          
+-          if (error.response?.data?.message) {
+-            errorMessage = error.response.data.message;
+-          } else if (error.message) {
+-            errorMessage = error.message;
+-          }
++    });
++
++    if (confirmResult.isConfirmed) {
++      try {
++        const response = await axiosSecure.delete(`/customer-types/${categoryId}`, {
++          data: { value: valueToDelete }
++        });
++        
++        if (response.data.success) {
++          // Reload categories from backend
++          await loadCategories();
+           
+           Swal.fire({
+-            title: 'ত্রুটি!',
+-            text: errorMessage,
+-            icon: 'error',
++            title: 'মুছে ফেলা হয়েছে!',
++            text: 'ক্যাটাগরি মুছে ফেলা হয়েছে।',
++            icon: 'success',
+             confirmButtonText: 'ঠিক আছে',
+-            confirmButtonColor: '#EF4444',
+-            background: isDark ? '#1F2937' : '#FEF2F2',
++            confirmButtonColor: '#10B981',
++            background: isDark ? '#1F2937' : '#F9FAFB',
+             customClass: {
+-              title: 'text-red-600 font-bold text-xl',
++              title: 'text-green-600 font-bold text-xl',
+               popup: 'rounded-2xl shadow-2xl'
+             }
+           });
++        } else {
++          throw new Error(response.data.message || 'Failed to delete category');
++        }
++      } catch (error) {
++        let errorMessage = 'ক্যাটাগরি মুছতে সমস্যা হয়েছে।';
++        
++        if (error.response?.data?.message) {
++          errorMessage = error.response.data.message;
++        } else if (error.message) {
++          errorMessage = error.message;
+         }
++        
++        Swal.fire({
++          title: 'ত্রুটি!',
++          text: errorMessage,
++          icon: 'error',
++          confirmButtonText: 'ঠিক আছে',
++          confirmButtonColor: '#EF4444',
++          background: isDark ? '#1F2937' : '#FEF2F2',
++          customClass: {
++            title: 'text-red-600 font-bold text-xl',
++            popup: 'rounded-2xl shadow-2xl'
++          }
++        });
+       }
+-    });
++    }
+   };
+ 
+   const resetForm = () => {
+@@ -505,7 +617,7 @@ const CategoryManagement = () => {
+                           <Edit className="h-4 w-4" />
+                         </button>
+                         <button
+-                          onClick={() => handleDelete(category.id, category.value)}
++                          onClick={() => handleDelete(category.id, category.value, category.label)}
+                           className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 p-1"
+                           title="মুছে ফেলুন"
+                         >

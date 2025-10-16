@@ -1,64 +1,20 @@
-import React, { useMemo, useState } from 'react';
-import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, MoreVertical, Receipt, Upload } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, MoreVertical, Receipt, Upload, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import ExcelUploader from '../../components/common/ExcelUploader';
 import Swal from 'sweetalert2';
+import useSecureAxios from '../../hooks/UseAxiosSecure.js';
+import { useTheme } from '../../contexts/ThemeContext.jsx';
+import { useAuth } from '../../contexts/AuthContext.jsx';
 
-const DEMO_VENDORS = [
-  {
-    id: 'VND-0001',
-    tradeName: 'Miraj Traders',
-    tradeLocation: 'Dhaka, Bangladesh',
-    ownerName: 'Abdul Karim',
-    contactNo: '+8801711223344',
-    dob: '1984-05-12',
-    nid: '197845623412',
-    passport: 'BA1234567'
-  },
-  {
-    id: 'VND-0002',
-    tradeName: 'Nazmul Enterprise',
-    tradeLocation: 'Chattogram',
-    ownerName: 'Nazmul Hasan',
-    contactNo: '+8801911334455',
-    dob: '1990-08-21',
-    nid: '199045623411',
-    passport: 'EC7654321'
-  },
-  {
-    id: 'VND-0003',
-    tradeName: 'Green Line Supplies',
-    tradeLocation: 'Sylhet',
-    ownerName: 'Shahadat Hossain',
-    contactNo: '+8801555667788',
-    dob: '1988-12-01',
-    nid: '188845623499',
-    passport: 'ZP1122334'
-  },
-  {
-    id: 'VND-0004',
-    tradeName: 'City Hardware',
-    tradeLocation: 'Khulna',
-    ownerName: 'Rubel Mia',
-    contactNo: '+8801311223344',
-    dob: '1982-03-30',
-    nid: '198245623477',
-    passport: 'AA9988776'
-  },
-  {
-    id: 'VND-0005',
-    tradeName: 'Delta Foods',
-    tradeLocation: 'Rajshahi',
-    ownerName: 'Sajid Khan',
-    contactNo: '+8801811227788',
-    dob: '1992-10-15',
-    nid: '199245623401',
-    passport: 'PK5566778'
-  }
-];
 
 const VendorList = () => {
+  const { isDark } = useTheme();
+  const axiosSecure = useSecureAxios();
+  const { userProfile } = useAuth();
+  const [vendors, setVendors] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -68,16 +24,95 @@ const VendorList = () => {
   const [touched, setTouched] = useState({});
   const [orderVendorQuery, setOrderVendorQuery] = useState('');
   const [showVendorList, setShowVendorList] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState('');
+
+  // Fetch vendors from API
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        setLoading(true);
+        const response = await axiosSecure.get('/vendors');
+        // Extract vendors array from response
+        const vendorsData = response.data?.vendors || response.data || [];
+        
+        // Transform vendor data to match frontend expectations
+        const transformedVendors = vendorsData.map(vendor => ({
+          vendorId: vendor.vendorId || vendor.id || vendor._id,
+          tradeName: vendor.tradeName || '',
+          tradeLocation: vendor.tradeLocation || '',
+          ownerName: vendor.ownerName || '',
+          contactNo: vendor.contactNo || '',
+          dob: vendor.dob || '',
+          nid: vendor.nid || '',
+          passport: vendor.passport || ''
+        }));
+        
+        setVendors(transformedVendors);
+      } catch (error) {
+        console.error('Error fetching vendors:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Failed to fetch vendors. Please try again.',
+          confirmButtonColor: '#7c3aed'
+        });
+        setVendors([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendors();
+  }, [axiosSecure]);
+
+  // Fetch categories for order types
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      setCategoriesError('');
+      const response = await axiosSecure.get('/customer-types');
+      
+      
+      if (response.data.success) {
+        const categoriesData = response.data.customerTypes || response.data.categories || [];
+        setCategories(categoriesData);
+      } else {
+       
+        setCategories([]);
+        setCategoriesError(response?.data?.message || 'No categories found');
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      setCategories([]);
+      setCategoriesError(error?.response?.data?.message || error?.message || 'Failed to load categories');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, [axiosSecure]);
+
+  // Refetch when opening the order modal if empty/not loaded
+  useEffect(() => {
+    if (isCreateOpen && (!Array.isArray(categories) || categories.length === 0) && !categoriesLoading) {
+      fetchCategories();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCreateOpen]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return DEMO_VENDORS;
-    return DEMO_VENDORS.filter((v) =>
+    if (!q) return Array.isArray(vendors) ? vendors : [];
+    return Array.isArray(vendors) ? vendors.filter((v) =>
       [v.tradeName, v.tradeLocation, v.ownerName, v.contactNo, v.nid, v.passport]
         .filter(Boolean)
         .some((x) => x.toLowerCase().includes(q))
-    );
-  }, [query]);
+    ) : [];
+  }, [query, vendors]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -89,9 +124,9 @@ const VendorList = () => {
   // Modal vendor list filtering (independent from page search)
   const modalVendors = useMemo(() => {
     const q = orderVendorQuery.trim().toLowerCase();
-    if (!q) return DEMO_VENDORS;
-    return DEMO_VENDORS.filter((v) => v.tradeName.toLowerCase().includes(q));
-  }, [orderVendorQuery]);
+    if (!q) return Array.isArray(vendors) ? vendors : [];
+    return Array.isArray(vendors) ? vendors.filter((v) => v.vendorId.toLowerCase().includes(q)) : [];
+  }, [orderVendorQuery, vendors]);
 
   const orderErrors = useMemo(() => {
     const e = {};
@@ -112,21 +147,59 @@ const VendorList = () => {
     setShowVendorList(false);
   };
 
-  const handleOrderSubmit = (e) => {
+  const handleOrderSubmit = async (e) => {
     e.preventDefault();
     setTouched({ vendorId: true, orderType: true, amount: true });
     if (Object.keys(orderErrors).length) return;
-    // TODO: Send to API
-    const vendor = DEMO_VENDORS.find((v) => v.id === orderForm.vendorId);
-    const details = `${vendor?.tradeName || ''} • ${orderForm.orderType} • ৳${Number(orderForm.amount).toFixed(2)}`;
-    resetOrderForm();
-    setIsCreateOpen(false);
-    Swal.fire({
-      icon: 'success',
-      title: 'Order created',
-      text: details,
-      confirmButtonColor: '#7c3aed'
-    });
+    
+    try {
+      setLoading(true);
+      
+      // Prepare order data
+      const orderData = {
+        vendorId: orderForm.vendorId,
+        orderType: orderForm.orderType,
+        amount: parseFloat(orderForm.amount),
+        status: 'pending',
+        createdBy: userProfile?.email || 'unknown_user',
+        branchId: userProfile?.branchId || 'main_branch',
+        createdAt: new Date().toISOString()
+      };
+
+      // Call the API to create order
+      const response = await axiosSecure.post('/orders', orderData);
+      
+      if (response.data.success) {
+        const vendor = vendors.find((v) => v.vendorId === orderForm.vendorId);
+        const details = `${vendor?.tradeName || ''} • ${orderForm.orderType} • ৳${Number(orderForm.amount).toFixed(2)}`;
+        
+        resetOrderForm();
+        setIsCreateOpen(false);
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Order created successfully',
+          text: details,
+          confirmButtonColor: '#7c3aed'
+        });
+        
+        // Refresh vendors list to show updated data
+        fetchVendors();
+      } else {
+        throw new Error(response.data.message || 'Failed to create order');
+      }
+    } catch (error) {
+      console.error('Error creating order:', error);
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to create order',
+        text: error.response?.data?.message || error.message || 'Something went wrong. Please try again.',
+        confirmButtonColor: '#dc2626'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleExcelDataProcessed = async (processedData) => {
@@ -136,7 +209,7 @@ const VendorList = () => {
       
       // Convert processed data to vendor format
       const newVendors = processedData.map((record, index) => ({
-        id: `VND-${String(Date.now() + index).padStart(4, '0')}`,
+        vendorId: record.vendorId || `VND-${String(Date.now() + index).padStart(4, '0')}`,
         tradeName: record.tradeName || '',
         tradeLocation: record.tradeLocation || '',
         ownerName: record.ownerName || '',
@@ -147,7 +220,7 @@ const VendorList = () => {
       }));
       
       // Add new vendors to the existing list
-      DEMO_VENDORS.push(...newVendors);
+      setVendors(prevVendors => [...prevVendors, ...newVendors]);
       
       // Show success message
       Swal.fire({
@@ -157,8 +230,7 @@ const VendorList = () => {
         confirmButtonColor: '#7c3aed'
       });
       
-      // Refresh the page to show new data
-      window.location.reload();
+      // No need to reload, data is already updated in state
       
     } catch (error) {
       console.error('Error processing Excel data:', error);
@@ -237,16 +309,22 @@ const VendorList = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {paged.map((v) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                    Loading vendors...
+                  </td>
+                </tr>
+              ) : paged.length > 0 ? paged.map((v) => (
                 <tr key={v.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{v.id}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{v.vendorId}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="hidden sm:flex items-center justify-center h-9 w-9 rounded-md bg-purple-100 dark:bg-purple-900/30">
                         <Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                       </div>
                       <div>
-                        <Link to={`/vendors/${v.id}`} className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">{v.tradeName}</Link>
+                        <Link to={`/vendors/${v.vendorId}`} className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">{v.tradeName}</Link>
                         <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {v.tradeLocation}</div>
                       </div>
                     </div>
@@ -277,8 +355,7 @@ const VendorList = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
-              {paged.length === 0 && (
+              )) : (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No vendors found</td>
                 </tr>
@@ -321,7 +398,7 @@ const VendorList = () => {
             <div className="relative">
               <input
                 type="text"
-                value={orderForm.vendorId ? (DEMO_VENDORS.find(v => v.id === orderForm.vendorId)?.tradeName || '') : orderVendorQuery}
+                value={orderForm.vendorId ? (vendors.find(v => v.vendorId === orderForm.vendorId)?.vendorId || '') : orderVendorQuery}
                 onChange={(e) => {
                   const val = e.target.value;
                   setOrderVendorQuery(val);
@@ -330,7 +407,7 @@ const VendorList = () => {
                   setOrderForm((f) => ({ ...f, vendorId: '' }));
                 }}
                 onFocus={() => setShowVendorList(true)}
-                placeholder="Search vendor by name..."
+                placeholder="Search vendor by ID..."
                 className={`w-full rounded-lg border px-3 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasOrderError('vendorId') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
               />
               {showVendorList && (
@@ -338,16 +415,16 @@ const VendorList = () => {
                   {modalVendors.slice(0, 50).map((v) => (
                     <button
                       type="button"
-                      key={v.id}
+                      key={v.vendorId}
                       onClick={() => {
-                        setOrderForm((f) => ({ ...f, vendorId: v.id }));
-                        setOrderVendorQuery(v.tradeName);
+                        setOrderForm((f) => ({ ...f, vendorId: v.vendorId }));
+                        setOrderVendorQuery(v.vendorId);
                         setShowVendorList(false);
                       }}
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 ${orderForm.vendorId === v.id ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}
+                      className={`w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 ${orderForm.vendorId === v.vendorId ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}
                     >
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{v.tradeName}</div>
-                      <div className="text-xs text-gray-500">{v.ownerName} • {v.tradeLocation}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{v.vendorId}</div>
+                      <div className="text-xs text-gray-500">{v.tradeName} • {v.ownerName}</div>
                     </button>
                   ))}
                   {modalVendors.length === 0 && (
@@ -361,24 +438,46 @@ const VendorList = () => {
             )}
           </div>
 
-          {/* Order Type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Order Type <span className="text-red-500">*</span></label>
-            <select
-              value={orderForm.orderType}
-              onChange={(e) => setOrderForm((f) => ({ ...f, orderType: e.target.value }))}
-              onBlur={() => setTouched((t) => ({ ...t, orderType: true }))}
-              className={`w-full rounded-lg border px-3 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasOrderError('orderType') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-            >
-              <option value="">Select type</option>
-              <option value="Air Ticket">Air Ticket</option>
-              <option value="Hajj">Hajj</option>
-              <option value="Umrah">Umrah</option>
-              <option value="Visa">Visa</option>
-              <option value="Other">Other</option>
-            </select>
+          {/* Order Type (styled like AddCustomer কাস্টমারের ধরন *) */}
+          <div className="space-y-1">
+            <label className={`block text-xs font-semibold transition-colors duration-300 ${
+              isDark ? 'text-gray-200' : 'text-gray-700'
+            }`}>
+              Order Type *
+            </label>
+            <div className="relative">
+              <select
+                name="orderType"
+                value={orderForm.orderType}
+                onChange={(e) => setOrderForm((f) => ({ ...f, orderType: e.target.value }))}
+                onBlur={() => setTouched((t) => ({ ...t, orderType: true }))}
+                required
+                disabled={categoriesLoading}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
+                  isDark 
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                    : 'bg-white border-gray-300'
+                } ${categoriesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <option value="">
+                  {categoriesLoading ? 'লোড হচ্ছে...' : 'ধরন নির্বাচন করুন'}
+                </option>
+                {Array.isArray(categories) && categories.length > 0 && (
+                  categories.map((c) => (
+                    <option key={c.id || c._id} value={c.value || c.label}>
+                      {(c.label || c.value) + (c.prefix ? ` (${c.prefix})` : '')}
+                    </option>
+                  ))
+                )}
+              </select>
+              {categoriesLoading && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                </div>
+              )}
+            </div>
             {hasOrderError('orderType') && (
-              <p className="mt-1 text-sm text-red-600">{orderErrors.orderType}</p>
+              <p className="text-xs text-red-600">{orderErrors.orderType}</p>
             )}
           </div>
 

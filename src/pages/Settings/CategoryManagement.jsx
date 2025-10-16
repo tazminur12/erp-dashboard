@@ -1,524 +1,544 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Home, 
-  Plane, 
-  Building, 
-  Users, 
-  Package, 
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Star,
-  Heart,
-  Tag,
-  Folder,
-  Box,
-  BarChart3,
-  Settings,
-  Truck,
-  Megaphone,
-  Building2,
-  Edit,
+import React, { useState, useEffect } from "react";
+import {
+  Plus,
+  Edit2,
   Trash2,
-  Loader2
-} from 'lucide-react';
-import Swal from 'sweetalert2';
-import { useTheme } from '../../contexts/ThemeContext';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
+  Save,
+  X,
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+} from "lucide-react";
+import Swal from "sweetalert2";
+import useAxiosSecure from "../../hooks/UseAxiosSecure";
 
 const CategoryManagement = () => {
-  const { isDark } = useTheme();
   const axiosSecure = useAxiosSecure();
-  
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    value: '',
-    label: '',
-    prefix: '',
-    icon: 'home',
-    type: 'general'
-  });
-  const [editingCategory, setEditingCategory] = useState(null);
 
-  // Category icons mapping
-  const iconMap = {
-    'home': <Home className="h-4 w-4" />,
-    'plane': <Plane className="h-4 w-4" />,
-    'building': <Building className="h-4 w-4" />,
-    'users': <Users className="h-4 w-4" />,
-    'package': <Package className="h-4 w-4" />,
-    'dollar': <DollarSign className="h-4 w-4" />,
-    'trending-up': <TrendingUp className="h-4 w-4" />,
-    'trending-down': <TrendingDown className="h-4 w-4" />,
-    'star': <Star className="h-4 w-4" />,
-    'heart': <Heart className="h-4 w-4" />,
-    'tag': <Tag className="h-4 w-4" />,
-    'folder': <Folder className="h-4 w-4" />,
-    'box': <Box className="h-4 w-4" />,
-    'chart': <BarChart3 className="h-4 w-4" />,
-    'gear': <Settings className="h-4 w-4" />,
-    'truck': <Truck className="h-4 w-4" />,
-    'megaphone': <Megaphone className="h-4 w-4" />,
-    'building2': <Building2 className="h-4 w-4" />
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [expandedCategories, setExpandedCategories] = useState(new Set());
+
+  const [formData, setFormData] = useState({
+    id: "",
+    name: "",
+    icon: "",
+    description: "",
+    subCategories: [],
+  });
+
+  // Normalize API data
+  const normalizeCategories = (raw) => {
+    const list = Array.isArray(raw)
+      ? raw
+      : Array.isArray(raw?.data)
+      ? raw.data
+      : Array.isArray(raw?.categories)
+      ? raw.categories
+      : Array.isArray(raw?.items)
+      ? raw.items
+      : [];
+
+    return list.map((cat) => {
+      const subs = Array.isArray(cat.subCategories)
+        ? cat.subCategories
+        : Array.isArray(cat.subcategories)
+        ? cat.subcategories
+        : [];
+
+      return {
+        id: cat.id || cat._id || String(cat.categoryId || ""),
+        name: cat.name || "",
+        icon: cat.icon || "",
+        description: cat.description || "",
+        subCategories: subs.map((s) => ({
+          id: s.id || s._id || String(s.subCategoryId || ""),
+          name: s.name || "",
+          icon: s.icon || "",
+          description: s.description || "",
+        })),
+      };
+    });
   };
 
-  // Icon options for dropdown
-  const iconOptions = [
-    { value: 'home', label: 'হোম (Home)' },
-    { value: 'plane', label: 'বিমান (Plane)' },
-    { value: 'building', label: 'ভবন (Building)' },
-    { value: 'users', label: 'ব্যবহারকারী (Users)' },
-    { value: 'package', label: 'প্যাকেজ (Package)' },
-    { value: 'dollar', label: 'ডলার (Dollar)' },
-    { value: 'trending-up', label: 'উর্ধ্বগতি (Trending Up)' },
-    { value: 'trending-down', label: 'নিম্নগতি (Trending Down)' },
-    { value: 'star', label: 'তারা (Star)' },
-    { value: 'heart', label: 'হৃদয় (Heart)' },
-    { value: 'tag', label: 'ট্যাগ (Tag)' },
-    { value: 'folder', label: 'ফোল্ডার (Folder)' },
-    { value: 'box', label: 'বক্স (Box)' },
-    { value: 'chart', label: 'চার্ট (Chart)' },
-    { value: 'gear', label: 'গিয়ার (Gear)' },
-    { value: 'truck', label: 'ট্রাক (Truck)' },
-    { value: 'megaphone', label: 'মেগাফোন (Megaphone)' },
-    { value: 'building2', label: 'অফিস (Office)' }
-  ];
-
-  // Load categories from backend
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
+  // Load all categories
   const loadCategories = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axiosSecure.get('/categories');
-      
-      if (response.data.success) {
-        setCategories(response.data.categories || []);
-      } else {
-        // Fallback to default categories if API fails
-        setCategories([
-          { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
-          { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
-          { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
-          { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      // Fallback to default categories if API fails
-      setCategories([
-        { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
-        { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
-        { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
-        { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
-      ]);
+      const { data } = await axiosSecure.get("/api/categories");
+      setCategories(normalizeCategories(data));
+    } catch (err) {
+      console.error("Error loading categories:", err);
+      Swal.fire({
+        icon: "error",
+        title: "লোডিং ব্যর্থ",
+        text: "ক্যাটাগরি লোড করতে সমস্যা হয়েছে",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  // Add new
+  const handleAddCategory = () => {
+    setFormData({
+      id: "",
+      name: "",
+      icon: "",
+      description: "",
+      subCategories: [],
+    });
+    setEditingCategory(null);
+    setShowAddForm(true);
+  };
+
+  // Edit
+  const handleEditCategory = (category) => {
+    setFormData({ ...category });
+    setEditingCategory(category);
+    setShowAddForm(true);
+  };
+
+  // Delete category
+  const handleDeleteCategory = async (categoryId) => {
+    const confirm = await Swal.fire({
+      title: "নিশ্চিত?",
+      text: "আপনি কি এই ক্যাটাগরি মুছে ফেলতে চান?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "হ্যাঁ, মুছুন",
+      cancelButtonText: "বাতিল",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await axiosSecure.delete(`/api/categories/${categoryId}`);
+      await loadCategories();
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "ক্যাটাগরি মুছে ফেলা হয়েছে",
+        showConfirmButton: false,
+        timer: 1200,
+      });
+    } catch (err) {
+      console.error("Delete failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "মুছতে ব্যর্থ",
+        text: "ক্যাটাগরি মুছতে সমস্যা হয়েছে",
+      });
+    }
+  };
+
+  // Delete subcategory
+  const handleDeleteSubCategory = async (categoryId, subCategoryId) => {
+    const confirm = await Swal.fire({
+      title: "নিশ্চিত?",
+      text: "আপনি কি এই সাব-ক্যাটাগরি মুছে ফেলতে চান?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "হ্যাঁ, মুছুন",
+      cancelButtonText: "বাতিল",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      await axiosSecure.delete(
+        `/api/categories/${categoryId}/subcategories/${subCategoryId}`
+      );
+      await loadCategories();
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "সাব-ক্যাটাগরি মুছে ফেলা হয়েছে",
+        showConfirmButton: false,
+        timer: 1200,
+      });
+    } catch (err) {
+      console.error("Subcategory delete failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "মুছতে ব্যর্থ",
+        text: "সাব-ক্যাটাগরি মুছতে সমস্যা হয়েছে",
+      });
+    }
+  };
+
+  // Submit add/edit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.value || !formData.label || !formData.prefix) {
+    const { name, icon, description, subCategories } = formData;
+
+    if (!name.trim()) {
       Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'সব তথ্য পূরণ করুন (Value, Label, Prefix)',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
+        icon: "warning",
+        title: "ভুল ইনপুট",
+        text: "ক্যাটাগরি নাম দিন",
       });
       return;
     }
 
+    const payload = {
+      name: name.trim(),
+      icon: icon || "",
+      description: description?.trim() || "",
+      subCategories: subCategories || [],
+    };
+
     try {
-      if (editingCategory) {
-        // Update existing category
-        const response = await axiosSecure.put(`/categories/${editingCategory.id}`, {
-          value: formData.value,
-          label: formData.label,
-          prefix: formData.prefix,
-          icon: formData.icon,
-          type: formData.type
-        });
-        
-        if (response.data.success) {
-          // Reload categories from backend
-          await loadCategories();
-          resetForm();
-          
-          Swal.fire({
-            title: 'সফল!',
-            text: 'ক্যাটাগরি সফলভাবে আপডেট হয়েছে।',
-            icon: 'success',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#10B981',
-            background: isDark ? '#1F2937' : '#F9FAFB',
-            customClass: {
-              title: 'text-green-600 font-bold text-xl',
-              popup: 'rounded-2xl shadow-2xl'
-            }
-          });
-        } else {
-          throw new Error(response.data.message || 'Failed to update category');
-        }
+      if (editingCategory?.id) {
+        await axiosSecure.put(`/api/categories/${editingCategory.id}`, payload);
       } else {
-        // Create new category
-        const response = await axiosSecure.post('/categories', {
-          value: formData.value,
-          label: formData.label,
-          prefix: formData.prefix,
-          icon: formData.icon,
-          type: formData.type
-        });
-        
-        if (response.data.success) {
-          // Reload categories from backend
-          await loadCategories();
-          resetForm();
-          
-          Swal.fire({
-            title: 'সফল!',
-            text: 'নতুন ক্যাটাগরি যোগ হয়েছে!',
-            icon: 'success',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#10B981',
-            background: isDark ? '#1F2937' : '#F9FAFB',
-            customClass: {
-              title: 'text-green-600 font-bold text-xl',
-              popup: 'rounded-2xl shadow-2xl'
-            }
-          });
-        } else {
-          throw new Error(response.data.message || 'Failed to create category');
-        }
+        await axiosSecure.post("/api/categories", payload);
       }
-    } catch (error) {
-      let errorMessage = 'ক্যাটাগরি সংরক্ষণ করতে সমস্যা হয়েছে।';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
+
+      await loadCategories();
+      setShowAddForm(false);
+      setEditingCategory(null);
+
       Swal.fire({
-        title: 'ত্রুটি!',
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: editingCategory?.id
+          ? "ক্যাটাগরি আপডেট হয়েছে"
+          : "ক্যাটাগরি যোগ হয়েছে",
+        showConfirmButton: false,
+        timer: 1200,
+      });
+    } catch (err) {
+      console.error("Save failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "সংরক্ষণ ব্যর্থ",
+        text: "ক্যাটাগরি সংরক্ষণে সমস্যা হয়েছে",
       });
     }
   };
 
-  const handleEdit = (category) => {
-    setEditingCategory(category);
-    setFormData({
-      value: category.value,
-      label: category.label,
-      prefix: category.prefix,
-      icon: category.icon,
-      type: category.type
+  // Expand/collapse
+  const toggleCategory = (categoryId) => {
+    setExpandedCategories((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(categoryId)) newSet.delete(categoryId);
+      else newSet.add(categoryId);
+      return newSet;
     });
   };
 
-  const handleDelete = async (categoryId, valueToDelete) => {
-    Swal.fire({
-      title: 'নিশ্চিত করুন',
-      text: 'আপনি কি এই ক্যাটাগরি মুছে ফেলতে চান?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
-      cancelButtonText: 'না, বাতিল করুন',
-      confirmButtonColor: '#EF4444',
-      cancelButtonColor: '#6B7280',
-      background: isDark ? '#1F2937' : '#F9FAFB',
-      customClass: {
-        title: 'text-red-600 font-bold text-xl',
-        popup: 'rounded-2xl shadow-2xl'
-      }
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const response = await axiosSecure.delete(`/categories/${categoryId}`, {
-            data: { value: valueToDelete }
-          });
-          
-          if (response.data.success) {
-            // Reload categories from backend
-            await loadCategories();
-            
-            Swal.fire({
-              title: 'মুছে ফেলা হয়েছে!',
-              text: 'ক্যাটাগরি মুছে ফেলা হয়েছে।',
-              icon: 'success',
-              confirmButtonText: 'ঠিক আছে',
-              confirmButtonColor: '#10B981',
-              background: isDark ? '#1F2937' : '#F9FAFB',
-              customClass: {
-                title: 'text-green-600 font-bold text-xl',
-                popup: 'rounded-2xl shadow-2xl'
-              }
-            });
-          } else {
-            throw new Error(response.data.message || 'Failed to delete category');
-          }
-        } catch (error) {
-          let errorMessage = 'ক্যাটাগরি মুছতে সমস্যা হয়েছে।';
-          
-          if (error.response?.data?.message) {
-            errorMessage = error.response.data.message;
-          } else if (error.message) {
-            errorMessage = error.message;
-          }
-          
-          Swal.fire({
-            title: 'ত্রুটি!',
-            text: errorMessage,
-            icon: 'error',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#EF4444',
-            background: isDark ? '#1F2937' : '#FEF2F2',
-            customClass: {
-              title: 'text-red-600 font-bold text-xl',
-              popup: 'rounded-2xl shadow-2xl'
-            }
-          });
-        }
-      }
-    });
-  };
-
-  const resetForm = () => {
-    setFormData({
-      value: '',
-      label: '',
-      prefix: '',
-      icon: 'home',
-      type: 'general'
-    });
-    setEditingCategory(null);
-  };
-
-  const getPrefixColor = (type) => {
-    switch (type) {
-      case 'service': return 'bg-blue-500';
-      case 'customer': return 'bg-purple-500';
-      case 'expense': return 'bg-red-500';
-      case 'income': return 'bg-green-500';
-      default: return 'bg-gray-500';
+  // Add subcategory
+  const addSubCategory = async (categoryId) => {
+    const newSub = {
+      name: "নতুন সাব-ক্যাটাগরি",
+      icon: "📁",
+      description: "সাব-ক্যাটাগরি বর্ণনা",
+      categoryId,
+    };
+    try {
+      await axiosSecure.post(`/api/categories/${categoryId}/subcategories`, newSub);
+      await loadCategories();
+      setExpandedCategories((prev) => new Set([...prev, categoryId]));
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "সাব-ক্যাটাগরি যোগ হয়েছে",
+        showConfirmButton: false,
+        timer: 1200,
+      });
+    } catch (err) {
+      console.error("Add subcategory error:", err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "সাব-ক্যাটাগরি যোগ করতে সমস্যা হয়েছে";
+      Swal.fire({
+        icon: "error",
+        title: "যোগ করা ব্যর্থ",
+        text: msg,
+      });
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-      </div>
-    );
-  }
+  // Update subcategory inline
+  const updateSubCategory = async (categoryId, subCategoryId, field, value) => {
+    try {
+      await axiosSecure.patch(
+        `/api/categories/${categoryId}/subcategories/${subCategoryId}`,
+        { [field]: value }
+      );
+      await loadCategories();
+    } catch (err) {
+      console.error("Update subcategory error:", err);
+      Swal.fire({
+        icon: "error",
+        title: "আপডেট ব্যর্থ",
+        text: "সাব-ক্যাটাগরি আপডেটে সমস্যা হয়েছে",
+      });
+    }
+  };
 
   return (
-    <div className={`p-6 ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            ক্যাটাগরি ব্যবস্থাপনা
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            আপনার ব্যবসার ক্যাটাগরি সংগঠিত এবং পরিচালনা করুন
-          </p>
-        </div>
+    <div className="p-4 max-w-6xl mx-auto py-6">
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
+          ক্যাটাগরি ব্যবস্থাপনা
+        </h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          লেনদেনের জন্য ক্যাটাগরি এবং সাব-ক্যাটাগরি যোগ, সম্পাদনা এবং মুছে ফেলুন
+        </p>
+      </div>
 
-        {/* Main Content - Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left Column - Add New Category Form */}
-          <div className={`rounded-lg border ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                নতুন ক্যাটাগরি যোগ করুন
-              </h3>
-            </div>
+      {/* Add Category Button */}
+      <div className="mb-4">
+        <button
+          onClick={handleAddCategory}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md flex items-center gap-1.5 text-sm transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          নতুন ক্যাটাগরি যোগ করুন
+        </button>
+      </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Value (ইংরেজি) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.value}
-                  onChange={(e) => setFormData({...formData, value: e.target.value})}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                  placeholder="hajj, umrah, air"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Label (বাংলা) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.label}
-                  onChange={(e) => setFormData({...formData, label: e.target.value})}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                  placeholder="হাজ্জ, ওমরাহ, এয়ার"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Prefix (প্রিফিক্স) *
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={3}
-                  value={formData.prefix}
-                  onChange={(e) => setFormData({...formData, prefix: e.target.value.toUpperCase()})}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                  placeholder="H, U, A"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  ক্যাটাগরি আইডি জেনারেশনের জন্য (সর্বোচ্চ ৩ অক্ষর)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  আইকন (Icon)
-                </label>
-                <select
-                  value={formData.icon}
-                  onChange={(e) => setFormData({...formData, icon: e.target.value})}
-                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                >
-                  {iconOptions.map(icon => (
-                    <option key={icon.value} value={icon.value}>
-                      {icon.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-200 flex items-center justify-center"
-              >
-                {editingCategory ? 'আপডেট করুন' : 'যোগ করুন'}
-              </button>
-            </form>
+      {/* Add/Edit Form */}
+      {showAddForm && (
+        <div className="bg-white dark:bg-gray-800 rounded-md shadow-md p-4 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {editingCategory ? "ক্যাটাগরি সম্পাদনা করুন" : "নতুন ক্যাটাগরি যোগ করুন"}
+            </h3>
+            <button
+              onClick={() => setShowAddForm(false)}
+              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Right Column - Current Categories List */}
-          <div className={`rounded-lg border ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                বর্তমান ক্যাটাগরিসমূহ
-              </h3>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  ক্যাটাগরি নাম *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="ক্যাটাগরি নাম দিন"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  আইকন
+                </label>
+                <input
+                  type="text"
+                  value={formData.icon}
+                  onChange={(e) =>
+                    setFormData({ ...formData, icon: e.target.value })
+                  }
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="আইকন (emoji)"
+                />
+              </div>
             </div>
 
-            <div className="p-6">
-              {categories.length === 0 ? (
-                <div className="text-center text-gray-500 dark:text-gray-400 py-8">
-                  <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>কোন ক্যাটাগরি পাওয়া যায়নি</p>
-                  <p className="text-sm">আপনার প্রথম ক্যাটাগরি তৈরি করতে শুরু করুন</p>
-                </div>
-              ) : (
-                <div className="space-y-4 max-h-96 overflow-y-auto">
-                  {categories.map(category => (
-                    <div
-                      key={category.id}
-                      className={`flex items-center justify-between p-4 rounded-lg border ${
-                        isDark 
-                          ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
-                          : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                      } transition-colors duration-200`}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                বর্ণনা
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                rows={2}
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                placeholder="ক্যাটাগরি বর্ণনা দিন"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-md flex items-center gap-1.5 text-sm transition-colors"
+              >
+                <Save className="w-3 h-3" />
+                {editingCategory ? "আপডেট করুন" : "সংরক্ষণ করুন"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-1.5 rounded-md text-sm transition-colors"
+              >
+                বাতিল
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Categories List */}
+      <div className="space-y-3">
+        {loading && (
+          <div className="text-sm text-gray-600 dark:text-gray-400">লোড হচ্ছে...</div>
+        )}
+
+        {!loading &&
+          categories.map((category) => (
+            <div
+              key={category.id}
+              className="bg-white dark:bg-gray-800 rounded-md shadow-sm"
+            >
+              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleCategory(category.id)}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                     >
-                      <div className="flex items-center space-x-3 flex-1">
-                        <div className="text-gray-600 dark:text-gray-400">
-                          {iconMap[category.icon] || <Home className="h-4 w-4" />}
-                        </div>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium text-gray-900 dark:text-white">
-                              {category.label}
-                            </h4>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                              ({category.value})
-                            </span>
+                      {expandedCategories.has(category.id) ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4" />
+                      )}
+                    </button>
+                    <span className="text-lg">{category.icon}</span>
+                    <div>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                        {category.name}
+                      </h3>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {category.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => addSubCategory(category.id)}
+                      className="bg-blue-100 hover:bg-blue-200 dark:bg-blue-900 dark:hover:bg-blue-800 text-blue-600 dark:text-blue-400 p-1.5 rounded-md transition-colors"
+                      title="সাব-ক্যাটাগরি যোগ করুন"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleEditCategory(category)}
+                      className="text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200 p-1.5 rounded-md hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                      title="সম্পাদনা করুন"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(category.id)}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"
+                      title="মুছে ফেলুন"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub Categories */}
+              {expandedCategories.has(category.id) && (
+                <div className="p-3">
+                  {category.subCategories && category.subCategories.length > 0 ? (
+                    <div className="space-y-2">
+                      {category.subCategories.map((sub) => (
+                        <div
+                          key={sub.id}
+                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-md"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{sub.icon}</span>
+                            <div>
+                              <input
+                                type="text"
+                                value={sub.name}
+                                onChange={(e) =>
+                                  updateSubCategory(
+                                    category.id,
+                                    sub.id,
+                                    "name",
+                                    e.target.value
+                                  )
+                                }
+                                className="font-medium text-sm text-gray-900 dark:text-white bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5"
+                              />
+                              <input
+                                type="text"
+                                value={sub.description}
+                                onChange={(e) =>
+                                  updateSubCategory(
+                                    category.id,
+                                    sub.id,
+                                    "description",
+                                    e.target.value
+                                  )
+                                }
+                                className="block text-xs text-gray-600 dark:text-gray-400 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5 mt-0.5 w-full"
+                                placeholder="বর্ণনা দিন"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={sub.icon}
+                              onChange={(e) =>
+                                updateSubCategory(
+                                  category.id,
+                                  sub.id,
+                                  "icon",
+                                  e.target.value
+                                )
+                              }
+                              className="w-12 text-center bg-transparent border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
+                              placeholder="আইকন"
+                            />
+                            <button
+                              onClick={() =>
+                                handleDeleteSubCategory(category.id, sub.id)
+                              }
+                              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200 p-1 rounded-md"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
                         </div>
-                        
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${getPrefixColor(category.type)}`}>
-                          {category.prefix}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleEdit(category)}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-1"
-                          title="সম্পাদনা"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(category.id, category.value)}
-                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 p-1"
-                          title="মুছে ফেলুন"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                      কোন সাব-ক্যাটাগরি নেই
+                    </p>
+                  )}
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          ))}
       </div>
     </div>
   );

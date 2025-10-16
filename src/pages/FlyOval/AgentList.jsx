@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Plus, 
@@ -33,7 +34,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 
 const AgentList = () => {
   const { isDark } = useTheme();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const navigate = useNavigate();
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showExcelUploader, setShowExcelUploader] = useState(false);
@@ -253,16 +254,7 @@ const AgentList = () => {
   ];
 
   const handleAddAgent = () => {
-    setSelectedAgent(null);
-    setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      address: '',
-      commission: '',
-      documents: []
-    });
-    setShowAddModal(true);
+    navigate('/fly-oval/agents/add');
   };
 
   const handleEditAgent = (agent) => {
@@ -289,36 +281,18 @@ const AgentList = () => {
     
     // Simulate API call
     setTimeout(() => {
-      if (selectedAgent) {
-        // Update existing agent
-        setAgentData(prev => prev.map(agent => 
-          agent.id === selectedAgent.id 
-            ? { 
-                ...agent, 
-                ...formData, 
-                commission: parseFloat(formData.commission),
-                documents: formData.documents
-              }
-            : agent
-        ));
-        setShowEditModal(false);
-      } else {
-        // Add new agent
-        const newAgent = {
-          id: Date.now(),
-          ...formData,
-          commission: parseFloat(formData.commission),
-          joinDate: new Date().toISOString().split('T')[0],
-          status: 'Active',
-          totalTransactions: 0,
-          totalRevenue: 0,
-          rating: 0,
-          lastActivity: new Date().toISOString().split('T')[0],
-          documents: formData.documents
-        };
-        setAgentData(prev => [...prev, newAgent]);
-        setShowAddModal(false);
-      }
+      // Update existing agent
+      setAgentData(prev => prev.map(agent => 
+        agent.id === selectedAgent.id 
+          ? { 
+              ...agent, 
+              ...formData, 
+              commission: parseFloat(formData.commission),
+              documents: formData.documents
+            }
+          : agent
+      ));
+      setShowEditModal(false);
       
       setLoading(false);
       setFormData({
@@ -442,18 +416,15 @@ const AgentList = () => {
         onView={handleViewAgent}
       />
 
-      {/* Add/Edit Modal */}
-      {(showAddModal || showEditModal) && (
+      {/* Edit Modal */}
+      {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {selectedAgent ? 'Edit Agent' : 'Add Agent'}
-                </h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">Edit Agent</h2>
                 <button
                   onClick={() => {
-                    setShowAddModal(false);
                     setShowEditModal(false);
                   }}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -537,7 +508,6 @@ const AgentList = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setShowAddModal(false);
                       setShowEditModal(false);
                     }}
                     className="px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -550,7 +520,7 @@ const AgentList = () => {
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
                   >
                     {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
-                    <span>{selectedAgent ? 'Update' : 'Add'} Agent</span>
+                    <span>Update Agent</span>
                   </button>
                 </div>
               </form>

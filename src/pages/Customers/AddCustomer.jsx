@@ -305,8 +305,8 @@ const AddCustomer = () => {
   
   // Load division data and customer types on component mount
   useEffect(() => {
-    if (divisionData.বাংলাদেশ) {
-      setDivisions(divisionData.বাংলাদেশ.map(item => item.বিভাগ));
+    if (divisionData.Bangladesh) {
+      setDivisions(divisionData.Bangladesh.map(item => item.Division));
     }
     
     // Check Cloudinary configuration
@@ -318,36 +318,21 @@ const AddCustomer = () => {
     loadCategories();
   }, []);
 
-  // Load categories from backend - Integrated with CategoryManagement
+  // Load customer types from backend
   const loadCategories = async () => {
     try {
       setCategoriesLoading(true);
-      const response = await axiosSecure.get('/categories');
-      
-      if (response.data.success) {
-        // Filter categories for customer types (type: 'customer' or 'service')
-        const customerCategories = (response.data.categories || []).filter(cat => 
-          cat.type === 'customer' || cat.type === 'service'
-        );
-        setCategories(customerCategories);
+      const response = await axiosSecure.get('/customer-types');
+
+      if (response.data?.success) {
+        const customerTypes = response.data.customerTypes || [];
+        setCategories(customerTypes);
       } else {
-        // Fallback to default categories if API fails
-        setCategories([
-          { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
-          { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
-          { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
-          { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
-        ]);
+        setCategories([]);
       }
     } catch (error) {
-      console.error('Error loading categories:', error);
-      // Fallback to default categories if API fails
-      setCategories([
-        { id: 1, value: 'hajj', label: 'হাজ্জ', prefix: 'HAJ', icon: 'home', type: 'service' },
-        { id: 2, value: 'umrah', label: 'ওমরাহ', prefix: 'UMR', icon: 'plane', type: 'service' },
-        { id: 3, value: 'air', label: 'এয়ার Ticket', prefix: 'AIR', icon: 'plane', type: 'service' },
-        { id: 4, value: 'vip', label: 'ভিআইপি', prefix: 'VIP', icon: 'star', type: 'customer' }
-      ]);
+      console.error('Error loading customer types:', error);
+      setCategories([]);
     } finally {
       setCategoriesLoading(false);
     }
@@ -356,9 +341,9 @@ const AddCustomer = () => {
   // Update districts when division changes
   useEffect(() => {
     if (formData.division) {
-      const selectedDivision = divisionData.বাংলাদেশ.find(item => item.বিভাগ === formData.division);
+      const selectedDivision = divisionData.Bangladesh.find(item => item.Division === formData.division);
       if (selectedDivision) {
-        setDistricts(selectedDivision.জেলাসমূহ.map(item => item.জেলা));
+        setDistricts(selectedDivision.Districts.map(item => item.District));
         // Reset district and upazila when division changes
         setFormData(prev => ({ ...prev, district: '', upazila: '' }));
         setUpazilas([]);
@@ -372,11 +357,11 @@ const AddCustomer = () => {
   // Update upazilas when district changes
   useEffect(() => {
     if (formData.division && formData.district) {
-      const selectedDivision = divisionData.বাংলাদেশ.find(item => item.বিভাগ === formData.division);
+      const selectedDivision = divisionData.Bangladesh.find(item => item.Division === formData.division);
       if (selectedDivision) {
-        const selectedDistrict = selectedDivision.জেলাসমূহ.find(item => item.জেলা === formData.district);
+        const selectedDistrict = selectedDivision.Districts.find(item => item.District === formData.district);
         if (selectedDistrict) {
-          setUpazilas(selectedDistrict.উপজেলাসমূহ);
+          setUpazilas(selectedDistrict.Upazilas);
           // Reset upazila when district changes
           setFormData(prev => ({ ...prev, upazila: '' }));
         }

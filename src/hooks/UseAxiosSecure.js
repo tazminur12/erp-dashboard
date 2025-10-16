@@ -1,7 +1,11 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000",
+  // Prefer VITE_API_BASE_URL for consistency, fall back to VITE_API_URL, then default
+  baseURL:
+    import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    "https://erp-auth-backend.vercel.app",
 });
 
 
@@ -29,6 +33,18 @@ const useSecureAxios = () => {
         return response;
       },
       (error) => {
+        // Handle network errors
+        if (!error.response) {
+          console.error('Network Error:', error.message);
+          // You can show a toast notification here
+        }
+        
+        // Handle authentication errors
+        if (error.response?.status === 401) {
+          localStorage.removeItem('erp_token');
+          window.location.href = '/login';
+        }
+        
         return Promise.reject(error);
       }
     );

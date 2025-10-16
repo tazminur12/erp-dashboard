@@ -91,7 +91,6 @@ export const navigation = [
     children: [
       { name: 'Customer List', href: '/customers', icon: List },
       { name: 'Add Customer', href: '/customers/add', icon: Plus },
-      { name: 'Edit Customer', href: '/customers/edit', icon: Edit }
     ]
   },
   {
@@ -176,7 +175,7 @@ export const navigation = [
           { name: 'Old Ticket Reissue', href: '/air-ticketing/old/ticket-reissue', icon: RotateCcw }
         ]
       },
-      { name: 'Airline List', href: '/air-ticketing/airline', icon: List }
+      { name: 'Airline List', href: '/air-ticketing/airline', icon: List },
     ]
   },
 
@@ -207,6 +206,7 @@ export const navigation = [
     children: [
       { name: 'Dashboard', href: '/fly-oval', icon: LayoutDashboard },
       { name: 'Agent List', href: '/fly-oval/agents', icon: Users },
+      { name: 'Add Agent', href: '/fly-oval/agents/add', icon: Plus },
       { name: 'TopUp History', href: '/fly-oval/topup-history', icon: TrendingUp },
       { name: 'Sell History', href: '/fly-oval/sell-history', icon: TrendingDown },
       { name: 'Ledger', href: '/fly-oval/ledger', icon: BookOpen },
@@ -288,6 +288,7 @@ export const navigation = [
     icon: Settings,
     children: [
       { name: 'User Management', href: '/settings/users', icon: Users },
+      { name: 'Customer Managment', href: '/settings/customer-types', icon: Package },
       { name: 'Category Management', href: '/settings/categories', icon: Package },
       { name: 'Excel Upload', href: '/settings/excel-upload', icon: FileSpreadsheet },
       { name: 'Backup & Restore', href: '/settings/backup', icon: Database }

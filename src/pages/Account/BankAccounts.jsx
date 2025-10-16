@@ -3,52 +3,14 @@ import { Plus, Banknote, Building2, CreditCard, TrendingUp, AlertCircle } from '
 import DataTable from '../../components/common/DataTable';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import SmallStat from '../../components/common/SmallStat';
+import useSecureAxios from '../../hooks/UseAxiosSecure';
 
 const BankAccounts = () => {
-  const [banks, setBanks] = useState([
-    {
-      id: 1,
-      bankName: 'Dutch Bangla Bank Limited',
-      accountNumber: '1234567890',
-      accountType: 'Current',
-      branchName: 'Dhanmondi Branch',
-      accountHolder: 'Miraj Industries Ltd.',
-      initialBalance: 500000,
-      currentBalance: 750000,
-      currency: 'BDT',
-      status: 'Active',
-      createdAt: '2024-01-15',
-      contactNumber: '+8801712345678'
-    },
-    {
-      id: 2,
-      bankName: 'Islami Bank Bangladesh Limited',
-      accountNumber: '9876543210',
-      accountType: 'Savings',
-      branchName: 'Gulshan Branch',
-      accountHolder: 'Miraj Industries Ltd.',
-      initialBalance: 300000,
-      currentBalance: 425000,
-      currency: 'BDT',
-      status: 'Active',
-      createdAt: '2024-02-20',
-      contactNumber: '+8801712345679'
-    },
-    {
-      id: 3,
-      bankName: 'City Bank Limited',
-      accountNumber: '5555666677',
-      accountType: 'Business',
-      branchName: 'Uttara Branch',
-      accountHolder: 'Miraj Industries Ltd.',
-      initialBalance: 200000,
-      currentBalance: 180000,
-      currency: 'BDT',
-      status: 'Active',
-      createdAt: '2024-03-10',
-      contactNumber: '+8801712345680'
-    }
-  ]);
+  const [banks, setBanks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [stats, setStats] = useState({ totalAccounts: 0, totalBalance: 0, totalInitialBalance: 0, activeAccounts: 0 });
+  const axiosSecure = useSecureAxios();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -70,11 +32,33 @@ const BankAccounts = () => {
     type: 'deposit'
   });
 
-  // Calculate statistics
-  const totalAccounts = banks.length;
-  const totalBalance = banks.reduce((sum, bank) => sum + bank.currentBalance, 0);
-  const totalInitialBalance = banks.reduce((sum, bank) => sum + bank.initialBalance, 0);
-  const activeAccounts = banks.filter(bank => bank.status === 'Active').length;
+  // Load data from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const [listRes, statsRes] = await Promise.all([
+          axiosSecure.get('/bank-accounts'),
+          axiosSecure.get('/bank-accounts/stats/overview')
+        ]);
+        const serverBanks = listRes?.data?.data || [];
+        setBanks(serverBanks);
+        const serverStats = statsRes?.data?.data || {};
+        setStats({
+          totalAccounts: serverStats.totalAccounts || 0,
+          totalBalance: serverStats.totalBalance || 0,
+          totalInitialBalance: serverStats.totalInitialBalance || 0,
+          activeAccounts: serverStats.activeAccounts || 0,
+        });
+      } catch (e) {
+        setError('Failed to load bank accounts');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [axiosSecure]);
 
   // Table columns configuration
   const columns = [
@@ -184,48 +168,99 @@ const BankAccounts = () => {
     setIsBalanceModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isAddModalOpen) {
-      const newBank = {
-        id: banks.length + 1,
-        ...formData,
-        initialBalance: parseFloat(formData.initialBalance),
-        currentBalance: parseFloat(formData.initialBalance),
-        status: 'Active',
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setBanks([...banks, newBank]);
-      setIsAddModalOpen(false);
-    } else if (isEditModalOpen) {
-      setBanks(banks.map(bank => 
-        bank.id === selectedBank.id 
-          ? { ...bank, ...formData, initialBalance: parseFloat(formData.initialBalance) }
-          : bank
-      ));
-      setIsEditModalOpen(false);
+    try {
+      if (isAddModalOpen) {
+        const payload = {
+          ...formData,
+          initialBalance: parseFloat(formData.initialBalance),
+        };
+        const res = await axiosSecure.post('/bank-accounts', payload);
+        const created = res?.data?.data;
+        if (created) {
+          setBanks([...banks, created]);
+        }
+        setIsAddModalOpen(false);
+      } else if (isEditModalOpen && selectedBank?._id) {
+        const payload = { ...formData };
+        if (payload.initialBalance !== undefined) {
+          payload.initialBalance = parseFloat(payload.initialBalance);
+        }
+        const res = await axiosSecure.patch(`/bank-accounts/${selectedBank._id}`, payload);
+        const updated = res?.data?.data;
+        if (updated) {
+          setBanks(banks.map(b => (b._id === updated._id ? updated : b)));
+        }
+        setIsEditModalOpen(false);
+      }
+      // refresh stats after mutation
+      try {
+        const statsRes = await axiosSecure.get('/bank-accounts/stats/overview');
+        const s = statsRes?.data?.data || {};
+        setStats({
+          totalAccounts: s.totalAccounts || 0,
+          totalBalance: s.totalBalance || 0,
+          totalInitialBalance: s.totalInitialBalance || 0,
+          activeAccounts: s.activeAccounts || 0,
+        });
+      } catch {}
+    } catch (err) {
+      setError('Save failed');
     }
   };
 
-  const handleBalanceSubmit = (e) => {
+  const handleBalanceSubmit = async (e) => {
     e.preventDefault();
-    const amount = parseFloat(balanceData.amount);
-    setBanks(banks.map(bank => 
-      bank.id === selectedBank.id 
-        ? { 
-            ...bank, 
-            currentBalance: balanceData.type === 'deposit' 
-              ? bank.currentBalance + amount 
-              : bank.currentBalance - amount
-          }
-        : bank
-    ));
-    setIsBalanceModalOpen(false);
+    try {
+      if (!selectedBank?._id) return;
+      const payload = {
+        amount: parseFloat(balanceData.amount),
+        type: balanceData.type,
+        note: balanceData.note,
+      };
+      const res = await axiosSecure.post(`/bank-accounts/${selectedBank._id}/adjust-balance`, payload);
+      const updated = res?.data?.data;
+      if (updated) {
+        setBanks(banks.map(b => (b._id === updated._id ? updated : b)));
+      }
+      setIsBalanceModalOpen(false);
+      // refresh stats
+      try {
+        const statsRes = await axiosSecure.get('/bank-accounts/stats/overview');
+        const s = statsRes?.data?.data || {};
+        setStats({
+          totalAccounts: s.totalAccounts || 0,
+          totalBalance: s.totalBalance || 0,
+          totalInitialBalance: s.totalInitialBalance || 0,
+          activeAccounts: s.activeAccounts || 0,
+        });
+      } catch {}
+    } catch (err) {
+      setError('Balance adjustment failed');
+    }
   };
 
-  const handleDeleteBank = (bank) => {
+  const handleDeleteBank = async (bank) => {
+    if (!bank?._id) return;
     if (window.confirm(`Are you sure you want to delete ${bank.bankName} account?`)) {
-      setBanks(banks.filter(b => b.id !== bank.id));
+      try {
+        await axiosSecure.delete(`/bank-accounts/${bank._id}`);
+        setBanks(banks.filter(b => b._id !== bank._id));
+        // refresh stats
+        try {
+          const statsRes = await axiosSecure.get('/bank-accounts/stats/overview');
+          const s = statsRes?.data?.data || {};
+          setStats({
+            totalAccounts: s.totalAccounts || 0,
+            totalBalance: s.totalBalance || 0,
+            totalInitialBalance: s.totalInitialBalance || 0,
+            activeAccounts: s.activeAccounts || 0,
+          });
+        } catch {}
+      } catch (err) {
+        setError('Delete failed');
+      }
     }
   };
 
@@ -255,25 +290,25 @@ const BankAccounts = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <SmallStat
             label="Total Accounts"
-            value={totalAccounts}
+            value={stats.totalAccounts}
             icon={Building2}
             color="blue"
           />
           <SmallStat
             label="Total Balance"
-            value={`BDT ${totalBalance.toLocaleString()}`}
+            value={`BDT ${Number(stats.totalBalance).toLocaleString()}`}
             icon={Banknote}
             color="green"
           />
           <SmallStat
             label="Initial Balance"
-            value={`BDT ${totalInitialBalance.toLocaleString()}`}
+            value={`BDT ${Number(stats.totalInitialBalance).toLocaleString()}`}
             icon={CreditCard}
             color="purple"
           />
           <SmallStat
             label="Active Accounts"
-            value={`${activeAccounts}/${totalAccounts}`}
+            value={`${stats.activeAccounts}/${stats.totalAccounts}`}
             icon={TrendingUp}
             color="yellow"
           />

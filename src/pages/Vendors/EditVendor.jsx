@@ -1,23 +1,24 @@
-import React, { useMemo, useState } from 'react';
-import { Building2, Save, RotateCcw, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Building2, Save, RotateCcw, X, ArrowLeft } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import useSecureAxios from '../../hooks/UseAxiosSecure.js';
 import Swal from 'sweetalert2';
 
-const initialFormState = {
-  tradeName: '',
-  tradeLocation: '',
-  ownerName: '',
-  contactNo: '',
-  dob: '',
-  nid: '',
-  passport: ''
-};
-
-const AddVendor = () => {
+const EditVendor = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const axiosSecure = useSecureAxios();
-  const [form, setForm] = useState(initialFormState);
+  const [vendor, setVendor] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({
+    tradeName: '',
+    tradeLocation: '',
+    ownerName: '',
+    contactNo: '',
+    dob: '',
+    nid: '',
+    passport: ''
+  });
   const [touched, setTouched] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,7 +62,17 @@ const AddVendor = () => {
   };
 
   const handleReset = () => {
-    setForm(initialFormState);
+    if (vendor) {
+      setForm({
+        tradeName: vendor.tradeName || '',
+        tradeLocation: vendor.tradeLocation || '',
+        ownerName: vendor.ownerName || '',
+        contactNo: vendor.contactNo || '',
+        dob: vendor.dob || '',
+        nid: vendor.nid || '',
+        passport: vendor.passport || ''
+      });
+    }
     setTouched({});
   };
 
@@ -85,19 +96,18 @@ const AddVendor = () => {
 
     try {
       setSubmitting(true);
-      await axiosSecure.post('/vendors', form);
+      await axiosSecure.patch(`/vendors/${id}`, form);
 
       await Swal.fire({
         icon: 'success',
-        title: 'Vendor added successfully',
+        title: 'Vendor updated successfully',
         showConfirmButton: false,
         timer: 1400
       });
 
-      handleReset();
-      navigate('/vendors');
+      navigate(`/vendors/${id}`);
     } catch (error) {
-      const message = error?.response?.data?.message || 'Failed to add vendor. Please try again.';
+      const message = error?.response?.data?.message || 'Failed to update vendor. Please try again.';
       await Swal.fire({
         icon: 'error',
         title: 'Error',
@@ -108,15 +118,111 @@ const AddVendor = () => {
     }
   };
 
+  // Fetch vendor data on component mount
+  useEffect(() => {
+    const fetchVendor = async () => {
+      try {
+        setLoading(true);
+        const response = await axiosSecure.get('/vendors');
+        
+        // Extract vendors array from response
+        const vendorsData = response.data?.vendors || response.data || [];
+        
+        // Find vendor by vendorId
+        const vendorData = vendorsData.find(v => 
+          v.vendorId === id || v._id === id || v.id === id
+        );
+        
+        if (vendorData) {
+          // Transform vendor data to match frontend expectations
+          const transformedVendor = {
+            vendorId: vendorData.vendorId || vendorData._id || vendorData.id,
+            tradeName: vendorData.tradeName || '',
+            tradeLocation: vendorData.tradeLocation || '',
+            ownerName: vendorData.ownerName || '',
+            contactNo: vendorData.contactNo || '',
+            dob: vendorData.dob || '',
+            nid: vendorData.nid || '',
+            passport: vendorData.passport || ''
+          };
+          
+          setVendor(transformedVendor);
+          setForm({
+            tradeName: transformedVendor.tradeName,
+            tradeLocation: transformedVendor.tradeLocation,
+            ownerName: transformedVendor.ownerName,
+            contactNo: transformedVendor.contactNo,
+            dob: transformedVendor.dob,
+            nid: transformedVendor.nid,
+            passport: transformedVendor.passport
+          });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Vendor not found',
+            text: 'The vendor you are trying to edit does not exist.',
+            confirmButtonColor: '#7c3aed'
+          }).then(() => {
+            navigate('/vendors');
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching vendor:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: `Failed to fetch vendor details: ${error.response?.status || error.message}`,
+          confirmButtonColor: '#7c3aed'
+        }).then(() => {
+          navigate('/vendors');
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchVendor();
+    }
+  }, [id, axiosSecure, navigate]);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500 dark:text-gray-400">Loading vendor details...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!vendor) {
+    return (
+      <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-gray-500 dark:text-gray-400">Vendor not found</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-          <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-        </div>
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Add Vendor</h1>
-          <p className="text-gray-600 dark:text-gray-400">Create a new vendor profile</p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/vendors/${id}`)}
+            className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            <ArrowLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+          </button>
+          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Edit Vendor</h1>
+            <p className="text-gray-600 dark:text-gray-400">{vendor.tradeName}</p>
+          </div>
         </div>
       </div>
       
@@ -263,12 +369,12 @@ const AddVendor = () => {
             disabled={submitting}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" /> {submitting ? 'Saving...' : 'Save Vendor'}
+            <Save className="w-4 h-4" /> {submitting ? 'Updating...' : 'Update Vendor'}
           </button>
-      </div>
+        </div>
       </form>
     </div>
   );
 };
 
-export default AddVendor;
+export default EditVendor;

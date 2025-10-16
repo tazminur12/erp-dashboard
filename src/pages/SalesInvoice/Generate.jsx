@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import Swal from 'sweetalert2';
 
 const formatBDT = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BDT' }).format(n || 0);
 
@@ -13,6 +14,7 @@ const Generate = () => {
     serviceId: '',
     bookingId: '',
     vendor: '',
+    vendorId: '',
     // Common billing fields
     bill: '',
     commission: '',
@@ -91,8 +93,16 @@ const Generate = () => {
             setForm((f) => ({ ...f, serviceId: options[0].id }));
           }
         }
-      } catch (_) {
-        if (active) setServiceError('Failed to load services');
+      } catch (error) {
+        if (active) {
+          setServiceError('Failed to load services');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: 'Failed to load service types. Please refresh the page.',
+            confirmButtonColor: '#dc2626'
+          });
+        }
       } finally {
         if (active) setServiceLoading(false);
       }
@@ -165,6 +175,12 @@ const Generate = () => {
   const [customerLoading, setCustomerLoading] = useState(false);
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
+  // Vendor search state
+  const [vendorQuery, setVendorQuery] = useState('');
+  const [vendorResults, setVendorResults] = useState([]);
+  const [vendorLoading, setVendorLoading] = useState(false);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+
   // Debounced backend search for customers by id/name/phone/email
   useEffect(() => {
     const q = customerQuery.trim();
@@ -215,6 +231,57 @@ const Generate = () => {
     };
   }, [customerQuery, axiosSecure]);
 
+  // Debounced backend search for vendors by trade name/owner name/contact no
+  useEffect(() => {
+    const q = vendorQuery.trim();
+    if (!q || q.length < 2) {
+      setVendorResults([]);
+      return;
+    }
+
+    let active = true;
+    setVendorLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        // Primary: query backend with a generic q param
+        const res = await axiosSecure.get('/vendors', { params: { q } });
+        const data = res?.data;
+        const list = Array.isArray(data)
+          ? data
+          : (data?.vendors || []);
+
+        // Fallback: filter locally if backend returned full list without filtering
+        const normalizedQ = q.toLowerCase();
+        const filtered = list.filter((v) => {
+          const id = String(v.id || v._id || '').toLowerCase();
+          const tradeName = String(v.tradeName || '').toLowerCase();
+          const ownerName = String(v.ownerName || '').toLowerCase();
+          const contactNo = String(v.contactNo || '');
+          const tradeLocation = String(v.tradeLocation || '').toLowerCase();
+          return (
+            id.includes(normalizedQ) ||
+            tradeName.includes(normalizedQ) ||
+            ownerName.includes(normalizedQ) ||
+            contactNo.includes(q) ||
+            tradeLocation.includes(normalizedQ)
+          );
+        });
+        if (active) setVendorResults(filtered.slice(0, 10));
+      } catch (err) {
+        // Silent fail; keep results empty
+        if (active) setVendorResults([]);
+      } finally {
+        if (active) setVendorLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [vendorQuery, axiosSecure]);
+
   const handleSelectCustomer = (c) => {
     change('customer', c.name || '');
     change('customerId', c.id || c.customerId || '');
@@ -223,10 +290,92 @@ const Generate = () => {
     setShowCustomerDropdown(false);
   };
 
-  const submit = (e) => {
+  const handleSelectVendor = (v) => {
+    change('vendorName', v.tradeName || '');
+    change('vendorId', v.id || v._id || '');
+    setVendorQuery(v.tradeName || v.id || '');
+    setShowVendorDropdown(false);
+  };
+
+  const submit = async (e) => {
     e.preventDefault();
-    // TODO: integrate API for create invoice and then trigger print
-    window.print();
+    
+    // Validation
+    if (!form.customerId) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Please select a customer',
+        confirmButtonColor: '#dc2626'
+      });
+      return;
+    }
+
+    if (!form.serviceId) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Please select a service type',
+        confirmButtonColor: '#dc2626'
+      });
+      return;
+    }
+
+    // Show confirmation dialog
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "Do you want to create this invoice?",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#059669',
+      cancelButtonColor: '#dc2626',
+      confirmButtonText: 'Yes, create it!',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        // Show loading
+        Swal.fire({
+          title: 'Creating Invoice...',
+          text: 'Please wait while we create your invoice',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        // TODO: Replace with actual API call
+        // const response = await axiosSecure.post('/invoices', form);
+        
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Success message
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Invoice created successfully!',
+          confirmButtonColor: '#059669',
+          showCancelButton: true,
+          cancelButtonText: 'Close',
+          confirmButtonText: 'Print Invoice'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            window.print();
+          }
+        });
+
+      } catch (error) {
+        // Error message
+        Swal.fire({
+          icon: 'error',
+          title: 'Error!',
+          text: 'Failed to create invoice. Please try again.',
+          confirmButtonColor: '#dc2626'
+        });
+      }
+    }
   };
 
   return (
@@ -237,7 +386,27 @@ const Generate = () => {
           <p className="text-sm text-gray-600">Create invoice, then submit & print</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => window.print()} className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50">Print</button>
+          <button 
+            onClick={async () => {
+              const result = await Swal.fire({
+                title: 'Print Invoice',
+                text: 'Do you want to print this invoice?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#059669',
+                cancelButtonColor: '#dc2626',
+                confirmButtonText: 'Yes, Print!',
+                cancelButtonText: 'Cancel'
+              });
+              
+              if (result.isConfirmed) {
+                window.print();
+              }
+            }} 
+            className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50"
+          >
+            Print
+          </button>
         </div>
       </header>
 
@@ -625,14 +794,48 @@ const Generate = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Vendor Name</label>
-            <input 
-              type="text" 
-              className="mt-1 w-full border rounded-md px-3 py-2" 
-              value={form.vendorName} 
-              onChange={(e) => change('vendorName', e.target.value)} 
-              placeholder="Enter vendor name"
-            />
+            <label className="block text-sm font-medium text-gray-700">Vendor Name (search)</label>
+            <div className="mt-1 relative">
+              <input
+                type="text"
+                placeholder="Search by trade name, owner name, or contact no..."
+                className="w-full border rounded-md px-3 py-2"
+                value={vendorQuery}
+                onChange={(e) => setVendorQuery(e.target.value)}
+                onFocus={() => setShowVendorDropdown(true)}
+                onBlur={() => setTimeout(() => setShowVendorDropdown(false), 200)}
+              />
+              {showVendorDropdown && (
+                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                  {vendorLoading ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
+                  ) : vendorResults.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">No vendors found</div>
+                  ) : (
+                    vendorResults.map((v) => (
+                      <button
+                        key={String(v.id || v._id)}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => handleSelectVendor(v)}
+                        className="w-full text-left px-3 py-2 hover:bg-gray-50"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{v.tradeName}</div>
+                            <div className="text-xs text-gray-500">Owner: {v.ownerName}</div>
+                          </div>
+                          <div className="text-sm text-gray-600">{v.contactNo}</div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            {form.vendorId && (
+              <div className="mt-2 text-xs text-gray-500">Selected: {form.vendorName} ({form.vendorId})</div>
+            )}
           </div>
         </div>
         
