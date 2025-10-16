@@ -31,6 +31,28 @@ const Agent = () => {
     passport: ''
   });
 
+  // Client-side filtered list to ensure search works even without API support
+  const filteredAgents = useMemo(() => {
+    if (!searchTerm) return agents;
+    const query = searchTerm.toLowerCase().trim();
+    return agents.filter((a) => {
+      const tradeName = (a.tradeName || '').toLowerCase();
+      const tradeLocation = (a.tradeLocation || '').toLowerCase();
+      const ownerName = (a.ownerName || '').toLowerCase();
+      const contactNo = (a.contactNo || '').toLowerCase();
+      const nid = (a.nid || '').toLowerCase();
+      const passport = (a.passport || '').toLowerCase();
+      return (
+        tradeName.includes(query) ||
+        tradeLocation.includes(query) ||
+        ownerName.includes(query) ||
+        contactNo.includes(query) ||
+        nid.includes(query) ||
+        passport.includes(query)
+      );
+    });
+  }, [agents, searchTerm]);
+
   const handleAdd = () => {
     setModalType('add');
     setFormData({
@@ -248,7 +270,7 @@ const Agent = () => {
                 type="text"
                 placeholder="ট্রেড নাম, লোকেশন, মালিক, ফোন, NID, পাসপোর্ট দিয়ে সার্চ করুন..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                 className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
               />
             </div>
@@ -279,7 +301,7 @@ const Agent = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {agents.map((agent) => (
+              {filteredAgents.map((agent) => (
                 <tr key={agent._id || agent.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     <div className="flex items-center">
