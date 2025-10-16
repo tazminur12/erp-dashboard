@@ -1,43 +1,20 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, Eye, Search, Filter, Upload, FileSpreadsheet } from 'lucide-react';
-import Modal from '../../components/common/Modal';
-import ExcelUploader from '../../components/common/ExcelUploader';
+import Modal from '../../../components/common/Modal';
+import ExcelUploader from '../../../components/common/ExcelUploader';
 import Swal from 'sweetalert2';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
 
 const Agent = () => {
-  const [agents, setAgents] = useState([
-    {
-      id: 1,
-      tradeName: 'Green Line Supplies',
-      tradeLocation: 'Sylhet',
-      ownerName: 'Shahadat Hossain',
-      contactNo: '+8801555667788',
-      dob: '1988-12-01',
-      nid: '188845623499',
-      passport: 'ZP1122334'
-    },
-    {
-      id: 2,
-      tradeName: 'Nazmul Enterprise',
-      tradeLocation: 'Chattogram',
-      ownerName: 'Nazmul Hasan',
-      contactNo: '+8801911334455',
-      dob: '1990-08-21',
-      nid: '199045623411',
-      passport: 'EC7654321'
-    },
-    {
-      id: 3,
-      tradeName: 'Miraj Traders',
-      tradeLocation: 'Dhaka, Bangladesh',
-      ownerName: 'Abdul Karim',
-      contactNo: '+8801711223344',
-      dob: '1984-05-12',
-      nid: '197845623412',
-      passport: 'BA1234567'
-    }
-  ]);
+  const axiosSecure = useAxiosSecure();
+  const navigate = useNavigate();
+  const [agents, setAgents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -83,10 +60,21 @@ const Agent = () => {
     setShowModal(true);
   };
 
-  const handleView = (agent) => {
-    setModalType('view');
-    setSelectedAgent(agent);
-    setShowModal(true);
+  const handleView = async (agent) => {
+    try {
+      const id = agent._id || agent.id;
+      if (id) {
+        navigate(`/hajj-umrah/agent/${id}`);
+        return;
+      }
+      // Fallback to modal if no id present
+      setModalType('view');
+      setSelectedAgent(agent);
+      setShowModal(true);
+    } catch (error) {
+      const msg = error?.response?.data?.message || 'Failed to fetch agent details';
+      Swal.fire({ icon: 'error', title: 'Error', text: msg });
+    }
   };
 
   const handleDelete = (agent) => {
@@ -180,16 +168,40 @@ const Agent = () => {
     });
   };
 
-  // status removed in new schema
-
-  const filteredAgents = agents.filter(agent =>
-    (agent.tradeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (agent.tradeLocation || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (agent.ownerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (agent.contactNo || '').includes(searchTerm) ||
-    (agent.nid || '').includes(searchTerm) ||
-    (agent.passport || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Fetch agents from API
+  useEffect(() => {
+    let ignore = false;
+    const fetchAgents = async () => {
+      try {
+        setLoading(true);
+        const res = await axiosSecure.get('/haj-umrah/agents', {
+          params: { page, limit, q: searchTerm || undefined }
+        });
+        if (ignore) return;
+        const payload = res.data;
+        if (payload?.success) {
+          setAgents(payload.data || []);
+          setTotalPages(payload.pagination?.totalPages || 1);
+          setTotal(payload.pagination?.total || 0);
+        } else {
+          setAgents([]);
+          setTotalPages(1);
+          setTotal(0);
+        }
+      } catch (error) {
+        const msg = error?.response?.data?.message || 'Failed to load agents';
+        Swal.fire({ icon: 'error', title: 'Error', text: msg });
+        setAgents([]);
+        setTotalPages(1);
+        setTotal(0);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+    // Debounce simple search
+    const t = setTimeout(fetchAgents, 300);
+    return () => { ignore = true; clearTimeout(t); };
+  }, [axiosSecure, page, limit, searchTerm]);
 
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
@@ -267,8 +279,8 @@ const Agent = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredAgents.map((agent) => (
-                <tr key={agent.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+              {agents.map((agent) => (
+                <tr key={agent._id || agent.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
@@ -279,9 +291,14 @@ const Agent = () => {
                         </div>
                       </div>
                       <div className="ml-2 sm:ml-4 min-w-0 flex-1">
-                        <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
+                        <button
+                          type="button"
+                          onClick={() => handleView(agent)}
+                          className="text-left text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate hover:underline"
+                          title="বিস্তারিত দেখুন"
+                        >
                           {agent.tradeName}
-                        </div>
+                        </button>
                         <div className="text-xs text-gray-500 dark:text-gray-400 truncate">{agent.tradeLocation}</div>
                       </div>
                     </div>

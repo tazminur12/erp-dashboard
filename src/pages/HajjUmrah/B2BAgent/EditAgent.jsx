@@ -1,0 +1,367 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { Users, Save, RotateCcw, X } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
+import Swal from 'sweetalert2';
+
+const initialFormState = {
+  tradeName: '',
+  tradeLocation: '',
+  ownerName: '',
+  contactNo: '',
+  dob: '',
+  nid: '',
+  passport: ''
+};
+
+const EditAgent = () => {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const axiosSecure = useAxiosSecure();
+  const [form, setForm] = useState(initialFormState);
+  const [touched, setTouched] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [alert, setAlert] = useState(null);
+
+  useEffect(() => {
+    let ignore = false;
+    const fetchDetails = async () => {
+      try {
+        setLoading(true);
+        const res = await axiosSecure.get(`/haj-umrah/agents/${id}`);
+        if (ignore) return;
+        if (res.data?.success && res.data?.data) {
+          const data = res.data.data;
+          setForm({
+            tradeName: data.tradeName || '',
+            tradeLocation: data.tradeLocation || '',
+            ownerName: data.ownerName || '',
+            contactNo: data.contactNo || '',
+            dob: data.dob || '',
+            nid: data.nid || '',
+            passport: data.passport || ''
+          });
+        } else {
+          setAlert({ type: 'error', message: 'Failed to load agent details' });
+        }
+      } catch (error) {
+        const msg = error?.response?.data?.message || 'Failed to fetch agent details';
+        setAlert({ type: 'error', message: msg });
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    };
+    fetchDetails();
+    return () => { ignore = true; };
+  }, [axiosSecure, id]);
+
+  const errors = useMemo(() => {
+    const e = {};
+    if (!form.tradeName.trim()) e.tradeName = 'Trade Name is required';
+    if (!form.tradeLocation.trim()) e.tradeLocation = 'Trade Location is required';
+    if (!form.ownerName.trim()) e.ownerName = "Owner's Name is required";
+    if (!form.contactNo.trim()) e.contactNo = 'Contact No is required';
+    else {
+      const phoneRegex = /^\+?[0-9\-()\s]{6,20}$/;
+      if (!phoneRegex.test(form.contactNo.trim())) e.contactNo = 'Enter a valid phone number';
+    }
+    if (form.nid.trim()) {
+      const nidRegex = /^[0-9]{8,20}$/;
+      if (!nidRegex.test(form.nid.trim())) e.nid = 'NID should be 8-20 digits';
+    }
+    if (form.passport.trim()) {
+      const passportRegex = /^[A-Za-z0-9]{6,12}$/;
+      if (!passportRegex.test(form.passport.trim())) e.passport = 'Passport should be 6-12 chars';
+    }
+    return e;
+  }, [form]);
+
+  const hasError = (field) => touched[field] && errors[field];
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  };
+
+  const handleReset = () => {
+    // reset to loaded values, not empty
+    setTouched({});
+    setAlert(null);
+    // re-fetch to reset
+    navigate(0);
+  };
+
+  const handleCancel = () => {
+    navigate(`/hajj-umrah/agent/${id}`);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setTouched({
+      tradeName: true,
+      tradeLocation: true,
+      ownerName: true,
+      contactNo: true,
+      dob: true,
+      nid: true,
+      passport: true
+    });
+
+    if (Object.keys(errors).length) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Please fix the errors',
+        text: 'Required fields are missing or invalid.'
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setAlert(null);
+
+      const res = await axiosSecure.patch(`/haj-umrah/agents/${id}`, form);
+
+      if (res.data.success) {
+        Swal.fire({ icon: 'success', title: 'Updated', text: 'Agent updated successfully!' })
+          .then(() => navigate(`/hajj-umrah/agent/${id}`));
+      }
+    } catch (error) {
+      const msg =
+        (error.response?.status === 404
+          ? 'API endpoint not found. Please check the server routes.'
+          : error.response?.data?.message) ||
+        'Something went wrong while updating the agent';
+      setAlert({ type: 'error', message: msg });
+      Swal.fire({ icon: 'error', title: 'Failed to update', text: msg });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex items-center space-x-3">
+        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+          <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+        </div>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+            Edit Haj & Umrah Agent
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Update existing agent profile
+          </p>
+        </div>
+      </div>
+
+      {alert && (
+        <div
+          className={`p-3 rounded-md text-sm ${
+            alert.type === 'success'
+              ? 'bg-green-100 text-green-700'
+              : 'bg-red-100 text-red-700'
+          }`}
+        >
+          {alert.message}
+        </div>
+      )}
+
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white dark:bg-gray-800 rounded-xl p-5 sm:p-6 md:p-8 border border-gray-200 dark:border-gray-700 shadow-sm"
+      >
+        {loading ? (
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Trade Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="tradeName"
+                  value={form.tradeName}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 ${
+                    hasError('tradeName')
+                      ? 'border-red-500'
+                      : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  placeholder="Enter trade name"
+                />
+                {hasError('tradeName') && (
+                  <p className="mt-1 text-sm text-red-600">{errors.tradeName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Trade Location <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="tradeLocation"
+                  value={form.tradeLocation}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 ${
+                    hasError('tradeLocation')
+                      ? 'border-red-500'
+                      : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  placeholder="Enter trade location"
+                />
+                {hasError('tradeLocation') && (
+                  <p className="mt-1 text-sm text-red-600">{errors.tradeLocation}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Owner's Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="ownerName"
+                  value={form.ownerName}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 ${
+                    hasError('ownerName')
+                      ? 'border-red-500'
+                      : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  placeholder="Enter owner's name"
+                />
+                {hasError('ownerName') && (
+                  <p className="mt-1 text-sm text-red-600">{errors.ownerName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Contact No <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  name="contactNo"
+                  value={form.contactNo}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 ${
+                    hasError('contactNo')
+                      ? 'border-red-500'
+                      : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  placeholder="e.g. +8801XXXXXXXXX"
+                />
+                {hasError('contactNo') && (
+                  <p className="mt-1 text-sm text-red-600">{errors.contactNo}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Date of Birth
+                </label>
+                <input
+                  type="date"
+                  name="dob"
+                  value={form.dob}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className="w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  NID
+                </label>
+                <input
+                  type="text"
+                  name="nid"
+                  value={form.nid}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 ${
+                    hasError('nid')
+                      ? 'border-red-500'
+                      : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  placeholder="Enter NID number"
+                  inputMode="numeric"
+                />
+                {hasError('nid') && (
+                  <p className="mt-1 text-sm text-red-600">{errors.nid}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Passport
+                </label>
+                <input
+                  type="text"
+                  name="passport"
+                  value={form.passport}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 ${
+                    hasError('passport')
+                      ? 'border-red-500'
+                      : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  placeholder="Enter passport number"
+                />
+                {hasError('passport') && (
+                  <p className="mt-1 text-sm text-red-600">{errors.passport}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-end">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <X className="w-4 h-4" /> Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleReset}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                <RotateCcw className="w-4 h-4" /> Reset
+              </button>
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <Save className="w-4 h-4" /> {submitting ? 'Saving...' : 'Update Agent'}
+              </button>
+            </div>
+          </>
+        )}
+      </form>
+    </div>
+  );
+};
+
+export default EditAgent;
+
+

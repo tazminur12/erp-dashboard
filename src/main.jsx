@@ -32,8 +32,10 @@ import HajjUmrahDashboard from './pages/HajjUmrah/HajjUmrahDashboard';
 import HajiList from './pages/HajjUmrah/HajiList';
 import HajiDetails from './pages/HajjUmrah/HajiDetails';
 import AddHaji from './pages/HajjUmrah/AddHaji';
-import Agent from './pages/HajjUmrah/Agent';
-import AddAgent from './pages/HajjUmrah/AddAgent';
+import Agent from './pages/HajjUmrah/B2BAgent/Agent';
+import AgentDetails from './pages/HajjUmrah/B2BAgent/AgentDetails';
+import AddAgent from './pages/HajjUmrah/B2BAgent/AddAgent';
+import EditB2BAgent from './pages/HajjUmrah/B2BAgent/EditAgent';
 import PackageCreation from './pages/HajjUmrah/PackageCreation';
 import PackageList from './pages/HajjUmrah/PackageList';
 import AddUmrahHaji from './pages/HajjUmrah/AddUmrahHaji';
@@ -99,7 +101,7 @@ import PersonalLoans from './pages/Personal/Loans';
 import FlyOvalDashboard from './pages/FlyOval/Dashboard';
 import FlyOvalAgentList from './pages/FlyOval/AgentList';
 import AddFlyOvalAgent from './pages/FlyOval/AddAgent';
-import AgentDetails from './pages/FlyOval/AgentDetails';
+import FlyOvalAgentDetails from './pages/FlyOval/AgentDetails';
 import EditAgent from './pages/FlyOval/EditAgent';
 import FlyOvalTopUpHistory from './pages/FlyOval/TopUpHistory';
 import FlyOvalSellHistory from './pages/FlyOval/SellHistory';
@@ -317,8 +319,16 @@ const router = createBrowserRouter([
         element: <Agent />
       },
       {
+        path: "agent/:id",
+        element: <AgentDetails />
+      },
+      {
         path: "agent/add",
         element: <AddAgent />
+      },
+      {
+        path: "agent/:id/edit",
+        element: <EditB2BAgent />
       },
       {
         path: "package-creation",
@@ -630,7 +640,7 @@ const router = createBrowserRouter([
       },
       {
         path: "agents/details/:id",
-        element: <AgentDetails />
+        element: <FlyOvalAgentDetails />
       },
       {
         path: "agents/edit/:id",
