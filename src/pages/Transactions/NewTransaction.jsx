@@ -132,6 +132,8 @@ const NewTransaction = () => {
   const [customers, setCustomers] = useState([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [agentResults, setAgentResults] = useState([]);
+  const [agentLoading, setAgentLoading] = useState(false);
   
   // Mock account data
   const [accounts] = useState([
@@ -326,10 +328,12 @@ const NewTransaction = () => {
     if (searchTerm.trim()) {
       const timeoutId = setTimeout(() => {
         searchCustomers(searchTerm);
+        searchAgents(searchTerm);
       }, 300);
       return () => clearTimeout(timeoutId);
     } else {
       loadCustomers();
+      setAgentResults([]);
     }
   }, [searchTerm]);
 
@@ -352,6 +356,25 @@ const NewTransaction = () => {
       setCustomers(filtered);
     } finally {
       setSearchLoading(false);
+    }
+  };
+
+  // Search Hajj/Umrah agents for customer selection
+  const searchAgents = async (term) => {
+    try {
+      setAgentLoading(true);
+      const res = await axiosSecure.get('/haj-umrah/agents', { params: { q: term, limit: 20, page: 1 } });
+      const payload = res.data;
+      if (payload?.success) {
+        setAgentResults(payload.data || []);
+      } else {
+        setAgentResults([]);
+      }
+    } catch (error) {
+      // Silent fail to avoid disrupting customer fallback
+      setAgentResults([]);
+    } finally {
+      setAgentLoading(false);
     }
   };
 
@@ -531,6 +554,17 @@ const NewTransaction = () => {
       customerName: customer.name,
       customerPhone: customer.mobile || customer.phone,
       customerEmail: customer.email
+    }));
+    setSearchTerm('');
+  };
+
+  const handleAgentSelect = (agent) => {
+    setFormData(prev => ({
+      ...prev,
+      customerId: agent._id || agent.id,
+      customerName: agent.tradeName || agent.ownerName || '',
+      customerPhone: agent.contactNo || '',
+      customerEmail: ''
     }));
     setSearchTerm('');
   };
@@ -1615,13 +1649,49 @@ const NewTransaction = () => {
                     />
                   </div>
 
-                  {/* Customer List */}
+                  {/* Customer / Agent List */}
                   <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
-                    {customersLoading ? (
+                    {(searchTerm ? agentLoading : customersLoading) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
                         <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">কাস্টমার লোড হচ্ছে...</span>
                       </div>
+                    ) : searchTerm && agentResults.length > 0 ? (
+                      agentResults.map((agent) => (
+                        <button
+                          key={agent._id || agent.id}
+                          onClick={() => handleAgentSelect(agent)}
+                          className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                            formData.customerId === (agent._id || agent.id)
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div className="text-left min-w-0 flex-1">
+                                <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                  {agent.tradeName || agent.ownerName}
+                                </h3>
+                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                  {agent.ownerName} • {agent.contactNo}
+                                </p>
+                                {agent.tradeLocation && (
+                                  <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
+                                    {agent.tradeLocation}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            {formData.customerId === (agent._id || agent.id) && (
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
+                            )}
+                          </div>
+                        </button>
+                      ))
                     ) : filteredCustomers.length > 0 ? (
                       filteredCustomers.map((customer) => (
                       <button
@@ -1658,7 +1728,7 @@ const NewTransaction = () => {
                       ))
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                        {searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই'}
+                        {searchTerm ? 'কোন এজেন্ট/কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই'}
                       </div>
                     )}
                   </div>
