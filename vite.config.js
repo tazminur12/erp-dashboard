@@ -10,7 +10,7 @@ export default defineConfig({
         manualChunks(id) {
           // Create vendor chunks for better caching
           if (id.includes('node_modules')) {
-            // Keep React and React-DOM together to avoid scheduling issues
+            // Keep React, React-DOM, and scheduler together to avoid scheduling issues
             if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
               return 'vendor-react';
             }
@@ -91,7 +91,8 @@ export default defineConfig({
       'react-router-dom',
       '@tanstack/react-query',
       'scheduler'
-    ]
+    ],
+    force: true
   },
   // Ensure proper React handling
   define: {
