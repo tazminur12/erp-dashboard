@@ -293,6 +293,57 @@ export const useUpdateCustomerServiceStatus = () => {
   });
 };
 
+// Mutation to update a customer
+export const useUpdateCustomer = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, data: customerData }) => {
+      const response = await axiosSecure.put(`/customers/${id}`, customerData);
+      
+      if (response.data.success) {
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to update customer');
+      }
+    },
+    onSuccess: (data, { id }) => {
+      // Invalidate and refetch customer list
+      queryClient.invalidateQueries({ queryKey: customerKeys.lists() });
+      
+      // Invalidate specific customer details
+      queryClient.invalidateQueries({ queryKey: customerKeys.detail(id) });
+      
+      // Update the customer in cache if needed
+      if (data.customer) {
+        queryClient.setQueryData(
+          customerKeys.detail(id),
+          data.customer
+        );
+      }
+      
+      // Show success message
+      Swal.fire({
+        title: 'সফল!',
+        text: 'কাস্টমার তথ্য সফলভাবে আপডেট করা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'কাস্টমার আপডেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};
+
 // Mutation to create a new customer
 export const useCreateCustomer = () => {
   const axiosSecure = useAxiosSecure();

@@ -60,17 +60,18 @@ const VendorDetails = React.lazy(() => import('./pages/Vendors/VendorDetails'));
 
 // Hajj & Umrah pages
 const HajjUmrahDashboard = React.lazy(() => import('./pages/HajjUmrah/HajjUmrahDashboard'));
-const HajiList = React.lazy(() => import('./pages/HajjUmrah/HajiList'));
+const HajiList = React.lazy(() => import('./pages/HajjUmrah/Haj/HajiList'));
 const HajiDetails = React.lazy(() => import('./pages/HajjUmrah/HajiDetails'));
-const AddHaji = React.lazy(() => import('./pages/HajjUmrah/AddHaji'));
+const AddHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/AddHaji'));
 const Agent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/Agent'));
 const AgentDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentDetails'));
 const AddAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AddAgent'));
 const EditB2BAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/EditAgent'));
 const PackageCreation = React.lazy(() => import('./pages/HajjUmrah/PackageCreation'));
 const PackageList = React.lazy(() => import('./pages/HajjUmrah/PackageList'));
-const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah/AddUmrahHaji'));
-const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah/UmrahHajiList'));
+const EditHaji = React.lazy(() => import('./pages/HajjUmrah/EditHaji'));
+const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah/Umrah/AddUmrahHaji'));
+const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah/Umrah/UmrahHajiList'));
 
 // Air Ticketing pages
 const NewTicket = React.lazy(() => import('./pages/AirTicketing/NewTicket'));
@@ -106,8 +107,6 @@ const BreedingRecords = React.lazy(() => import('./pages/MirajIndustries/Breedin
 const FinancialReport = React.lazy(() => import('./pages/MirajIndustries/FinancialReport'));
 const EmployeeManagement = React.lazy(() => import('./pages/MirajIndustries/EmployeeManagement'));
 
-// Hajj Management pages
-const HajjManagementDashboard = React.lazy(() => import('./pages/HajjManagement/HajjManagementDashboard'));
 
 // Account pages
 const AccountOverview = React.lazy(() => import('./pages/Account/AccountOverview'));
@@ -412,6 +411,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <HajiDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "haji/edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditHaji />
           </Suspense>
         )
       },
@@ -744,42 +751,6 @@ const router = createBrowserRouter([
             <EmployeeManagement />
           </Suspense>
         )
-      }
-    ]
-  },
-  {
-    path: "/hajj-management",
-    element: (
-      <ThemeProvider>
-        <ProtectedRoute>
-          <DashboardLayout />
-        </ProtectedRoute>
-      </ThemeProvider>
-    ),
-    children: [
-      {
-        path: "dashboard",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <HajjManagementDashboard />
-          </Suspense>
-        )
-      },
-      {
-        index: true,
-        element: null
-      },
-      {
-        path: "list",
-        element: null
-      },
-      {
-        path: "add",
-        element: null
-      },
-      {
-        path: "reports",
-        element: null
       }
     ]
   },

@@ -22,72 +22,111 @@ import {
   XCircle,
   Eye,
   Plus,
-  List
+  List,
+  Loader
 } from 'lucide-react';
+import { useCustomers } from '../../hooks/useCustomerQueries';
 
 const HajjUmrahDashboard = () => {
-  const [dashboardData, setDashboardData] = useState({
-    // Overview Stats
-    totalAgents: 45,
-    activePackages: 12,
-    totalBookings: 234,
-    totalRevenue: 24500000,
+  // Fetch real customer data
+  const { data: customers = [], isLoading, error } = useCustomers();
+  
+  // Calculate real statistics from customer data
+  const calculateStats = () => {
+    const hajjCustomers = customers.filter(customer => 
+      customer.customerType && customer.customerType.toLowerCase() === 'hajj'
+    );
+    const umrahCustomers = customers.filter(customer => 
+      customer.customerType && customer.customerType.toLowerCase() === 'umrah'
+    );
+    const activeCustomers = customers.filter(customer => 
+      customer.status === 'active' || customer.status === 'confirmed'
+    );
+    const paidCustomers = customers.filter(customer => 
+      customer.paymentStatus === 'paid'
+    );
     
-    // Recent Activity
-    recentBookings: [
+    const totalRevenue = customers.reduce((sum, customer) => 
+      sum + (customer.paidAmount || 0), 0
+    );
+    
+    const pendingPayments = customers.reduce((sum, customer) => 
+      sum + ((customer.totalAmount || 0) - (customer.paidAmount || 0)), 0
+    );
+    
+    return {
+      totalCustomers: customers.length,
+      hajjCustomers: hajjCustomers.length,
+      umrahCustomers: umrahCustomers.length,
+      activeCustomers: activeCustomers.length,
+      paidCustomers: paidCustomers.length,
+      totalRevenue,
+      pendingPayments
+    };
+  };
+  
+  const stats = calculateStats();
+  
+  // Generate recent bookings from real customer data
+  const getRecentBookings = () => {
+    return customers.slice(0, 5).map((customer, index) => ({
+      id: customer.id || index + 1,
+      customerName: customer.name || 'N/A',
+      packageName: customer.packageInfo?.packageName || `${customer.customerType || 'Service'} Package`,
+      amount: customer.totalAmount || 0,
+      status: customer.status || 'pending',
+      date: customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : new Date().toLocaleDateString()
+    }));
+  };
+
+  // Generate package performance from real customer data
+  const getPackagePerformance = () => {
+    const hajjCustomers = customers.filter(customer => 
+      customer.customerType && customer.customerType.toLowerCase() === 'hajj'
+    );
+    const umrahCustomers = customers.filter(customer => 
+      customer.customerType && customer.customerType.toLowerCase() === 'umrah'
+    );
+    const otherCustomers = customers.filter(customer => 
+      !customer.customerType || 
+      (customer.customerType.toLowerCase() !== 'hajj' && customer.customerType.toLowerCase() !== 'umrah')
+    );
+
+    return [
       {
         id: 1,
-        customerName: 'আব্দুল রহমান',
-        packageName: 'প্রিমিয়াম হজ্জ প্যাকেজ ২০২৪',
-        amount: 170000,
-        status: 'confirmed',
-        date: '2024-01-15'
-      },
-      {
-        id: 2,
-        customerName: 'ফাতেমা খাতুন',
-        packageName: 'স্ট্যান্ডার্ড উমরাহ প্যাকেজ ২০২৪',
-        amount: 135000,
-        status: 'pending',
-        date: '2024-01-14'
-      },
-      {
-        id: 3,
-        customerName: 'মোহাম্মদ আলী',
-        packageName: 'ইকোনমি হজ্জ প্যাকেজ ২০২৪',
-        amount: 105000,
-        status: 'confirmed',
-        date: '2024-01-13'
-      }
-    ],
-    
-    // Package Performance
-    packagePerformance: [
-      {
-        id: 1,
-        name: 'প্রিমিয়াম হজ্জ প্যাকেজ ২০২৪',
-        bookings: 45,
+        name: 'Hajj Packages',
+        bookings: hajjCustomers.length,
         capacity: 100,
-        revenue: 7650000,
+        revenue: hajjCustomers.reduce((sum, customer) => sum + (customer.totalAmount || 0), 0),
         status: 'Active'
       },
       {
         id: 2,
-        name: 'স্ট্যান্ডার্ড উমরাহ প্যাকেজ ২০২৪',
-        bookings: 78,
+        name: 'Umrah Packages',
+        bookings: umrahCustomers.length,
         capacity: 150,
-        revenue: 10530000,
+        revenue: umrahCustomers.reduce((sum, customer) => sum + (customer.totalAmount || 0), 0),
         status: 'Active'
       },
       {
         id: 3,
-        name: 'ইকোনমি হজ্জ প্যাকেজ ২০২৪',
-        bookings: 32,
+        name: 'Other Services',
+        bookings: otherCustomers.length,
         capacity: 80,
-        revenue: 3360000,
+        revenue: otherCustomers.reduce((sum, customer) => sum + (customer.totalAmount || 0), 0),
         status: 'Active'
       }
-    ],
+    ];
+  };
+
+  const [dashboardData, setDashboardData] = useState({
+    // Overview Stats - Now using real data
+    totalAgents: 45, // Keep mock data for agents
+    activePackages: 12, // Keep mock data for packages
+    totalBookings: stats.totalCustomers,
+    totalRevenue: stats.totalRevenue,
+    
     
     // Agent Performance
     topAgents: [
@@ -157,6 +196,47 @@ const HajjUmrahDashboard = () => {
     }
   };
 
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">Loading dashboard data...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="text-red-600 dark:text-red-400 mb-4">
+              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Loading Data</h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {error.message || 'Failed to load dashboard data. Please try again.'}
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-4 sm:p-6">
       {/* Header */}
@@ -201,8 +281,8 @@ const HajjUmrahDashboard = () => {
               <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">মোট এজেন্ট</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.totalAgents}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট গ্রাহক</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalCustomers}</p>
             </div>
           </div>
           <div className="mt-4 flex items-center text-sm">
@@ -218,8 +298,8 @@ const HajjUmrahDashboard = () => {
               <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">সক্রিয় প্যাকেজ</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.activePackages}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">হজ্জ গ্রাহক</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.hajjCustomers}</p>
             </div>
           </div>
           <div className="mt-4 flex items-center text-sm">
@@ -235,8 +315,8 @@ const HajjUmrahDashboard = () => {
               <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">মোট বুকিং</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{dashboardData.totalBookings}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">উমরাহ গ্রাহক</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.umrahCustomers}</p>
             </div>
           </div>
           <div className="mt-4 flex items-center text-sm">
@@ -254,7 +334,7 @@ const HajjUmrahDashboard = () => {
             <div className="ml-4">
               <p className="text-sm text-gray-600 dark:text-gray-400">মোট আয়</p>
               <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {formatCurrency(dashboardData.totalRevenue)}
+                {formatCurrency(stats.totalRevenue)}
               </p>
             </div>
           </div>
@@ -285,7 +365,7 @@ const HajjUmrahDashboard = () => {
           </div>
           
           <div className="space-y-4">
-            {dashboardData.recentBookings.map((booking) => (
+            {getRecentBookings().map((booking) => (
               <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                 <div className="flex items-center space-x-4">
                   <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">
@@ -381,7 +461,7 @@ const HajjUmrahDashboard = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {dashboardData.packagePerformance.map((pkg) => (
+              {getPackagePerformance().map((pkg) => (
                 <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">

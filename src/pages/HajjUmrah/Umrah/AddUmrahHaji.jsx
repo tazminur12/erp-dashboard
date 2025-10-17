@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Save, 
@@ -13,8 +13,14 @@ import {
   Building,
   FileText,
   Upload,
-  X
+  X,
+  Search,
+  CheckCircle,
+  Users,
+  Wand2
 } from 'lucide-react';
+import { useCustomers, useCreateCustomer } from '../../../hooks/useCustomerQueries';
+import Swal from 'sweetalert2';
 
 const toast = {
   success: (message) => console.log('Success:', message),
@@ -113,24 +119,50 @@ const FileUploadGroup = memo(({ label, name, accept, required = false, value, on
   </div>
 ));
 
-const AddHaji = () => {
+const AddUmrahHaji = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [showCustomerSearch, setShowCustomerSearch] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
+  
+  // Fetch customers for search functionality
+  const { data: customers = [], isLoading: customersLoading } = useCustomers();
+  const createCustomerMutation = useCreateCustomer();
+  
   const [formData, setFormData] = useState({
     name: '',
+    firstName: '',
+    lastName: '',
     fatherName: '',
     motherName: '',
+    spouseName: '',
+    occupation: '',
     passport: '',
+    passportNumber: '',
+    passportType: '',
+    issueDate: '',
     passportExpiry: '',
+    expiryDate: '',
     nid: '',
+    nidNumber: '',
     dateOfBirth: '',
     gender: 'male',
     maritalStatus: 'single',
+    nationality: 'Bangladeshi',
     phone: '',
+    mobile: '',
+    whatsappNo: '',
     email: '',
     address: '',
+    division: '',
+    district: '',
+    upazila: '',
+    postCode: '',
     emergencyContact: '',
     emergencyPhone: '',
     packageId: '',
@@ -141,19 +173,29 @@ const AddHaji = () => {
     paidAmount: 0,
     paymentMethod: 'cash',
     paymentStatus: 'pending',
-    previousHajj: true,
-    previousUmrah: false,
+    previousHajj: false,
+    previousUmrah: true,
     specialRequirements: '',
     notes: '',
     passportCopy: null,
     nidCopy: null,
-    photo: null
+    photo: null,
+    // Additional Umrah-specific fields
+    customerType: 'umrah',
+    customerId: '',
+    passportFirstName: '',
+    passportLastName: '',
+    referenceBy: '',
+    referenceCustomerId: '',
+    serviceType: 'umrah',
+    serviceStatus: '',
+    isActive: true
   });
 
   useEffect(() => {
     const mockPackages = [
-      { id: 'P001', name: 'Premium Hajj 2024', price: 450000, type: 'hajj' },
-      { id: 'P002', name: 'Standard Hajj 2024', price: 350000, type: 'hajj' }
+      { id: 'P003', name: 'Deluxe Umrah 2024', price: 180000, type: 'umrah' },
+      { id: 'P004', name: 'Standard Umrah 2024', price: 120000, type: 'umrah' }
     ];
 
     const mockAgents = [
@@ -164,6 +206,107 @@ const AddHaji = () => {
 
     setPackages(mockPackages);
     setAgents(mockAgents);
+  }, []);
+
+  // Customer search functionality
+  const filteredCustomers = customers.filter(customer => 
+    customer.name?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.mobile?.includes(customerSearchTerm) ||
+    customer.email?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.customerId?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.passportNumber?.toLowerCase().includes(customerSearchTerm.toLowerCase())
+  );
+
+  const handleCustomerSelect = useCallback((customer) => {
+    setSelectedCustomer(customer);
+    setShowCustomerSearch(false);
+    setCustomerSearchTerm('');
+    
+    // Auto-fill form with customer data
+    setFormData(prev => ({
+      ...prev,
+      name: customer.name || '',
+      firstName: customer.firstName || '',
+      lastName: customer.lastName || '',
+      mobile: customer.mobile || '',
+      whatsappNo: customer.whatsappNo || '',
+      email: customer.email || '',
+      address: customer.address || '',
+      division: customer.division || '',
+      district: customer.district || '',
+      upazila: customer.upazila || '',
+      postCode: customer.postCode || '',
+      passportNumber: customer.passportNumber || '',
+      passport: customer.passportNumber || '',
+      issueDate: customer.issueDate || '',
+      expiryDate: customer.expiryDate || '',
+      nidNumber: customer.nidNumber || '',
+      nid: customer.nidNumber || '',
+      dateOfBirth: customer.dateOfBirth || '',
+      gender: customer.gender || 'male',
+      maritalStatus: customer.maritalStatus || 'single',
+      nationality: customer.nationality || 'Bangladeshi',
+      fatherName: customer.fatherName || '',
+      motherName: customer.motherName || '',
+      spouseName: customer.spouseName || '',
+      occupation: customer.occupation || '',
+      customerId: customer.customerId || '',
+      referenceBy: customer.referenceBy || '',
+      referenceCustomerId: customer.referenceCustomerId || '',
+      serviceType: customer.serviceType || 'umrah',
+      serviceStatus: customer.serviceStatus || '',
+      notes: customer.notes || ''
+    }));
+    
+    setCustomerAutoFilled(true);
+    
+    Swal.fire({
+      title: 'Customer Selected!',
+      text: `${customer.name} - Auto-filled with existing data`,
+      icon: 'success',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }, []);
+
+  const handleClearCustomer = useCallback(() => {
+    setSelectedCustomer(null);
+    setCustomerAutoFilled(false);
+    // Reset form to initial state
+    setFormData(prev => ({
+      ...prev,
+      name: '',
+      firstName: '',
+      lastName: '',
+      mobile: '',
+      whatsappNo: '',
+      email: '',
+      address: '',
+      division: '',
+      district: '',
+      upazila: '',
+      postCode: '',
+      passportNumber: '',
+      passport: '',
+      issueDate: '',
+      expiryDate: '',
+      nidNumber: '',
+      nid: '',
+      dateOfBirth: '',
+      gender: 'male',
+      maritalStatus: 'single',
+      nationality: 'Bangladeshi',
+      fatherName: '',
+      motherName: '',
+      spouseName: '',
+      occupation: '',
+      customerId: '',
+      referenceBy: '',
+      referenceCustomerId: '',
+      serviceType: 'umrah',
+      serviceStatus: '',
+      notes: ''
+    }));
   }, []);
 
   const handleInputChange = useCallback((e) => {
@@ -227,38 +370,39 @@ const AddHaji = () => {
     setLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 1500));
-      const hajiId = `H${String(Date.now()).slice(-6)}`;
+      const hajiId = `U${String(Date.now()).slice(-6)}`;
       const hajiData = {
         ...formData,
         id: hajiId,
         registrationDate: new Date().toISOString().split('T')[0],
         status: Number(formData.paidAmount) === Number(formData.totalAmount) ? 'confirmed' : 'pending',
-        type: 'hajj'
+        type: 'umrah'
       };
-      console.log('New Hajj Haji created:', hajiData);
-      toast.success('Haji registered successfully!');
-      navigate('/hajj-umrah/haji-list');
+      console.log('New Umrah Haji created:', hajiData);
+      toast.success('Umrah Haji registered successfully!');
+      navigate('/umrah/haji-list');
     } catch (error) {
-      console.error('Error creating Haji:', error);
-      toast.error('Failed to register Haji. Please try again.');
+      console.error('Error creating Umrah haji:', error);
+      toast.error('Failed to register Umrah Haji. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
-            onClick={() => navigate('/hajj-umrah/haji-list')}
+            onClick={() => navigate('/umrah/haji-list')}
             className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Add New Haji</h1>
-            <p className="text-gray-600 dark:text-gray-400">Register a new pilgrim for Hajj</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Add New Umrah Haji</h1>
+            <p className="text-gray-600 dark:text-gray-400">Register a new pilgrim for Umrah</p>
           </div>
         </div>
         <button
@@ -267,11 +411,109 @@ const AddHaji = () => {
           className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          <span>{loading ? 'Saving...' : 'Save Haji'}</span>
+          <span>{loading ? 'Saving...' : 'Save Umrah Haji'}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/umrah/haji-list')}
+          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        >
+          <User className="w-4 h-4" />
+          <span>View Umrah List</span>
         </button>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Customer Search Section */}
+        <FormSection title="Customer Selection" icon={Users}>
+          {!selectedCustomer ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Search for existing customer to auto-fill information or create new Umrah pilgrim
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomerSearch(!showCustomerSearch)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <Search className="w-4 h-4" />
+                  <span>Search Customer</span>
+                </button>
+              </div>
+              
+              {showCustomerSearch && (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, mobile, email, customer ID, or passport..."
+                      value={customerSearchTerm}
+                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  
+                  {customerSearchTerm && (
+                    <div className="max-h-60 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+                      {filteredCustomers.length > 0 ? (
+                        filteredCustomers.map((customer) => (
+                          <div
+                            key={customer.id}
+                            onClick={() => handleCustomerSelect(customer)}
+                            className="p-4 border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <h4 className="font-medium text-gray-900 dark:text-white">{customer.name}</h4>
+                                <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                                  <p>ID: {customer.customerId}</p>
+                                  <p>Mobile: {customer.mobile}</p>
+                                  <p>Email: {customer.email}</p>
+                                  {customer.passportNumber && <p>Passport: {customer.passportNumber}</p>}
+                                </div>
+                              </div>
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                          No customers found matching "{customerSearchTerm}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600" />
+                  <div>
+                    <h4 className="font-medium text-green-900 dark:text-green-100">
+                      Selected Customer: {selectedCustomer.name}
+                    </h4>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      ID: {selectedCustomer.customerId} | Mobile: {selectedCustomer.mobile}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearCustomer}
+                  className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </FormSection>
+
         <FormSection title="Personal Information" icon={User}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <InputGroup 
@@ -544,8 +786,22 @@ const AddHaji = () => {
           </div>
         </FormSection>
       </form>
+
+      {/* Extra Save Button after Document Upload */}
+      <div className="flex justify-center pt-6">
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="flex items-center space-x-2 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-lg font-medium"
+        >
+          <Save className="w-5 h-5" />
+          <span>{loading ? 'Saving...' : 'Save Umrah Haji'}</span>
+        </button>
+      </div>
     </div>
   );
 };
 
-export default AddHaji;
+export default AddUmrahHaji;
+
+
