@@ -13,4 +13,11 @@ export default {
     },
   },
   plugins: [],
+  // Add browser compatibility settings
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
+  experimental: {
+    optimizeUniversalDefaults: true,
+  },
 }

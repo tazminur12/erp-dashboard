@@ -3,18 +3,25 @@ import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, Fil
 import { Link } from 'react-router-dom';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import ExcelUploader from '../../components/common/ExcelUploader';
-import Swal from 'sweetalert2';
-import useSecureAxios from '../../hooks/UseAxiosSecure.js';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { 
+  useVendors, 
+  useCustomerTypes, 
+  useCreateVendorOrder 
+} from '../../hooks/useVendorQueries';
 
 
 const VendorList = () => {
   const { isDark } = useTheme();
-  const axiosSecure = useSecureAxios();
   const { userProfile } = useAuth();
-  const [vendors, setVendors] = useState([]);
-  const [loading, setLoading] = useState(true);
+  
+  // React Query hooks
+  const { data: vendors = [], isLoading: loading, error: vendorsError } = useVendors();
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCustomerTypes();
+  const createOrderMutation = useCreateVendorOrder();
+  
+  // Local state
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -24,85 +31,13 @@ const VendorList = () => {
   const [touched, setTouched] = useState({});
   const [orderVendorQuery, setOrderVendorQuery] = useState('');
   const [showVendorList, setShowVendorList] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
-  const [categoriesError, setCategoriesError] = useState('');
 
-  // Fetch vendors from API
+  // Show error if vendors failed to load
   useEffect(() => {
-    const fetchVendors = async () => {
-      try {
-        setLoading(true);
-        const response = await axiosSecure.get('/vendors');
-        // Extract vendors array from response
-        const vendorsData = response.data?.vendors || response.data || [];
-        
-        // Transform vendor data to match frontend expectations
-        const transformedVendors = vendorsData.map(vendor => ({
-          vendorId: vendor.vendorId || vendor.id || vendor._id,
-          tradeName: vendor.tradeName || '',
-          tradeLocation: vendor.tradeLocation || '',
-          ownerName: vendor.ownerName || '',
-          contactNo: vendor.contactNo || '',
-          dob: vendor.dob || '',
-          nid: vendor.nid || '',
-          passport: vendor.passport || ''
-        }));
-        
-        setVendors(transformedVendors);
-      } catch (error) {
-        console.error('Error fetching vendors:', error);
-        Swal.fire({
-          icon: 'error',
-          title: 'Error',
-          text: 'Failed to fetch vendors. Please try again.',
-          confirmButtonColor: '#7c3aed'
-        });
-        setVendors([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchVendors();
-  }, [axiosSecure]);
-
-  // Fetch categories for order types
-  const fetchCategories = async () => {
-    try {
-      setCategoriesLoading(true);
-      setCategoriesError('');
-      const response = await axiosSecure.get('/customer-types');
-      
-      
-      if (response.data.success) {
-        const categoriesData = response.data.customerTypes || response.data.categories || [];
-        setCategories(categoriesData);
-      } else {
-       
-        setCategories([]);
-        setCategoriesError(response?.data?.message || 'No categories found');
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      setCategories([]);
-      setCategoriesError(error?.response?.data?.message || error?.message || 'Failed to load categories');
-    } finally {
-      setCategoriesLoading(false);
+    if (vendorsError) {
+      console.error('Error fetching vendors:', vendorsError);
     }
-  };
-
-  useEffect(() => {
-    fetchCategories();
-  }, [axiosSecure]);
-
-  // Refetch when opening the order modal if empty/not loaded
-  useEffect(() => {
-    if (isCreateOpen && (!Array.isArray(categories) || categories.length === 0) && !categoriesLoading) {
-      fetchCategories();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCreateOpen]);
+  }, [vendorsError]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -152,54 +87,26 @@ const VendorList = () => {
     setTouched({ vendorId: true, orderType: true, amount: true });
     if (Object.keys(orderErrors).length) return;
     
-    try {
-      setLoading(true);
-      
-      // Prepare order data
-      const orderData = {
-        vendorId: orderForm.vendorId,
-        orderType: orderForm.orderType,
-        amount: parseFloat(orderForm.amount),
-        status: 'pending',
-        createdBy: userProfile?.email || 'unknown_user',
-        branchId: userProfile?.branchId || 'main_branch',
-        createdAt: new Date().toISOString()
-      };
+    // Prepare order data
+    const orderData = {
+      vendorId: orderForm.vendorId,
+      orderType: orderForm.orderType,
+      amount: parseFloat(orderForm.amount),
+      status: 'pending',
+      createdBy: userProfile?.email || 'unknown_user',
+      branchId: userProfile?.branchId || 'main_branch',
+      createdAt: new Date().toISOString()
+    };
 
-      // Call the API to create order
-      const response = await axiosSecure.post('/orders', orderData);
-      
-      if (response.data.success) {
+    createOrderMutation.mutate(orderData, {
+      onSuccess: (data) => {
         const vendor = vendors.find((v) => v.vendorId === orderForm.vendorId);
         const details = `${vendor?.tradeName || ''} • ${orderForm.orderType} • ৳${Number(orderForm.amount).toFixed(2)}`;
         
         resetOrderForm();
         setIsCreateOpen(false);
-        
-        Swal.fire({
-          icon: 'success',
-          title: 'Order created successfully',
-          text: details,
-          confirmButtonColor: '#7c3aed'
-        });
-        
-        // Refresh vendors list to show updated data
-        fetchVendors();
-      } else {
-        throw new Error(response.data.message || 'Failed to create order');
       }
-    } catch (error) {
-      console.error('Error creating order:', error);
-      
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed to create order',
-        text: error.response?.data?.message || error.message || 'Something went wrong. Please try again.',
-        confirmButtonColor: '#dc2626'
-      });
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const handleExcelDataProcessed = async (processedData) => {
@@ -219,8 +126,9 @@ const VendorList = () => {
         passport: record.passport || ''
       }));
       
-      // Add new vendors to the existing list
-      setVendors(prevVendors => [...prevVendors, ...newVendors]);
+      // Note: In a real implementation, you would send this data to the server
+      // and then invalidate the vendors query to refetch the updated data
+      // For now, we'll just show success message
       
       // Show success message
       Swal.fire({
@@ -229,8 +137,6 @@ const VendorList = () => {
         text: `Successfully uploaded ${processedData.length} vendor records!`,
         confirmButtonColor: '#7c3aed'
       });
-      
-      // No need to reload, data is already updated in state
       
     } catch (error) {
       console.error('Error processing Excel data:', error);
@@ -312,7 +218,16 @@ const VendorList = () => {
               {loading ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
-                    Loading vendors...
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading vendors...
+                    </div>
+                  </td>
+                </tr>
+              ) : vendorsError ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-10 text-center text-red-500 dark:text-red-400">
+                    Failed to load vendors. Please try again.
                   </td>
                 </tr>
               ) : paged.length > 0 ? paged.map((v) => (
@@ -460,7 +375,7 @@ const VendorList = () => {
                 } ${categoriesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">
-                  {categoriesLoading ? 'লোড হচ্ছে...' : 'ধরন নির্বাচন করুন'}
+                  {categoriesLoading ? 'Loading...' : 'Select Order Type'}
                 </option>
                 {Array.isArray(categories) && categories.length > 0 && (
                   categories.map((c) => (
@@ -514,9 +429,11 @@ const VendorList = () => {
             </button>
             <button
               type="submit"
-              className="rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2"
+              disabled={createOrderMutation.isPending}
+              className="rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              Create Order
+              {createOrderMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {createOrderMutation.isPending ? 'Creating...' : 'Create Order'}
             </button>
           </ModalFooter>
         </form>

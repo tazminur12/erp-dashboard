@@ -59,19 +59,19 @@ const EditVendor = React.lazy(() => import('./pages/Vendors/EditVendor'));
 const VendorDetails = React.lazy(() => import('./pages/Vendors/VendorDetails'));
 
 // Hajj & Umrah pages
-const HajjUmrahDashboard = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajjUmrahDashboard })));
+const HajjUmrahDashboard = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajjUmrahDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
 const HajiList = React.lazy(() => import('./pages/HajjUmrah/Haj/HajiList'));
 const HajiDetails = React.lazy(() => import('./pages/HajjUmrah/HajiDetails'));
 const AddHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/AddHaji'));
-const Agent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.Agent })));
+const Agent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.Agent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const AgentDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentDetails'));
-const AddAgent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddAgent })));
+const AddAgent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddAgent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditB2BAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/EditAgent'));
-const PackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCreation })));
-const PackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageList })));
+const PackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCreation })).catch(() => ({ default: () => <div>Component not found</div> })));
+const PackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageList })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditHaji = React.lazy(() => import('./pages/HajjUmrah/EditHaji'));
-const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddUmrahHaji })));
-const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahHajiList })));
+const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
+const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahHajiList })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 // Air Ticketing pages
 const NewTicket = React.lazy(() => import('./pages/AirTicketing/NewTicket'));
@@ -84,28 +84,28 @@ const AirlineList = React.lazy(() => import('./pages/AirTicketing/AirlineList'))
 const AirlineDetails = React.lazy(() => import('./pages/AirTicketing/AirlineDetails'));
 
 // Visa Processing pages
-const VisaProcessingDashboard = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaProcessingDashboard })));
-const ApplicantManagement = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.ApplicantManagement })));
-const VisaTracking = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaTracking })));
-const VisaPayment = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaPayment })));
-const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaDocuments })));
+const VisaProcessingDashboard = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaProcessingDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
+const ApplicantManagement = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.ApplicantManagement })).catch(() => ({ default: () => <div>Component not found</div> })));
+const VisaTracking = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaTracking })).catch(() => ({ default: () => <div>Component not found</div> })));
+const VisaPayment = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaPayment })).catch(() => ({ default: () => <div>Component not found</div> })));
+const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaDocuments })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 // Loan pages
-const LoanDashboard = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanDashboard })));
-const LoanList = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanList })));
-const LoanDetails = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanDetails })));
-const NewLoanReceiving = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.NewLoanReceiving })));
-const NewLoanGiving = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.NewLoanGiving })));
+const LoanDashboard = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
+const LoanList = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanList })).catch(() => ({ default: () => <div>Component not found</div> })));
+const LoanDetails = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanDetails })).catch(() => ({ default: () => <div>Component not found</div> })));
+const NewLoanReceiving = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.NewLoanReceiving })).catch(() => ({ default: () => <div>Component not found</div> })));
+const NewLoanGiving = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.NewLoanGiving })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 // Miraj Industries pages - Cattle Management System
-const CattleDashboard = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.CattleDashboard })));
-const CattleManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.CattleManagement })));
-const MilkProduction = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.MilkProduction })));
-const FeedManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.FeedManagement })));
-const HealthRecords = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.HealthRecords })));
-const BreedingRecords = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.BreedingRecords })));
-const FinancialReport = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.FinancialReport })));
-const EmployeeManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.EmployeeManagement })));
+const CattleDashboard = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.CattleDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
+const CattleManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.CattleManagement })).catch(() => ({ default: () => <div>Component not found</div> })));
+const MilkProduction = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.MilkProduction })).catch(() => ({ default: () => <div>Component not found</div> })));
+const FeedManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.FeedManagement })).catch(() => ({ default: () => <div>Component not found</div> })));
+const HealthRecords = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.HealthRecords })).catch(() => ({ default: () => <div>Component not found</div> })));
+const BreedingRecords = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.BreedingRecords })).catch(() => ({ default: () => <div>Component not found</div> })));
+const FinancialReport = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.FinancialReport })).catch(() => ({ default: () => <div>Component not found</div> })));
+const EmployeeManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.EmployeeManagement })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 
 // Account pages
@@ -128,16 +128,16 @@ const PersonalSavings = React.lazy(() => import('./pages/Personal/Savings'));
 const PersonalLoans = React.lazy(() => import('./pages/Personal/Loans'));
 
 // Fly Oval Limited pages
-const FlyOvalDashboard = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.FlyOvalDashboard })));
-const FlyOvalAgentList = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.AgentList })));
-const AddFlyOvalAgent = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.AddAgent })));
+const FlyOvalDashboard = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.FlyOvalDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
+const FlyOvalAgentList = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.AgentList })).catch(() => ({ default: () => <div>Component not found</div> })));
+const AddFlyOvalAgent = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.AddAgent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const FlyOvalAgentDetails = React.lazy(() => import('./pages/FlyOval/AgentDetails'));
 const EditAgent = React.lazy(() => import('./pages/FlyOval/EditAgent'));
-const FlyOvalTopUpHistory = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.TopUpHistory })));
-const FlyOvalSellHistory = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.SellHistory })));
-const FlyOvalLedger = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Ledger })));
-const FlyOvalReports = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Reports })));
-const FlyOvalAudit = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Audit })));
+const FlyOvalTopUpHistory = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.TopUpHistory })).catch(() => ({ default: () => <div>Component not found</div> })));
+const FlyOvalSellHistory = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.SellHistory })).catch(() => ({ default: () => <div>Component not found</div> })));
+const FlyOvalLedger = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Ledger })).catch(() => ({ default: () => <div>Component not found</div> })));
+const FlyOvalReports = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Reports })).catch(() => ({ default: () => <div>Component not found</div> })));
+const FlyOvalAudit = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Audit })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 // Excel Upload page
 const ExcelUploadPage = React.lazy(() => import('./pages/ExcelUpload/ExcelUploadPage'));

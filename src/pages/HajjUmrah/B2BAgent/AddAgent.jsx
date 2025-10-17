@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Users, Save, RotateCcw, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import useAxiosSecure from '../../../hooks/UseAxiosSecure';
-import Swal from 'sweetalert2';
+import { useCreateAgent } from '../../../hooks/useAgentQueries';
 
 const initialFormState = {
   tradeName: '',
@@ -16,11 +15,12 @@ const initialFormState = {
 
 const AddAgent = () => {
   const navigate = useNavigate();
-  const axiosSecure = useAxiosSecure();
   const [form, setForm] = useState(initialFormState);
   const [touched, setTouched] = useState({});
-  const [submitting, setSubmitting] = useState(false);
   const [alert, setAlert] = useState(null);
+
+  // React Query mutation for creating agent
+  const createAgentMutation = useCreateAgent();
 
   const errors = useMemo(() => {
     const e = {};
@@ -78,48 +78,24 @@ const AddAgent = () => {
     });
 
     if (Object.keys(errors).length) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Please fix the errors',
-        text: 'Required fields are missing or invalid.'
-      });
+      setAlert({ type: 'error', message: 'Please fix the errors before submitting.' });
       return;
     }
 
-    try {
-      setSubmitting(true);
-      setAlert(null);
-
-      // ✅ Secure API call using your custom hook
-      const res = await axiosSecure.post('/haj-umrah/agents', form);
-
-      if (res.data.success) {
-        setAlert({ type: 'success', message: 'Agent added successfully!' });
+    setAlert(null);
+    
+    // Use React Query mutation
+    createAgentMutation.mutate(form, {
+      onSuccess: () => {
         setForm(initialFormState);
-        Swal.fire({
-          icon: 'success',
-          title: 'Success',
-          text: 'Agent added successfully!'
-        }).then(() => {
-          navigate('/hajj-umrah/agent');
-        });
+        setTouched({});
+        navigate('/hajj-umrah/agent');
+      },
+      onError: (error) => {
+        const msg = error?.response?.data?.message || 'Something went wrong while saving the agent';
+        setAlert({ type: 'error', message: msg });
       }
-    } catch (error) {
-      console.error('Submit Error:', error);
-      const msg =
-        (error.response?.status === 404
-          ? 'API endpoint not found. Please check the server routes.'
-          : error.response?.data?.message) ||
-        'Something went wrong while saving the agent';
-      setAlert({ type: 'error', message: msg });
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed to save',
-        text: msg
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   return (
@@ -329,11 +305,11 @@ const AddAgent = () => {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={createAgentMutation.isPending}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" />{' '}
-            {submitting ? 'Saving...' : 'Save Agent'}
+            {createAgentMutation.isPending ? 'Saving...' : 'Save Agent'}
           </button>
         </div>
       </form>

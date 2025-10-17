@@ -1,21 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, Eye, Search, Filter, Upload, FileSpreadsheet } from 'lucide-react';
 import Modal from '../../../components/common/Modal';
 import ExcelUploader from '../../../components/common/ExcelUploader';
-import Swal from 'sweetalert2';
-import useAxiosSecure from '../../../hooks/UseAxiosSecure';
+import { useAgents, useDeleteAgent, useBulkAgentOperation } from '../../../hooks/useAgentQueries';
 
 const Agent = () => {
-  const axiosSecure = useAxiosSecure();
   const navigate = useNavigate();
-  const [agents, setAgents] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [showExcelUploader, setShowExcelUploader] = useState(false);
@@ -30,6 +23,16 @@ const Agent = () => {
     nid: '',
     passport: ''
   });
+
+  // React Query hooks
+  const { data: agentsData, isLoading, error } = useAgents(page, limit, searchTerm);
+  const deleteAgentMutation = useDeleteAgent();
+  const bulkUploadMutation = useBulkAgentOperation();
+
+  // Extract data from query result
+  const agents = agentsData?.data || [];
+  const totalPages = agentsData?.pagination?.totalPages || 1;
+  const total = agentsData?.pagination?.total || 0;
 
   // Client-side filtered list to ensure search works even without API support
   const filteredAgents = useMemo(() => {
@@ -112,15 +115,10 @@ const Agent = () => {
       reverseButtons: true
     }).then((result) => {
       if (result.isConfirmed) {
-        setAgents(prev => prev.filter(a => a.id !== agent.id));
-        
-        Swal.fire({
-          title: 'মুছে ফেলা হয়েছে!',
-          text: `${agent.tradeName} এর তথ্য সফলভাবে মুছে ফেলা হয়েছে।`,
-          icon: 'success',
-          confirmButtonColor: '#059669',
-          confirmButtonText: 'ঠিক আছে'
-        });
+        const agentId = agent._id || agent.id;
+        if (agentId) {
+          deleteAgentMutation.mutate(agentId);
+        }
       }
     });
   };
@@ -173,57 +171,19 @@ const Agent = () => {
   };
 
   const handleExcelDataProcessed = (processedData) => {
-    const newAgents = processedData.map((agentData, index) => ({
-      id: Date.now() + index,
-      ...agentData
-    }));
-
-    setAgents(prev => [...prev, ...newAgents]);
-    setShowExcelUploader(false);
+    // Create FormData for bulk upload
+    const formData = new FormData();
+    formData.append('agents', JSON.stringify(processedData));
     
-    Swal.fire({
-      title: 'সফল!',
-      text: `${newAgents.length} টি এজেন্ট Excel থেকে যোগ করা হয়েছে!`,
-      icon: 'success',
-      confirmButtonColor: '#059669',
-      confirmButtonText: 'ঠিক আছে'
-    });
+    // Use React Query mutation for bulk upload
+    bulkUploadMutation.mutate(formData);
+    setShowExcelUploader(false);
   };
 
-  // Fetch agents from API
-  useEffect(() => {
-    let ignore = false;
-    const fetchAgents = async () => {
-      try {
-        setLoading(true);
-        const res = await axiosSecure.get('/haj-umrah/agents', {
-          params: { page, limit, q: searchTerm || undefined }
-        });
-        if (ignore) return;
-        const payload = res.data;
-        if (payload?.success) {
-          setAgents(payload.data || []);
-          setTotalPages(payload.pagination?.totalPages || 1);
-          setTotal(payload.pagination?.total || 0);
-        } else {
-          setAgents([]);
-          setTotalPages(1);
-          setTotal(0);
-        }
-      } catch (error) {
-        const msg = error?.response?.data?.message || 'Failed to load agents';
-        Swal.fire({ icon: 'error', title: 'Error', text: msg });
-        setAgents([]);
-        setTotalPages(1);
-        setTotal(0);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-    // Debounce simple search
-    const t = setTimeout(fetchAgents, 300);
-    return () => { ignore = true; clearTimeout(t); };
-  }, [axiosSecure, page, limit, searchTerm]);
+  // Show error if query fails
+  if (error) {
+    console.error('Error fetching agents:', error);
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
@@ -301,7 +261,26 @@ const Agent = () => {
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredAgents.map((agent) => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Loading agents...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredAgents.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center space-y-2">
+                      <Users className="w-12 h-12 text-gray-400" />
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No agents found</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredAgents.map((agent) => (
                 <tr key={agent._id || agent.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     <div className="flex items-center">
@@ -357,7 +336,8 @@ const Agent = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>

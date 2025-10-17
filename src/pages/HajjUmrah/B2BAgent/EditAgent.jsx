@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Users, Save, RotateCcw, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import useAxiosSecure from '../../../hooks/UseAxiosSecure';
-import Swal from 'sweetalert2';
+import { useAgent, useUpdateAgent } from '../../../hooks/useAgentQueries';
 
 const initialFormState = {
   tradeName: '',
@@ -17,44 +16,36 @@ const initialFormState = {
 const EditAgent = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const axiosSecure = useAxiosSecure();
   const [form, setForm] = useState(initialFormState);
   const [touched, setTouched] = useState({});
-  const [submitting, setSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
 
+  // React Query hooks
+  const { data: agentData, isLoading, error } = useAgent(id);
+  const updateAgentMutation = useUpdateAgent();
+
+  // Update form when agent data is loaded
   useEffect(() => {
-    let ignore = false;
-    const fetchDetails = async () => {
-      try {
-        setLoading(true);
-        const res = await axiosSecure.get(`/haj-umrah/agents/${id}`);
-        if (ignore) return;
-        if (res.data?.success && res.data?.data) {
-          const data = res.data.data;
-          setForm({
-            tradeName: data.tradeName || '',
-            tradeLocation: data.tradeLocation || '',
-            ownerName: data.ownerName || '',
-            contactNo: data.contactNo || '',
-            dob: data.dob || '',
-            nid: data.nid || '',
-            passport: data.passport || ''
-          });
-        } else {
-          setAlert({ type: 'error', message: 'Failed to load agent details' });
-        }
-      } catch (error) {
-        const msg = error?.response?.data?.message || 'Failed to fetch agent details';
-        setAlert({ type: 'error', message: msg });
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    };
-    fetchDetails();
-    return () => { ignore = true; };
-  }, [axiosSecure, id]);
+    if (agentData?.data) {
+      const data = agentData.data;
+      setForm({
+        tradeName: data.tradeName || '',
+        tradeLocation: data.tradeLocation || '',
+        ownerName: data.ownerName || '',
+        contactNo: data.contactNo || '',
+        dob: data.dob || '',
+        nid: data.nid || '',
+        passport: data.passport || ''
+      });
+    }
+  }, [agentData]);
+
+  // Set error alert if query fails
+  useEffect(() => {
+    if (error) {
+      setAlert({ type: 'error', message: error?.message || 'Failed to load agent details' });
+    }
+  }, [error]);
 
   const errors = useMemo(() => {
     const e = {};
@@ -91,10 +82,20 @@ const EditAgent = () => {
 
   const handleReset = () => {
     // reset to loaded values, not empty
+    if (agentData?.data) {
+      const data = agentData.data;
+      setForm({
+        tradeName: data.tradeName || '',
+        tradeLocation: data.tradeLocation || '',
+        ownerName: data.ownerName || '',
+        contactNo: data.contactNo || '',
+        dob: data.dob || '',
+        nid: data.nid || '',
+        passport: data.passport || ''
+      });
+    }
     setTouched({});
     setAlert(null);
-    // re-fetch to reset
-    navigate(0);
   };
 
   const handleCancel = () => {
@@ -114,35 +115,25 @@ const EditAgent = () => {
     });
 
     if (Object.keys(errors).length) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'Please fix the errors',
-        text: 'Required fields are missing or invalid.'
-      });
+      setAlert({ type: 'error', message: 'Please fix the errors before submitting.' });
       return;
     }
 
-    try {
-      setSubmitting(true);
-      setAlert(null);
-
-      const res = await axiosSecure.patch(`/haj-umrah/agents/${id}`, form);
-
-      if (res.data.success) {
-        Swal.fire({ icon: 'success', title: 'Updated', text: 'Agent updated successfully!' })
-          .then(() => navigate(`/hajj-umrah/agent/${id}`));
+    setAlert(null);
+    
+    // Use React Query mutation
+    updateAgentMutation.mutate(
+      { id, ...form },
+      {
+        onSuccess: () => {
+          navigate(`/hajj-umrah/agent/${id}`);
+        },
+        onError: (error) => {
+          const msg = error?.response?.data?.message || 'Something went wrong while updating the agent';
+          setAlert({ type: 'error', message: msg });
+        }
       }
-    } catch (error) {
-      const msg =
-        (error.response?.status === 404
-          ? 'API endpoint not found. Please check the server routes.'
-          : error.response?.data?.message) ||
-        'Something went wrong while updating the agent';
-      setAlert({ type: 'error', message: msg });
-      Swal.fire({ icon: 'error', title: 'Failed to update', text: msg });
-    } finally {
-      setSubmitting(false);
-    }
+    );
   };
 
   return (
@@ -177,8 +168,20 @@ const EditAgent = () => {
         onSubmit={handleSubmit}
         className="bg-white dark:bg-gray-800 rounded-xl p-5 sm:p-6 md:p-8 border border-gray-200 dark:border-gray-700 shadow-sm"
       >
-        {loading ? (
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="flex flex-col items-center space-y-2">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <p className="text-gray-600 dark:text-gray-300">Loading agent details...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <p className="text-red-600 dark:text-red-400 mb-2">Failed to load agent details</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{error?.message || 'An error occurred'}</p>
+            </div>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
@@ -349,10 +352,10 @@ const EditAgent = () => {
 
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={updateAgentMutation.isPending}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4" /> {submitting ? 'Saving...' : 'Update Agent'}
+                <Save className="w-4 h-4" /> {updateAgentMutation.isPending ? 'Saving...' : 'Update Agent'}
               </button>
             </div>
           </>

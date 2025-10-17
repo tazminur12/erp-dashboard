@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
-// import { useDropzone } from 'react-dropzone'; // Temporarily disabled due to attr-accept import issues
+import React, { useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import {
   Upload,
@@ -24,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const ExcelUploader = ({ 
+const ExcelUploaderAlternative = ({ 
   onDataProcessed, 
   onClose, 
   title = "Excel File Upload",
@@ -42,6 +41,7 @@ const ExcelUploader = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentStep, setCurrentStep] = useState(1); // 1: Upload, 2: Map, 3: Preview, 4: Process
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Define available field types
   const fieldTypes = {
@@ -105,8 +105,6 @@ const ExcelUploader = ({
   }, []);
 
   // Drag and drop handlers
-  const [isDragOver, setIsDragOver] = useState(false);
-  
   const handleDragOver = useCallback((e) => {
     e.preventDefault();
     setIsDragOver(true);
@@ -704,4 +702,4 @@ const ExcelUploader = ({
   );
 };
 
-export default ExcelUploader;
+export default ExcelUploaderAlternative;

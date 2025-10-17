@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Building2, Save, RotateCcw, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import useSecureAxios from '../../hooks/UseAxiosSecure.js';
-import Swal from 'sweetalert2';
+import { useCreateVendor } from '../../hooks/useVendorQueries';
 
 const initialFormState = {
   tradeName: '',
@@ -16,10 +15,9 @@ const initialFormState = {
 
 const AddVendor = () => {
   const navigate = useNavigate();
-  const axiosSecure = useSecureAxios();
+  const createVendorMutation = useCreateVendor();
   const [form, setForm] = useState(initialFormState);
   const [touched, setTouched] = useState({});
-  const [submitting, setSubmitting] = useState(false);
 
   const errors = useMemo(() => {
     const newErrors = {};
@@ -83,29 +81,12 @@ const AddVendor = () => {
 
     if (Object.keys(errors).length > 0) return;
 
-    try {
-      setSubmitting(true);
-      await axiosSecure.post('/vendors', form);
-
-      await Swal.fire({
-        icon: 'success',
-        title: 'Vendor added successfully',
-        showConfirmButton: false,
-        timer: 1400
-      });
-
-      handleReset();
-      navigate('/vendors');
-    } catch (error) {
-      const message = error?.response?.data?.message || 'Failed to add vendor. Please try again.';
-      await Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: message
-      });
-    } finally {
-      setSubmitting(false);
-    }
+    createVendorMutation.mutate(form, {
+      onSuccess: () => {
+        handleReset();
+        navigate('/vendors');
+      }
+    });
   };
 
   return (
@@ -260,10 +241,10 @@ const AddVendor = () => {
           </button>
           <button
             type="submit"
-            disabled={submitting}
+            disabled={createVendorMutation.isPending}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" /> {submitting ? 'Saving...' : 'Save Vendor'}
+            <Save className="w-4 h-4" /> {createVendorMutation.isPending ? 'Saving...' : 'Save Vendor'}
           </button>
       </div>
       </form>
