@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -25,7 +25,6 @@ import { useCustomers } from '../../../hooks/useCustomerQueries';
 
 const UmrahHajiList = () => {
   const navigate = useNavigate();
-  const [filteredPilgrims, setFilteredPilgrims] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showExcelUploader, setShowExcelUploader] = useState(false);
   const [filters, setFilters] = useState({
@@ -36,13 +35,15 @@ const UmrahHajiList = () => {
   // Fetch customers with type "umrah"
   const { data: customers = [], isLoading, error } = useCustomers();
 
-  // Filter customers by customer type "umrah"
-  const umrahPilgrims = customers.filter(customer => 
-    customer.customerType && customer.customerType.toLowerCase() === 'umrah'
-  );
+  // Filter customers by customer type "umrah" - memoized to prevent infinite re-renders
+  const umrahPilgrims = useMemo(() => {
+    return customers.filter(customer => 
+      customer.customerType && customer.customerType.toLowerCase() === 'umrah'
+    );
+  }, [customers]);
 
-  // Filter and search functionality
-  useEffect(() => {
+  // Filter and search functionality - memoized to prevent infinite re-renders
+  const filteredPilgrims = useMemo(() => {
     let filtered = umrahPilgrims;
 
     // Search filter
@@ -67,8 +68,8 @@ const UmrahHajiList = () => {
       filtered = filtered.filter(pilgrim => pilgrim.paymentStatus === filters.paymentStatus);
     }
 
-    setFilteredPilgrims(filtered);
-  }, [umrahPilgrims, searchTerm, filters]);
+    return filtered;
+  }, [umrahPilgrims, searchTerm, filters.status, filters.paymentStatus]);
 
   const getStatusBadge = (status) => {
     const statusClasses = {
@@ -278,9 +279,10 @@ const UmrahHajiList = () => {
       paidAmount: parseFloat(row.paidAmount) || 0,
       dueAmount: (parseFloat(row.totalAmount) || 0) - (parseFloat(row.paidAmount) || 0)
     }));
-    setPilgrims(prev => [...prev, ...rows]);
+    // Note: This would need to be implemented with actual API call to add customers
+    console.log('Excel data processed:', rows);
     setShowExcelUploader(false);
-    alert(`Successfully added ${rows.length} Umrah Haji from Excel!`);
+    alert(`Successfully processed ${rows.length} Umrah Haji from Excel! Note: This data needs to be saved via API.`);
   };
 
   // Handle loading state
