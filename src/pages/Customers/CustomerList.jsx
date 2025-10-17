@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Users, 
   Search, 
@@ -24,19 +24,31 @@ import {
 } from 'lucide-react';
 import { formatDate as formatDateShared } from '../../lib/format';
 import { useTheme } from '../../contexts/ThemeContext';
+import { 
+  useCustomers, 
+  useServiceTypes, 
+  useServiceStatuses,
+  useDeleteCustomer,
+  useUpdateCustomerStatus,
+  useUpdateCustomerServiceType,
+  useUpdateCustomerServiceStatus
+} from '../../hooks/useCustomerQueries';
 import Swal from 'sweetalert2';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
 
 const CustomerList = () => {
   const { isDark } = useTheme();
-  const axiosSecure = useAxiosSecure();
   
-  // State management
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // React Query hooks
+  const { data: customers = [], isLoading: loading, error } = useCustomers();
+  const { data: serviceTypes = [], isLoading: serviceTypesLoading } = useServiceTypes();
   
-
+  // Mutation hooks
+  const deleteCustomerMutation = useDeleteCustomer();
+  const updateStatusMutation = useUpdateCustomerStatus();
+  const updateServiceTypeMutation = useUpdateCustomerServiceType();
+  const updateServiceStatusMutation = useUpdateCustomerServiceStatus();
+  
+  // Local state
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     status: '',
@@ -46,59 +58,13 @@ const CustomerList = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-
-  // Service data management
-  const [serviceTypes, setServiceTypes] = useState([]);
-  const [serviceStatuses, setServiceStatuses] = useState([]);
-  const [serviceTypesLoading, setServiceTypesLoading] = useState(false);
-  const [serviceStatusesLoading, setServiceStatusesLoading] = useState(false);
+  
+  // Service status management
+  const [selectedServiceType, setSelectedServiceType] = useState('');
+  const { data: serviceStatuses = [], isLoading: serviceStatusesLoading } = useServiceStatuses(selectedServiceType);
   const [editingService, setEditingService] = useState(null);
 
 
-  // Load customers from backend API
-  useEffect(() => {
-    const loadCustomers = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await axiosSecure.get('/customers');
-        
-        if (response.data.success) {
-          // Backend returns: { success: true, count: 5, customers: [...] }
-          const customersData = response.data.customers || [];
-          setCustomers(customersData);
-        } else {
-          setError(response.data.message || 'Failed to load customers');
-        }
-      } catch (error) {
-        setError('Failed to load customers. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadCustomers();
-  }, [axiosSecure]);
-
-  // Load service types from backend API
-  useEffect(() => {
-    const loadServiceTypes = async () => {
-      try {
-        setServiceTypesLoading(true);
-        const response = await axiosSecure.get('/api/services');
-        const serviceTypesData = response?.data?.services || response?.data || [];
-        setServiceTypes(Array.isArray(serviceTypesData) ? serviceTypesData : []);
-      } catch (error) {
-        console.error('Failed to load service types:', error);
-        setServiceTypes([]);
-      } finally {
-        setServiceTypesLoading(false);
-      }
-    };
-    
-    loadServiceTypes();
-  }, [axiosSecure]);
 
   // Filter options
   const filterOptions = {
@@ -267,37 +233,9 @@ const CustomerList = () => {
       color: isDark ? '#F9FAFB' : '#111827'
     });
 
-      if (result.isConfirmed) {
-      try {
-        const customerId = customer.id || customer.customerId;
-        const response = await axiosSecure.delete(`/customers/${customerId}`);
-        
-        if (response.data.success) {
-          // Remove customer from local state
-          setCustomers(prev => prev.filter(c => (c.id || c.customerId) !== customerId));
-          
-        Swal.fire({
-          title: 'মুছে ফেলা হয়েছে!',
-          text: 'কাস্টমার সফলভাবে মুছে ফেলা হয়েছে।',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          background: isDark ? '#1F2937' : '#F0FDF4',
-          color: isDark ? '#F9FAFB' : '#111827'
-        });
-        } else {
-          throw new Error(response.data.message || 'Failed to delete customer');
-        }
-      } catch (error) {
-        Swal.fire({
-          title: 'ত্রুটি!',
-          text: 'কাস্টমার মুছতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
-          icon: 'error',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#EF4444',
-          background: isDark ? '#1F2937' : '#FEF2F2',
-          color: isDark ? '#F9FAFB' : '#111827'
-        });
-      }
+    if (result.isConfirmed) {
+      const customerId = customer.id || customer.customerId;
+      deleteCustomerMutation.mutate(customerId);
     }
   };
 
@@ -308,151 +246,32 @@ const CustomerList = () => {
   };
 
   // Update customer status (active/inactive)
-  const handleStatusToggle = async (customer) => {
-    try {
-      const customerId = customer.id || customer.customerId;
-      const newStatus = customer.status === 'active' ? 'inactive' : 'active';
-      
-      const response = await axiosSecure.patch(`/customers/${customerId}`, {
-        status: newStatus
-      });
-      
-      if (response.data.success) {
-        // Update customer status in local state
-        setCustomers(prev => prev.map(c => 
-          (c.id || c.customerId) === customerId 
-            ? { ...c, status: newStatus }
-            : c
-        ));
-        
-        Swal.fire({
-          title: 'সফল!',
-          text: `কাস্টমার স্ট্যাটাস ${newStatus === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে।`,
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F0FDF4',
-          color: isDark ? '#F9FAFB' : '#111827'
-        });
-      } else {
-        throw new Error(response.data.message || 'Failed to update customer status');
-      }
-    } catch (error) {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'কাস্টমার স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        color: isDark ? '#F9FAFB' : '#111827'
-        });
-    }
+  const handleStatusToggle = (customer) => {
+    const customerId = customer.id || customer.customerId;
+    const newStatus = customer.status === 'active' ? 'inactive' : 'active';
+    
+    updateStatusMutation.mutate({ customerId, status: newStatus });
   };
 
   // Load service statuses when service type changes
-  const loadServiceStatuses = async (serviceType) => {
-    if (!serviceType) {
-      setServiceStatuses([]);
-      return;
-    }
-    
-    try {
-      setServiceStatusesLoading(true);
-      const response = await axiosSecure.get(`/api/services/${serviceType}/statuses`);
-      const statusesData = response?.data?.statuses || response?.data || [];
-      setServiceStatuses(Array.isArray(statusesData) ? statusesData : []);
-    } catch (error) {
-      console.error('Failed to load service statuses:', error);
-      setServiceStatuses([]);
-    } finally {
-      setServiceStatusesLoading(false);
-    }
+  const loadServiceStatuses = (serviceType) => {
+    setSelectedServiceType(serviceType);
   };
 
   // Handle service type edit
-  const handleServiceTypeEdit = async (customer, newServiceType) => {
-    try {
-      const customerId = customer.id || customer.customerId;
-      
-      const response = await axiosSecure.patch(`/customers/${customerId}`, {
-        serviceType: newServiceType,
-        serviceStatus: '' // Reset service status when service type changes
-      });
-      
-      if (response.data.success) {
-        // Update customer service type in local state
-        setCustomers(prev => prev.map(c => 
-          (c.id || c.customerId) === customerId 
-            ? { ...c, serviceType: newServiceType, serviceStatus: '' }
-            : c
-        ));
-        
-        setEditingService(null);
-        
-        Swal.fire({
-          title: 'সফল!',
-          text: 'সার্ভিস টাইপ আপডেট করা হয়েছে',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F0FDF4',
-          color: isDark ? '#F9FAFB' : '#111827'
-        });
-      }
-    } catch (error) {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'সার্ভিস টাইপ আপডেট করতে সমস্যা হয়েছে।',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        color: isDark ? '#F9FAFB' : '#111827'
-      });
-    }
+  const handleServiceTypeEdit = (customer, newServiceType) => {
+    const customerId = customer.id || customer.customerId;
+    
+    updateServiceTypeMutation.mutate({ customerId, serviceType: newServiceType });
+    setEditingService(null);
   };
 
   // Handle service status edit
-  const handleServiceStatusEdit = async (customer, newServiceStatus) => {
-    try {
-      const customerId = customer.id || customer.customerId;
-      
-      const response = await axiosSecure.patch(`/customers/${customerId}`, {
-        serviceStatus: newServiceStatus
-      });
-      
-      if (response.data.success) {
-        // Update customer service status in local state
-        setCustomers(prev => prev.map(c => 
-          (c.id || c.customerId) === customerId 
-            ? { ...c, serviceStatus: newServiceStatus }
-            : c
-        ));
-        
-        setEditingService(null);
-        
-        Swal.fire({
-          title: 'সফল!',
-          text: 'সার্ভিস স্ট্যাটাস আপডেট করা হয়েছে',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F0FDF4',
-          color: isDark ? '#F9FAFB' : '#111827'
-        });
-      }
-    } catch (error) {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'সার্ভিস স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        color: isDark ? '#F9FAFB' : '#111827'
-      });
-    }
+  const handleServiceStatusEdit = (customer, newServiceStatus) => {
+    const customerId = customer.id || customer.customerId;
+    
+    updateServiceStatusMutation.mutate({ customerId, serviceStatus: newServiceStatus });
+    setEditingService(null);
   };
 
   const goToPage = (page) => {

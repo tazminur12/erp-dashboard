@@ -27,11 +27,19 @@ import Swal from 'sweetalert2';
 import { useTheme } from '../../contexts/ThemeContext';
 import divisionData from '../../jsondata/AllDivision.json';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { 
+  useServiceTypes, 
+  useServiceStatuses, 
+  useCreateCustomer 
+} from '../../hooks/useCustomerQueries';
 
 const AddCustomer = () => {
   const { isDark } = useTheme();
-  const axiosSecure = useAxiosSecure();
+  
+  // React Query hooks
+  const { data: serviceTypes = [], isLoading: serviceTypesLoading, error: serviceTypesError } = useServiceTypes();
+  const createCustomerMutation = useCreateCustomer();
+  
   const [formData, setFormData] = useState({
     // কাস্টমার তথ্য
     customerType: '',
@@ -78,61 +86,16 @@ const AddCustomer = () => {
     serviceStatus: ''
   });
 
+  // Service statuses hook - depends on formData.serviceType
+  const { data: serviceStatuses = [], isLoading: serviceStatusesLoading, error: serviceStatusesError } = useServiceStatuses(formData.serviceType);
+
   const [useMobileAsWhatsApp, setUseMobileAsWhatsApp] = useState(false);
 
   const [imagePreview, setImagePreview] = useState(null);
   const [imageUploading, setImageUploading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState('');
   const [uploadedImageData, setUploadedImageData] = useState(null);
-  // Dependent service status state
-  const [serviceStatuses, setServiceStatuses] = useState([]);
-  const [serviceStatusesLoading, setServiceStatusesLoading] = useState(false);
-  const [serviceTypes, setServiceTypes] = useState([]);
-  const [serviceTypesLoading, setServiceTypesLoading] = useState(false);
 
-  useEffect(() => {
-    // Load service types list
-    const loadServices = async () => {
-      try {
-        setServiceTypesLoading(true);
-        const res = await axiosSecure.get('/api/services');
-        const list = res?.data?.services || res?.data || [];
-        setServiceTypes(Array.isArray(list) ? list : []);
-      } catch (e) {
-        setServiceTypes([]);
-      } finally {
-        setServiceTypesLoading(false);
-      }
-    };
-    loadServices();
-
-    if (!formData.serviceType) {
-      setServiceStatuses([]);
-      return;
-    }
-
-    let isCancelled = false;
-    setServiceStatusesLoading(true);
-    axiosSecure
-      .get(`/api/services/${formData.serviceType}/statuses`)
-      .then((res) => {
-        if (isCancelled) return;
-        const apiStatuses = res?.data?.statuses || res?.data || [];
-        setServiceStatuses(Array.isArray(apiStatuses) ? apiStatuses : []);
-      })
-      .catch(() => {
-        if (isCancelled) return;
-        setServiceStatuses([]);
-      })
-      .finally(() => {
-        if (isCancelled) return;
-        setServiceStatusesLoading(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [formData.serviceType, axiosSecure]);
 
   // Service type management
   const handleAddServiceType = async () => {
@@ -659,11 +622,11 @@ const AddCustomer = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate required fields
-    if (!formData.customerType) {
+    // Validate required fields - only name and mobile are mandatory
+    if (!(formData.firstName && formData.firstName.trim())) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: 'কাস্টমারের ধরন নির্বাচন করুন',
+        text: 'কাস্টমারের নাম অবশ্যই পূরণ করতে হবে',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -676,10 +639,10 @@ const AddCustomer = () => {
       return;
     }
     
-    if (!(formData.firstName && formData.firstName.trim()) || !formData.mobile) {
+    if (!formData.mobile) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: 'প্রথম নাম ও মোবাইল নম্বর অবশ্যই পূরণ করতে হবে',
+        text: 'মোবাইল নম্বর অবশ্যই পূরণ করতে হবে',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -749,170 +712,112 @@ const AddCustomer = () => {
     
 
     
-    try {
-      const customerData = {
-        // Basic customer information
-        name: (formData.firstName || '') + (formData.lastName ? ' ' + formData.lastName : ''),
-        firstName: formData.firstName || null,
-        lastName: formData.lastName || null,
-        mobile: formData.mobile,
-        email: formData.email || null,
-        occupation: formData.occupation || null,
-        address: formData.address,
-        division: formData.division,
-        district: formData.district,
-        upazila: formData.upazila,
-        postCode: formData.postCode || null,
-        whatsappNo: formData.whatsappNo || null,
-        customerType: formData.customerType,
-        
-        // Image data - just the URL
-        customerImage: formData.customerImage || null,
-        
-        // Passport information
-        passportNumber: formData.passportNumber || null,
-        passportType: formData.passportType || null,
-        issueDate: formData.issueDate || null,
-        expiryDate: formData.expiryDate || null,
-        dateOfBirth: formData.dateOfBirth || null,
-        nidNumber: formData.nidNumber || null,
-        passportFirstName: formData.passportFirstName || null,
-        passportLastName: formData.passportLastName || null,
-        nationality: formData.nationality || null,
-        previousPassport: formData.previousPassport || null,
-        gender: formData.gender || null,
-
-        // Family details
-        fatherName: formData.fatherName || null,
-        motherName: formData.motherName || null,
-        spouseName: formData.spouseName || null,
-        maritalStatus: formData.maritalStatus || null,
-
-        // Service linkage
-        serviceType: formData.serviceType || null,
-        serviceStatus: formData.serviceStatus || null,
-
-        // Additional information
-        notes: formData.notes || null,
-        referenceBy: formData.referenceBy || null,
-        referenceCustomerId: formData.referenceCustomerId || null,
-        
-        // System fields
-        isActive: true
-      };
+    // Prepare customer data
+    const customerData = {
+      // Basic customer information
+      name: (formData.firstName || '') + (formData.lastName ? ' ' + formData.lastName : ''),
+      firstName: formData.firstName || null,
+      lastName: formData.lastName || null,
+      mobile: formData.mobile,
+      email: formData.email || null,
+      occupation: formData.occupation || null,
+      address: formData.address,
+      division: formData.division,
+      district: formData.district,
+      upazila: formData.upazila,
+      postCode: formData.postCode || null,
+      whatsappNo: formData.whatsappNo || null,
+      customerType: formData.customerType || null,
       
+      // Image data - just the URL
+      customerImage: formData.customerImage || null,
       
-      // Call backend API using UseAxiosSecure
-      const response = await axiosSecure.post('/customers', customerData, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
+      // Passport information
+      passportNumber: formData.passportNumber || null,
+      passportType: formData.passportType || null,
+      issueDate: formData.issueDate || null,
+      expiryDate: formData.expiryDate || null,
+      dateOfBirth: formData.dateOfBirth || null,
+      nidNumber: formData.nidNumber || null,
+      passportFirstName: formData.passportFirstName || null,
+      passportLastName: formData.passportLastName || null,
+      nationality: formData.nationality || null,
+      previousPassport: formData.previousPassport || null,
+      gender: formData.gender || null,
+
+      // Family details
+      fatherName: formData.fatherName || null,
+      motherName: formData.motherName || null,
+      spouseName: formData.spouseName || null,
+      maritalStatus: formData.maritalStatus || null,
+
+      // Service linkage
+      serviceType: formData.serviceType || null,
+      serviceStatus: formData.serviceStatus || null,
+
+      // Additional information
+      notes: formData.notes || null,
+      referenceBy: formData.referenceBy || null,
+      referenceCustomerId: formData.referenceCustomerId || null,
       
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to create customer');
+      // System fields
+      isActive: true
+    };
+    
+    // Use React Query mutation to create customer
+    createCustomerMutation.mutate(customerData, {
+      onSuccess: () => {
+        // Reset form on success
+        setFormData({
+          customerType: '',
+          name: '',
+          firstName: '',
+          lastName: '',
+          mobile: '',
+          whatsappNo: '',
+          email: '',
+          address: '',
+          division: '',
+          district: '',
+          upazila: '',
+          postCode: '',
+          occupation: '',
+          passportNumber: '',
+          passportType: '',
+          issueDate: '',
+          expiryDate: '',
+          dateOfBirth: '',
+          nidNumber: '',
+          passportFirstName: '',
+          passportLastName: '',
+          nationality: '',
+          previousPassport: '',
+          gender: '',
+          fatherName: '',
+          motherName: '',
+          spouseName: '',
+          maritalStatus: '',
+          customerImage: null,
+          isActive: true,
+          notes: '',
+          referenceBy: '',
+          referenceCustomerId: '',
+          serviceType: '',
+          serviceStatus: ''
+        });
+        setImagePreview(null);
+        setUploadedImageUrl('');
+        setUploadedImageData(null);
+        setDistricts([]);
+        setUpazilas([]);
+        setUseMobileAsWhatsApp(false);
+        
+        // Reset date states
+        setIssueDate(null);
+        setExpiryDate(null);
+        setDateOfBirth(null);
       }
-      
-
-      
-      // Success popup
-      Swal.fire({
-        title: 'সফল!',
-        text: 'সফলভাবে কাস্টমার যুক্ত হয়েছে!',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#10B981',
-        background: isDark ? '#1F2937' : '#F9FAFB',
-        customClass: {
-          title: 'text-green-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
-      
-      // Reset form
-      setFormData({
-        customerType: '',
-        name: '',
-        firstName: '',
-        lastName: '',
-        mobile: '',
-        whatsappNo: '',
-        email: '',
-        address: '',
-        division: '',
-        district: '',
-        upazila: '',
-        postCode: '',
-        occupation: '',
-        passportNumber: '',
-        passportType: '',
-        issueDate: '',
-        expiryDate: '',
-        dateOfBirth: '',
-        nidNumber: '',
-        passportFirstName: '',
-        passportLastName: '',
-        nationality: '',
-        previousPassport: '',
-        gender: '',
-        fatherName: '',
-        motherName: '',
-        spouseName: '',
-        maritalStatus: '',
-        customerImage: null,
-        isActive: true,
-        notes: '',
-        referenceBy: '',
-        referenceCustomerId: '',
-        serviceType: '',
-        serviceStatus: ''
-      });
-      setImagePreview(null);
-      setUploadedImageUrl('');
-      setUploadedImageData(null);
-      setDistricts([]);
-      setUpazilas([]);
-      setUseMobileAsWhatsApp(false);
-      
-      // Reset date states
-      setIssueDate(null);
-      setExpiryDate(null);
-      setDateOfBirth(null);
-      
-    } catch (error) {
-      let errorMessage = 'কাস্টমার যুক্ত করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
-      
-      if (error.response) {
-        // Server responded with error status
-        if (error.response.status === 404) {
-          errorMessage = 'Backend endpoint পাওয়া যায়নি। Server running আছে কিনা check করুন।';
-        } else if (error.response.status === 500) {
-          errorMessage = 'Server error। Backend logs check করুন।';
-        } else if (error.response.data && error.response.data.message) {
-          errorMessage = error.response.data.message;
-        }
-      } else if (error.request) {
-        // Request made but no response
-        errorMessage = 'Server থেকে response পাওয়া যায়নি। Network connection check করুন।';
-      } else {
-        // Something else happened
-        errorMessage = error.message || errorMessage;
-      }
-      
-      // Error popup
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
-    }
+    });
   };
 
   return (
@@ -1073,34 +978,34 @@ const AddCustomer = () => {
                 <label className={`block text-xs font-semibold transition-colors duration-300 ${
                   isDark ? 'text-gray-200' : 'text-gray-700'
                 }`}>
-                  কাস্টমারের ধরন *
+                  কাস্টমারের ধরন
                 </label>
                 <div className="relative">
                   <select
                     name="customerType"
                     value={formData.customerType}
                     onChange={handleInputChange}
-                    required
-                    disabled={categoriesLoading}
+                    disabled={serviceTypesLoading}
                     className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'bg-white border-gray-300'
-                    } ${categoriesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    } ${serviceTypesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <option value="">
-                      {categoriesLoading ? 'লোড হচ্ছে...' : 'ধরন নির্বাচন করুন'}
+                      {serviceTypesLoading ? 'লোড হচ্ছে...' : serviceTypesError ? 'লোড করতে সমস্যা' : 'ধরন নির্বাচন করুন'}
                     </option>
-                    {categories.map(category => {
-                      const IconComponent = availableIcons.find(icon => icon.value === category.icon)?.icon || Home;
+                    {serviceTypes.map(service => {
+                      const value = service?.id || service?.value || service?.slug || service;
+                      const label = service?.name || service?.label || service?.title || service;
                       return (
-                      <option key={category.value} value={category.value}>
-                        {category.label} ({category.prefix})
+                      <option key={String(value)} value={String(value)}>
+                        {String(label)}
                       </option>
                       );
                     })}
                   </select>
-                  {categoriesLoading && (
+                  {serviceTypesLoading && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                       <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                     </div>
@@ -2144,10 +2049,20 @@ const AddCustomer = () => {
           <div className="text-center">
             <button
               type="submit"
-              className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 hover:from-blue-700 hover:via-purple-700 hover:to-green-700"
+              disabled={createCustomerMutation.isPending || imageUploading}
+              className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 hover:from-blue-700 hover:via-purple-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              <Save className="w-6 h-6 mr-3 group-hover:rotate-12 transition-transform duration-300" />
-              কাস্টমার যুক্ত করুন
+              {createCustomerMutation.isPending ? (
+                <>
+                  <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                  কাস্টমার যোগ হচ্ছে...
+                </>
+              ) : (
+                <>
+                  <Save className="w-6 h-6 mr-3 group-hover:rotate-12 transition-transform duration-300" />
+                  কাস্টমার যুক্ত করুন
+                </>
+              )}
               <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10 blur-xl"></div>
             </button>
           </div>

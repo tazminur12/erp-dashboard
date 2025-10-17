@@ -1,163 +1,192 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import MainLayout from './layouts/MainLayout';
 import DashboardLayout from './components/layout/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
-import Dashboard from './pages/Dashboard/Dashboard';
 import Hero from './components/Hero';
 import './index.css';
 
+// Loading component for Suspense fallback
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+  </div>
+);
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      retry: (failureCount, error) => {
+        // Don't retry on 4xx errors (client errors)
+        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+          return false;
+        }
+        // Retry up to 3 times for server errors (5xx)
+        return failureCount < 3;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+  },
+});
+
+// Lazy loaded components for better performance
+const Dashboard = React.lazy(() => import('./pages/Dashboard/Dashboard'));
+
 // Customer pages
-import CustomerList from './pages/Customers/CustomerList';
-import AddCustomer from './pages/Customers/AddCustomer';
-import CustomerDetails from './pages/Customers/CustomerDetails';
+const CustomerList = React.lazy(() => import('./pages/Customers/CustomerList'));
+const AddCustomer = React.lazy(() => import('./pages/Customers/AddCustomer'));
+const CustomerDetails = React.lazy(() => import('./pages/Customers/CustomerDetails'));
 
 // Transaction pages
-import TransactionsList from './pages/Transactions/TransactionsList';
-import NewTransaction from './pages/Transactions/NewTransaction';
+const TransactionsList = React.lazy(() => import('./pages/Transactions/TransactionsList'));
+const NewTransaction = React.lazy(() => import('./pages/Transactions/NewTransaction'));
 
 // Vendor pages
-import VendorDashboard from './pages/Vendors/VendorDashboard';
-import VendorList from './pages/Vendors/VendorList';
-import AddVendor from './pages/Vendors/AddVendor';
-import EditVendor from './pages/Vendors/EditVendor';
-// Removed VendorPayment, VendorDueReport
-import VendorDetails from './pages/Vendors/VendorDetails';
+const VendorDashboard = React.lazy(() => import('./pages/Vendors/VendorDashboard'));
+const VendorList = React.lazy(() => import('./pages/Vendors/VendorList'));
+const AddVendor = React.lazy(() => import('./pages/Vendors/AddVendor'));
+const EditVendor = React.lazy(() => import('./pages/Vendors/EditVendor'));
+const VendorDetails = React.lazy(() => import('./pages/Vendors/VendorDetails'));
 
 // Hajj & Umrah pages
-import HajjUmrahDashboard from './pages/HajjUmrah/HajjUmrahDashboard';
-import HajiList from './pages/HajjUmrah/HajiList';
-import HajiDetails from './pages/HajjUmrah/HajiDetails';
-import AddHaji from './pages/HajjUmrah/AddHaji';
-import Agent from './pages/HajjUmrah/B2BAgent/Agent';
-import AgentDetails from './pages/HajjUmrah/B2BAgent/AgentDetails';
-import AddAgent from './pages/HajjUmrah/B2BAgent/AddAgent';
-import EditB2BAgent from './pages/HajjUmrah/B2BAgent/EditAgent';
-import PackageCreation from './pages/HajjUmrah/PackageCreation';
-import PackageList from './pages/HajjUmrah/PackageList';
-import AddUmrahHaji from './pages/HajjUmrah/AddUmrahHaji';
-import UmrahHajiList from './pages/HajjUmrah/UmrahHajiList';
+const HajjUmrahDashboard = React.lazy(() => import('./pages/HajjUmrah/HajjUmrahDashboard'));
+const HajiList = React.lazy(() => import('./pages/HajjUmrah/HajiList'));
+const HajiDetails = React.lazy(() => import('./pages/HajjUmrah/HajiDetails'));
+const AddHaji = React.lazy(() => import('./pages/HajjUmrah/AddHaji'));
+const Agent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/Agent'));
+const AgentDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentDetails'));
+const AddAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AddAgent'));
+const EditB2BAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/EditAgent'));
+const PackageCreation = React.lazy(() => import('./pages/HajjUmrah/PackageCreation'));
+const PackageList = React.lazy(() => import('./pages/HajjUmrah/PackageList'));
+const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah/AddUmrahHaji'));
+const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah/UmrahHajiList'));
 
 // Air Ticketing pages
-import NewTicket from './pages/AirTicketing/NewTicket';
-import TicketList from './pages/AirTicketing/TicketList';
-import TicketInvoice from './pages/AirTicketing/TicketInvoice';
-import AgentList from './pages/AirTicketing/AgentList';
-import TicketCheck from './pages/AirTicketing/TicketCheck';
-import OldTicketReissue from './pages/AirTicketing/OldTicketReissue';
-import AirlineList from './pages/AirTicketing/AirlineList';
-import AirlineDetails from './pages/AirTicketing/AirlineDetails';
+const NewTicket = React.lazy(() => import('./pages/AirTicketing/NewTicket'));
+const TicketList = React.lazy(() => import('./pages/AirTicketing/TicketList'));
+const TicketInvoice = React.lazy(() => import('./pages/AirTicketing/TicketInvoice'));
+const AgentList = React.lazy(() => import('./pages/AirTicketing/AgentList'));
+const TicketCheck = React.lazy(() => import('./pages/AirTicketing/TicketCheck'));
+const OldTicketReissue = React.lazy(() => import('./pages/AirTicketing/OldTicketReissue'));
+const AirlineList = React.lazy(() => import('./pages/AirTicketing/AirlineList'));
+const AirlineDetails = React.lazy(() => import('./pages/AirTicketing/AirlineDetails'));
 
 // Visa Processing pages
-import VisaProcessingDashboard from './pages/VisaProcessing/VisaProcessingDashboard';
-import ApplicantManagement from './pages/VisaProcessing/ApplicantManagement';
-import VisaTracking from './pages/VisaProcessing/VisaTracking';
-import VisaPayment from './pages/VisaProcessing/VisaPayment';
-import VisaDocuments from './pages/VisaProcessing/VisaDocuments';
+const VisaProcessingDashboard = React.lazy(() => import('./pages/VisaProcessing/VisaProcessingDashboard'));
+const ApplicantManagement = React.lazy(() => import('./pages/VisaProcessing/ApplicantManagement'));
+const VisaTracking = React.lazy(() => import('./pages/VisaProcessing/VisaTracking'));
+const VisaPayment = React.lazy(() => import('./pages/VisaProcessing/VisaPayment'));
+const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing/VisaDocuments'));
 
 // Loan pages
-import LoanDashboard from './pages/Loan/LoanDashboard';
-import LoanList from './pages/Loan/LoanList';
-import LoanDetails from './pages/Loan/LoanDetails';
-import NewLoanReceiving from './pages/Loan/NewLoanReceiving';
-import NewLoanGiving from './pages/Loan/NewLoanGiving';
+const LoanDashboard = React.lazy(() => import('./pages/Loan/LoanDashboard'));
+const LoanList = React.lazy(() => import('./pages/Loan/LoanList'));
+const LoanDetails = React.lazy(() => import('./pages/Loan/LoanDetails'));
+const NewLoanReceiving = React.lazy(() => import('./pages/Loan/NewLoanReceiving'));
+const NewLoanGiving = React.lazy(() => import('./pages/Loan/NewLoanGiving'));
 
 // Miraj Industries pages - Cattle Management System
-import CattleDashboard from './pages/MirajIndustries/CattleDashboard';
-import CattleManagement from './pages/MirajIndustries/CattleManagement';
-import MilkProduction from './pages/MirajIndustries/MilkProduction';
-import FeedManagement from './pages/MirajIndustries/FeedManagement';
-import HealthRecords from './pages/MirajIndustries/HealthRecords';
-import BreedingRecords from './pages/MirajIndustries/BreedingRecords';
-import FinancialReport from './pages/MirajIndustries/FinancialReport';
-import EmployeeManagement from './pages/MirajIndustries/EmployeeManagement';
+const CattleDashboard = React.lazy(() => import('./pages/MirajIndustries/CattleDashboard'));
+const CattleManagement = React.lazy(() => import('./pages/MirajIndustries/CattleManagement'));
+const MilkProduction = React.lazy(() => import('./pages/MirajIndustries/MilkProduction'));
+const FeedManagement = React.lazy(() => import('./pages/MirajIndustries/FeedManagement'));
+const HealthRecords = React.lazy(() => import('./pages/MirajIndustries/HealthRecords'));
+const BreedingRecords = React.lazy(() => import('./pages/MirajIndustries/BreedingRecords'));
+const FinancialReport = React.lazy(() => import('./pages/MirajIndustries/FinancialReport'));
+const EmployeeManagement = React.lazy(() => import('./pages/MirajIndustries/EmployeeManagement'));
 
 // Hajj Management pages
-import HajjManagementDashboard from './pages/HajjManagement/HajjManagementDashboard';
+const HajjManagementDashboard = React.lazy(() => import('./pages/HajjManagement/HajjManagementDashboard'));
 
 // Account pages
-import AccountOverview from './pages/Account/AccountOverview';
-import IncomeManagement from './pages/Account/IncomeManagement';
-import ExpenseManagement from './pages/Account/ExpenseManagement';
-import SavingsInvestments from './pages/Account/SavingsInvestments';
-import LoansCredit from './pages/Account/LoansCredit';
-import BankAccounts from './pages/Account/BankAccounts';
-import CreditCards from './pages/Account/CreditCards';
-import FinancialReports from './pages/Account/FinancialReports';
-import BudgetPlanning from './pages/Account/BudgetPlanning';
-import TaxManagement from './pages/Account/TaxManagement';
+const AccountOverview = React.lazy(() => import('./pages/Account/AccountOverview'));
+const IncomeManagement = React.lazy(() => import('./pages/Account/IncomeManagement'));
+const ExpenseManagement = React.lazy(() => import('./pages/Account/ExpenseManagement'));
+const SavingsInvestments = React.lazy(() => import('./pages/Account/SavingsInvestments'));
+const LoansCredit = React.lazy(() => import('./pages/Account/LoansCredit'));
+const BankAccounts = React.lazy(() => import('./pages/Account/BankAccounts'));
+const CreditCards = React.lazy(() => import('./pages/Account/CreditCards'));
+const FinancialReports = React.lazy(() => import('./pages/Account/FinancialReports'));
+const BudgetPlanning = React.lazy(() => import('./pages/Account/BudgetPlanning'));
+const TaxManagement = React.lazy(() => import('./pages/Account/TaxManagement'));
 
 // Personal pages
-import PersonalIncome from './pages/Personal/Income';
-import AddIncome from './pages/Personal/AddIncome';
-import PersonalExpense from './pages/Personal/Expense';
-import PersonalSavings from './pages/Personal/Savings';
-import PersonalLoans from './pages/Personal/Loans';
+const PersonalIncome = React.lazy(() => import('./pages/Personal/Income'));
+const AddIncome = React.lazy(() => import('./pages/Personal/AddIncome'));
+const PersonalExpense = React.lazy(() => import('./pages/Personal/Expense'));
+const PersonalSavings = React.lazy(() => import('./pages/Personal/Savings'));
+const PersonalLoans = React.lazy(() => import('./pages/Personal/Loans'));
 
 // Fly Oval Limited pages
-import FlyOvalDashboard from './pages/FlyOval/Dashboard';
-import FlyOvalAgentList from './pages/FlyOval/AgentList';
-import AddFlyOvalAgent from './pages/FlyOval/AddAgent';
-import FlyOvalAgentDetails from './pages/FlyOval/AgentDetails';
-import EditAgent from './pages/FlyOval/EditAgent';
-import FlyOvalTopUpHistory from './pages/FlyOval/TopUpHistory';
-import FlyOvalSellHistory from './pages/FlyOval/SellHistory';
-import FlyOvalLedger from './pages/FlyOval/Ledger';
-import FlyOvalReports from './pages/FlyOval/Reports';
-import FlyOvalAudit from './pages/FlyOval/Audit';
+const FlyOvalDashboard = React.lazy(() => import('./pages/FlyOval/Dashboard'));
+const FlyOvalAgentList = React.lazy(() => import('./pages/FlyOval/AgentList'));
+const AddFlyOvalAgent = React.lazy(() => import('./pages/FlyOval/AddAgent'));
+const FlyOvalAgentDetails = React.lazy(() => import('./pages/FlyOval/AgentDetails'));
+const EditAgent = React.lazy(() => import('./pages/FlyOval/EditAgent'));
+const FlyOvalTopUpHistory = React.lazy(() => import('./pages/FlyOval/TopUpHistory'));
+const FlyOvalSellHistory = React.lazy(() => import('./pages/FlyOval/SellHistory'));
+const FlyOvalLedger = React.lazy(() => import('./pages/FlyOval/Ledger'));
+const FlyOvalReports = React.lazy(() => import('./pages/FlyOval/Reports'));
+const FlyOvalAudit = React.lazy(() => import('./pages/FlyOval/Audit'));
 
 // Excel Upload page
-import ExcelUploadPage from './pages/ExcelUpload/ExcelUploadPage';
-
+const ExcelUploadPage = React.lazy(() => import('./pages/ExcelUpload/ExcelUploadPage'));
 
 // Office Management pages
-import Payroll from './pages/OfficeManagement/HR Managment/Payroll';
-import Provident_Fund from './pages/OfficeManagement/HR Managment/Provident_Fund';
-import Sale_Target from './pages/OfficeManagement/HR Managment/Sale_Target';
-import Attendance from './pages/OfficeManagement/HR Managment/Attendance';
-import IncentivePlan from './pages/OfficeManagement/HR Managment/IncentivePlan';
-import EmployeeList from './pages/OfficeManagement/HR Managment/EmployeeList';
-import AddEmployee from './pages/OfficeManagement/HR Managment/AddEmployee';
-import EmployeeProfile from './pages/OfficeManagement/HR Managment/EmployeeProfile';
-import EditEmployee from './pages/OfficeManagement/HR Managment/EditEmployee';
+const Payroll = React.lazy(() => import('./pages/OfficeManagement/HR Managment/Payroll'));
+const Provident_Fund = React.lazy(() => import('./pages/OfficeManagement/HR Managment/Provident_Fund'));
+const Sale_Target = React.lazy(() => import('./pages/OfficeManagement/HR Managment/Sale_Target'));
+const Attendance = React.lazy(() => import('./pages/OfficeManagement/HR Managment/Attendance'));
+const IncentivePlan = React.lazy(() => import('./pages/OfficeManagement/HR Managment/IncentivePlan'));
+const EmployeeList = React.lazy(() => import('./pages/OfficeManagement/HR Managment/EmployeeList'));
+const AddEmployee = React.lazy(() => import('./pages/OfficeManagement/HR Managment/AddEmployee'));
+const EmployeeProfile = React.lazy(() => import('./pages/OfficeManagement/HR Managment/EmployeeProfile'));
+const EditEmployee = React.lazy(() => import('./pages/OfficeManagement/HR Managment/EditEmployee'));
 
 // Operating Expenses pages
-import OperatingExpenses from './pages/OfficeManagement/OperatingExpenses';
-import LegalComplianceCosts from './pages/OfficeManagement/LegalComplianceCosts';
-import MarketingBrandingExpenses from './pages/OfficeManagement/MarketingBrandingExpenses';
-import ITSoftwareExpenses from './pages/OfficeManagement/ITSoftwareExpenses';
-import FinancialBankCharges from './pages/OfficeManagement/FinancialBankCharges';
-import AssetPurchases from './pages/OfficeManagement/AssetPurchases';
-import MiscellaneousOperationalCosts from './pages/OfficeManagement/MiscellaneousOperationalCosts';
-import TaxRegulatoryPayments from './pages/OfficeManagement/TaxRegulatoryPayments';
-import RefundsReimbursements from './pages/OfficeManagement/RefundsReimbursements';
-
+const OperatingExpenses = React.lazy(() => import('./pages/OfficeManagement/OperatingExpenses'));
+const LegalComplianceCosts = React.lazy(() => import('./pages/OfficeManagement/LegalComplianceCosts'));
+const MarketingBrandingExpenses = React.lazy(() => import('./pages/OfficeManagement/MarketingBrandingExpenses'));
+const ITSoftwareExpenses = React.lazy(() => import('./pages/OfficeManagement/ITSoftwareExpenses'));
+const FinancialBankCharges = React.lazy(() => import('./pages/OfficeManagement/FinancialBankCharges'));
+const AssetPurchases = React.lazy(() => import('./pages/OfficeManagement/AssetPurchases'));
+const MiscellaneousOperationalCosts = React.lazy(() => import('./pages/OfficeManagement/MiscellaneousOperationalCosts'));
+const TaxRegulatoryPayments = React.lazy(() => import('./pages/OfficeManagement/TaxRegulatoryPayments'));
+const RefundsReimbursements = React.lazy(() => import('./pages/OfficeManagement/RefundsReimbursements'));
 
 // Money Exchange pages
-import NewExchange from './pages/MoneyExchange/NewExchange';
-import List from './pages/MoneyExchange/List';
+const NewExchange = React.lazy(() => import('./pages/MoneyExchange/NewExchange'));
+const List = React.lazy(() => import('./pages/MoneyExchange/List'));
 
 // Sales & Invoice pages
-import GenerateInvoice from './pages/SalesInvoice/Generate';
-import PendingInvoices from './pages/SalesInvoice/Pending';
-import AllInvoices from './pages/SalesInvoice/List';
+const GenerateInvoice = React.lazy(() => import('./pages/SalesInvoice/Generate'));
+const PendingInvoices = React.lazy(() => import('./pages/SalesInvoice/Pending'));
+const AllInvoices = React.lazy(() => import('./pages/SalesInvoice/List'));
 
 // Settings pages
-import Users from './pages/Settings/Users';
-import CustomerManagment from './pages/Settings/CustomerManagment';
-import CategoryManagement from './pages/Settings/CategoryManagement';
-import BackupRestore from './pages/Settings/BackupRestore';
+const Users = React.lazy(() => import('./pages/Settings/Users'));
+const CustomerManagment = React.lazy(() => import('./pages/Settings/CustomerManagment'));
+const CategoryManagement = React.lazy(() => import('./pages/Settings/CategoryManagement'));
+const BackupRestore = React.lazy(() => import('./pages/Settings/BackupRestore'));
 
 // Profile page
-import Profile from './pages/Profile/Profile';
+const Profile = React.lazy(() => import('./pages/Profile/Profile'));
 
 // Auth pages
-import Login from './pages/Login';
-import SignUp from './pages/SignUp';
-import ForgotPassword from './pages/ForgotPassword';
+const Login = React.lazy(() => import('./pages/Login'));
+const SignUp = React.lazy(() => import('./pages/SignUp'));
+const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
 
 const router = createBrowserRouter([
   {
@@ -174,19 +203,35 @@ const router = createBrowserRouter([
       },
       {
         path: "login",
-        element: <Login />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Login />
+          </Suspense>
+        )
       },
       {
         path: "signup",
-        element: <SignUp />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <SignUp />
+          </Suspense>
+        )
       },
       {
         path: "forgot-password",
-        element: <ForgotPassword />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ForgotPassword />
+          </Suspense>
+        )
       },
       {
         path: "profile",
-        element: <Profile />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Profile />
+          </Suspense>
+        )
       }
 
     ]
@@ -203,7 +248,11 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Dashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Dashboard />
+          </Suspense>
+        )
       }
     ]
   },
@@ -218,15 +267,27 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <CustomerList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CustomerList />
+          </Suspense>
+        )
       },
       {
         path: "add",
-        element: <AddCustomer />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddCustomer />
+          </Suspense>
+        )
       },
       {
         path: "details/:id",
-        element: <CustomerDetails />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CustomerDetails />
+          </Suspense>
+        )
       }
     ]
   },
@@ -240,11 +301,19 @@ const router = createBrowserRouter([
     children: [
       {
         path: "list",
-        element: <TransactionsList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TransactionsList />
+          </Suspense>
+        )
       },
       {
         path: "new",
-        element: <NewTransaction />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <NewTransaction />
+          </Suspense>
+        )
       }
     ]
   },
@@ -258,23 +327,43 @@ const router = createBrowserRouter([
     children: [
       {
         path: "dashboard",
-        element: <VendorDashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VendorDashboard />
+          </Suspense>
+        )
       },
       {
         index: true,
-        element: <VendorList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VendorList />
+          </Suspense>
+        )
       },
       {
         path: "add",
-        element: <AddVendor />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddVendor />
+          </Suspense>
+        )
       },
       {
         path: ":id",
-        element: <VendorDetails />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VendorDetails />
+          </Suspense>
+        )
       },
       {
         path: ":id/edit",
-        element: <EditVendor />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditVendor />
+          </Suspense>
+        )
       },
       {
         path: "payment",
@@ -296,19 +385,35 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <HajjUmrahDashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajjUmrahDashboard />
+          </Suspense>
+        )
       },
       {
         path: "haji-list",
-        element: <HajiList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajiList />
+          </Suspense>
+        )
       },
       {
         path: "haji/add",
-        element: <AddHaji />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddHaji />
+          </Suspense>
+        )
       },
       {
         path: "haji/:id",
-        element: <HajiDetails />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajiDetails />
+          </Suspense>
+        )
       },
       {
         path: "add-haji",
@@ -316,27 +421,51 @@ const router = createBrowserRouter([
       },
       {
         path: "agent",
-        element: <Agent />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Agent />
+          </Suspense>
+        )
       },
       {
         path: "agent/:id",
-        element: <AgentDetails />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentDetails />
+          </Suspense>
+        )
       },
       {
         path: "agent/add",
-        element: <AddAgent />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddAgent />
+          </Suspense>
+        )
       },
       {
         path: "agent/:id/edit",
-        element: <EditB2BAgent />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditB2BAgent />
+          </Suspense>
+        )
       },
       {
         path: "package-creation",
-        element: <PackageCreation />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PackageCreation />
+          </Suspense>
+        )
       },
       {
         path: "package-list",
-        element: <PackageList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PackageList />
+          </Suspense>
+        )
       }
     ]
   },
@@ -350,11 +479,19 @@ const router = createBrowserRouter([
     children: [
       {
         path: "haji-list",
-        element: <UmrahHajiList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <UmrahHajiList />
+          </Suspense>
+        )
       },
       {
         path: "haji/add",
-        element: <AddUmrahHaji />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddUmrahHaji />
+          </Suspense>
+        )
       }
     ]
   },
@@ -368,35 +505,67 @@ const router = createBrowserRouter([
     children: [
       {
         path: "new-ticket",
-        element: <NewTicket />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <NewTicket />
+          </Suspense>
+        )
       },
       {
         path: "tickets",
-        element: <TicketList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TicketList />
+          </Suspense>
+        )
       },
       {
         path: "invoice",
-        element: <TicketInvoice />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TicketInvoice />
+          </Suspense>
+        )
       },
       {
         path: "agent",
-        element: <AgentList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentList />
+          </Suspense>
+        )
       },
       {
         path: "old/ticket-check",
-        element: <TicketCheck />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TicketCheck />
+          </Suspense>
+        )
       },
       {
         path: "old/ticket-reissue",
-        element: <OldTicketReissue />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <OldTicketReissue />
+          </Suspense>
+        )
       },
       {
         path: "airline",
-        element: <AirlineList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AirlineList />
+          </Suspense>
+        )
       },
       {
         path: "airline/:id",
-        element: <AirlineDetails />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AirlineDetails />
+          </Suspense>
+        )
       }
     ]
   },
@@ -410,23 +579,43 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <VisaProcessingDashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VisaProcessingDashboard />
+          </Suspense>
+        )
       },
       {
         path: "applicants",
-        element: <ApplicantManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ApplicantManagement />
+          </Suspense>
+        )
       },
       {
         path: "tracking",
-        element: <VisaTracking />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VisaTracking />
+          </Suspense>
+        )
       },
       {
         path: "payment",
-        element: <VisaPayment />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VisaPayment />
+          </Suspense>
+        )
       },
       {
         path: "documents",
-        element: <VisaDocuments />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VisaDocuments />
+          </Suspense>
+        )
       }
     ]
   },
@@ -442,23 +631,43 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <LoanDashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <LoanDashboard />
+          </Suspense>
+        )
       },
       {
         path: "list",
-        element: <LoanList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <LoanList />
+          </Suspense>
+        )
       },
       {
         path: "details/:id",
-        element: <LoanDetails />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <LoanDetails />
+          </Suspense>
+        )
       },
       {
         path: "new-receiving",
-        element: <NewLoanReceiving />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <NewLoanReceiving />
+          </Suspense>
+        )
       },
       {
         path: "new-giving",
-        element: <NewLoanGiving />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <NewLoanGiving />
+          </Suspense>
+        )
       }
     ]
   },
@@ -474,35 +683,67 @@ const router = createBrowserRouter([
     children: [
       {
         path: "dashboard",
-        element: <CattleDashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CattleDashboard />
+          </Suspense>
+        )
       },
       {
         path: "cattle-management",
-        element: <CattleManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CattleManagement />
+          </Suspense>
+        )
       },
       {
         path: "milk-production",
-        element: <MilkProduction />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <MilkProduction />
+          </Suspense>
+        )
       },
       {
         path: "feed-management",
-        element: <FeedManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FeedManagement />
+          </Suspense>
+        )
       },
       {
         path: "health-records",
-        element: <HealthRecords />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HealthRecords />
+          </Suspense>
+        )
       },
       {
         path: "breeding-records",
-        element: <BreedingRecords />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <BreedingRecords />
+          </Suspense>
+        )
       },
       {
         path: "financial-report",
-        element: <FinancialReport />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FinancialReport />
+          </Suspense>
+        )
       },
       {
         path: "employee-management",
-        element: <EmployeeManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EmployeeManagement />
+          </Suspense>
+        )
       }
     ]
   },
@@ -518,7 +759,11 @@ const router = createBrowserRouter([
     children: [
       {
         path: "dashboard",
-        element: <HajjManagementDashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajjManagementDashboard />
+          </Suspense>
+        )
       },
       {
         index: true,
@@ -548,43 +793,83 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <AccountOverview />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AccountOverview />
+          </Suspense>
+        )
       },
       {
         path: "income",
-        element: <IncomeManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <IncomeManagement />
+          </Suspense>
+        )
       },
       {
         path: "expense",
-        element: <ExpenseManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ExpenseManagement />
+          </Suspense>
+        )
       },
       {
         path: "savings",
-        element: <SavingsInvestments />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <SavingsInvestments />
+          </Suspense>
+        )
       },
       {
         path: "loans",
-        element: <LoansCredit />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <LoansCredit />
+          </Suspense>
+        )
       },
       {
         path: "bank-accounts",
-        element: <BankAccounts />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <BankAccounts />
+          </Suspense>
+        )
       },
       {
         path: "credit-cards",
-        element: <CreditCards />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CreditCards />
+          </Suspense>
+        )
       },
       {
         path: "financial-reports",
-        element: <FinancialReports />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FinancialReports />
+          </Suspense>
+        )
       },
       {
         path: "budget-planning",
-        element: <BudgetPlanning />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <BudgetPlanning />
+          </Suspense>
+        )
       },
       {
         path: "tax-management",
-        element: <TaxManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TaxManagement />
+          </Suspense>
+        )
       }
     ]
   },
@@ -598,23 +883,43 @@ const router = createBrowserRouter([
     children: [
       {
         path: "income",
-        element: <PersonalIncome />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PersonalIncome />
+          </Suspense>
+        )
       },
           {
             path: "income/add",
-            element: <AddIncome />
+            element: (
+              <Suspense fallback={<LoadingSpinner />}>
+                <AddIncome />
+              </Suspense>
+            )
           },
       {
         path: "expense",
-        element: <PersonalExpense />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PersonalExpense />
+          </Suspense>
+        )
       },
       {
         path: "savings",
-        element: <PersonalSavings />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PersonalSavings />
+          </Suspense>
+        )
       },
       {
         path: "loans",
-        element: <PersonalLoans />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PersonalLoans />
+          </Suspense>
+        )
       }
     ]
   },
@@ -628,43 +933,83 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <FlyOvalDashboard />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalDashboard />
+          </Suspense>
+        )
       },
       {
         path: "agents",
-        element: <FlyOvalAgentList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalAgentList />
+          </Suspense>
+        )
       },
       {
         path: "agents/add",
-        element: <AddFlyOvalAgent />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddFlyOvalAgent />
+          </Suspense>
+        )
       },
       {
         path: "agents/details/:id",
-        element: <FlyOvalAgentDetails />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalAgentDetails />
+          </Suspense>
+        )
       },
       {
         path: "agents/edit/:id",
-        element: <EditAgent />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditAgent />
+          </Suspense>
+        )
       },
       {
         path: "topup-history",
-        element: <FlyOvalTopUpHistory />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalTopUpHistory />
+          </Suspense>
+        )
       },
       {
         path: "sell-history",
-        element: <FlyOvalSellHistory />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalSellHistory />
+          </Suspense>
+        )
       },
       {
         path: "ledger",
-        element: <FlyOvalLedger />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalLedger />
+          </Suspense>
+        )
       },
       {
         path: "reports",
-        element: <FlyOvalReports />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalReports />
+          </Suspense>
+        )
       },
       {
         path: "audit",
-        element: <FlyOvalAudit />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalAudit />
+          </Suspense>
+        )
       }
     ]
   },
@@ -678,76 +1023,148 @@ const router = createBrowserRouter([
     children: [
       {
         path: "hr/employee/list",
-        element: <EmployeeList />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EmployeeList />
+          </Suspense>
+        )
       },
       {
         path: "hr/employee/add",
-        element: <AddEmployee />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddEmployee />
+          </Suspense>
+        )
       },
       {
         path: "hr/employee/profile/:id",
-        element: <EmployeeProfile />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EmployeeProfile />
+          </Suspense>
+        )
       },
       {
         path: "hr/employee/edit/:id",
-        element: <EditEmployee />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditEmployee />
+          </Suspense>
+        )
       },
       {
         path: "hr/payroll",
-        element: <Payroll />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Payroll />
+          </Suspense>
+        )
       },
       {
         path: "hr/provident-fund",
-        element: <Provident_Fund/>
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Provident_Fund/>
+          </Suspense>
+        )
       },
       {
         path: "hr/sale-target",
-        element: <Sale_Target/>
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Sale_Target/>
+          </Suspense>
+        )
       },
       {
         path: "hr/attendance",
-        element: <Attendance/>
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Attendance/>
+          </Suspense>
+        )
       },
       {
         path: "hr/incentive-plan",
-        element: <IncentivePlan/>
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <IncentivePlan/>
+          </Suspense>
+        )
       },
       // Operating Expenses routes
       {
         path: "operating-expenses",
-        element: <OperatingExpenses />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <OperatingExpenses />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/legal-compliance",
-        element: <LegalComplianceCosts />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <LegalComplianceCosts />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/marketing-branding",
-        element: <MarketingBrandingExpenses />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <MarketingBrandingExpenses />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/it-software",
-        element: <ITSoftwareExpenses />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ITSoftwareExpenses />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/financial-bank",
-        element: <FinancialBankCharges />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FinancialBankCharges />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/asset-purchases",
-        element: <AssetPurchases />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AssetPurchases />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/miscellaneous",
-        element: <MiscellaneousOperationalCosts />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <MiscellaneousOperationalCosts />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/tax-regulatory",
-        element: <TaxRegulatoryPayments />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TaxRegulatoryPayments />
+          </Suspense>
+        )
       },
       {
         path: "operating-expenses/refunds",
-        element: <RefundsReimbursements />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <RefundsReimbursements />
+          </Suspense>
+        )
       }
     ]
   },
@@ -761,11 +1178,19 @@ const router = createBrowserRouter([
     children: [
       {
         path: "new",
-        element: <NewExchange />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <NewExchange />
+          </Suspense>
+        )
       },
       {
         path: "list",
-        element: <List />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <List />
+          </Suspense>
+        )
       }
     ]
   },
@@ -779,15 +1204,27 @@ const router = createBrowserRouter([
     children: [
       {
         path: "new",
-        element: <GenerateInvoice />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <GenerateInvoice />
+          </Suspense>
+        )
       },
       {
         path: "pending",
-        element: <PendingInvoices />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PendingInvoices />
+          </Suspense>
+        )
       },
       {
         path: "list",
-        element: <AllInvoices />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AllInvoices />
+          </Suspense>
+        )
       }
     ]
   },
@@ -801,23 +1238,43 @@ const router = createBrowserRouter([
     children: [
       {
         path: "users",
-        element: <Users />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Users />
+          </Suspense>
+        )
       },
       {
         path: "customer-types",
-        element: <CustomerManagment />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CustomerManagment />
+          </Suspense>
+        )
       },
       {
         path: "categories",
-        element: <CategoryManagement />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CategoryManagement />
+          </Suspense>
+        )
       },
       {
         path: "excel-upload",
-        element: <ExcelUploadPage />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ExcelUploadPage />
+          </Suspense>
+        )
       },
       {
         path: "backup",
-        element: <BackupRestore />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <BackupRestore />
+          </Suspense>
+        )
       }
     ]
   },
@@ -831,7 +1288,11 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <Profile />
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Profile />
+          </Suspense>
+        )
       }
     ]
   }
@@ -843,8 +1304,11 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <RouterProvider router={router} />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <RouterProvider router={router} />
+        <ReactQueryDevtools initialIsOpen={false} />
+      </AuthProvider>
+    </QueryClientProvider>
   </React.StrictMode>,
 );
