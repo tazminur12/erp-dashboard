@@ -20,18 +20,44 @@ import {
   TrendingUp,
   TrendingDown,
   Loader2,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Building,
+  Info,
+  FileText,
+  Calendar,
+  Building2, 
+  Globe,
+  MoreHorizontal
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { 
+  useCreateTransaction,
+  useTransactions,
+  useTransactionAccounts,
+  useTransactionCustomers,
+  useTransactionInvoices,
+  useTransactionCategories,
+  useSearchAgents,
+  useSearchVendors
+} from '../../hooks/useTransactionQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
+import EmployeeReferenceSearch from '../../components/common/EmployeeReferenceSearch';
 import Swal from 'sweetalert2';
 
 const NewTransaction = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
   const axiosSecure = useAxiosSecure();
+  
+  // React Query hooks
+  const createTransactionMutation = useCreateTransaction();
+  const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
+  const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
+  const { data: categories = [], error: categoriesError } = useTransactionCategories();
+  const { data: transactionsData } = useTransactions({}, 1, 1000); // Fetch all transactions for balance calculation
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Transaction Type
@@ -118,7 +144,16 @@ const NewTransaction = () => {
     
     // Step 5: Additional Info
     notes: '',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    
+    // Employee Reference
+    employeeReference: {
+      id: '',
+      name: '',
+      employeeId: '',
+      position: '',
+      department: ''
+    }
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,16 +164,12 @@ const NewTransaction = () => {
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [expandedCategories, setExpandedCategories] = useState({});
   const [errors, setErrors] = useState({});
-  const [customers, setCustomers] = useState([]);
-  const [customersLoading, setCustomersLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [agentResults, setAgentResults] = useState([]);
-  const [agentLoading, setAgentLoading] = useState(false);
-  
-  // Bank accounts state
-  const [accounts, setAccounts] = useState([]);
-  const [accountsLoading, setAccountsLoading] = useState(false);
   const [accountSearchTerm, setAccountSearchTerm] = useState('');
+  
+  // Search hooks (after searchTerm state declaration)
+  const { data: agentResults = [], isLoading: agentLoading } = useSearchAgents(searchTerm, !!searchTerm?.trim());
+  const { data: vendorResults = [], isLoading: vendorLoading } = useSearchVendors(searchTerm, !!searchTerm?.trim());
   
   // Filter accounts based on search term
   const filteredAccounts = accounts.filter(account => {
@@ -151,36 +182,7 @@ const NewTransaction = () => {
     );
   });
   
-  // Fetch bank accounts from backend
-  useEffect(() => {
-    const fetchBankAccounts = async () => {
-      try {
-        setAccountsLoading(true);
-        const response = await axiosSecure.get('/bank-accounts');
-        const bankAccounts = response?.data?.data || [];
-        
-        // Transform the data to match the expected format
-        const transformedAccounts = bankAccounts.map(account => ({
-          id: account._id,
-          name: account.bankName,
-          bankName: account.bankName,
-          accountNumber: account.accountNumber,
-          balance: account.currentBalance || account.initialBalance || 0,
-          type: account.accountType?.toLowerCase() || 'current'
-        }));
-        
-        setAccounts(transformedAccounts);
-      } catch (error) {
-        console.error('Failed to fetch bank accounts:', error);
-        // Fallback to empty array if API fails
-        setAccounts([]);
-      } finally {
-        setAccountsLoading(false);
-      }
-    };
-    
-    fetchBankAccounts();
-  }, [axiosSecure]);
+  // Bank accounts are now fetched via React Query
   
   // Mock account managers
   const [accountManagers] = useState([
@@ -298,80 +300,9 @@ const NewTransaction = () => {
     );
   });
 
-  // Load customers from backend
-  useEffect(() => {
-    loadCustomers();
-  }, []);
+  // Customers are now fetched via React Query
 
-  const loadCustomers = async () => {
-    try {
-      setCustomersLoading(true);
-      const response = await axiosSecure.get('/customers');
-      
-      if (response.data.success) {
-        setCustomers(response.data.customers || []);
-      }
-    } catch (error) {
-      console.error('Failed to load customers:', error);
-    } finally {
-      setCustomersLoading(false);
-    }
-  };
-
-  // Search customers with debounce
-  useEffect(() => {
-    if (searchTerm.trim()) {
-      const timeoutId = setTimeout(() => {
-        searchCustomers(searchTerm);
-        searchAgents(searchTerm);
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    } else {
-      loadCustomers();
-      setAgentResults([]);
-    }
-  }, [searchTerm]);
-
-  const searchCustomers = async (term) => {
-    try {
-      setSearchLoading(true);
-      const response = await axiosSecure.get(`/customers/search?q=${encodeURIComponent(term)}`);
-      
-      if (response.data.success) {
-        setCustomers(response.data.customers || []);
-      }
-    } catch (error) {
-      console.error('Search failed:', error);
-      // Fallback to local filtering if search endpoint doesn't exist
-      const filtered = customers.filter(customer =>
-        customer.name?.toLowerCase().includes(term.toLowerCase()) ||
-        customer.mobile?.includes(term) ||
-        customer.email?.toLowerCase().includes(term.toLowerCase())
-      );
-      setCustomers(filtered);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
-
-  // Search Hajj/Umrah agents for customer selection
-  const searchAgents = async (term) => {
-    try {
-      setAgentLoading(true);
-      const res = await axiosSecure.get('/haj-umrah/agents', { params: { q: term, limit: 20, page: 1 } });
-      const payload = res.data;
-      if (payload?.success) {
-        setAgentResults(payload.data || []);
-      } else {
-        setAgentResults([]);
-      }
-    } catch (error) {
-      // Silent fail to avoid disrupting customer fallback
-      setAgentResults([]);
-    } finally {
-      setAgentLoading(false);
-    }
-  };
+  // Agent and vendor search are now handled by React Query hooks
 
   // State for categories to allow refreshing
   const [categoryGroups, setCategoryGroups] = useState([]);
@@ -508,14 +439,26 @@ const NewTransaction = () => {
         { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
       ];
     } else {
-      return [
-        { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
-        { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
-        { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
-        { number: 4, title: 'সিলেক্ট ইনভয়েস', description: 'ইনভয়েস সিলেক্ট করুন' },
-        { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
-        { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
-      ];
+      // Credit transaction - check if agent is selected
+      if (formData.customerType === 'agent') {
+        return [
+          { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
+          { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
+          { number: 3, title: 'এজেন্ট নির্বাচন', description: 'এজেন্ট সিলেক্ট করুন' },
+          { number: 4, title: 'এজেন্ট ব্যালেন্স', description: 'এজেন্টের ব্যালেন্স তথ্য দেখুন' },
+          { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+          { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+        ];
+      } else {
+        return [
+          { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
+          { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
+          { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
+          { number: 4, title: 'ইনভয়েস নির্বাচন', description: 'ইনভয়েস সিলেক্ট করুন' },
+          { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+          { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+        ];
+      }
     }
   };
 
@@ -548,9 +491,13 @@ const NewTransaction = () => {
       customerId: customer.id || customer.customerId,
       customerName: customer.name,
       customerPhone: customer.mobile || customer.phone,
-      customerEmail: customer.email
+      customerEmail: customer.email,
+      customerType: customer.customerType || 'customer',
+      // Clear agent due info when selecting regular customer
+      agentDueInfo: null
     }));
     setSearchTerm('');
+    setSearchLoading(false); // Clear loading state
   };
 
   const handleAgentSelect = (agent) => {
@@ -559,9 +506,32 @@ const NewTransaction = () => {
       customerId: agent._id || agent.id,
       customerName: agent.tradeName || agent.ownerName || '',
       customerPhone: agent.contactNo || '',
-      customerEmail: ''
+      customerEmail: '',
+      customerType: 'agent',
+      // Store agent due amounts
+      agentDueInfo: {
+        totalDue: agent.totalDue || 0,
+        hajDue: agent.hajDue || 0,
+        umrahDue: agent.umrahDue || 0
+      }
     }));
-    setSearchTerm('');
+    setSearchTerm(''); // Clear search term to hide results
+    setSearchLoading(false); // Clear loading state
+  };
+
+  const handleVendorSelect = (vendor) => {
+    setFormData(prev => ({
+      ...prev,
+      customerId: vendor._id || vendor.id,
+      customerName: vendor.tradeName || vendor.vendorName || vendor.name || '',
+      customerPhone: vendor.contactNo || vendor.phone || '',
+      customerEmail: vendor.email || '',
+      customerType: 'vendor',
+      // Clear agent due info when selecting vendor
+      agentDueInfo: null
+    }));
+    setSearchTerm(''); // Clear search term to hide results
+    setSearchLoading(false); // Clear loading state
   };
 
   const handleInvoiceSelect = (invoice) => {
@@ -597,6 +567,21 @@ const NewTransaction = () => {
         name: manager.name,
         phone: manager.phone,
         email: manager.email
+      }
+    }));
+  };
+
+  const handleEmployeeReferenceSelect = (employee) => {
+    setFormData(prev => ({
+      ...prev,
+      employeeReference: {
+        id: employee.id || employee.employeeId,
+        name: employee.firstName && employee.lastName 
+          ? `${employee.firstName} ${employee.lastName}` 
+          : employee.name || 'Unknown Employee',
+        employeeId: employee.employeeId || employee.id,
+        position: employee.position || '',
+        department: employee.department || ''
       }
     }));
   };
@@ -714,26 +699,29 @@ const NewTransaction = () => {
             } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
               newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
             }
-            if (!formData.paymentDetails.amount) {
-              newErrors.amount = 'পরিমাণ লিখুন';
-            } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
-              newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
-            }
-            // Validate source account (where money goes from)
-            if (!formData.sourceAccount.id) {
-              newErrors.sourceAccount = 'সোর্স একাউন্ট নির্বাচন করুন';
-            }
-            // Validate destination account (where money comes to)
-            if (!formData.destinationAccount.id) {
-              newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
-            }
-            // Validate customer bank account details for bank transfer
-            if (formData.paymentMethod === 'bank-transfer') {
-              if (!formData.customerBankAccount.bankName) {
-                newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+            // Only validate amount and accounts if payment method is selected
+            if (formData.paymentMethod) {
+              if (!formData.paymentDetails.amount) {
+                newErrors.amount = 'পরিমাণ লিখুন';
+              } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
+                newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
               }
-              if (!formData.customerBankAccount.accountNumber) {
-                newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+              // Validate source account (where money goes from)
+              if (!formData.sourceAccount.id) {
+                newErrors.sourceAccount = 'সোর্স একাউন্ট নির্বাচন করুন';
+              }
+              // Validate destination account (where money comes to)
+              if (!formData.destinationAccount.id) {
+                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
+              }
+              // Validate customer bank account details for bank transfer
+              if (formData.paymentMethod === 'bank-transfer') {
+                if (!formData.customerBankAccount.bankName) {
+                  newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+                }
+                if (!formData.customerBankAccount.accountNumber) {
+                  newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+                }
               }
             }
             break;
@@ -759,38 +747,52 @@ const NewTransaction = () => {
           }
           break;
         case 4:
-          if (!formData.selectedInvoice || !formData.invoiceId) {
-            newErrors.invoiceId = 'ইনভয়েস নির্বাচন করুন';
+          // Agent balance step - no validation needed, just display
+          if (formData.customerType === 'agent') {
+            // For agents, validate selectedOption
+            if (!formData.selectedOption) {
+              newErrors.selectedOption = 'পেমেন্টের ধরন নির্বাচন করুন';
+            }
           }
           break;
         case 5:
+          // Invoice selection - only for non-agent customers
+          if (formData.customerType !== 'agent') {
+            if (!formData.selectedInvoice || !formData.invoiceId) {
+              newErrors.invoiceId = 'ইনভয়েস নির্বাচন করুন';
+            }
+          }
+          break;
+        case 6:
           if (!formData.paymentMethod) {
             newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
           } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
             newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
           }
-          if (!formData.paymentDetails.amount) {
-            newErrors.amount = 'পরিমাণ লিখুন';
-          } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
-            newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
-          }
-          // Validate source account (where money goes from)
-          if (!formData.sourceAccount.id) {
-            newErrors.sourceAccount = 'সোর্স একাউন্ট নির্বাচন করুন';
-          }
-          // Validate destination account (where money comes to)
-          if (!formData.destinationAccount.id) {
-            newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
-          }
-          // Validate customer bank account details for bank transfer
-          if (formData.paymentMethod === 'bank-transfer') {
-            if (!formData.customerBankAccount.bankName) {
-              newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+          // Only validate amount if payment method is selected
+          if (formData.paymentMethod) {
+            if (!formData.paymentDetails.amount) {
+              newErrors.amount = 'পরিমাণ লিখুন';
+            } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
+              newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
             }
-            if (!formData.customerBankAccount.accountNumber) {
-              newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+            // Validate destination account (where money comes to) for credit transactions
+            if (!formData.destinationAccount.id) {
+              newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
+            }
+            // Validate customer bank account details for bank transfer
+            if (formData.paymentMethod === 'bank-transfer') {
+              if (!formData.customerBankAccount.bankName) {
+                newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+              }
+              if (!formData.customerBankAccount.accountNumber) {
+                newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+              }
             }
           }
+          break;
+        case 7:
+          // Final confirmation step for agent transactions
           break;
         }
       }
@@ -808,14 +810,26 @@ const NewTransaction = () => {
       } else if (formData.transactionType === 'debit') {
         maxSteps = 5;
       } else {
-        maxSteps = 6;
+        // Credit flow: for agents, skip invoice selection (step 5)
+        maxSteps = formData.customerType === 'agent' ? 6 : 6;
       }
-      setCurrentStep(prev => Math.min(prev + 1, maxSteps));
+      
+      // For agents, go to step 5 (payment method) from step 4
+      if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 4) {
+        setCurrentStep(5); // Go to payment method
+      } else {
+        setCurrentStep(prev => Math.min(prev + 1, maxSteps));
+      }
     }
   };
 
   const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+    // Special handling for agent: go back from step 5 to step 4
+    if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
+      setCurrentStep(4); // Go back to balance display
+    } else {
+      setCurrentStep(prev => Math.max(prev - 1, 1));
+    }
   };
 
   const goToStep = (step) => {
@@ -824,77 +838,67 @@ const NewTransaction = () => {
     }
   };
 
-  const handleSubmit = async () => {
-    if (!validateStep(5)) return;
+  const handleSubmit = () => {
+    const finalStep = formData.transactionType === 'credit' && formData.customerType === 'agent' ? 6 : 6;
+    if (!validateStep(finalStep)) return;
 
-    try {
-      // Validate amount is greater than 0
-      const amount = parseFloat(formData.paymentDetails.amount);
-      if (!amount || amount <= 0) {
-        setErrors(prev => ({ ...prev, amount: 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে' }));
-        return;
-      }
+    // Validate amount is greater than 0
+    const amount = parseFloat(formData.paymentDetails.amount);
+    if (!amount || amount <= 0) {
+      setErrors(prev => ({ ...prev, amount: 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে' }));
+      return;
+    }
 
-      // Prepare transaction data for API
-      const transactionData = {
-        transactionType: formData.transactionType,
-        customerId: formData.customerId,
-        category: formData.category,
-        paymentMethod: formData.paymentMethod,
-        paymentDetails: {
-          bankName: formData.paymentDetails.bankName || null,
-          accountNumber: formData.paymentDetails.accountNumber || null,
-          chequeNumber: formData.paymentDetails.chequeNumber || null,
-          mobileProvider: formData.paymentDetails.mobileProvider || null,
-          transactionId: formData.paymentDetails.transactionId || null,
-          amount: amount,
-          reference: formData.paymentDetails.reference || null
-        },
-        customerBankAccount: {
-          bankName: formData.customerBankAccount.bankName || null,
-          accountNumber: formData.customerBankAccount.accountNumber || null
-        },
-        sourceAccount: {
-          id: formData.sourceAccount.id,
-          name: formData.sourceAccount.name,
-          bankName: formData.sourceAccount.bankName,
-          accountNumber: formData.sourceAccount.accountNumber,
-          balance: formData.sourceAccount.balance
-        },
-        destinationAccount: {
-          id: formData.destinationAccount.id,
-          name: formData.destinationAccount.name,
-          bankName: formData.destinationAccount.bankName,
-          accountNumber: formData.destinationAccount.accountNumber,
-          balance: formData.destinationAccount.balance
-        },
-        notes: formData.notes || null,
-        date: formData.date,
-        createdBy: userProfile?.email || 'unknown_user',
-        branchId: userProfile?.branchId || 'main_branch'
-      };
+    // Prepare transaction data for API
+    const transactionData = {
+      transactionType: formData.transactionType,
+      customerId: formData.customerId,
+      category: formData.category,
+      paymentMethod: formData.paymentMethod,
+      paymentDetails: {
+        bankName: formData.paymentDetails.bankName || null,
+        accountNumber: formData.paymentDetails.accountNumber || null,
+        chequeNumber: formData.paymentDetails.chequeNumber || null,
+        mobileProvider: formData.paymentDetails.mobileProvider || null,
+        transactionId: formData.paymentDetails.transactionId || null,
+        amount: amount,
+        reference: formData.paymentDetails.reference || null
+      },
+      customerBankAccount: {
+        bankName: formData.customerBankAccount.bankName || null,
+        accountNumber: formData.customerBankAccount.accountNumber || null
+      },
+      sourceAccount: {
+        id: formData.sourceAccount.id,
+        name: formData.sourceAccount.name,
+        bankName: formData.sourceAccount.bankName,
+        accountNumber: formData.sourceAccount.accountNumber,
+        balance: formData.sourceAccount.balance
+      },
+      destinationAccount: {
+        id: formData.destinationAccount.id,
+        name: formData.destinationAccount.name,
+        bankName: formData.destinationAccount.bankName,
+        accountNumber: formData.destinationAccount.accountNumber,
+        balance: formData.destinationAccount.balance
+      },
+      notes: formData.notes || null,
+      date: formData.date,
+      createdBy: userProfile?.email || 'unknown_user',
+      branchId: userProfile?.branchId || 'main_branch',
+      employeeReference: formData.employeeReference.id ? formData.employeeReference : null
+    };
 
-      // Log the data being sent for debugging
-      console.log('Sending transaction data:', transactionData);
+    // Log the data being sent for debugging
+    console.log('Sending transaction data:', transactionData);
 
-      // Call the API to create transaction
-      const response = await axiosSecure.post('/transactions', transactionData);
+    // Use React Query mutation
+    createTransactionMutation.mutate(transactionData, {
+      onSuccess: (response) => {
       
       console.log('Transaction response:', response.data);
       
-      if (response.data.success) {
-        Swal.fire({
-          title: 'সফল!',
-          text: 'লেনদেন সফলভাবে সংরক্ষণ হয়েছে!',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F9FAFB',
-          customClass: {
-            title: 'text-green-600 font-bold text-xl',
-            popup: 'rounded-2xl shadow-2xl'
-          }
-        });
+        // Success handling is now done in the mutation's onSuccess callback
 
         // Reset form after successful submission
         setFormData({
@@ -935,7 +939,14 @@ const NewTransaction = () => {
             balance: 0
           },
           notes: '',
-          date: new Date().toISOString().split('T')[0]
+          date: new Date().toISOString().split('T')[0],
+          employeeReference: {
+            id: '',
+            name: '',
+            employeeId: '',
+            position: '',
+            department: ''
+          }
         });
         setCurrentStep(1);
         setSearchTerm('');
@@ -991,40 +1002,8 @@ const NewTransaction = () => {
             });
           }
         });
-      } else {
-        throw new Error(response.data.message || 'Transaction creation failed');
       }
-      
-    } catch (error) {
-      console.error('Transaction creation error:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      
-      let errorMessage = 'লেনদেন সংরক্ষণ করতে সমস্যা হয়েছে।';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.status === 400) {
-        errorMessage = 'অনুরোধের তথ্যে সমস্যা আছে। সব প্রয়োজনীয় ক্ষেত্র পূরণ করুন।';
-      } else if (error.response?.status === 404) {
-        errorMessage = 'কাস্টমার পাওয়া যায়নি।';
-      } else if (error.response?.status === 500) {
-        errorMessage = 'সার্ভারে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
-      }
-      
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
-    }
+    });
   };
 
   const generatePDF = async () => {
@@ -1119,6 +1098,29 @@ const NewTransaction = () => {
 
   // Get default business account (main business account)
   const defaultBusinessAccount = accounts.find(account => account.type === 'business') || accounts[0];
+
+  // Calculate customer balance from transactions
+  const calculateCustomerBalance = (customerId) => {
+    if (!customerId || !transactionsData?.transactions) return 0;
+    
+    const customerTransactions = transactionsData.transactions.filter(transaction => 
+      transaction.customerId === customerId
+    );
+    
+    let balance = 0;
+    customerTransactions.forEach(transaction => {
+      const amount = transaction.paymentDetails?.amount || transaction.amount || 0;
+      if (transaction.transactionType === 'credit') {
+        balance += amount;
+      } else if (transaction.transactionType === 'debit') {
+        balance -= amount;
+      }
+    });
+    
+    return balance;
+  };
+
+  const customerBalance = formData.customerId ? calculateCustomerBalance(formData.customerId) : 0;
 
   return (
     <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${
@@ -1690,54 +1692,123 @@ const NewTransaction = () => {
                     />
                   </div>
 
-                  {/* Customer / Agent List */}
+                  {/* Customer / Agent / Vendor List */}
                   <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
-                    {(searchTerm ? agentLoading : customersLoading) ? (
+                    {(searchTerm ? (agentLoading || vendorLoading || searchLoading) : customersLoading) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
                         <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">কাস্টমার লোড হচ্ছে...</span>
                       </div>
-                    ) : searchTerm && agentResults.length > 0 ? (
-                      agentResults.map((agent) => (
-                        <button
-                          key={agent._id || agent.id}
-                          onClick={() => handleAgentSelect(agent)}
-                          className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
-                            formData.customerId === (agent._id || agent.id)
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                    ) : searchTerm && (agentResults.length > 0 || vendorResults.length > 0) ? (
+                      <>
+                        {/* Agent Results */}
+                        {agentResults.map((agent) => (
+                          <button
+                            key={`agent-${agent._id || agent.id}`}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleAgentSelect(agent);
+                            }}
+                            className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                              formData.customerId === (agent._id || agent.id)
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="text-left min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                      {agent.tradeName || agent.ownerName}
+                                    </h3>
+                                    <span className="inline-block px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-xs rounded-full">
+                                      Agent
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                    {agent.ownerName} • {agent.contactNo}
+                                  </p>
+                                  {agent.tradeLocation && (
+                                    <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
+                                      {agent.tradeLocation}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-left min-w-0 flex-1">
-                                <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                                  {agent.tradeName || agent.ownerName}
-                                </h3>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                  {agent.ownerName} • {agent.contactNo}
-                                </p>
-                                {agent.tradeLocation && (
-                                  <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
-                                    {agent.tradeLocation}
-                                  </span>
-                                )}
-                              </div>
+                              {formData.customerId === (agent._id || agent.id) && (
+                                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
+                              )}
                             </div>
-                            {formData.customerId === (agent._id || agent.id) && (
-                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
-                            )}
-                          </div>
-                        </button>
-                      ))
+                          </button>
+                        ))}
+
+                        {/* Vendor Results */}
+                        {vendorResults.map((vendor) => (
+                          <button
+                            key={`vendor-${vendor._id || vendor.id}`}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleVendorSelect(vendor);
+                            }}
+                            className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                              formData.customerId === (vendor._id || vendor.id)
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="text-left min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                      {vendor.tradeName || vendor.vendorName || vendor.name}
+                                    </h3>
+                                    <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full ${
+                                      vendor._type === 'agent' 
+                                        ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400'
+                                        : 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400'
+                                    }`}>
+                                      {vendor._type === 'agent' ? 'Agent' : 'Vendor'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                    {vendor.ownerName} • {vendor.contactNo}
+                                  </p>
+                                  {vendor.tradeLocation && (
+                                    <span className="inline-block px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs rounded-full mt-1">
+                                      {vendor.tradeLocation}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              {formData.customerId === (vendor._id || vendor.id) && (
+                                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </>
                     ) : filteredCustomers.length > 0 ? (
                       filteredCustomers.map((customer) => (
                       <button
                           key={customer.id || customer.customerId}
-                          onClick={() => handleCustomerSelect(customer)}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleCustomerSelect(customer);
+                          }}
                           className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
                             formData.customerId === (customer.id || customer.customerId)
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
@@ -1750,15 +1821,28 @@ const NewTransaction = () => {
                                 <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
                               </div>
                               <div className="text-left min-w-0 flex-1">
-                                <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                                  {customer.name}
-                          </h3>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                    {customer.name}
+                                  </h3>
+                                  {customer.customerType === 'vendor' || customer.customerType === 'Vendor' ? (
+                                    <span className="inline-block px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs rounded-full">
+                                      Vendor
+                                    </span>
+                                  ) : customer.customerType === 'agent' || customer.customerType === 'Agent' ? (
+                                    <span className="inline-block px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 text-xs rounded-full">
+                                      Agent
+                                    </span>
+                                  ) : null}
+                                </div>
                                 <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
                                   {customer.mobile || customer.phone} • {customer.email}
                                 </p>
-                                <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
-                                  {customer.customerType || 'সাধারণ'}
-                                </span>
+                                {customer.customerType && customer.customerType !== 'vendor' && customer.customerType !== 'Vendor' && customer.customerType !== 'agent' && customer.customerType !== 'Agent' && (
+                                  <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
+                                    {customer.customerType}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             {formData.customerId === (customer.id || customer.customerId) && (
@@ -1769,7 +1853,7 @@ const NewTransaction = () => {
                       ))
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                        {searchTerm ? 'কোন এজেন্ট/কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই'}
+                        {searchTerm ? 'কোন এজেন্ট/ভেন্ডর/কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই'}
                       </div>
                     )}
                   </div>
@@ -1785,8 +1869,462 @@ const NewTransaction = () => {
             </div>
           )}
 
-          {/* Step 4: Invoice Selection (for credit only) or Account Manager Selection (for transfer) or Payment Method (for debit) */}
+          {/* Step 4: Agent Balance Display (for credit with agent) or Invoice Selection (for credit with customer) or Account Manager Selection (for transfer) or Payment Method (for debit) */}
           {currentStep === 4 && (
+            <div className="p-3 sm:p-4 lg:p-6">
+              {formData.transactionType === 'credit' && formData.customerType === 'agent' ? (
+                // Agent Balance Display
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    এজেন্টের ব্যালেন্স তথ্য
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    এজেন্টের বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন
+                  </p>
+                </div>
+              ) : formData.transactionType === 'transfer' ? (
+                // Transfer: Transfer Details and Account Manager Selection
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    ট্রান্সফার বিবরণ ও একাউন্ট ম্যানেজার নির্বাচন
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    ট্রান্সফার পরিমাণ লিখুন এবং অনুমোদনের জন্য একাউন্ট ম্যানেজার সিলেক্ট করুন
+                  </p>
+                </div>
+              ) : formData.transactionType === 'debit' ? (
+                // Debit: Payment Method Selection
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    পেমেন্ট মেথড নির্বাচন করুন
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    পেমেন্টের ধরন এবং বিবরণ নির্বাচন করুন
+                  </p>
+                </div>
+              ) : (
+                // Credit: Invoice Selection
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    ইনভয়েস নির্বাচন করুন
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    পেমেন্টের জন্য ইনভয়েস সিলেক্ট করুন
+                  </p>
+                </div>
+              )}
+
+              <div className="max-w-6xl mx-auto">
+                {formData.transactionType === 'credit' && formData.customerType === 'agent' ? (
+                  // Agent Balance Display
+                  <div className="space-y-4 sm:space-y-6">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 sm:p-6 border border-blue-200 dark:border-blue-700">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <User className="w-5 h-5 text-blue-600" />
+                        {formData.customerName} - ব্যালেন্স তথ্য
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Total Balance */}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট ব্যালেন্স</p>
+                              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                ৳{formData.agentDueInfo?.totalDue?.toLocaleString() || '0'}
+                              </p>
+                            </div>
+                            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                              <DollarSign className="w-6 h-6 text-green-600" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Total Due */}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট বকেয়া</p>
+                              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                                ৳{formData.agentDueInfo?.totalDue?.toLocaleString() || '0'}
+                              </p>
+                            </div>
+                            <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                              <AlertCircle className="w-6 h-6 text-orange-600" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Umrah Due */}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</p>
+                              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                ৳{formData.agentDueInfo?.umrahDue?.toLocaleString() || '0'}
+                              </p>
+                            </div>
+                            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                              <Calendar className="w-6 h-6 text-purple-600" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Hajj Due */}
+                        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</p>
+                              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                ৳{formData.agentDueInfo?.hajDue?.toLocaleString() || '0'}
+                              </p>
+                            </div>
+                            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                              <Building className="w-6 h-6 text-red-600" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <div className="flex items-start gap-3">
+                          <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-blue-800 dark:text-blue-200">
+                            <p className="font-medium mb-1">ব্যালেন্স তথ্য সম্পর্কে:</p>
+                            <ul className="space-y-1 text-xs">
+                              <li>• মোট ব্যালেন্স: এজেন্টের সামগ্রিক ব্যালেন্স</li>
+                              <li>• মোট বকেয়া: সমস্ত বকেয়া পরিমাণের যোগফল</li>
+                              <li>• উমরাহ বকেয়া: উমরাহ প্যাকেজের জন্য বকেয়া</li>
+                              <li>• হজ্জ বকেয়া: হজ্জ প্যাকেজের জন্য বকেয়া</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Selection Options */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 sm:p-6 border border-blue-200 dark:border-blue-800">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-8 h-8 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                          <Building className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                          নির্বাচন করুন
+                        </h3>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                        {/* Hajj Option */}
+                        <div 
+                          className={`bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                            formData.selectedOption === 'hajj' 
+                              ? 'border-amber-400 dark:border-amber-500 shadow-lg' 
+                              : 'border-amber-200 dark:border-amber-700'
+                          }`}
+                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'hajj' }))}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">হজ্জ বাবদ</p>
+                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">হজ্জের জন্য পেমেন্ট</p>
+                            </div>
+                            <Building className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                          </div>
+                        </div>
+                        
+                        {/* Umrah Option */}
+                        <div 
+                          className={`bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                            formData.selectedOption === 'umrah' 
+                              ? 'border-blue-400 dark:border-blue-500 shadow-lg' 
+                              : 'border-blue-200 dark:border-blue-700'
+                          }`}
+                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'umrah' }))}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">উমরাহ বাবদ</p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">উমরাহর জন্য পেমেন্ট</p>
+                            </div>
+                            <Globe className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                          </div>
+                        </div>
+                        
+                        {/* Others Option */}
+                        <div 
+                          className={`bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                            formData.selectedOption === 'others' 
+                              ? 'border-gray-400 dark:border-gray-500 shadow-lg' 
+                              : 'border-gray-200 dark:border-gray-600'
+                          }`}
+                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'others' }))}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">অনন্যা বাবদ</p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">অন্যান্য পেমেন্ট</p>
+                            </div>
+                            <DollarSign className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Error Display */}
+                      {errors.selectedOption && (
+                        <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                          <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            {errors.selectedOption}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : formData.transactionType === 'transfer' ? (
+                  // Transfer: Transfer Details first, then Account Manager Selection
+                  <div className="space-y-4 sm:space-y-6">
+                    {/* Transfer Amount Input */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 sm:p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <DollarSign className="w-5 h-5 text-green-600" />
+                        ট্রান্সফার বিবরণ
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            ট্রান্সফার পরিমাণ *
+                          </label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="number"
+                              name="transferAmount"
+                              value={formData.transferAmount}
+                              onChange={handleInputChange}
+                              placeholder="0.00"
+                              min="0"
+                              step="0.01"
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-white border-gray-300 text-gray-900' 
+                                  : 'border-gray-300'
+                              } ${errors.transferAmount ? 'border-red-500 focus:ring-red-500' : ''}`}
+                            />
+                          </div>
+                          {errors.transferAmount && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {errors.transferAmount}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            রেফারেন্স নোট
+                          </label>
+                          <input
+                            type="text"
+                            name="transferReference"
+                            value={formData.transferReference}
+                            onChange={handleInputChange}
+                            placeholder="ট্রান্সফার রেফারেন্স..."
+                            className={`w-full px-3 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                              isDark 
+                                ? 'bg-white border-gray-300 text-gray-900' 
+                                : 'border-gray-300'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : formData.transactionType === 'debit' ? (
+                  // Debit: Payment Method Selection
+                  <div className="space-y-4 sm:space-y-6">
+                    {/* Payment Method Selection */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 sm:p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <CreditCard className="w-5 h-5 text-blue-600" />
+                        পেমেন্ট মেথড
+                      </h3>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                        {[
+                          { id: 'cash', label: 'নগদ', icon: Banknote, color: 'green' },
+                          { id: 'bank-transfer', label: 'ব্যাংক ট্রান্সফার', icon: Building2, color: 'blue' },
+                          { id: 'cheque', label: 'চেক', icon: FileText, color: 'purple' },
+                          { id: 'mobile-banking', label: 'মোবাইল ব্যাংকিং', icon: Smartphone, color: 'indigo' },
+                          { id: 'others', label: 'অন্যান্য', icon: MoreHorizontal, color: 'gray' }
+                        ].map((method) => (
+                          <button
+                            key={method.id}
+                            type="button"
+                            onClick={() => setFormData(prev => ({ ...prev, paymentMethod: method.id }))}
+                            className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                              formData.paymentMethod === method.id
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center gap-2">
+                              <method.icon className={`w-6 h-6 ${
+                                formData.paymentMethod === method.id 
+                                  ? 'text-blue-600' 
+                                  : 'text-gray-400'
+                              }`} />
+                              <span className={`text-sm font-medium ${
+                                formData.paymentMethod === method.id 
+                                  ? 'text-blue-900 dark:text-blue-100' 
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>
+                                {method.label}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      {errors.paymentMethod && (
+                        <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {errors.paymentMethod}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  // Credit: Invoice Selection
+                  <div className="space-y-4 sm:space-y-6">
+                    {/* Invoice Selection */}
+                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 sm:p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-green-600" />
+                        ইনভয়েস তালিকা
+                      </h3>
+                      
+                      <div className="space-y-3">
+                        {invoices.length > 0 ? (
+                          invoices.map((invoice) => (
+                            <button
+                              key={invoice.id}
+                              type="button"
+                              onClick={() => handleInvoiceSelect(invoice)}
+                              className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                                formData.selectedInvoice?.id === invoice.id
+                                  ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-green-300'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div className="text-left">
+                                  <p className="font-medium text-gray-900 dark:text-white">
+                                    ইনভয়েস #{invoice.invoiceNumber}
+                                  </p>
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                                    পরিমাণ: ৳{invoice.amount.toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                                    {new Date(invoice.date).toLocaleDateString('en-US')}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="text-center py-8">
+                            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400">কোন ইনভয়েস পাওয়া যায়নি</p>
+                          </div>
+                        )}
+                      </div>
+                      {errors.invoiceId && (
+                        <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          {errors.invoiceId}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Invoice Selection (for credit with agent) - HIDDEN FOR AGENTS */}
+          {false && currentStep === 5 && formData.transactionType === 'credit' && formData.customerType === 'agent' && (
+            <div className="p-3 sm:p-4 lg:p-6">
+              <div className="text-center mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  ইনভয়েস নির্বাচন করুন
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  পেমেন্টের জন্য ইনভয়েস সিলেক্ট করুন
+                </p>
+              </div>
+
+              <div className="max-w-6xl mx-auto">
+                <div className="space-y-4 sm:space-y-6">
+                  {/* Invoice Selection */}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 sm:p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-green-600" />
+                      ইনভয়েস তালিকা
+                    </h3>
+                    
+                    <div className="space-y-3">
+                      {invoices.length > 0 ? (
+                        invoices.map((invoice) => (
+                          <button
+                            key={invoice.id}
+                            type="button"
+                            onClick={() => handleInvoiceSelect(invoice)}
+                            className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                              formData.selectedInvoice?.id === invoice.id
+                                ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-green-300'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="text-left">
+                                <p className="font-medium text-gray-900 dark:text-white">
+                                  ইনভয়েস #{invoice.invoiceNumber}
+                                </p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  পরিমাণ: ৳{invoice.amount.toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {new Date(invoice.date).toLocaleDateString('en-US')}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-center py-8">
+                          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-gray-500 dark:text-gray-400">কোন ইনভয়েস পাওয়া যায়নি</p>
+                        </div>
+                      )}
+                    </div>
+                    {errors.invoiceId && (
+                      <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        {errors.invoiceId}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Invoice Selection (for credit with customer) or Account Manager Selection (for transfer) or Payment Method (for debit) - REMOVED - DUPLICATE */}
+          {false && currentStep === 5 && !(formData.transactionType === 'credit' && formData.customerType === 'agent') && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'transfer' ? (
                 // Transfer: Transfer Details and Account Manager Selection
@@ -2025,6 +2563,16 @@ const NewTransaction = () => {
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                                 <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
                               </div>
+                            ) : accountsError ? (
+                              <div className="text-center py-4 text-red-500 dark:text-red-400">
+                                <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                                <p className="text-sm">
+                                  অ্যাকাউন্ট লোড করতে সমস্যা হয়েছে
+                                </p>
+                                <p className="text-xs mt-1">
+                                  {accountsError.message || 'আবার চেষ্টা করুন'}
+                                </p>
+                              </div>
                             ) : filteredAccounts.length === 0 ? (
                               <div className="text-center py-4 text-gray-500 dark:text-gray-400">
                                 <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -2105,6 +2653,16 @@ const NewTransaction = () => {
                               <div className="flex items-center justify-center py-4">
                                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                                 <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
+                              </div>
+                            ) : accountsError ? (
+                              <div className="text-center py-4 text-red-500 dark:text-red-400">
+                                <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                                <p className="text-sm">
+                                  অ্যাকাউন্ট লোড করতে সমস্যা হয়েছে
+                                </p>
+                                <p className="text-xs mt-1">
+                                  {accountsError.message || 'আবার চেষ্টা করুন'}
+                                </p>
                               </div>
                             ) : filteredAccounts.length === 0 ? (
                               <div className="text-center py-4 text-gray-500 dark:text-gray-400">
@@ -2325,8 +2883,99 @@ const NewTransaction = () => {
                 ) : (
                   // Credit: Invoice Selection
                   <>
-                    {/* Invoice Search */}
-                    <div className="mb-4 sm:mb-6">
+                    {/* Customer Balance Display */}
+                    {formData.customerId && (
+                      <div className="mb-4 sm:mb-6">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-lg p-4 sm:p-6 border border-blue-200 dark:border-blue-800">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                                <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                                  {formData.customerName}
+                                </h3>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {formData.customerPhone}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                                বর্তমান ব্যালেন্স
+                              </p>
+                              <p className={`text-lg sm:text-xl font-bold ${
+                                customerBalance >= 0 
+                                  ? 'text-green-600 dark:text-green-400' 
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                                {customerBalance >= 0 ? '+' : ''}৳{Math.abs(customerBalance).toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500">
+                                {customerBalance >= 0 ? 'আমাদের কাছে পাওনা' : 'আমাদের কাছে ঋণ'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Agent Due Amounts Display */}
+                    {formData.customerType === 'agent' && formData.agentDueInfo && (
+                      <div className="mb-4 sm:mb-6">
+                        <div className="bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-900/20 dark:to-amber-900/20 rounded-lg p-4 sm:p-6 border border-orange-200 dark:border-orange-800">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 bg-orange-100 dark:bg-orange-800 rounded-full flex items-center justify-center">
+                              <DollarSign className="w-4 h-4 text-orange-600 dark:text-orange-400" />
+                            </div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                              এজেন্টের বকেয়া পরিমাণ
+                            </h3>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                            {/* Total Due */}
+                            <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-300">মোট বকেয়া</p>
+                                  <p className="text-lg font-semibold text-gray-900 dark:text-white">৳{formData.agentDueInfo.totalDue?.toLocaleString() || '0'}</p>
+                                </div>
+                                <DollarSign className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                              </div>
+                            </div>
+                            
+                            {/* Hajj Due */}
+                            <div className="bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-3 border border-amber-200 dark:border-amber-700">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-amber-700 dark:text-amber-300">হাজ্জ বকেয়া</p>
+                                  <p className="text-lg font-semibold text-amber-900 dark:text-amber-100">৳{formData.agentDueInfo.hajDue?.toLocaleString() || '0'}</p>
+                                </div>
+                                <Building className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                              </div>
+                            </div>
+                            
+                            {/* Umrah Due */}
+                            <div className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-3 border border-blue-200 dark:border-blue-700">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs text-blue-700 dark:text-blue-300">ওমরাহ বকেয়া</p>
+                                  <p className="text-lg font-semibold text-blue-900 dark:text-blue-100">৳{formData.agentDueInfo.umrahDue?.toLocaleString() || '0'}</p>
+                                </div>
+                                <Globe className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Invoice Search - Only show for non-agent customers */}
+                    {formData.customerType !== 'agent' && (
+                      <>
+                        <div className="mb-4 sm:mb-6">
                       <div className="relative max-w-md mx-auto">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 sm:w-5 sm:h-5" />
                         <input
@@ -2346,9 +2995,9 @@ const NewTransaction = () => {
                           {filteredInvoices.length} টি ইনভয়েস পাওয়া গেছে
                         </p>
                       )}
-                    </div>
+                        </div>
 
-                    {/* Invoice List */}
+                        {/* Invoice List */}
                     <div className="space-y-2 sm:space-y-3 max-h-60 sm:max-h-96 overflow-y-auto">
                       {filteredInvoices.length === 0 ? (
                         <div className="text-center py-8">
@@ -2422,27 +3071,40 @@ const NewTransaction = () => {
                       )}
                     </div>
 
-                    {errors.invoiceId && (
+                        {errors.invoiceId && (
+                          <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
+                            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                            {errors.invoiceId}
+                          </p>
+                        )}
+                      </>
+                    )}
+
+                    {/* Error Messages for Transfer */}
+                    {formData.transactionType === 'transfer' && errors.accountManager && (
                       <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
                         <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                        {errors.invoiceId}
+                        {errors.accountManager}
                       </p>
                     )}
                   </>
-                )}
-
-                {/* Error Messages for Transfer */}
-                {formData.transactionType === 'transfer' && errors.accountManager && (
-                  <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
-                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                    {errors.accountManager}
-                  </p>
                 )}
               </div>
             </div>
           )}
 
-          {/* Step 5: Payment Method (for credit only) or Confirmation with SMS (for transfer) or Confirmation (for debit) */}
+          {/* Step 5: Payment Method (for credit with agent) */}
+          {currentStep === 5 && formData.transactionType === 'credit' && formData.customerType === 'agent' && (
+            <div className="p-3 sm:p-4 lg:p-6">
+
+              <div className="max-w-6xl mx-auto">
+                <div className="space-y-4 sm:space-y-6">
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Payment Method (for credit with customer) or Confirmation with SMS (for transfer) or Confirmation (for debit) or Payment Method (for credit with agent) */}
           {currentStep === 5 && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'transfer' ? (
@@ -2619,13 +3281,31 @@ const NewTransaction = () => {
                           </span>
                         </div>
                         <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">তারিখ:</span>
+                          <span className="text-gray-600 dark:text-gray-400">Date:</span>
                           <span className="font-semibold text-gray-900 dark:text-white">
-                            {new Date(formData.date).toLocaleDateString('bn-BD')}
+                            {new Date(formData.date).toLocaleDateString('en-US')}
                           </span>
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Employee Reference */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      কর্মচারী রেফারেন্স (ঐচ্ছিক)
+                    </label>
+                    <EmployeeReferenceSearch
+                      onSelect={handleEmployeeReferenceSelect}
+                      placeholder="কর্মচারীর নাম লিখুন..."
+                      buttonText="খুঁজুন"
+                      selectedEmployee={formData.employeeReference.id ? formData.employeeReference : null}
+                    />
+                    {formData.employeeReference.id && (
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        ✅ কর্মচারী রেফারেন্স নির্বাচন করা হয়েছে
+                      </p>
+                    )}
                   </div>
 
                   {/* Additional Notes */}
@@ -2651,11 +3331,22 @@ const NewTransaction = () => {
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                     <button
                       onClick={handleSubmit}
-                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                      disabled={createTransactionMutation.isPending}
+                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
-                      <Save className="w-4 h-4" />
-                      <span className="hidden sm:inline">লেনদেন সংরক্ষণ করুন</span>
-                      <span className="sm:hidden">সংরক্ষণ করুন</span>
+                      {createTransactionMutation.isPending ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="hidden sm:inline">সংরক্ষণ হচ্ছে...</span>
+                          <span className="sm:hidden">সংরক্ষণ হচ্ছে...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span className="hidden sm:inline">লেনদেন সংরক্ষণ করুন</span>
+                          <span className="sm:hidden">সংরক্ষণ করুন</span>
+                        </>
+                      )}
                     </button>
                     
                     <button
@@ -2672,8 +3363,8 @@ const NewTransaction = () => {
                       className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
                       <Mail className="w-4 h-4" />
-                      <span className="hidden sm:inline">ইমেইল পাঠান</span>
-                      <span className="sm:hidden">ইমেইল</span>
+                      <span className="hidden sm:inline">SMS পাঠান</span>
+                      <span className="sm:hidden">SMS</span>
                     </button>
                   </div>
                 </div>
@@ -2902,7 +3593,74 @@ const NewTransaction = () => {
             </div>
           )}
 
-          {/* Step 6: Confirmation (for credit only) */}
+          {/* Step 7: Confirmation (for credit with agent) */}
+          {currentStep === 7 && formData.transactionType === 'credit' && formData.customerType === 'agent' && (
+            <div className="p-3 sm:p-4 lg:p-6">
+              <div className="text-center mb-4 sm:mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                  তথ্য যাচাই এবং কনফার্মেশন
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  সমস্ত তথ্য সঠিক হলে কনফার্ম করুন
+                </p>
+              </div>
+
+              <div className="max-w-4xl mx-auto">
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 sm:p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    লেনদেনের বিবরণ
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">লেনদেনের ধরন:</span>
+                        <p className="text-gray-900 dark:text-white font-medium">ক্রেডিট</p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">এজেন্ট:</span>
+                        <p className="text-gray-900 dark:text-white font-medium">{formData.customerName}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">ইনভয়েস:</span>
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          #{formData.selectedInvoice?.invoiceNumber || 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">পরিমাণ:</span>
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          ৳{formData.paymentDetails.amount ? parseFloat(formData.paymentDetails.amount).toLocaleString() : '0'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">পেমেন্ট মেথড:</span>
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          {formData.paymentMethod === 'cash' ? 'নগদ' :
+                           formData.paymentMethod === 'bank-transfer' ? 'ব্যাংক ট্রান্সফার' :
+                           formData.paymentMethod === 'cheque' ? 'চেক' :
+                           formData.paymentMethod === 'mobile-banking' ? 'মোবাইল ব্যাংকিং' :
+                           formData.paymentMethod === 'others' ? 'অন্যান্য' : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Date:</span>
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          {new Date().toLocaleDateString('en-US')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Confirmation (for credit with customer) or Confirmation (for credit with agent) */}
           {currentStep === 6 && (
             <div className="p-3 sm:p-4 lg:p-6">
               <div className="text-center mb-4 sm:mb-6">
@@ -2970,13 +3728,31 @@ const NewTransaction = () => {
                         </span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">তারিখ:</span>
+                        <span className="text-gray-600 dark:text-gray-400">Date:</span>
                         <span className="font-semibold text-gray-900 dark:text-white">
-                          {new Date(formData.date).toLocaleDateString('bn-BD')}
+                          {new Date(formData.date).toLocaleDateString('en-US')}
                         </span>
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Employee Reference */}
+                <div className="mb-4">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    কর্মচারী রেফারেন্স (ঐচ্ছিক)
+                  </label>
+                  <EmployeeReferenceSearch
+                    onSelect={handleEmployeeReferenceSelect}
+                    placeholder="কর্মচারীর নাম লিখুন..."
+                    buttonText="খুঁজুন"
+                    selectedEmployee={formData.employeeReference.id ? formData.employeeReference : null}
+                  />
+                  {formData.employeeReference.id && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      ✅ কর্মচারী রেফারেন্স নির্বাচন করা হয়েছে
+                    </p>
+                  )}
                 </div>
 
                 {/* Additional Notes */}
@@ -3002,11 +3778,22 @@ const NewTransaction = () => {
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                   <button
                     onClick={handleSubmit}
-                    className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                    disabled={createTransactionMutation.isPending}
+                    className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                   >
-                    <Save className="w-4 h-4" />
-                    <span className="hidden sm:inline">লেনদেন সংরক্ষণ করুন</span>
-                    <span className="sm:hidden">সংরক্ষণ করুন</span>
+                    {createTransactionMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="hidden sm:inline">সংরক্ষণ হচ্ছে...</span>
+                        <span className="sm:hidden">সংরক্ষণ হচ্ছে...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span className="hidden sm:inline">লেনদেন সংরক্ষণ করুন</span>
+                        <span className="sm:hidden">সংরক্ষণ করুন</span>
+                      </>
+                    )}
                   </button>
                   
                   <button
@@ -3050,9 +3837,9 @@ const NewTransaction = () => {
 
           <button
             onClick={nextStep}
-            disabled={currentStep === (formData.transactionType === 'credit' ? 6 : 5)}
+            disabled={currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 7 : 6) : 5)}
             className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-              currentStep === (formData.transactionType === 'credit' ? 6 : 5)
+              currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 7 : 6) : 5)
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}

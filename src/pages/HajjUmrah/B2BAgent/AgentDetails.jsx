@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Users, ArrowLeft, Pencil, UserCheck, Calendar, DollarSign, 
   TrendingUp, MapPin, Phone, Mail, CreditCard, FileText,
-  Building, Globe, Award, Target, BarChart3, PieChart
+  Building, Globe, Award, Target, BarChart3, PieChart, Package
 } from 'lucide-react';
 import { useAgent } from '../../../hooks/useAgentQueries';
 
@@ -29,6 +29,13 @@ const AgentDetails = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate(`/hajj-umrah/agent/${id}/create-package`)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 text-sm"
+          >
+            <Package className="w-3.5 h-3.5" /> Create Package
+          </button>
           <button
             type="button"
             onClick={() => navigate(`/hajj-umrah/agent/${id}/edit`)}
@@ -70,41 +77,66 @@ const AgentDetails = () => {
       ) : (
         <div className="space-y-4">
           {/* Customer Statistics Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs opacity-90">Total Customers</p>
-                  <p className="text-lg font-semibold">{agent.totalCustomers || 0}</p>
+          <div className="space-y-3">
+            {/* First Row - 3 Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Total Customers</p>
+                    <p className="text-lg font-semibold">{agent.totalCustomers || 0}</p>
+                  </div>
+                  <UserCheck className="w-6 h-6 opacity-80" />
                 </div>
-                <UserCheck className="w-6 h-6 opacity-80" />
+              </div>
+              <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Haj Customers</p>
+                    <p className="text-lg font-semibold">{agent.hajCustomers || 0}</p>
+                  </div>
+                  <Building className="w-6 h-6 opacity-80" />
+                </div>
+              </div>
+              <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Umrah Customers</p>
+                    <p className="text-lg font-semibold">{agent.umrahCustomers || 0}</p>
+                  </div>
+                  <Globe className="w-6 h-6 opacity-80" />
+                </div>
               </div>
             </div>
-            <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs opacity-90">Haj Customers</p>
-                  <p className="text-lg font-semibold">{agent.hajCustomers || 0}</p>
+
+            {/* Second Row - Due Amounts */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Total Due</p>
+                    <p className="text-lg font-semibold">৳{agent.totalDue?.toLocaleString() || '0'}</p>
+                  </div>
+                  <DollarSign className="w-6 h-6 opacity-80" />
                 </div>
-                <Building className="w-6 h-6 opacity-80" />
               </div>
-            </div>
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-3 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs opacity-90">Umrah Customers</p>
-                  <p className="text-lg font-semibold">{agent.umrahCustomers || 0}</p>
+              <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Haj Due</p>
+                    <p className="text-lg font-semibold">৳{agent.hajDue?.toLocaleString() || '0'}</p>
+                  </div>
+                  <Building className="w-6 h-6 opacity-80" />
                 </div>
-                <Globe className="w-6 h-6 opacity-80" />
               </div>
-            </div>
-            <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-3 text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs opacity-90">Active Bookings</p>
-                  <p className="text-lg font-semibold">{agent.activeBookings || 0}</p>
+              <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Umrah Due</p>
+                    <p className="text-lg font-semibold">৳{agent.umrahDue?.toLocaleString() || '0'}</p>
+                  </div>
+                  <Globe className="w-6 h-6 opacity-80" />
                 </div>
-                <Calendar className="w-6 h-6 opacity-80" />
               </div>
             </div>
           </div>
@@ -120,7 +152,7 @@ const AgentDetails = () => {
               <div className="space-y-2">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Trade Name</label>
-                  <p className="text-sm text-gray-900 dark:text-white">{agent.tradeName || '-'}</p>
+                  <p className="text-5 font-bold text-gray-900 dark:text-white">{agent.tradeName || '-'}</p>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Trade Location</label>
@@ -227,58 +259,6 @@ const AgentDetails = () => {
             </div>
           </div>
 
-          {/* Haj & Umrah Statistics */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-2 mb-3">
-                <BarChart3 className="w-4 h-4 text-purple-600" />
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Haj & Umrah Statistics</h3>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-                  <p className="text-xs text-blue-600 dark:text-blue-400">Total Haj</p>
-                  <p className="text-lg font-semibold text-blue-700 dark:text-blue-300">{agent.totalHaj || 0}</p>
-                </div>
-                <div className="text-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded">
-                  <p className="text-xs text-purple-600 dark:text-purple-400">Total Umrah</p>
-                  <p className="text-lg font-semibold text-purple-700 dark:text-purple-300">{agent.totalUmrah || 0}</p>
-                </div>
-                <div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
-                  <p className="text-xs text-green-600 dark:text-green-400">This Year Haj</p>
-                  <p className="text-lg font-semibold text-green-700 dark:text-green-300">{agent.thisYearHaj || 0}</p>
-                </div>
-                <div className="text-center p-2 bg-orange-50 dark:bg-orange-900/20 rounded">
-                  <p className="text-xs text-orange-600 dark:text-orange-400">This Year Umrah</p>
-                  <p className="text-lg font-semibold text-orange-700 dark:text-orange-300">{agent.thisYearUmrah || 0}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-2 mb-3">
-                <PieChart className="w-4 h-4 text-green-600" />
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Performance Metrics</h3>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Success Rate</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{agent.successRate || '0'}%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Customer Satisfaction</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{agent.customerSatisfaction || '0'}%</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Average Booking Value</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">৳{agent.avgBookingValue?.toLocaleString() || '0'}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Repeat Customers</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-white">{agent.repeatCustomers || '0'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
           {/* Additional Information */}
           <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">

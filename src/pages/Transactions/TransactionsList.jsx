@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   CreditCard, 
   Search, 
@@ -21,7 +21,12 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { 
+  useTransactions, 
+  useUpdateTransaction, 
+  useDeleteTransaction,
+  useBulkDeleteTransactions 
+} from '../../hooks/useTransactionQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import Swal from 'sweetalert2';
 import { formatDate as formatDateShared } from '../../lib/format';
@@ -29,7 +34,6 @@ import { formatDate as formatDateShared } from '../../lib/format';
 const TransactionsList = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
-  const axiosSecure = useAxiosSecure();
   
   // State management
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,88 +48,40 @@ const TransactionsList = () => {
   const [itemsPerPage] = useState(10);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [selectedTransactions, setSelectedTransactions] = useState([]);
   const [selectAll, setSelectAll] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [editFormData, setEditFormData] = useState({});
-  const [editLoading, setEditLoading] = useState(false);
 
-  // Load transactions on component mount and when filters change
-  useEffect(() => {
-    loadTransactions();
-  }, [currentPage, filters, searchTerm]);
+  // React Query hooks
+  const { 
+    data: transactionsData, 
+    isLoading: loading, 
+    error,
+    refetch 
+  } = useTransactions(
+    { 
+      ...filters, 
+      search: searchTerm 
+    }, 
+    currentPage, 
+    itemsPerPage
+  );
 
-  const loadTransactions = async () => {
-    try {
-      setLoading(true);
-      
-      // Build query parameters
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: itemsPerPage.toString()
-      });
+  const updateTransactionMutation = useUpdateTransaction();
+  const deleteTransactionMutation = useDeleteTransaction();
+  const bulkDeleteMutation = useBulkDeleteTransactions();
 
-      // Add filters to query parameters
-      if (filters.transactionType) params.append('transactionType', filters.transactionType);
-      if (filters.category) params.append('category', filters.category);
-      if (filters.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
-      if (searchTerm) params.append('search', searchTerm);
+  // Extract data from query result
+  const transactions = transactionsData?.transactions || [];
+  const totalCount = transactionsData?.totalCount || 0;
+  const totalPages = transactionsData?.totalPages || 0;
 
-      // Add date range filters
-      if (filters.dateRange) {
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        const lastMonth = new Date(today);
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        
-        switch (filters.dateRange) {
-          case 'today':
-            params.append('dateFrom', today.toISOString().split('T')[0]);
-            params.append('dateTo', today.toISOString().split('T')[0]);
-            break;
-          case 'yesterday':
-            params.append('dateFrom', yesterday.toISOString().split('T')[0]);
-            params.append('dateTo', yesterday.toISOString().split('T')[0]);
-            break;
-          case 'last-week':
-            params.append('dateFrom', lastWeek.toISOString().split('T')[0]);
-            params.append('dateTo', today.toISOString().split('T')[0]);
-            break;
-          case 'last-month':
-            params.append('dateFrom', lastMonth.toISOString().split('T')[0]);
-            params.append('dateTo', today.toISOString().split('T')[0]);
-            break;
-        }
-      }
-
-      const response = await axiosSecure.get(`/transactions?${params.toString()}`);
-      
-      if (response.data.success) {
-        setTransactions(response.data.transactions || []);
-        setTotalCount(response.data.totalCount || 0);
-        setTotalPages(response.data.totalPages || 0);
-      }
-    } catch (error) {
-      console.error('Failed to load transactions:', error);
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'লেনদেন লোড করতে সমস্যা হয়েছে।',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        background: isDark ? '#1F2937' : '#F9FAFB'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Handle error state
+  if (error) {
+    console.error('Failed to load transactions:', error);
+  }
 
   // Filter options
   const filterOptions = {
@@ -247,38 +203,7 @@ const TransactionsList = () => {
     });
 
     if (result.isConfirmed) {
-      try {
-        setEditLoading(true);
-        const response = await axiosSecure.delete(`/transactions/${transaction.transactionId}`);
-        
-        if (response.data.success) {
-          Swal.fire({
-            title: 'সফল!',
-            text: 'লেনদেন সফলভাবে মুছে ফেলা হয়েছে।',
-            icon: 'success',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#10B981',
-            background: isDark ? '#1F2937' : '#F9FAFB'
-          });
-          
-          // Reload transactions
-          loadTransactions();
-        } else {
-          throw new Error(response.data.message || 'Delete failed');
-        }
-      } catch (error) {
-        console.error('Delete transaction error:', error);
-        Swal.fire({
-          title: 'ত্রুটি!',
-          text: error.response?.data?.message || 'লেনদেন মুছতে সমস্যা হয়েছে।',
-          icon: 'error',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#EF4444',
-          background: isDark ? '#1F2937' : '#FEF2F2'
-        });
-      } finally {
-        setEditLoading(false);
-      }
+      deleteTransactionMutation.mutate(transaction.transactionId);
     }
   };
 
@@ -375,71 +300,48 @@ const TransactionsList = () => {
   };
 
   const handleUpdateTransaction = async () => {
-    try {
-      setEditLoading(true);
-      
-      // Validate required fields
-      if (!editFormData.transactionType || !editFormData.category || !editFormData.paymentMethod) {
-        Swal.fire({
-          title: 'ত্রুটি!',
-          text: 'সব প্রয়োজনীয় ক্ষেত্র পূরণ করুন।',
-          icon: 'error',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#EF4444',
-          background: isDark ? '#1F2937' : '#FEF2F2'
-        });
-        return;
-      }
-
-      const updateData = {
-        transactionType: editFormData.transactionType,
-        category: editFormData.category,
-        paymentMethod: editFormData.paymentMethod,
-        paymentDetails: {
-          bankName: editFormData.paymentDetails.bankName || null,
-          accountNumber: editFormData.paymentDetails.accountNumber || null,
-          chequeNumber: editFormData.paymentDetails.chequeNumber || null,
-          mobileProvider: editFormData.paymentDetails.mobileProvider || null,
-          transactionId: editFormData.paymentDetails.transactionId || null,
-          amount: parseFloat(editFormData.paymentDetails.amount) || 0,
-          reference: editFormData.paymentDetails.reference || null
-        },
-        notes: editFormData.notes || null,
-        date: editFormData.date
-      };
-
-      const response = await axiosSecure.patch(`/transactions/${editingTransaction.transactionId}`, updateData);
-      
-      if (response.data.success) {
-        Swal.fire({
-          title: 'সফল!',
-          text: 'লেনদেন সফলভাবে আপডেট হয়েছে।',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F9FAFB'
-        });
-        
-        // Close modal and reload transactions
-        setShowEditModal(false);
-        setEditingTransaction(null);
-        loadTransactions();
-      } else {
-        throw new Error(response.data.message || 'Update failed');
-      }
-    } catch (error) {
-      console.error('Update transaction error:', error);
+    // Validate required fields
+    if (!editFormData.transactionType || !editFormData.category || !editFormData.paymentMethod) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error.response?.data?.message || 'লেনদেন আপডেট করতে সমস্যা হয়েছে।',
+        text: 'সব প্রয়োজনীয় ক্ষেত্র পূরণ করুন।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
         background: isDark ? '#1F2937' : '#FEF2F2'
       });
-    } finally {
-      setEditLoading(false);
+      return;
     }
+
+    const updateData = {
+      transactionType: editFormData.transactionType,
+      category: editFormData.category,
+      paymentMethod: editFormData.paymentMethod,
+      paymentDetails: {
+        bankName: editFormData.paymentDetails.bankName || null,
+        accountNumber: editFormData.paymentDetails.accountNumber || null,
+        chequeNumber: editFormData.paymentDetails.chequeNumber || null,
+        mobileProvider: editFormData.paymentDetails.mobileProvider || null,
+        transactionId: editFormData.paymentDetails.transactionId || null,
+        amount: parseFloat(editFormData.paymentDetails.amount) || 0,
+        reference: editFormData.paymentDetails.reference || null
+      },
+      notes: editFormData.notes || null,
+      date: editFormData.date
+    };
+
+    updateTransactionMutation.mutate(
+      { 
+        transactionId: editingTransaction.transactionId, 
+        data: updateData 
+      },
+      {
+        onSuccess: () => {
+          setShowEditModal(false);
+          setEditingTransaction(null);
+        }
+      }
+    );
   };
 
   const goToPage = (page) => {
@@ -799,6 +701,7 @@ const TransactionsList = () => {
               onClick={() => {
                 setSearchTerm('');
                 clearFilters();
+                refetch();
               }}
               className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors duration-200"
             >
@@ -1484,10 +1387,10 @@ const TransactionsList = () => {
               </button>
               <button
                 onClick={handleUpdateTransaction}
-                disabled={editLoading}
+                disabled={updateTransactionMutation.isPending}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl font-medium transition-all duration-200"
               >
-                {editLoading ? (
+                {updateTransactionMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     আপডেট হচ্ছে...

@@ -38,7 +38,8 @@ import {
   Megaphone,
   Laptop,
   RotateCcw,
-  ChevronRight
+  ChevronRight,
+  ShoppingCart
 } from 'lucide-react';
 
 const ProfessionalDashboard = () => {
@@ -58,7 +59,9 @@ const ProfessionalDashboard = () => {
         { name: "হাজী তালিকা", path: "/hajj-umrah/haji-list", icon: List },
         { name: "নতুন হাজী যোগ", path: "/hajj-umrah/haji/add", icon: Plus },
         { name: "এজেন্ট তালিকা", path: "/hajj-umrah/agent", icon: Users },
-        { name: "প্যাকেজ তৈরি", path: "/hajj-umrah/package-creation", icon: Package }
+        { name: "প্যাকেজ তৈরি", path: "/hajj-umrah/package-creation", icon: Package },
+        { name: "B2B Sell", path: "/hajj-umrah/b2b-sell", icon: ShoppingCart },
+        { name: "B2B Sell List", path: "/hajj-umrah/b2b-sell-list", icon: ClipboardList }
       ]
     },
     {

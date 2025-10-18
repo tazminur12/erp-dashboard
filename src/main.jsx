@@ -64,9 +64,12 @@ const HajiList = React.lazy(() => import('./pages/HajjUmrah/Haj/HajiList'));
 const HajiDetails = React.lazy(() => import('./pages/HajjUmrah/HajiDetails'));
 const AddHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/AddHaji'));
 const Agent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.Agent })).catch(() => ({ default: () => <div>Component not found</div> })));
+const AgentPackageCreation = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageCreation'));
 const AgentDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentDetails'));
 const AddAgent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddAgent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditB2BAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/EditAgent'));
+const B2BSellPage = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/B2BSellPage'));
+const B2BSellList = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/B2BSellList'));
 const PackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCreation })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageList })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditHaji = React.lazy(() => import('./pages/HajjUmrah/EditHaji'));
@@ -115,6 +118,8 @@ const ExpenseManagement = React.lazy(() => import('./pages/Account/ExpenseManage
 const SavingsInvestments = React.lazy(() => import('./pages/Account/SavingsInvestments'));
 const LoansCredit = React.lazy(() => import('./pages/Account/LoansCredit'));
 const BankAccounts = React.lazy(() => import('./pages/Account/BankAccounts'));
+const AddBankAccount = React.lazy(() => import('./pages/Account/AddBankAccount'));
+const EditBankAccount = React.lazy(() => import('./pages/Account/EditBankAccount'));
 const CreditCards = React.lazy(() => import('./pages/Account/CreditCards'));
 const FinancialReports = React.lazy(() => import('./pages/Account/FinancialReports'));
 const BudgetPlanning = React.lazy(() => import('./pages/Account/BudgetPlanning'));
@@ -443,6 +448,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "agent/:id/create-package",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentPackageCreation />
+          </Suspense>
+        )
+      },
+      {
         path: "agent/add",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -471,6 +484,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <PackageList />
+          </Suspense>
+        )
+      },
+      {
+        path: "b2b-sell",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <B2BSellPage />
+          </Suspense>
+        )
+      },
+      {
+        path: "b2b-sell-list",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <B2BSellList />
           </Suspense>
         )
       }
@@ -807,6 +836,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <BankAccounts />
+          </Suspense>
+        )
+      },
+      {
+        path: "add-bank-account",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddBankAccount />
+          </Suspense>
+        )
+      },
+      {
+        path: "edit-bank-account/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditBankAccount />
           </Suspense>
         )
       },

@@ -75,7 +75,8 @@ import {
   Scale,
   Megaphone,
   Laptop,
-  RotateCcw
+  RotateCcw,
+  ShoppingCart
 } from 'lucide-react';
 
 export const navigation = [
@@ -145,7 +146,9 @@ export const navigation = [
         icon: Building2,
         children: [
           { name: 'Hajj & Umrah Agent List', href: '/hajj-umrah/agent', icon: Users },
-          { name: 'Create New Agent', href: '/hajj-umrah/agent/add', icon: Plus }
+          { name: 'Create New Agent', href: '/hajj-umrah/agent/add', icon: Plus },
+          { name: 'B2B Sell', href: '/hajj-umrah/b2b-sell', icon: ShoppingCart },
+          { name: 'B2B Sell List', href: '/hajj-umrah/b2b-sell-list', icon: List }
         ]
       },
       {

@@ -26,87 +26,13 @@ import {
   CreditCard,
   Globe
 } from 'lucide-react';
+import { useEmployee } from '../../../hooks/useHRQueries';
 
 const EmployeeProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [employee, setEmployee] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: employee, isLoading, error } = useEmployee(id);
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Mock employee data - in real app, this would come from API
-  const mockEmployeeData = {
-    1: {
-      id: 1,
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@company.com',
-      phone: '+8801234567890',
-      address: 'House 123, Road 45, Dhanmondi, Dhaka-1205, Bangladesh',
-      dateOfBirth: '1990-05-15',
-      gender: 'male',
-      emergencyContact: 'Jane Doe',
-      emergencyPhone: '+8801234567891',
-      employeeId: 'EMP001',
-      position: 'Senior Software Engineer',
-      department: 'Information Technology',
-      manager: 'Sarah Wilson',
-      joinDate: '2023-01-15',
-      employmentType: 'Full-time',
-      workLocation: 'Dhaka Office',
-      basicSalary: 50000,
-      allowances: 5000,
-      benefits: 'Health Insurance, Provident Fund',
-      bankAccount: '1234567890123456',
-      bankName: 'Dutch Bangla Bank',
-      status: 'Active',
-      profilePicture: null,
-      skills: ['React', 'Node.js', 'Python', 'JavaScript', 'SQL'],
-      education: [
-        {
-          degree: 'Bachelor of Science in Computer Science',
-          institution: 'University of Dhaka',
-          year: '2012',
-          grade: '3.8/4.0'
-        }
-      ],
-      experience: [
-        {
-          company: 'Tech Solutions Ltd',
-          position: 'Software Developer',
-          duration: '2012-2018',
-          description: 'Developed web applications using React and Node.js'
-        },
-        {
-          company: 'Digital Innovations',
-          position: 'Senior Developer',
-          duration: '2018-2022',
-          description: 'Led development team and mentored junior developers'
-        }
-      ],
-      achievements: [
-        'Employee of the Month - March 2023',
-        'Best Innovation Award - 2022',
-        'Team Leadership Excellence - 2021'
-      ],
-      documents: [
-        { name: 'Resume', type: 'PDF', uploaded: '2023-01-10' },
-        { name: 'NID Copy', type: 'Image', uploaded: '2023-01-10' },
-        { name: 'Educational Certificate', type: 'PDF', uploaded: '2023-01-10' }
-      ]
-    }
-  };
-
-  useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const employeeData = mockEmployeeData[id];
-      if (employeeData) {
-        setEmployee(employeeData);
-      }
-      setLoading(false);
-    }, 1000);
-  }, [id]);
 
   const handleGoBack = () => {
     navigate('/office-management/hr/employee/list');
@@ -116,7 +42,7 @@ const EmployeeProfile = () => {
     navigate(`/office-management/hr/employee/edit/${id}`);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -127,7 +53,7 @@ const EmployeeProfile = () => {
     );
   }
 
-  if (!employee) {
+  if (error || !employee) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -148,8 +74,7 @@ const EmployeeProfile = () => {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: User },
     { id: 'employment', name: 'Employment', icon: Briefcase },
-    { id: 'documents', name: 'Documents', icon: FileText },
-    { id: 'performance', name: 'Performance', icon: TrendingUp }
+    { id: 'documents', name: 'Documents', icon: FileText }
   ];
 
   const renderOverviewTab = () => (
@@ -164,11 +89,11 @@ const EmployeeProfile = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Full Name</label>
-              <p className="text-gray-900">{employee.firstName} {employee.lastName}</p>
+              <p className="text-gray-900">{employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
-              <p className="text-gray-900">{new Date(employee.dateOfBirth).toLocaleDateString()}</p>
+              <p className="text-gray-900">{employee.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString() : 'Not specified'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Gender</label>
@@ -178,11 +103,11 @@ const EmployeeProfile = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Emergency Contact</label>
-              <p className="text-gray-900">{employee.emergencyContact}</p>
+              <p className="text-gray-900">{employee.emergencyContact || 'Not specified'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Emergency Phone</label>
-              <p className="text-gray-900">{employee.emergencyPhone}</p>
+              <p className="text-gray-900">{employee.emergencyPhone || 'Not specified'}</p>
             </div>
           </div>
         </div>
@@ -216,30 +141,13 @@ const EmployeeProfile = () => {
               <MapPin className="w-5 h-5 text-gray-400 mt-1" />
               <div>
                 <p className="text-sm font-medium text-gray-700">Address</p>
-                <p className="text-gray-900">{employee.address}</p>
+                <p className="text-gray-900">{employee.address || 'Not specified'}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Skills */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Award className="w-5 h-5 text-purple-600" />
-          Skills
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {employee.skills.map((skill, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 
@@ -255,11 +163,11 @@ const EmployeeProfile = () => {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Employee ID</label>
-              <p className="text-gray-900 font-mono">{employee.employeeId}</p>
+              <p className="text-gray-900 font-mono">{employee.employerId || employee.employeeId}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Position</label>
-              <p className="text-gray-900">{employee.position}</p>
+              <p className="text-gray-900">{employee.designation || employee.position}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Department</label>
@@ -267,30 +175,34 @@ const EmployeeProfile = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Manager</label>
-              <p className="text-gray-900">{employee.manager}</p>
+              <p className="text-gray-900">{employee.manager || 'Not specified'}</p>
             </div>
           </div>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Join Date</label>
-              <p className="text-gray-900">{new Date(employee.joinDate).toLocaleDateString()}</p>
+              <p className="text-gray-900">{new Date(employee.joiningDate || employee.joinDate).toLocaleDateString()}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Employment Type</label>
-              <p className="text-gray-900">{employee.employmentType}</p>
+              <p className="text-gray-900">{employee.employmentType || 'Not specified'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Work Location</label>
-              <p className="text-gray-900">{employee.workLocation}</p>
+              <p className="text-gray-900">{employee.workLocation || 'Not specified'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Branch</label>
+              <p className="text-gray-900">{employee.branch || employee.branchId || 'Not specified'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Status</label>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                employee.status === 'Active' 
+                (employee.status === 'active' || employee.status === 'Active')
                   ? 'bg-green-100 text-green-800' 
                   : 'bg-red-100 text-red-800'
               }`}>
-                {employee.status}
+                {employee.status === 'active' ? 'Active' : employee.status === 'inactive' ? 'Inactive' : employee.status}
               </span>
             </div>
           </div>
@@ -306,178 +218,218 @@ const EmployeeProfile = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700">Basic Salary</p>
-            <p className="text-2xl font-bold text-gray-900">৳{employee.basicSalary.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-gray-900">৳{(employee.salary || employee.basicSalary || 0).toLocaleString()}</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700">Allowances</p>
-            <p className="text-2xl font-bold text-gray-900">৳{employee.allowances.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-gray-900">৳{(employee.allowances || 0).toLocaleString()}</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
             <p className="text-sm font-medium text-gray-700">Total</p>
-            <p className="text-2xl font-bold text-blue-600">৳{(employee.basicSalary + employee.allowances).toLocaleString()}</p>
+            <p className="text-2xl font-bold text-blue-600">৳{((employee.basicSalary || 0) + (employee.allowances || 0)).toLocaleString()}</p>
           </div>
         </div>
         <div className="mt-4 space-y-2">
           <div>
             <label className="block text-sm font-medium text-gray-700">Benefits</label>
-            <p className="text-gray-900">{employee.benefits}</p>
+            <p className="text-gray-900">{employee.benefits || 'Not specified'}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Bank Account</label>
-              <p className="text-gray-900 font-mono">{employee.bankAccount}</p>
+              <p className="text-gray-900 font-mono">{employee.bankAccount || 'Not specified'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Bank Name</label>
-              <p className="text-gray-900">{employee.bankName}</p>
+              <p className="text-gray-900">{employee.bankName || 'Not specified'}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Education */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <GraduationCap className="w-5 h-5 text-purple-600" />
-          Education
-        </h3>
-        <div className="space-y-4">
-          {employee.education.map((edu, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="font-medium text-gray-900">{edu.degree}</h4>
-                  <p className="text-gray-600">{edu.institution}</p>
-                  <p className="text-sm text-gray-500">Grade: {edu.grade}</p>
-                </div>
-                <span className="text-sm text-gray-500">{edu.year}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+    </div>
+  );
 
-      {/* Experience */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Briefcase className="w-5 h-5 text-orange-600" />
-          Work Experience
-        </h3>
-        <div className="space-y-4">
-          {employee.experience.map((exp, index) => (
-            <div key={index} className="border border-gray-200 rounded-lg p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-medium text-gray-900">{exp.position}</h4>
-                  <p className="text-gray-600">{exp.company}</p>
+  const renderDocumentsTab = () => {
+    // Get document URLs with fallback
+    const profilePictureUrl = employee.profilePictureUrl || employee.profilePicture;
+    const resumeUrl = employee.resumeUrl || employee.resume;
+    const nidCopyUrl = employee.nidCopyUrl || employee.nidCopy;
+    
+    console.log('Employee Profile - Documents Debug:');
+    console.log('Profile Picture URL:', profilePictureUrl);
+    console.log('Resume URL:', resumeUrl);
+    console.log('NID Copy URL:', nidCopyUrl);
+    console.log('Employee object:', employee);
+    
+    return (
+      <div className="space-y-6">
+        <div className="bg-white rounded-xl shadow-sm border p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-600" />
+            Documents
+          </h3>
+          <div className="space-y-4">
+            {/* Profile Picture */}
+            {profilePictureUrl && (
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium text-gray-900">Profile Picture</p>
+                    <p className="text-sm text-gray-500">Image • Profile photo</p>
+                  </div>
                 </div>
-                <span className="text-sm text-gray-500">{exp.duration}</span>
+                <div className="flex items-center gap-2">
+                  <img src={profilePictureUrl} alt="Profile" className="w-12 h-12 rounded-full object-cover" />
+                  <button 
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = profilePictureUrl;
+                      link.target = '_blank';
+                      link.download = `Profile_${employee.firstName}_${employee.lastName}.jpg`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                </div>
               </div>
-              <p className="text-gray-700">{exp.description}</p>
+            )}
+            
+            {/* Resume */}
+            {resumeUrl && (
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium text-gray-900">Resume/CV</p>
+                    <p className="text-sm text-gray-500">Document • Resume file</p>
+                    <p className="text-xs text-gray-400 mt-1">Click download to view or save the file</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      // Create a temporary link to download the file
+                      const link = document.createElement('a');
+                      link.href = resumeUrl;
+                      link.target = '_blank';
+                      link.download = `Resume_${employee.firstName}_${employee.lastName}.pdf`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Resume
+                  </button>
+                  <button 
+                    onClick={() => window.open(resumeUrl, '_blank')}
+                    className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* NID Copy */}
+            {nidCopyUrl && (
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium text-gray-900">NID Copy</p>
+                    <p className="text-sm text-gray-500">Document • National ID copy</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = nidCopyUrl;
+                      link.target = '_blank';
+                      link.download = `NID_${employee.firstName}_${employee.lastName}.pdf`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download NID
+                  </button>
+                  <button 
+                    onClick={() => window.open(nidCopyUrl, '_blank')}
+                    className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View
+                  </button>
+                </div>
+              </div>
+            )}
+          
+          {/* Other Documents */}
+          {employee.otherDocuments && employee.otherDocuments.length > 0 && (
+            employee.otherDocuments.map((doc, index) => (
+              <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-gray-400" />
+                  <div>
+                    <p className="font-medium text-gray-900">{doc.name || `Document ${index + 1}`}</p>
+                    <p className="text-sm text-gray-500">{doc.type || 'Document'} • Additional document</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.href = doc.url || doc.link;
+                      link.target = '_blank';
+                      link.download = `${doc.name || `Document_${index + 1}`}_${employee.firstName}_${employee.lastName}`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                  <button 
+                    onClick={() => window.open(doc.url || doc.link, '_blank')}
+                    className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+          
+          {!profilePictureUrl && !resumeUrl && !nidCopyUrl && (!employee.otherDocuments || employee.otherDocuments.length === 0) && (
+            <div className="text-center py-8">
+              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg">No documents uploaded</p>
+              <p className="text-gray-400 text-sm mt-2">
+                Documents will appear here once uploaded
+              </p>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Achievements */}
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <Award className="w-5 h-5 text-yellow-600" />
-          Achievements
-        </h3>
-        <div className="space-y-3">
-          {employee.achievements.map((achievement, index) => (
-            <div key={index} className="flex items-center gap-3">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-              <p className="text-gray-700">{achievement}</p>
-            </div>
-          ))}
+          )}
         </div>
       </div>
     </div>
   );
-
-  const renderDocumentsTab = () => (
-    <div className="space-y-6">
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-blue-600" />
-          Documents
-        </h3>
-        <div className="space-y-4">
-          {employee.documents.map((doc, index) => (
-            <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-              <div className="flex items-center gap-3">
-                <FileText className="w-5 h-5 text-gray-400" />
-                <div>
-                  <p className="font-medium text-gray-900">{doc.name}</p>
-                  <p className="text-sm text-gray-500">{doc.type} • Uploaded {new Date(doc.uploaded).toLocaleDateString()}</p>
-                </div>
-              </div>
-              <button className="flex items-center gap-2 px-3 py-1 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                <Download className="w-4 h-4" />
-                Download
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPerformanceTab = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border p-6 text-center">
-          <div className="bg-green-100 p-3 rounded-full w-fit mx-auto mb-4">
-            <TrendingUp className="w-6 h-6 text-green-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Performance Rating</h3>
-          <p className="text-3xl font-bold text-green-600 mt-2">4.8/5</p>
-          <p className="text-sm text-gray-500 mt-1">Excellent</p>
-        </div>
-        
-        <div className="bg-white rounded-xl shadow-sm border p-6 text-center">
-          <div className="bg-blue-100 p-3 rounded-full w-fit mx-auto mb-4">
-            <Clock className="w-6 h-6 text-blue-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Attendance</h3>
-          <p className="text-3xl font-bold text-blue-600 mt-2">98%</p>
-          <p className="text-sm text-gray-500 mt-1">This Month</p>
-        </div>
-        
-        <div className="bg-white rounded-xl shadow-sm border p-6 text-center">
-          <div className="bg-purple-100 p-3 rounded-full w-fit mx-auto mb-4">
-            <BarChart3 className="w-6 h-6 text-purple-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900">Projects Completed</h3>
-          <p className="text-3xl font-bold text-purple-600 mt-2">12</p>
-          <p className="text-sm text-gray-500 mt-1">This Year</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Performance Reviews</h3>
-        <div className="space-y-4">
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-start mb-2">
-              <h4 className="font-medium text-gray-900">Q4 2023 Review</h4>
-              <span className="text-sm text-gray-500">December 2023</span>
-            </div>
-            <p className="text-gray-700">Excellent work on the customer portal project. Demonstrated strong leadership skills and technical expertise.</p>
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-sm font-medium text-gray-700">Rating:</span>
-              <div className="flex">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className={`w-4 h-4 ${i < 5 ? 'text-yellow-400' : 'text-gray-300'}`}>★</div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -487,8 +439,6 @@ const EmployeeProfile = () => {
         return renderEmploymentTab();
       case 'documents':
         return renderDocumentsTab();
-      case 'performance':
-        return renderPerformanceTab();
       default:
         return renderOverviewTab();
     }
@@ -526,10 +476,10 @@ const EmployeeProfile = () => {
         <div className="bg-white rounded-xl shadow-sm border p-6 mb-6">
           <div className="flex items-center gap-6">
             <div className="relative">
-              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center">
-                {employee.profilePicture ? (
+              <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
+                {employee.profilePictureUrl || employee.profilePicture ? (
                   <img
-                    src={employee.profilePicture}
+                    src={employee.profilePictureUrl || employee.profilePicture}
                     alt="Profile"
                     className="w-24 h-24 rounded-full object-cover"
                   />
@@ -544,14 +494,14 @@ const EmployeeProfile = () => {
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-2">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {employee.firstName} {employee.lastName}
+                  {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()}
                 </h2>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  employee.status === 'Active' 
+                  (employee.status === 'active' || employee.status === 'Active')
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-red-100 text-red-800'
                 }`}>
-                  {employee.status}
+                  {employee.status === 'active' ? 'Active' : employee.status === 'inactive' ? 'Inactive' : employee.status}
                 </span>
               </div>
               <p className="text-lg text-gray-600 mb-1">{employee.position}</p>

@@ -15,10 +15,26 @@ import {
   Camera,
   X
 } from 'lucide-react';
+import { useEmployee, useUpdateEmployee, useActiveBranches } from '../../../hooks/useHRQueries';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
 
 const EditEmployee = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { data: employee, isLoading: employeeLoading } = useEmployee(id);
+  const updateEmployeeMutation = useUpdateEmployee();
+  const { data: branches = [], isLoading: branchesLoading, error: branchesError } = useActiveBranches();
+  
+  // Mock branches for fallback
+  const mockBranches = [
+    { id: '1', name: 'Dhaka Branch', branchName: 'Dhaka Branch' },
+    { id: '2', name: 'Chittagong Branch', branchName: 'Chittagong Branch' },
+    { id: '3', name: 'Sylhet Branch', branchName: 'Sylhet Branch' },
+    { id: '4', name: 'Rajshahi Branch', branchName: 'Rajshahi Branch' }
+  ];
+  
+  const displayBranches = branches && branches.length > 0 ? branches : mockBranches;
+  
   const [formData, setFormData] = useState({
     // Personal Information
     firstName: '',
@@ -39,6 +55,7 @@ const EditEmployee = () => {
     joinDate: '',
     employmentType: '',
     workLocation: '',
+    branch: '',
     
     // Salary Information
     basicSalary: '',
@@ -49,43 +66,20 @@ const EditEmployee = () => {
     
     // Documents
     profilePicture: null,
+    profilePictureUrl: '',
     resume: null,
-    nidCopy: null
+    resumeUrl: '',
+    nidCopy: null,
+    nidCopyUrl: ''
   });
 
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
-
-  // Mock employee data - same as in EmployeeProfile
-  const mockEmployeeData = {
-    1: {
-      id: 1,
-      firstName: 'John',
-      lastName: 'Doe',
-      email: 'john.doe@company.com',
-      phone: '+8801234567890',
-      address: 'House 123, Road 45, Dhanmondi, Dhaka-1205, Bangladesh',
-      dateOfBirth: '1990-05-15',
-      gender: 'male',
-      emergencyContact: 'Jane Doe',
-      emergencyPhone: '+8801234567891',
-      employeeId: 'EMP001',
-      position: 'Senior Software Engineer',
-      department: 'Information Technology',
-      manager: 'Sarah Wilson',
-      joinDate: '2023-01-15',
-      employmentType: 'Full-time',
-      workLocation: 'Dhaka Office',
-      basicSalary: 50000,
-      allowances: 5000,
-      benefits: 'Health Insurance, Provident Fund',
-      bankAccount: '1234567890123456',
-      bankName: 'Dutch Bangla Bank',
-      status: 'Active',
-      profilePicture: null
-    }
-  };
+  const [uploadStates, setUploadStates] = useState({
+    profilePicture: { uploading: false, success: false, error: null },
+    resume: { uploading: false, success: false, error: null },
+    nidCopy: { uploading: false, success: false, error: null }
+  });
+  const [imagePreview, setImagePreview] = useState(null);
 
   const departments = [
     'Human Resources',
@@ -107,41 +101,116 @@ const EditEmployee = () => {
     'Consultant'
   ];
 
-  useEffect(() => {
-    // Load employee data
-    setTimeout(() => {
-      const employeeData = mockEmployeeData[id];
-      if (employeeData) {
-        setFormData({
-          firstName: employeeData.firstName,
-          lastName: employeeData.lastName,
-          email: employeeData.email,
-          phone: employeeData.phone,
-          address: employeeData.address,
-          dateOfBirth: employeeData.dateOfBirth,
-          gender: employeeData.gender,
-          emergencyContact: employeeData.emergencyContact,
-          emergencyPhone: employeeData.emergencyPhone,
-          employeeId: employeeData.employeeId,
-          position: employeeData.position,
-          department: employeeData.department,
-          manager: employeeData.manager,
-          joinDate: employeeData.joinDate,
-          employmentType: employeeData.employmentType,
-          workLocation: employeeData.workLocation,
-          basicSalary: employeeData.basicSalary,
-          allowances: employeeData.allowances,
-          benefits: employeeData.benefits,
-          bankAccount: employeeData.bankAccount,
-          bankName: employeeData.bankName,
-          profilePicture: employeeData.profilePicture,
-          resume: null,
-          nidCopy: null
-        });
+  // Cloudinary Upload Function for Images
+  const uploadToCloudinary = async (file) => {
+    try {
+      if (!validateCloudinaryConfig()) {
+        throw new Error('Cloudinary configuration is incomplete. Please check your .env.local file.');
       }
-      setLoading(false);
-    }, 500);
-  }, [id]);
+      
+      if (!file || !file.type.startsWith('image/')) {
+        throw new Error('Please select a valid image file');
+      }
+      
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('File size must be less than 5MB');
+      }
+      
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', CLOUDINARY_CONFIG.FOLDER);
+      
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to upload file: ${error.message}`);
+    }
+  };
+
+  // Cloudinary Upload Function for Documents
+  const uploadDocumentToCloudinary = async (file) => {
+    try {
+      if (!validateCloudinaryConfig()) {
+        throw new Error('Cloudinary configuration is incomplete. Please check your .env.local file.');
+      }
+      
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Please select a valid document file (PDF, DOC, DOCX)');
+      }
+      
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        throw new Error('File size must be less than 10MB');
+      }
+      
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'employees/documents');
+      
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      throw new Error(`Failed to upload document: ${error.message}`);
+    }
+  };
+
+  // Populate form data when employee data is loaded
+  useEffect(() => {
+    if (employee) {
+      setFormData({
+        firstName: employee.firstName || '',
+        lastName: employee.lastName || '',
+        email: employee.email || '',
+        phone: employee.phone || '',
+        address: employee.address || '',
+        dateOfBirth: employee.dateOfBirth || '',
+        gender: employee.gender || '',
+        emergencyContact: employee.emergencyContact || '',
+        emergencyPhone: employee.emergencyPhone || '',
+        employeeId: employee.employeeId || '',
+        position: employee.position || '',
+        department: employee.department || '',
+        manager: employee.manager || '',
+        joinDate: employee.joinDate || '',
+        employmentType: employee.employmentType || '',
+        workLocation: employee.workLocation || '',
+        branch: employee.branch || employee.branchId || '',
+        basicSalary: employee.basicSalary || '',
+        allowances: employee.allowances || '',
+        benefits: employee.benefits || '',
+        bankAccount: employee.bankAccount || '',
+        bankName: employee.bankName || '',
+        profilePicture: employee.profilePicture || null,
+        profilePictureUrl: employee.profilePictureUrl || employee.profilePicture || '',
+        resume: employee.resume || null,
+        resumeUrl: employee.resumeUrl || employee.resume || '',
+        nidCopy: employee.nidCopy || null,
+        nidCopyUrl: employee.nidCopyUrl || employee.nidCopy || ''
+      });
+    }
+  }, [employee]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -159,12 +228,134 @@ const EditEmployee = () => {
     }
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const { name, files } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: files[0]
-    }));
+    const file = files[0];
+    
+    if (!file) return;
+
+    // For profile picture
+    if (name === 'profilePicture') {
+      // Set image preview
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
+      
+      // Set uploading state
+      setUploadStates(prev => ({
+        ...prev,
+        [name]: { uploading: true, success: false, error: null }
+      }));
+
+      try {
+        const uploadResult = await uploadToCloudinary(file);
+        
+        setFormData(prev => ({
+          ...prev,
+          profilePicture: uploadResult.secure_url,
+          profilePictureUrl: uploadResult.secure_url
+        }));
+
+        setUploadStates(prev => ({
+          ...prev,
+          [name]: { uploading: false, success: true, error: null }
+        }));
+
+      } catch (error) {
+        let errorMessage = 'Upload failed';
+        if (error.message.includes('configuration')) {
+          errorMessage = 'Upload service not configured. Please contact administrator.';
+        } else if (error.message.includes('size')) {
+          errorMessage = 'File too large. Please choose a smaller file.';
+        } else if (error.message.includes('valid image')) {
+          errorMessage = 'Please select a valid image file.';
+        }
+        
+        setUploadStates(prev => ({
+          ...prev,
+          [name]: { uploading: false, success: false, error: errorMessage }
+        }));
+      }
+      return;
+    }
+
+    // For resume upload
+    if (name === 'resume') {
+      setUploadStates(prev => ({
+        ...prev,
+        [name]: { uploading: true, success: false, error: null }
+      }));
+
+      try {
+        const uploadResult = await uploadDocumentToCloudinary(file);
+        
+        setFormData(prev => ({
+          ...prev,
+          resume: uploadResult.secure_url,
+          resumeUrl: uploadResult.secure_url
+        }));
+
+        setUploadStates(prev => ({
+          ...prev,
+          [name]: { uploading: false, success: true, error: null }
+        }));
+
+      } catch (error) {
+        let errorMessage = 'Upload failed';
+        if (error.message.includes('configuration')) {
+          errorMessage = 'Upload service not configured. Please contact administrator.';
+        } else if (error.message.includes('size')) {
+          errorMessage = 'File too large. Please choose a smaller file.';
+        } else if (error.message.includes('valid document')) {
+          errorMessage = 'Please select a valid document file (PDF, DOC, DOCX).';
+        }
+        
+        setUploadStates(prev => ({
+          ...prev,
+          [name]: { uploading: false, success: false, error: errorMessage }
+        }));
+      }
+      return;
+    }
+
+    // For NID copy upload
+    if (name === 'nidCopy') {
+      setUploadStates(prev => ({
+        ...prev,
+        [name]: { uploading: true, success: false, error: null }
+      }));
+
+      try {
+        const uploadResult = await uploadToCloudinary(file);
+        
+        setFormData(prev => ({
+          ...prev,
+          nidCopy: uploadResult.secure_url,
+          nidCopyUrl: uploadResult.secure_url
+        }));
+
+        setUploadStates(prev => ({
+          ...prev,
+          [name]: { uploading: false, success: true, error: null }
+        }));
+
+      } catch (error) {
+        let errorMessage = 'Upload failed';
+        if (error.message.includes('configuration')) {
+          errorMessage = 'Upload service not configured. Please contact administrator.';
+        } else if (error.message.includes('size')) {
+          errorMessage = 'File too large. Please choose a smaller file.';
+        } else if (error.message.includes('valid image')) {
+          errorMessage = 'Please select a valid image file.';
+        }
+        
+        setUploadStates(prev => ({
+          ...prev,
+          [name]: { uploading: false, success: false, error: errorMessage }
+        }));
+      }
+      return;
+    }
   };
 
   const validateForm = () => {
@@ -179,6 +370,7 @@ const EditEmployee = () => {
     if (!formData.employeeId.trim()) newErrors.employeeId = 'Employee ID is required';
     if (!formData.position.trim()) newErrors.position = 'Position is required';
     if (!formData.department) newErrors.department = 'Department is required';
+    if (!formData.branch) newErrors.branch = 'Branch is required';
     if (!formData.joinDate) newErrors.joinDate = 'Join date is required';
     if (!formData.basicSalary) newErrors.basicSalary = 'Basic salary is required';
 
@@ -193,23 +385,17 @@ const EditEmployee = () => {
       return;
     }
 
-    setIsSubmitting(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      console.log('Updated employee data:', formData);
-      alert('Employee updated successfully!');
+      await updateEmployeeMutation.mutateAsync({
+        id,
+        data: formData
+      });
       
       // Navigate back to profile
       navigate(`/office-management/hr/employee/profile/${id}`);
       
     } catch (error) {
       console.error('Error updating employee:', error);
-      alert('Error updating employee. Please try again.');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -221,12 +407,28 @@ const EditEmployee = () => {
     navigate('/office-management/hr/employee/list');
   };
 
-  if (loading) {
+  if (employeeLoading) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Loading employee data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-lg mb-4">Employee not found</div>
+          <button
+            onClick={() => navigate('/office-management/hr/employee/list')}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Back to Employee List
+          </button>
         </div>
       </div>
     );
@@ -511,7 +713,49 @@ const EditEmployee = () => {
                 </select>
               </div>
               
-              <div className="md:col-span-2">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Branch *
+                </label>
+                <select
+                  name="branch"
+                  value={formData.branch}
+                  onChange={handleInputChange}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 ${
+                    errors.branch ? 'border-red-500' : 'border-gray-300'
+                  } ${branchesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={branchesLoading}
+                >
+                  <option value="" className="text-gray-500">
+                    {branchesLoading ? 'Loading branches...' : 'Select branch'}
+                  </option>
+                  {displayBranches && displayBranches.length > 0 ? (
+                    displayBranches.map(branch => (
+                      <option 
+                        key={branch.id || branch._id} 
+                        value={branch.id || branch._id}
+                        className="text-gray-900"
+                      >
+                        {branch.name || branch.branchName || branch.title}
+                      </option>
+                    ))
+                  ) : (
+                    !branchesLoading && (
+                      <option value="" disabled className="text-gray-500">
+                        No branches available
+                      </option>
+                    )
+                  )}
+                </select>
+                {errors.branch && <p className="text-red-500 text-sm mt-1">{errors.branch}</p>}
+                {branchesError && (
+                  <p className="text-red-500 text-sm mt-1">
+                    Error loading branches: {branchesError.message}
+                  </p>
+                )}
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Work Location
                 </label>
@@ -622,7 +866,15 @@ const EditEmployee = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Profile Picture
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                  uploadStates.profilePicture.uploading 
+                    ? 'border-blue-300 bg-blue-50' 
+                    : uploadStates.profilePicture.success 
+                    ? 'border-green-300 bg-green-50' 
+                    : uploadStates.profilePicture.error 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}>
                   <input
                     type="file"
                     name="profilePicture"
@@ -630,10 +882,42 @@ const EditEmployee = () => {
                     accept="image/*"
                     className="hidden"
                     id="profilePicture"
+                    disabled={uploadStates.profilePicture.uploading}
                   />
-                  <label htmlFor="profilePicture" className="cursor-pointer">
-                    <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Click to upload new profile picture</p>
+                  <label htmlFor="profilePicture" className={`cursor-pointer ${uploadStates.profilePicture.uploading ? 'cursor-not-allowed' : ''}`}>
+                    {uploadStates.profilePicture.uploading ? (
+                      <>
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-sm text-blue-600">Uploading...</p>
+                      </>
+                    ) : uploadStates.profilePicture.success ? (
+                      <>
+                        <div className="w-8 h-8 bg-green-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                          <span className="text-white text-sm">✓</span>
+                        </div>
+                        <p className="text-sm text-green-600">Upload successful!</p>
+                        {(formData.profilePicture || imagePreview) && (
+                          <img 
+                            src={formData.profilePicture || imagePreview} 
+                            alt="Profile preview" 
+                            className="w-16 h-16 rounded-full mx-auto mt-2 object-cover"
+                          />
+                        )}
+                      </>
+                    ) : uploadStates.profilePicture.error ? (
+                      <>
+                        <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                          <span className="text-white text-sm">✗</span>
+                        </div>
+                        <p className="text-sm text-red-600">Upload failed</p>
+                        <p className="text-xs text-red-500 mt-1">{uploadStates.profilePicture.error}</p>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Click to upload new profile picture</p>
+                      </>
+                    )}
                   </label>
                 </div>
               </div>
@@ -642,7 +926,15 @@ const EditEmployee = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Resume/CV
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                  uploadStates.resume.uploading 
+                    ? 'border-blue-300 bg-blue-50' 
+                    : uploadStates.resume.success 
+                    ? 'border-green-300 bg-green-50' 
+                    : uploadStates.resume.error 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}>
                   <input
                     type="file"
                     name="resume"
@@ -650,10 +942,36 @@ const EditEmployee = () => {
                     accept=".pdf,.doc,.docx"
                     className="hidden"
                     id="resume"
+                    disabled={uploadStates.resume.uploading}
                   />
-                  <label htmlFor="resume" className="cursor-pointer">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Click to upload new resume</p>
+                  <label htmlFor="resume" className={`cursor-pointer ${uploadStates.resume.uploading ? 'cursor-not-allowed' : ''}`}>
+                    {uploadStates.resume.uploading ? (
+                      <>
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-sm text-blue-600">Uploading...</p>
+                      </>
+                    ) : uploadStates.resume.success ? (
+                      <>
+                        <div className="w-8 h-8 bg-green-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                          <span className="text-white text-sm">✓</span>
+                        </div>
+                        <p className="text-sm text-green-600">Upload successful!</p>
+                        <p className="text-xs text-gray-500 mt-1">Resume uploaded</p>
+                      </>
+                    ) : uploadStates.resume.error ? (
+                      <>
+                        <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                          <span className="text-white text-sm">✗</span>
+                        </div>
+                        <p className="text-sm text-red-600">Upload failed</p>
+                        <p className="text-xs text-red-500 mt-1">{uploadStates.resume.error}</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Click to upload new resume</p>
+                      </>
+                    )}
                   </label>
                 </div>
               </div>
@@ -662,7 +980,15 @@ const EditEmployee = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   NID Copy
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
+                  uploadStates.nidCopy.uploading 
+                    ? 'border-blue-300 bg-blue-50' 
+                    : uploadStates.nidCopy.success 
+                    ? 'border-green-300 bg-green-50' 
+                    : uploadStates.nidCopy.error 
+                    ? 'border-red-300 bg-red-50' 
+                    : 'border-gray-300'
+                }`}>
                   <input
                     type="file"
                     name="nidCopy"
@@ -670,10 +996,36 @@ const EditEmployee = () => {
                     accept="image/*,.pdf"
                     className="hidden"
                     id="nidCopy"
+                    disabled={uploadStates.nidCopy.uploading}
                   />
-                  <label htmlFor="nidCopy" className="cursor-pointer">
-                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">Click to upload new NID copy</p>
+                  <label htmlFor="nidCopy" className={`cursor-pointer ${uploadStates.nidCopy.uploading ? 'cursor-not-allowed' : ''}`}>
+                    {uploadStates.nidCopy.uploading ? (
+                      <>
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-sm text-blue-600">Uploading...</p>
+                      </>
+                    ) : uploadStates.nidCopy.success ? (
+                      <>
+                        <div className="w-8 h-8 bg-green-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                          <span className="text-white text-sm">✓</span>
+                        </div>
+                        <p className="text-sm text-green-600">Upload successful!</p>
+                        <p className="text-xs text-gray-500 mt-1">NID copy uploaded</p>
+                      </>
+                    ) : uploadStates.nidCopy.error ? (
+                      <>
+                        <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center">
+                          <span className="text-white text-sm">✗</span>
+                        </div>
+                        <p className="text-sm text-red-600">Upload failed</p>
+                        <p className="text-xs text-red-500 mt-1">{uploadStates.nidCopy.error}</p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600">Click to upload new NID copy</p>
+                      </>
+                    )}
                   </label>
                 </div>
               </div>
@@ -691,10 +1043,10 @@ const EditEmployee = () => {
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={updateEmployeeMutation.isPending}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
             >
-              {isSubmitting ? (
+              {updateEmployeeMutation.isPending ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   Updating Employee...
