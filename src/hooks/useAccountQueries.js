@@ -157,6 +157,35 @@ export const useAccountQueries = () => {
     });
   };
 
+  // Transfer between two bank accounts
+  const useTransferBetweenAccounts = () => {
+    return useMutation({
+      mutationFn: async ({ fromAccountId, toAccountId, amount, reference, notes, createdBy, branchId, accountManager }) => {
+        const response = await axiosSecure.post('/bank-accounts/transfers', {
+          fromAccountId,
+          toAccountId,
+          amount: parseFloat(amount),
+          reference,
+          notes,
+          createdBy,
+          branchId,
+          accountManager,
+        });
+        return response.data?.data;
+      },
+      onSuccess: (data, variables) => {
+        queryClient.invalidateQueries(['bankAccounts']);
+        queryClient.invalidateQueries(['bankAccountStats']);
+        if (variables?.fromAccountId) {
+          queryClient.invalidateQueries(['bankAccountTransactions', variables.fromAccountId]);
+        }
+        if (variables?.toAccountId) {
+          queryClient.invalidateQueries(['bankAccountTransactions', variables.toAccountId]);
+        }
+      },
+    });
+  };
+
   return {
     useBankAccounts,
     useBankAccountStats,
@@ -167,6 +196,7 @@ export const useAccountQueries = () => {
     useAdjustBankAccountBalance,
     useBankAccountTransactions,
     useCreateBankAccountTransaction,
+    useTransferBetweenAccounts,
   };
 };
 

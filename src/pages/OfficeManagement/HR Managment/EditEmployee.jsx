@@ -67,8 +67,6 @@ const EditEmployee = () => {
     // Documents
     profilePicture: null,
     profilePictureUrl: '',
-    resume: null,
-    resumeUrl: '',
     nidCopy: null,
     nidCopyUrl: ''
   });
@@ -76,7 +74,6 @@ const EditEmployee = () => {
   const [errors, setErrors] = useState({});
   const [uploadStates, setUploadStates] = useState({
     profilePicture: { uploading: false, success: false, error: null },
-    resume: { uploading: false, success: false, error: null },
     nidCopy: { uploading: false, success: false, error: null }
   });
   const [imagePreview, setImagePreview] = useState(null);
@@ -204,8 +201,6 @@ const EditEmployee = () => {
         bankName: employee.bankName || '',
         profilePicture: employee.profilePicture || null,
         profilePictureUrl: employee.profilePictureUrl || employee.profilePicture || '',
-        resume: employee.resume || null,
-        resumeUrl: employee.resumeUrl || employee.resume || '',
         nidCopy: employee.nidCopy || null,
         nidCopyUrl: employee.nidCopyUrl || employee.nidCopy || ''
       });
@@ -279,44 +274,6 @@ const EditEmployee = () => {
       return;
     }
 
-    // For resume upload
-    if (name === 'resume') {
-      setUploadStates(prev => ({
-        ...prev,
-        [name]: { uploading: true, success: false, error: null }
-      }));
-
-      try {
-        const uploadResult = await uploadDocumentToCloudinary(file);
-        
-        setFormData(prev => ({
-          ...prev,
-          resume: uploadResult.secure_url,
-          resumeUrl: uploadResult.secure_url
-        }));
-
-        setUploadStates(prev => ({
-          ...prev,
-          [name]: { uploading: false, success: true, error: null }
-        }));
-
-      } catch (error) {
-        let errorMessage = 'Upload failed';
-        if (error.message.includes('configuration')) {
-          errorMessage = 'Upload service not configured. Please contact administrator.';
-        } else if (error.message.includes('size')) {
-          errorMessage = 'File too large. Please choose a smaller file.';
-        } else if (error.message.includes('valid document')) {
-          errorMessage = 'Please select a valid document file (PDF, DOC, DOCX).';
-        }
-        
-        setUploadStates(prev => ({
-          ...prev,
-          [name]: { uploading: false, success: false, error: errorMessage }
-        }));
-      }
-      return;
-    }
 
     // For NID copy upload
     if (name === 'nidCopy') {
@@ -922,59 +879,6 @@ const EditEmployee = () => {
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Resume/CV
-                </label>
-                <div className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
-                  uploadStates.resume.uploading 
-                    ? 'border-blue-300 bg-blue-50' 
-                    : uploadStates.resume.success 
-                    ? 'border-green-300 bg-green-50' 
-                    : uploadStates.resume.error 
-                    ? 'border-red-300 bg-red-50' 
-                    : 'border-gray-300'
-                }`}>
-                  <input
-                    type="file"
-                    name="resume"
-                    onChange={handleFileChange}
-                    accept=".pdf,.doc,.docx"
-                    className="hidden"
-                    id="resume"
-                    disabled={uploadStates.resume.uploading}
-                  />
-                  <label htmlFor="resume" className={`cursor-pointer ${uploadStates.resume.uploading ? 'cursor-not-allowed' : ''}`}>
-                    {uploadStates.resume.uploading ? (
-                      <>
-                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                        <p className="text-sm text-blue-600">Uploading...</p>
-                      </>
-                    ) : uploadStates.resume.success ? (
-                      <>
-                        <div className="w-8 h-8 bg-green-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                          <span className="text-white text-sm">✓</span>
-                        </div>
-                        <p className="text-sm text-green-600">Upload successful!</p>
-                        <p className="text-xs text-gray-500 mt-1">Resume uploaded</p>
-                      </>
-                    ) : uploadStates.resume.error ? (
-                      <>
-                        <div className="w-8 h-8 bg-red-500 rounded-full mx-auto mb-2 flex items-center justify-center">
-                          <span className="text-white text-sm">✗</span>
-                        </div>
-                        <p className="text-sm text-red-600">Upload failed</p>
-                        <p className="text-xs text-red-500 mt-1">{uploadStates.resume.error}</p>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">Click to upload new resume</p>
-                      </>
-                    )}
-                  </label>
-                </div>
-              </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

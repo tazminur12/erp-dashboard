@@ -42,6 +42,8 @@ import {
   useSearchAgents,
   useSearchVendors
 } from '../../hooks/useTransactionQueries';
+import { useAccountQueries } from '../../hooks/useAccountQueries';
+import { useEmployeeSearch } from '../../hooks/useHRQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import EmployeeReferenceSearch from '../../components/common/EmployeeReferenceSearch';
 import Swal from 'sweetalert2';
@@ -57,6 +59,11 @@ const NewTransaction = () => {
   const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
   const { data: categories = [], error: categoriesError } = useTransactionCategories();
   const { data: transactionsData } = useTransactions({}, 1, 1000); // Fetch all transactions for balance calculation
+  
+  // Bank account queries for account-to-account transfers
+  const accountQueries = useAccountQueries();
+  const createBankAccountTransactionMutation = accountQueries.useCreateBankAccountTransaction();
+  const transferBetweenAccountsMutation = accountQueries.useTransferBetweenAccounts();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -170,6 +177,7 @@ const NewTransaction = () => {
   // Search hooks (after searchTerm state declaration)
   const { data: agentResults = [], isLoading: agentLoading } = useSearchAgents(searchTerm, !!searchTerm?.trim());
   const { data: vendorResults = [], isLoading: vendorLoading } = useSearchVendors(searchTerm, !!searchTerm?.trim());
+  const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
   
   // Filter accounts based on search term
   const filteredAccounts = accounts.filter(account => {
@@ -287,18 +295,8 @@ const NewTransaction = () => {
     );
   });
 
-  // Filter account managers based on search term
-  const filteredAccountManagers = accountManagers.filter(manager => {
-    if (!accountManagerSearchTerm.trim()) return true;
-    
-    const searchLower = accountManagerSearchTerm.toLowerCase();
-    return (
-      manager.name.toLowerCase().includes(searchLower) ||
-      manager.designation.toLowerCase().includes(searchLower) ||
-      manager.phone.includes(accountManagerSearchTerm) ||
-      manager.email.toLowerCase().includes(searchLower)
-    );
-  });
+  // Use employee search results for account managers
+  const filteredAccountManagers = employeeSearchResults;
 
   // Customers are now fetched via React Query
 
@@ -563,12 +561,14 @@ const NewTransaction = () => {
     setFormData(prev => ({
       ...prev,
       accountManager: {
-        id: manager.id,
-        name: manager.name,
-        phone: manager.phone,
-        email: manager.email
+        id: manager.id || manager.employeeId,
+        name: manager.name || manager.fullName,
+        phone: manager.phone || manager.phoneNumber,
+        email: manager.email || manager.emailAddress
       }
     }));
+    // Clear search term after selection
+    setAccountManagerSearchTerm('');
   };
 
   const handleEmployeeReferenceSelect = (employee) => {
@@ -656,9 +656,6 @@ const NewTransaction = () => {
           }
           break;
         case 4:
-          if (!formData.accountManager.id) {
-            newErrors.accountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
-          }
           if (!formData.transferAmount) {
             newErrors.transferAmount = 'ট্রান্সফার পরিমাণ লিখুন';
           } else if (isNaN(parseFloat(formData.transferAmount)) || parseFloat(formData.transferAmount) <= 0) {
@@ -811,7 +808,7 @@ const NewTransaction = () => {
         maxSteps = 5;
       } else {
         // Credit flow: for agents, skip invoice selection (step 5)
-        maxSteps = formData.customerType === 'agent' ? 6 : 6;
+        maxSteps = formData.customerType === 'agent' ? 7 : 6;
       }
       
       // For agents, go to step 5 (payment method) from step 4
@@ -839,10 +836,66 @@ const NewTransaction = () => {
   };
 
   const handleSubmit = () => {
-    const finalStep = formData.transactionType === 'credit' && formData.customerType === 'agent' ? 6 : 6;
+    const finalStep = formData.transactionType === 'credit' && formData.customerType === 'agent' ? 7 : 6;
     if (!validateStep(finalStep)) return;
 
-    // Validate amount is greater than 0
+    // Handle account-to-account transfer
+    if (formData.transactionType === 'transfer') {
+      const transferAmount = parseFloat(formData.transferAmount);
+      if (!transferAmount || transferAmount <= 0) {
+        setErrors(prev => ({ ...prev, transferAmount: 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে' }));
+        return;
+      }
+
+      // Validate debit account has sufficient balance
+      if (transferAmount > formData.debitAccount.balance) {
+        setErrors(prev => ({ ...prev, transferAmount: 'পরিমাণ একাউন্ট ব্যালেন্সের চেয়ে বেশি হতে পারে না' }));
+        return;
+      }
+      // Call backend atomic transfer API
+      const transferPayload = {
+        fromAccountId: formData.debitAccount.id,
+        toAccountId: formData.creditAccount.id,
+        amount: transferAmount,
+        reference: formData.transferReference || `TXN-${Date.now()}`,
+        notes: formData.transferNotes || `Transfer from ${formData.debitAccount.bankName} (${formData.debitAccount.accountNumber}) to ${formData.creditAccount.bankName} (${formData.creditAccount.accountNumber})`,
+        createdBy: userProfile?.email || 'unknown_user',
+        branchId: userProfile?.branchId || 'main_branch',
+        accountManager: formData.accountManager || null,
+      };
+
+      transferBetweenAccountsMutation.mutateAsync(transferPayload)
+      .then((result) => {
+        console.log('Transfer completed:', result);
+        
+        // Show success message
+        Swal.fire({
+          title: 'সফল!',
+          text: `৳${transferAmount.toLocaleString()} সফলভাবে ${formData.debitAccount.name} থেকে ${formData.creditAccount.name} এ ট্রান্সফার হয়েছে`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F9FAFB'
+        });
+
+        // Reset form
+        resetForm();
+      }).catch((error) => {
+        console.error('Transfer failed:', error);
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'ট্রান্সফার সম্পন্ন করতে ব্যর্থ হয়েছে',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#F9FAFB'
+        });
+      });
+
+      return;
+    }
+
+    // Handle regular transactions (credit/debit)
     const amount = parseFloat(formData.paymentDetails.amount);
     if (!amount || amount <= 0) {
       setErrors(prev => ({ ...prev, amount: 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে' }));
@@ -895,61 +948,11 @@ const NewTransaction = () => {
     // Use React Query mutation
     createTransactionMutation.mutate(transactionData, {
       onSuccess: (response) => {
-      
-      console.log('Transaction response:', response.data);
-      
+        console.log('Transaction response:', response.data);
+        
         // Success handling is now done in the mutation's onSuccess callback
-
         // Reset form after successful submission
-        setFormData({
-          transactionType: '',
-          customerId: '',
-          customerName: '',
-          customerPhone: '',
-          customerEmail: '',
-          customerBankAccount: {
-            bankName: '',
-            accountNumber: ''
-          },
-          category: '',
-          selectedInvoice: null,
-          invoiceId: '',
-          paymentMethod: '',
-          paymentDetails: {
-            bankName: '',
-            accountNumber: '',
-            chequeNumber: '',
-            mobileProvider: '',
-            transactionId: '',
-            amount: '',
-            reference: ''
-          },
-          sourceAccount: {
-            id: '',
-            name: '',
-            bankName: '',
-            accountNumber: '',
-            balance: 0
-          },
-          destinationAccount: {
-            id: '',
-            name: '',
-            bankName: '',
-            accountNumber: '',
-            balance: 0
-          },
-          notes: '',
-          date: new Date().toISOString().split('T')[0],
-          employeeReference: {
-            id: '',
-            name: '',
-            employeeId: '',
-            position: '',
-            department: ''
-          }
-        });
-        setCurrentStep(1);
-        setSearchTerm('');
+        resetForm();
 
         // Ask if user wants to download PDF
         Swal.fire({
@@ -1004,6 +1007,78 @@ const NewTransaction = () => {
         });
       }
     });
+  };
+
+  // Helper function to reset form
+  const resetForm = () => {
+    setFormData({
+      transactionType: '',
+      customerId: '',
+      customerName: '',
+      customerPhone: '',
+      customerEmail: '',
+      customerBankAccount: {
+        bankName: '',
+        accountNumber: ''
+      },
+      category: '',
+      selectedInvoice: null,
+      invoiceId: '',
+      paymentMethod: '',
+      paymentDetails: {
+        bankName: '',
+        accountNumber: '',
+        chequeNumber: '',
+        mobileProvider: '',
+        transactionId: '',
+        amount: '',
+        reference: ''
+      },
+      sourceAccount: {
+        id: '',
+        name: '',
+        bankName: '',
+        accountNumber: '',
+        balance: 0
+      },
+      destinationAccount: {
+        id: '',
+        name: '',
+        bankName: '',
+        accountNumber: '',
+        balance: 0
+      },
+      debitAccount: {
+        id: '',
+        name: '',
+        bankName: '',
+        accountNumber: '',
+        balance: 0
+      },
+      creditAccount: {
+        id: '',
+        name: '',
+        bankName: '',
+        accountNumber: '',
+        balance: 0
+      },
+      transferAmount: '',
+      transferReference: '',
+      transferNotes: '',
+      notes: '',
+      date: new Date().toISOString().split('T')[0],
+      employeeReference: {
+        id: '',
+        name: '',
+        employeeId: '',
+        position: '',
+        department: ''
+      }
+    });
+    setCurrentStep(1);
+    setSearchTerm('');
+    setDebitAccountSearchTerm('');
+    setCreditAccountSearchTerm('');
   };
 
   const generatePDF = async () => {
@@ -2122,20 +2197,135 @@ const NewTransaction = () => {
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            রেফারেন্স নোট
+                          একাউন্ট ম্যানেজার নির্বাচন
                           </label>
-                          <input
-                            type="text"
-                            name="transferReference"
-                            value={formData.transferReference}
-                            onChange={handleInputChange}
-                            placeholder="ট্রান্সফার রেফারেন্স..."
-                            className={`w-full px-3 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
-                              isDark 
-                                ? 'bg-white border-gray-300 text-gray-900' 
-                                : 'border-gray-300'
-                            }`}
-                          />
+                          
+                          {/* Account Manager Search Bar */}
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
+                              value={accountManagerSearchTerm}
+                              onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                  : 'border-gray-300'
+                              }`}
+                            />
+                          </div>
+
+                          {/* Account Manager List */}
+                          {accountManagerSearchTerm && (
+                            <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
+                              {employeeLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                                  <span className="ml-2 text-gray-600 dark:text-gray-400">খুঁজছি...</span>
+                                </div>
+                              ) : employeeSearchError ? (
+                                <div className="text-center py-4 text-red-500 dark:text-red-400 text-sm">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span>খোঁজার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।</span>
+                                  </div>
+                                </div>
+                              ) : employeeSearchResults.length === 0 ? (
+                                <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                                  {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
+                                </div>
+                              ) : (
+                                employeeSearchResults.map((employee) => (
+                                  <button
+                                    key={employee._id || employee.id}
+                                    onClick={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        accountManager: {
+                                          id: employee._id || employee.id,
+                                          name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+                                          phone: employee.phone || employee.phoneNumber,
+                                          email: employee.email || employee.emailAddress,
+                                          designation: employee.designation || employee.position
+                                        }
+                                      }));
+                                      setAccountManagerSearchTerm('');
+                                    }}
+                                    className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
+                                      formData.accountManager?.id === employee._id
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center space-x-3">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                        formData.accountManager?.id === employee._id
+                                          ? 'bg-blue-100 dark:bg-blue-800'
+                                          : 'bg-gray-100 dark:bg-gray-700'
+                                      }`}>
+                                        <User className={`w-5 h-5 ${
+                                          formData.accountManager?.id === employee._id
+                                            ? 'text-blue-600 dark:text-blue-400'
+                                            : 'text-gray-600 dark:text-gray-400'
+                                        }`} />
+                                      </div>
+                                      <div className="flex-1 text-left">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                          {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই'}
+                                        </h4>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                                          {employee.designation || employee.position || 'পদবী নেই'}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                          {(employee.phone || employee.phoneNumber) && (
+                                            <span className="text-xs text-blue-600 dark:text-blue-400">
+                                              📞 {employee.phone || employee.phoneNumber}
+                                            </span>
+                                          )}
+                                          {(employee.email || employee.emailAddress) && (
+                                            <span className="text-xs text-green-600 dark:text-green-400">
+                                              ✉️ {employee.email || employee.emailAddress}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {formData.accountManager?.id === employee._id && (
+                                        <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                      )}
+                                    </div>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+
+                          {/* Selected Account Manager Display */}
+                          {formData.accountManager?.name && !accountManagerSearchTerm && (
+                            <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                                    <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                      {formData.accountManager.name}
+                                    </h4>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                      {formData.accountManager.designation}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => setFormData(prev => ({ ...prev, accountManager: { id: '', name: '', phone: '', email: '' } }))}
+                                  className="text-red-500 hover:text-red-700 text-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2454,46 +2644,108 @@ const NewTransaction = () => {
                     </div>
 
                     {/* Account Manager List */}
-                    <div className="space-y-2 sm:space-y-3 max-h-60 sm:max-h-80 overflow-y-auto">
-                      {filteredAccountManagers.map((manager) => (
-                        <button
-                          key={manager.id}
-                          onClick={() => handleAccountManagerSelect(manager)}
-                          className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
-                            formData.accountManager?.id === manager.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                          }`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                formData.accountManager?.id === manager.id
-                                  ? 'bg-blue-100 dark:bg-blue-800'
-                                  : 'bg-gray-100 dark:bg-gray-700'
-                              }`}>
-                                <User className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                                  formData.accountManager?.id === manager.id
-                                    ? 'text-blue-600 dark:text-blue-400'
-                                    : 'text-gray-600 dark:text-gray-400'
-                                }`} />
+                    {accountManagerSearchTerm && (
+                      <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
+                        {employeeLoading ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                            <span className="ml-2 text-gray-600 dark:text-gray-400">খুঁজছি...</span>
+                          </div>
+                        ) : employeeSearchResults.length === 0 ? (
+                          <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                            {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
+                          </div>
+                        ) : (
+                          employeeSearchResults.map((employee) => (
+                            <button
+                              key={employee._id}
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  accountManager: {
+                                    id: employee._id,
+                                    name: employee.name,
+                                    phone: employee.phone,
+                                    email: employee.email,
+                                    designation: employee.designation
+                                  }
+                                }));
+                                setAccountManagerSearchTerm('');
+                              }}
+                              className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
+                                formData.accountManager?.id === employee._id
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  formData.accountManager?.id === employee._id
+                                    ? 'bg-blue-100 dark:bg-blue-800'
+                                    : 'bg-gray-100 dark:bg-gray-700'
+                                }`}>
+                                  <User className={`w-5 h-5 ${
+                                    formData.accountManager?.id === employee._id
+                                      ? 'text-blue-600 dark:text-blue-400'
+                                      : 'text-gray-600 dark:text-gray-400'
+                                  }`} />
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                    {employee.name}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {employee.designation}
+                                  </p>
+                                  <div className="flex flex-wrap gap-2 mt-1">
+                                    {employee.phone && (
+                                      <span className="text-xs text-blue-600 dark:text-blue-400">
+                                        📞 {employee.phone}
+                                      </span>
+                                    )}
+                                    {employee.email && (
+                                      <span className="text-xs text-green-600 dark:text-green-400">
+                                        ✉️ {employee.email}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {formData.accountManager?.id === employee._id && (
+                                  <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                )}
                               </div>
-                              <div className="text-left min-w-0 flex-1">
-                                <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
-                                  {manager.name}
-                                </h3>
-                                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                                  {manager.designation}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
-                                  📞 {manager.phone} • ✉️ {manager.email}
-                                </p>
-                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* Selected Account Manager Display */}
+                    {formData.accountManager?.name && !accountManagerSearchTerm && (
+                      <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                              <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                {formData.accountManager.name}
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {formData.accountManager.designation}
+                              </p>
                             </div>
                           </div>
-                        </button>
-                      ))}
-                    </div>
+                          <button
+                            onClick={() => setFormData(prev => ({ ...prev, accountManager: { id: '', name: '', phone: '', email: '' } }))}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : formData.transactionType === 'debit' ? (
                   // Debit: Payment Method Selection
@@ -3232,6 +3484,47 @@ const NewTransaction = () => {
                       <p className="text-sm text-gray-700 dark:text-gray-300">{formData.transferNotes}</p>
                     </div>
                   )}
+
+                  {/* Action Buttons for Transfer */}
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-6">
+                    <button
+                      onClick={handleSubmit}
+                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending}
+                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                    >
+                      {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending) ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="hidden sm:inline">ট্রান্সফার হচ্ছে...</span>
+                          <span className="sm:hidden">ট্রান্সফার...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          <span className="hidden sm:inline">ট্রান্সফার সম্পন্ন করুন</span>
+                          <span className="sm:hidden">ট্রান্সফার সম্পন্ন</span>
+                        </>
+                      )}
+                    </button>
+                    
+                    <button
+                      onClick={generatePDF}
+                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span className="hidden sm:inline">PDF ডাউনলোড করুন</span>
+                      <span className="sm:hidden">PDF ডাউনলোড</span>
+                    </button>
+                    
+                    <button
+                      onClick={() => {}} // SMS functionality
+                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
+                    >
+                      <Mail className="w-4 h-4" />
+                      <span className="hidden sm:inline">SMS পাঠান</span>
+                      <span className="sm:hidden">SMS</span>
+                    </button>
+                  </div>
                 </div>
               ) : formData.transactionType === 'debit' ? (
                 // Debit: Confirmation
@@ -3331,20 +3624,28 @@ const NewTransaction = () => {
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                     <button
                       onClick={handleSubmit}
-                      disabled={createTransactionMutation.isPending}
+                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending}
                       className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
-                      {createTransactionMutation.isPending ? (
+                      {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending) ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="hidden sm:inline">সংরক্ষণ হচ্ছে...</span>
-                          <span className="sm:hidden">সংরক্ষণ হচ্ছে...</span>
+                          <span className="hidden sm:inline">
+                            {formData.transactionType === 'transfer' ? 'ট্রান্সফার হচ্ছে...' : 'সংরক্ষণ হচ্ছে...'}
+                          </span>
+                          <span className="sm:hidden">
+                            {formData.transactionType === 'transfer' ? 'ট্রান্সফার...' : 'সংরক্ষণ...'}
+                          </span>
                         </>
                       ) : (
                         <>
                           <Save className="w-4 h-4" />
-                          <span className="hidden sm:inline">লেনদেন সংরক্ষণ করুন</span>
-                          <span className="sm:hidden">সংরক্ষণ করুন</span>
+                          <span className="hidden sm:inline">
+                            {formData.transactionType === 'transfer' ? 'ট্রান্সফার সম্পন্ন করুন' : 'লেনদেন সংরক্ষণ করুন'}
+                          </span>
+                          <span className="sm:hidden">
+                            {formData.transactionType === 'transfer' ? 'ট্রান্সফার' : 'সংরক্ষণ'}
+                          </span>
                         </>
                       )}
                     </button>
@@ -3778,20 +4079,28 @@ const NewTransaction = () => {
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                   <button
                     onClick={handleSubmit}
-                    disabled={createTransactionMutation.isPending}
+                    disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending}
                     className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                   >
-                    {createTransactionMutation.isPending ? (
+                    {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending) ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="hidden sm:inline">সংরক্ষণ হচ্ছে...</span>
-                        <span className="sm:hidden">সংরক্ষণ হচ্ছে...</span>
+                        <span className="hidden sm:inline">
+                          {formData.transactionType === 'transfer' ? 'ট্রান্সফার হচ্ছে...' : 'সংরক্ষণ হচ্ছে...'}
+                        </span>
+                        <span className="sm:hidden">
+                          {formData.transactionType === 'transfer' ? 'ট্রান্সফার...' : 'সংরক্ষণ...'}
+                        </span>
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        <span className="hidden sm:inline">লেনদেন সংরক্ষণ করুন</span>
-                        <span className="sm:hidden">সংরক্ষণ করুন</span>
+                        <span className="hidden sm:inline">
+                          {formData.transactionType === 'transfer' ? 'ট্রান্সফার সম্পন্ন করুন' : 'লেনদেন সংরক্ষণ করুন'}
+                        </span>
+                        <span className="sm:hidden">
+                          {formData.transactionType === 'transfer' ? 'ট্রান্সফার' : 'সংরক্ষণ'}
+                        </span>
                       </>
                     )}
                   </button>

@@ -48,7 +48,7 @@ const AddCustomer = React.lazy(() => import('./pages/Customers/AddCustomer'));
 const CustomerDetails = React.lazy(() => import('./pages/Customers/CustomerDetails'));
 
 // Transaction pages
-const TransactionsList = React.lazy(() => import('./pages/Transactions/TransactionsList'));
+const TransactionsList = React.lazy(() => import ('./pages/Transactions/TransactionsList'))
 const NewTransaction = React.lazy(() => import('./pages/Transactions/NewTransaction'));
 
 // Vendor pages
@@ -118,6 +118,7 @@ const ExpenseManagement = React.lazy(() => import('./pages/Account/ExpenseManage
 const SavingsInvestments = React.lazy(() => import('./pages/Account/SavingsInvestments'));
 const LoansCredit = React.lazy(() => import('./pages/Account/LoansCredit'));
 const BankAccounts = React.lazy(() => import('./pages/Account/BankAccounts'));
+const BankAccountsProfile = React.lazy(() => import('./pages/Account/BankAccountsProfile'));
 const AddBankAccount = React.lazy(() => import('./pages/Account/AddBankAccount'));
 const EditBankAccount = React.lazy(() => import('./pages/Account/EditBankAccount'));
 const CreditCards = React.lazy(() => import('./pages/Account/CreditCards'));
@@ -836,6 +837,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <BankAccounts />
+          </Suspense>
+        )
+      },
+      {
+        path: "bank-accounts-profile/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <BankAccountsProfile />
           </Suspense>
         )
       },

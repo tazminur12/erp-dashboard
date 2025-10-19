@@ -1137,7 +1137,164 @@ const AgentPackageCreation = () => {
                         <span className="w-3 h-3 bg-green-500 rounded-full mr-3"></span>
                         বাংলাদেশ অংশ
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      
+                      {/* Show simple form only for Custom Haj */}
+                      {formData.customPackageType === 'Custom Haj' ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Left Column */}
+                          <div className="space-y-6">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                বিমান ভাড়া
+                              </label>
+                              <input 
+                                type="number" 
+                                name="bangladeshAirfare" 
+                                value={costs.bangladeshAirfare || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                হজ্জ কল্যাণ ফি
+                              </label>
+                              <input 
+                                type="number" 
+                                name="hajjKollan" 
+                                value={costs.hajjKollan || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                হজ গাইড ফি
+                              </label>
+                              <input 
+                                type="number" 
+                                name="hajjGuide" 
+                                value={costs.hajjGuide || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                লাইসেন্স চার্জ ফি
+                              </label>
+                              <input 
+                                type="number" 
+                                name="licenseFee" 
+                                value={costs.licenseFee || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+
+                            {/* Full width field */}
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                অন্যান্য বাংলাদেশি খরচ
+                              </label>
+                              <input 
+                                type="number" 
+                                name="otherBangladeshCosts" 
+                                value={costs.otherBangladeshCosts || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+                          </div>
+
+                          {/* Right Column */}
+                          <div className="space-y-6">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                আইডি কার্ড ফি
+                              </label>
+                              <input 
+                                type="number" 
+                                name="idCard" 
+                                value={costs.idCard || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                ট্রেনিং ফি
+                              </label>
+                              <input 
+                                type="number" 
+                                name="trainingFee" 
+                                value={costs.trainingFee || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                সার্ভিস চার্জ (সরকারি)
+                              </label>
+                              <input 
+                                type="number" 
+                                name="govtServiceCharge" 
+                                value={costs.govtServiceCharge || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                যাতায়াত ফি
+                              </label>
+                              <input 
+                                type="number" 
+                                name="transportFee" 
+                                value={costs.transportFee || ''} 
+                                onChange={handleCostChange} 
+                                min="0" 
+                                step="0.01" 
+                                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white" 
+                                placeholder="0.00" 
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        // Original complex form for other package types
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Bangladesh Airfare Passenger Types */}
                         <div className="md:col-span-2">
                           <div className="flex items-center justify-between mb-4">
@@ -1570,7 +1727,8 @@ const AgentPackageCreation = () => {
                             </div>
                           </>
                         )}
-                      </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Saudi Portion Card */}

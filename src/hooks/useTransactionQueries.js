@@ -251,7 +251,31 @@ export const useCreateTransaction = () => {
   
   return useMutation({
     mutationFn: async (transactionData) => {
-      const response = await axiosSecure.post('/transactions', transactionData);
+      // Normalize payload as per backend requirements
+      const normalizeDate = (d) => {
+        if (!d) return d;
+        // Accept Date instance or date-like string; output YYYY-MM-DD
+        const dateObj = d instanceof Date ? d : new Date(d);
+        if (Number.isNaN(dateObj.getTime())) return d;
+        return dateObj.toISOString().split('T')[0];
+      };
+
+      const normalizedPayload = {
+        ...transactionData,
+        paymentMethod:
+          transactionData?.paymentMethod === 'bank'
+            ? 'bank-transfer'
+            : transactionData?.paymentMethod,
+        date: normalizeDate(transactionData?.date),
+        paymentDetails: {
+          ...(transactionData?.paymentDetails || {}),
+          amount: transactionData?.paymentDetails?.amount != null
+            ? parseFloat(transactionData.paymentDetails.amount)
+            : transactionData?.paymentDetails?.amount,
+        },
+      };
+
+      const response = await axiosSecure.post('/transactions', normalizedPayload);
       
       if (response.data.success) {
         return response.data;

@@ -253,14 +253,9 @@ const EmployeeProfile = () => {
   const renderDocumentsTab = () => {
     // Get document URLs with fallback
     const profilePictureUrl = employee.profilePictureUrl || employee.profilePicture;
-    const resumeUrl = employee.resumeUrl || employee.resume;
     const nidCopyUrl = employee.nidCopyUrl || employee.nidCopy;
     
-    console.log('Employee Profile - Documents Debug:');
-    console.log('Profile Picture URL:', profilePictureUrl);
-    console.log('Resume URL:', resumeUrl);
-    console.log('NID Copy URL:', nidCopyUrl);
-    console.log('Employee object:', employee);
+   
     
     return (
       <div className="space-y-6">
@@ -301,44 +296,6 @@ const EmployeeProfile = () => {
               </div>
             )}
             
-            {/* Resume */}
-            {resumeUrl && (
-              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-medium text-gray-900">Resume/CV</p>
-                    <p className="text-sm text-gray-500">Document • Resume file</p>
-                    <p className="text-xs text-gray-400 mt-1">Click download to view or save the file</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => {
-                      // Create a temporary link to download the file
-                      const link = document.createElement('a');
-                      link.href = resumeUrl;
-                      link.target = '_blank';
-                      link.download = `Resume_${employee.firstName}_${employee.lastName}.pdf`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Resume
-                  </button>
-                  <button 
-                    onClick={() => window.open(resumeUrl, '_blank')}
-                    className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
-                  >
-                    <FileText className="w-4 h-4" />
-                    View
-                  </button>
-                </div>
-              </div>
-            )}
             
             {/* NID Copy */}
             {nidCopyUrl && (
@@ -416,7 +373,7 @@ const EmployeeProfile = () => {
             ))
           )}
           
-          {!profilePictureUrl && !resumeUrl && !nidCopyUrl && (!employee.otherDocuments || employee.otherDocuments.length === 0) && (
+          {!profilePictureUrl && !nidCopyUrl && (!employee.otherDocuments || employee.otherDocuments.length === 0) && (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500 text-lg">No documents uploaded</p>

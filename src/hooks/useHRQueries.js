@@ -399,6 +399,7 @@ export const useEmployeeSearch = (searchTerm, enabled = true) => {
       }
       
       try {
+        // First try the search endpoint
         const response = await axiosSecure.get(`/hr/employers/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
         
         console.log('Employee search response:', response.data);
@@ -411,6 +412,39 @@ export const useEmployeeSearch = (searchTerm, enabled = true) => {
         }
       } catch (error) {
         console.error('Employee search error:', error);
+        
+        // If search endpoint fails, try to get all employees and filter client-side
+        try {
+          console.log('Falling back to client-side search...');
+          const fallbackResponse = await axiosSecure.get('/hr/employers?limit=100');
+          
+          if (fallbackResponse.data.success && fallbackResponse.data.data) {
+            const allEmployees = fallbackResponse.data.data;
+            const searchLower = searchTerm.toLowerCase();
+            
+            // Filter employees client-side
+            const filteredEmployees = allEmployees.filter(employee => {
+              const name = `${employee.firstName || ''} ${employee.lastName || ''}`.toLowerCase();
+              const email = (employee.email || '').toLowerCase();
+              const phone = (employee.phone || '').toLowerCase();
+              const employeeId = (employee.employeeId || '').toLowerCase();
+              const position = (employee.position || '').toLowerCase();
+              const department = (employee.department || '').toLowerCase();
+              
+              return name.includes(searchLower) ||
+                     email.includes(searchLower) ||
+                     phone.includes(searchLower) ||
+                     employeeId.includes(searchLower) ||
+                     position.includes(searchLower) ||
+                     department.includes(searchLower);
+            });
+            
+            return filteredEmployees.slice(0, 10); // Limit to 10 results
+          }
+        } catch (fallbackError) {
+          console.error('Fallback search also failed:', fallbackError);
+        }
+        
         return [];
       }
     },

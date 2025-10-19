@@ -1,7 +1,28 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Plus, Banknote, Building2, CreditCard, TrendingUp, AlertCircle, Edit, Trash2, History, Filter, Search, Eye } from 'lucide-react';
-import DataTable from '../../components/common/DataTable';
+import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  ArrowLeft, 
+  Building2, 
+  Banknote, 
+  CreditCard, 
+  TrendingUp, 
+  AlertCircle, 
+  Edit, 
+  Trash2, 
+  History, 
+  Plus,
+  Calendar,
+  DollarSign,
+  Activity,
+  Shield,
+  MapPin,
+  Phone,
+  Mail,
+  Globe,
+  Download,
+  Share2,
+  MoreVertical
+} from 'lucide-react';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import SmallStat from '../../components/common/SmallStat';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
@@ -194,41 +215,29 @@ const TransactionHistory = ({ accountId }) => {
   );
 };
 
-const BankAccounts = () => {
+const BankAccountsProfile = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
   const { 
-    useBankAccounts, 
-    useBankAccountStats, 
+    useBankAccount, 
     useDeleteBankAccount, 
     useAdjustBankAccountBalance,
-    useBankAccountTransactions,
     useCreateBankAccountTransaction
   } = useAccountQueries();
   
-  // Filter states
-  const [filters, setFilters] = useState({
-    status: '',
-    accountType: '',
-    currency: '',
-    search: ''
-  });
-  
-  const { data: banks = [], isLoading, error } = useBankAccounts(filters);
-  const { data: stats = {} } = useBankAccountStats();
+  const { data: bankAccount, isLoading, error } = useBankAccount(id);
   const deleteBankAccountMutation = useDeleteBankAccount();
   const adjustBalanceMutation = useAdjustBankAccountBalance();
   const createTransactionMutation = useCreateBankAccountTransaction();
 
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] = useState(false);
-  const [selectedBank, setSelectedBank] = useState(null);
   const [balanceData, setBalanceData] = useState({
     amount: '',
     note: '',
     type: 'deposit',
-    createdBy: 'SYSTEM', // Default value
-    branchId: 'BRANCH001' // Default value - should be dynamic
+    createdBy: 'SYSTEM',
+    branchId: 'BRANCH001'
   });
   const [transactionData, setTransactionData] = useState({
     transactionType: 'credit',
@@ -236,103 +245,26 @@ const BankAccounts = () => {
     description: '',
     reference: '',
     notes: '',
-    createdBy: 'SYSTEM', // Default value
-    branchId: 'BRANCH001' // Default value - should be dynamic
+    createdBy: 'SYSTEM',
+    branchId: 'BRANCH001'
   });
 
+  const handleEditAccount = () => {
+    navigate(`/account/edit-bank-account/${id}`);
+  };
 
-  // Table columns configuration
-  const columns = [
-    {
-      key: 'logo',
-      header: 'Logo',
-      sortable: false,
-      render: (value) => (
-        <div className="flex items-center justify-center">
-          {value ? (
-            <img 
-              src={value} 
-              alt="Bank Logo" 
-              className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            </div>
-          )}
-        </div>
-      )
-    },
-    {
-      key: 'bankName',
-      header: 'Bank Name',
-      sortable: true
-    },
-    {
-      key: 'accountTitle',
-      header: 'Account Title',
-      sortable: true
-    },
-    {
-      key: 'accountType',
-      header: 'Account Type',
-      sortable: true,
-      render: (value) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          value === 'Current' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
-          value === 'Savings' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-          'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
-        }`}>
-          {value}
-        </span>
-      )
-    },
-    {
-      key: 'initialBalance',
-      header: 'Initial Balance',
-      sortable: true,
-      render: (value, item) => (
-        <span className="font-semibold text-green-600 dark:text-green-400">
-          {item.currency} {value.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      key: 'currentBalance',
-      header: 'Current Balance',
-      sortable: true,
-      render: (value, item) => (
-        <span className="font-semibold text-blue-600 dark:text-blue-400">
-          {item.currency} {value.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      render: (value) => (
-        <span className={`px-2 py-1 text-xs rounded-full ${
-          value === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
-          'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-        }`}>
-          {value}
-        </span>
-      )
+  const handleDeleteAccount = async () => {
+    if (window.confirm(`Are you sure you want to delete ${bankAccount?.bankName} account?`)) {
+      try {
+        await deleteBankAccountMutation.mutateAsync(id);
+        navigate('/account/bank-accounts');
+      } catch (err) {
+        console.error('Delete failed:', err);
+      }
     }
-  ];
-
-
-  const handleAddBank = () => {
-    navigate('/account/add-bank-account');
   };
 
-  const handleEditBank = (bank) => {
-    navigate(`/account/edit-bank-account/${bank._id}`);
-  };
-
-  const handleBalanceAdjustment = (bank) => {
-    setSelectedBank(bank);
+  const handleBalanceAdjustment = () => {
     setBalanceData({
       amount: '',
       note: '',
@@ -343,8 +275,7 @@ const BankAccounts = () => {
     setIsBalanceModalOpen(true);
   };
 
-  const handleCreateTransaction = (bank) => {
-    setSelectedBank(bank);
+  const handleCreateTransaction = () => {
     setTransactionData({
       transactionType: 'credit',
       amount: '',
@@ -357,22 +288,11 @@ const BankAccounts = () => {
     setIsTransactionModalOpen(true);
   };
 
-  const handleViewTransactions = (bank) => {
-    setSelectedBank(bank);
-    setIsTransactionHistoryOpen(true);
-  };
-
-  const handleViewProfile = (bank) => {
-    navigate(`/account/bank-accounts-profile/${bank._id}`);
-  };
-
-
   const handleBalanceSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (!selectedBank?._id) return;
       await adjustBalanceMutation.mutateAsync({
-        id: selectedBank._id,
+        id,
         amount: balanceData.amount,
         type: balanceData.type,
         note: balanceData.note,
@@ -389,9 +309,8 @@ const BankAccounts = () => {
   const handleTransactionSubmit = async (e) => {
     e.preventDefault();
     try {
-      if (!selectedBank?._id) return;
       await createTransactionMutation.mutateAsync({
-        id: selectedBank._id,
+        id,
         ...transactionData,
         amount: parseFloat(transactionData.amount),
       });
@@ -410,230 +329,271 @@ const BankAccounts = () => {
     }
   };
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading bank account details...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const clearFilters = () => {
-    setFilters({
-      status: '',
-      accountType: '',
-      currency: '',
-      search: ''
-    });
-  };
-
-  const handleDeleteBank = async (bank) => {
-    if (!bank?._id) return;
-    if (window.confirm(`Are you sure you want to delete ${bank.bankName} account?`)) {
-      try {
-        await deleteBankAccountMutation.mutateAsync(bank._id);
-      } catch (err) {
-        console.error('Delete failed:', err);
-      }
-    }
-  };
+  if (error || !bankAccount) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Account Not Found</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">The bank account you're looking for doesn't exist.</p>
+          <button
+            onClick={() => navigate('/account/bank-accounts')}
+            className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Bank Accounts
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Bank Accounts
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Manage your bank accounts and track balances
-            </p>
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => navigate('/account/bank-accounts')}
+              className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                {bankAccount.bankName}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                Account Details & Transaction History
+              </p>
+            </div>
           </div>
-          <button
-            onClick={handleAddBank}
-            className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Add Bank Account
-          </button>
+          <div className="flex items-center space-x-2 mt-4 sm:mt-0">
+            <button
+              onClick={handleEditAccount}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Account
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              className="inline-flex items-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
-          <div className="flex items-center space-x-2 mb-4">
-            <Filter className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
+        {/* Account Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+          {/* Account Information */}
+          <div className="lg:col-span-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Account Information</h2>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleBalanceAdjustment}
+                    className="p-2 text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors duration-200"
+                    title="Adjust Balance"
+                  >
+                    <Banknote className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={handleCreateTransaction}
+                    className="p-2 text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 transition-colors duration-200"
+                    title="Create Transaction"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <Building2 className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Bank Name</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{bankAccount.bankName}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <CreditCard className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Account Number</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{bankAccount.accountNumber}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <Shield className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Account Type</p>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        bankAccount.accountType === 'Current' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+                        bankAccount.accountType === 'Savings' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                        'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
+                      }`}>
+                        {bankAccount.accountType}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <DollarSign className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Currency</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{bankAccount.currency}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Account Title</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{bankAccount.accountTitle}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <Activity className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Status</p>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        bankAccount.status === 'Active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                        'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+                      }`}>
+                        {bankAccount.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-3">
+                    <Calendar className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Created Date</p>
+                      <p className="font-medium text-gray-900 dark:text-white">
+                        {new Date(bankAccount.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {bankAccount.branchName && (
+                    <div className="flex items-center space-x-3">
+                      <MapPin className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Branch</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{bankAccount.branchName}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {bankAccount.notes && (
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{bankAccount.notes}</p>
+                </div>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Search
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Search banks..."
-                />
+
+          {/* Balance Statistics */}
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Balance Overview</h3>
+              <div className="space-y-4">
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Current Balance</p>
+                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    {bankAccount.currency} {bankAccount.currentBalance?.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Initial Balance</p>
+                  <p className="text-2xl font-semibold text-gray-600 dark:text-gray-400">
+                    {bankAccount.currency} {bankAccount.initialBalance?.toLocaleString()}
+                  </p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Balance Change</p>
+                  <p className={`text-xl font-semibold ${
+                    (bankAccount.currentBalance - bankAccount.initialBalance) >= 0 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {bankAccount.currency} {(bankAccount.currentBalance - bankAccount.initialBalance).toLocaleString()}
+                  </p>
+                </div>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status
-              </label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Account Type
-              </label>
-              <select
-                value={filters.accountType}
-                onChange={(e) => handleFilterChange('accountType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="">All Types</option>
-                <option value="Current">Current</option>
-                <option value="Savings">Savings</option>
-                <option value="Business">Business</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Currency
-              </label>
-              <select
-                value={filters.currency}
-                onChange={(e) => handleFilterChange('currency', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="">All Currencies</option>
-                <option value="BDT">BDT</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={clearFilters}
-                className="w-full px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-lg transition-colors duration-200"
-              >
-                Clear Filters
-              </button>
+
+            {/* Quick Actions */}
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+              <div className="space-y-3">
+                <button
+                  onClick={handleBalanceAdjustment}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+                >
+                  <Banknote className="w-4 h-4 mr-2" />
+                  Adjust Balance
+                </button>
+                <button
+                  onClick={handleCreateTransaction}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition-colors duration-200"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New Transaction
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Print Statement
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <SmallStat
-            label="Total Accounts"
-            value={stats.totalAccounts || 0}
-            icon={Building2}
-            color="blue"
-          />
-          <SmallStat
-            label="Total Balance"
-            value={`BDT ${Number(stats.totalBalance || 0).toLocaleString()}`}
-            icon={Banknote}
-            color="green"
-          />
-          <SmallStat
-            label="Initial Balance"
-            value={`BDT ${Number(stats.totalInitialBalance || 0).toLocaleString()}`}
-            icon={CreditCard}
-            color="purple"
-          />
-          <SmallStat
-            label="Active Accounts"
-            value={`${stats.activeAccounts || 0}/${stats.totalAccounts || 0}`}
-            icon={TrendingUp}
-            color="yellow"
-          />
-        </div>
-
-        {/* Bank Accounts Table */}
-        {isLoading ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600 dark:text-gray-400">Loading bank accounts...</p>
-          </div>
-        ) : error ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
-            <p className="text-red-600 dark:text-red-400">Error loading bank accounts</p>
-          </div>
-        ) : (
-          <DataTable
-            data={banks}
-            columns={columns}
-            searchable={true}
-            exportable={true}
-            pagination={true}
-            actions={true}
-            pageSize={10}
-            onEdit={handleEditBank}
-            onDelete={handleDeleteBank}
-            customActions={(bank) => (
+        {/* Transaction History */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Transaction History</h2>
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleViewProfile(bank)}
-                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors duration-200"
-                  title="View Details"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleEditBank(bank)}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors duration-200"
-                  title="Edit"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleBalanceAdjustment(bank)}
-                  className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 transition-colors duration-200"
-                  title="Adjust Balance"
-                >
-                  <Banknote className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleCreateTransaction(bank)}
-                  className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 transition-colors duration-200"
-                  title="Create Transaction"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleViewTransactions(bank)}
-                  className="text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 transition-colors duration-200"
-                  title="View Transactions"
-                >
-                  <History className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDeleteBank(bank)}
-                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition-colors duration-200"
-                  title="Delete"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <History className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  Account: {bankAccount.accountNumber}
+                </span>
               </div>
-            )}
-          />
-        )}
-
+            </div>
+          </div>
+          <div className="p-6">
+            <TransactionHistory accountId={id} />
+          </div>
+        </div>
 
         {/* Balance Adjustment Modal */}
         <Modal
@@ -647,11 +607,11 @@ const BankAccounts = () => {
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                  Adjusting balance for {selectedBank?.bankName}
+                  Adjusting balance for {bankAccount?.bankName}
                 </span>
               </div>
               <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                Current Balance: {selectedBank?.currency} {selectedBank?.currentBalance.toLocaleString()}
+                Current Balance: {bankAccount?.currency} {bankAccount?.currentBalance?.toLocaleString()}
               </p>
             </div>
 
@@ -755,11 +715,11 @@ const BankAccounts = () => {
               <div className="flex items-center space-x-2">
                 <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                  Creating transaction for {selectedBank?.bankName}
+                  Creating transaction for {bankAccount?.bankName}
                 </span>
               </div>
               <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                Current Balance: {selectedBank?.currency} {selectedBank?.currentBalance?.toLocaleString()}
+                Current Balance: {bankAccount?.currency} {bankAccount?.currentBalance?.toLocaleString()}
               </p>
             </div>
 
@@ -887,33 +847,9 @@ const BankAccounts = () => {
             </ModalFooter>
           </form>
         </Modal>
-
-        {/* Transaction History Modal */}
-        <Modal
-          isOpen={isTransactionHistoryOpen}
-          onClose={() => setIsTransactionHistoryOpen(false)}
-          title="Transaction History"
-          size="xl"
-        >
-          <div className="space-y-4">
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center space-x-2">
-                <History className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                  Transaction history for {selectedBank?.bankName}
-                </span>
-              </div>
-              <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                Account: {selectedBank?.accountNumber} | Current Balance: {selectedBank?.currency} {selectedBank?.currentBalance?.toLocaleString()}
-              </p>
-            </div>
-
-            <TransactionHistory accountId={selectedBank?._id} />
-          </div>
-        </Modal>
       </div>
     </div>
   );
 };
 
-export default BankAccounts;
+export default BankAccountsProfile;
