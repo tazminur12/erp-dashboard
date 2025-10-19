@@ -201,8 +201,7 @@ const BankAccounts = () => {
     useBankAccountStats, 
     useDeleteBankAccount, 
     useAdjustBankAccountBalance,
-    useBankAccountTransactions,
-    useCreateBankAccountTransaction
+    useBankAccountTransactions
   } = useAccountQueries();
   
   // Filter states
@@ -217,25 +216,14 @@ const BankAccounts = () => {
   const { data: stats = {} } = useBankAccountStats();
   const deleteBankAccountMutation = useDeleteBankAccount();
   const adjustBalanceMutation = useAdjustBankAccountBalance();
-  const createTransactionMutation = useCreateBankAccountTransaction();
 
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
-  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] = useState(false);
   const [selectedBank, setSelectedBank] = useState(null);
   const [balanceData, setBalanceData] = useState({
     amount: '',
     note: '',
     type: 'deposit',
-    createdBy: 'SYSTEM', // Default value
-    branchId: 'BRANCH001' // Default value - should be dynamic
-  });
-  const [transactionData, setTransactionData] = useState({
-    transactionType: 'credit',
-    amount: '',
-    description: '',
-    reference: '',
-    notes: '',
     createdBy: 'SYSTEM', // Default value
     branchId: 'BRANCH001' // Default value - should be dynamic
   });
@@ -343,19 +331,6 @@ const BankAccounts = () => {
     setIsBalanceModalOpen(true);
   };
 
-  const handleCreateTransaction = (bank) => {
-    setSelectedBank(bank);
-    setTransactionData({
-      transactionType: 'credit',
-      amount: '',
-      description: '',
-      reference: '',
-      notes: '',
-      createdBy: 'SYSTEM',
-      branchId: 'BRANCH001'
-    });
-    setIsTransactionModalOpen(true);
-  };
 
   const handleViewTransactions = (bank) => {
     setSelectedBank(bank);
@@ -386,29 +361,6 @@ const BankAccounts = () => {
     }
   };
 
-  const handleTransactionSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (!selectedBank?._id) return;
-      await createTransactionMutation.mutateAsync({
-        id: selectedBank._id,
-        ...transactionData,
-        amount: parseFloat(transactionData.amount),
-      });
-      setIsTransactionModalOpen(false);
-      setTransactionData({
-        transactionType: 'credit',
-        amount: '',
-        description: '',
-        reference: '',
-        notes: '',
-        createdBy: 'SYSTEM',
-        branchId: 'BRANCH001'
-      });
-    } catch (err) {
-      console.error('Transaction creation failed:', err);
-    }
-  };
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({
@@ -609,13 +561,6 @@ const BankAccounts = () => {
                   <Banknote className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => handleCreateTransaction(bank)}
-                  className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 transition-colors duration-200"
-                  title="Create Transaction"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-                <button
                   onClick={() => handleViewTransactions(bank)}
                   className="text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 transition-colors duration-200"
                   title="View Transactions"
@@ -743,150 +688,6 @@ const BankAccounts = () => {
           </form>
         </Modal>
 
-        {/* Transaction Creation Modal */}
-        <Modal
-          isOpen={isTransactionModalOpen}
-          onClose={() => setIsTransactionModalOpen(false)}
-          title="Create Bank Transaction"
-          size="lg"
-        >
-          <form onSubmit={handleTransactionSubmit} className="space-y-6">
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <div className="flex items-center space-x-2">
-                <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                  Creating transaction for {selectedBank?.bankName}
-                </span>
-              </div>
-              <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                Current Balance: {selectedBank?.currency} {selectedBank?.currentBalance?.toLocaleString()}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Transaction Type *
-                </label>
-                <select
-                  required
-                  value={transactionData.transactionType}
-                  onChange={(e) => setTransactionData({...transactionData, transactionType: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="credit">Credit (Deposit)</option>
-                  <option value="debit">Debit (Withdrawal)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Amount *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0.01"
-                  step="0.01"
-                  value={transactionData.amount}
-                  onChange={(e) => setTransactionData({...transactionData, amount: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Description *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={transactionData.description}
-                  onChange={(e) => setTransactionData({...transactionData, description: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Transaction description"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Reference
-                </label>
-                <input
-                  type="text"
-                  value={transactionData.reference}
-                  onChange={(e) => setTransactionData({...transactionData, reference: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Reference number"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Created By
-                </label>
-                <input
-                  type="text"
-                  value={transactionData.createdBy}
-                  onChange={(e) => setTransactionData({...transactionData, createdBy: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="User ID"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Branch ID
-                </label>
-                <input
-                  type="text"
-                  value={transactionData.branchId}
-                  onChange={(e) => setTransactionData({...transactionData, branchId: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Branch ID"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Notes
-                </label>
-                <textarea
-                  value={transactionData.notes}
-                  onChange={(e) => setTransactionData({...transactionData, notes: e.target.value})}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Additional notes..."
-                />
-              </div>
-            </div>
-
-            <ModalFooter>
-              <button
-                type="button"
-                onClick={() => setIsTransactionModalOpen(false)}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-lg transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={createTransactionMutation.isPending}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg transition-colors duration-200 flex items-center"
-              >
-                {createTransactionMutation.isPending ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating...
-                  </>
-                ) : (
-                  'Create Transaction'
-                )}
-              </button>
-            </ModalFooter>
-          </form>
-        </Modal>
 
         {/* Transaction History Modal */}
         <Modal
