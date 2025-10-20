@@ -22,7 +22,7 @@ import {
   Package,
   Users
 } from 'lucide-react';
-import { useCustomer } from '../../hooks/useCustomerQueries';
+import { useHaji } from '../../hooks/UseHajiQueries';
 
 const HajiDetails = () => {
   const { id } = useParams();
@@ -30,8 +30,8 @@ const HajiDetails = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Fetch customer data using the customerId from URL params
-  const { data: haji, isLoading, error } = useCustomer(id);
+  // Fetch haji data using the hajiId from URL params
+  const { data: haji, isLoading, error } = useHaji(id);
 
   const getStatusBadge = (status) => {
     const statusClasses = {
@@ -159,7 +159,7 @@ const HajiDetails = () => {
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
               <div className="flex items-center space-x-2">
                 <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400 truncate">{haji.mobile || 'N/A'}</span>
+                <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400 truncate">{haji.mobile || haji.phone || 'N/A'}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -167,7 +167,7 @@ const HajiDetails = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400">{haji.district || 'N/A'}</span>
+                <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400">{haji.address || haji.district || 'N/A'}</span>
               </div>
             </div>
           </div>
@@ -340,7 +340,7 @@ const HajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Mobile</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.mobile || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.mobile || haji.phone || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">WhatsApp</label>

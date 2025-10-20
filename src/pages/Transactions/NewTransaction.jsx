@@ -164,6 +164,7 @@ const NewTransaction = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSearchType, setSelectedSearchType] = useState('customer');
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   const [debitAccountSearchTerm, setDebitAccountSearchTerm] = useState('');
   const [creditAccountSearchTerm, setCreditAccountSearchTerm] = useState('');
@@ -175,8 +176,14 @@ const NewTransaction = () => {
   const [accountSearchTerm, setAccountSearchTerm] = useState('');
   
   // Search hooks (after searchTerm state declaration)
-  const { data: agentResults = [], isLoading: agentLoading } = useSearchAgents(searchTerm, !!searchTerm?.trim());
-  const { data: vendorResults = [], isLoading: vendorLoading } = useSearchVendors(searchTerm, !!searchTerm?.trim());
+  const { data: agentResults = [], isLoading: agentLoading } = useSearchAgents(
+    searchTerm,
+    selectedSearchType === 'agent' && !!searchTerm?.trim()
+  );
+  const { data: vendorResults = [], isLoading: vendorLoading } = useSearchVendors(
+    searchTerm,
+    selectedSearchType === 'vendor' && !!searchTerm?.trim()
+  );
   const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
   
   // Filter accounts based on search term
@@ -494,8 +501,7 @@ const NewTransaction = () => {
       // Clear agent due info when selecting regular customer
       agentDueInfo: null
     }));
-    setSearchTerm('');
-    setSearchLoading(false); // Clear loading state
+    setSearchLoading(false);
   };
 
   const handleAgentSelect = (agent) => {
@@ -513,8 +519,7 @@ const NewTransaction = () => {
         umrahDue: agent.umrahDue || 0
       }
     }));
-    setSearchTerm(''); // Clear search term to hide results
-    setSearchLoading(false); // Clear loading state
+    setSearchLoading(false);
   };
 
   const handleVendorSelect = (vendor) => {
@@ -528,8 +533,7 @@ const NewTransaction = () => {
       // Clear agent due info when selecting vendor
       agentDueInfo: null
     }));
-    setSearchTerm(''); // Clear search term to hide results
-    setSearchLoading(false); // Clear loading state
+    setSearchLoading(false);
   };
 
   const handleInvoiceSelect = (invoice) => {
@@ -1748,6 +1752,23 @@ const NewTransaction = () => {
               ) : (
                 // Credit/Debit: Customer Selection
                 <div className="max-w-4xl mx-auto">
+                  {/* Type Selector */}
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    {['customer','vendor','agent'].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => { setSelectedSearchType(type); setSearchTerm(''); }}
+                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                          selectedSearchType === type
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : (isDark ? 'text-gray-200 border-gray-600' : 'text-gray-700 border-gray-300 hover:border-blue-400')
+                        }`}
+                      >
+                        {type === 'customer' ? 'Customer' : type === 'vendor' ? 'Vendor' : 'Agent'}
+                      </button>
+                    ))}
+                  </div>
                   {/* Search Bar */}
                   <div className="relative mb-3 sm:mb-4">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1756,7 +1777,13 @@ const NewTransaction = () => {
                     )}
                     <input
                       type="text"
-                      placeholder="নাম, ফোন নম্বর বা ইমেইল দিয়ে খুঁজুন..."
+                      placeholder={
+                        selectedSearchType === 'customer'
+                          ? 'কাস্টমার খুঁজুন... (নাম/ফোন/ইমেইল)'
+                          : selectedSearchType === 'vendor'
+                          ? 'ভেন্ডর খুঁজুন... (নাম/ফোন)'
+                          : 'এজেন্ট খুঁজুন... (নাম/ফোন)'
+                      }
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className={`w-full pl-10 pr-10 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
@@ -1769,15 +1796,18 @@ const NewTransaction = () => {
 
                   {/* Customer / Agent / Vendor List */}
                   <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
-                    {(searchTerm ? (agentLoading || vendorLoading || searchLoading) : customersLoading) ? (
+                    {(selectedSearchType === 'agent' && (agentLoading || searchLoading)) ||
+                     (selectedSearchType === 'vendor' && (vendorLoading || searchLoading)) ||
+                     (selectedSearchType === 'customer' && (customersLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
-                        <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">কাস্টমার লোড হচ্ছে...</span>
+                        <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+                          {selectedSearchType === 'customer' ? 'কাস্টমার লোড হচ্ছে...' : selectedSearchType === 'vendor' ? 'ভেন্ডর লোড হচ্ছে...' : 'এজেন্ট লোড হচ্ছে...'}
+                        </span>
                       </div>
-                    ) : searchTerm && (agentResults.length > 0 || vendorResults.length > 0) ? (
-                      <>
-                        {/* Agent Results */}
-                        {agentResults.map((agent) => (
+                    ) : selectedSearchType === 'agent' ? (
+                        agentResults.length > 0 ? (
+                        agentResults.map((agent) => (
                           <button
                             key={`agent-${agent._id || agent.id}`}
                             type="button"
@@ -1821,10 +1851,12 @@ const NewTransaction = () => {
                               )}
                             </div>
                           </button>
-                        ))}
-
-                        {/* Vendor Results */}
-                        {vendorResults.map((vendor) => (
+                        ))) : (
+                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন এজেন্ট পাওয়া যায়নি</div>
+                        )
+                    ) : selectedSearchType === 'vendor' ? (
+                        vendorResults.length > 0 ? (
+                        vendorResults.map((vendor) => (
                           <button
                             key={`vendor-${vendor._id || vendor.id}`}
                             type="button"
@@ -1872,8 +1904,9 @@ const NewTransaction = () => {
                               )}
                             </div>
                           </button>
-                        ))}
-                      </>
+                        ))) : (
+                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন ভেন্ডর পাওয়া যায়নি</div>
+                        )
                     ) : filteredCustomers.length > 0 ? (
                       filteredCustomers.map((customer) => (
                       <button
@@ -1928,7 +1961,7 @@ const NewTransaction = () => {
                       ))
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                        {searchTerm ? 'কোন এজেন্ট/ভেন্ডর/কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই'}
+                        {selectedSearchType === 'customer' ? (searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই') : selectedSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 'কোন এজেন্ট পাওয়া যায়নি'}
                       </div>
                     )}
                   </div>

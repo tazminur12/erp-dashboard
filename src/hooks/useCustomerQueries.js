@@ -2,6 +2,26 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import useAxiosSecure from './UseAxiosSecure';
 import Swal from 'sweetalert2';
 
+// Local helpers
+const isValidYmdDate = (value) => {
+  if (!value) return true;
+  // Accept strings like YYYY-MM-DD; rely on Date for validity too
+  const ymdPattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (typeof value !== 'string' || !ymdPattern.test(value)) return false;
+  const date = new Date(value);
+  return !isNaN(date.getTime());
+};
+
+const extractImageUrl = (customerImage) => {
+  if (!customerImage) return null;
+  if (typeof customerImage === 'string') return customerImage;
+  if (typeof customerImage === 'object') {
+    if (customerImage.cloudinaryUrl) return customerImage.cloudinaryUrl;
+    if (customerImage.downloadURL) return customerImage.downloadURL;
+  }
+  return null;
+};
+
 // Query keys
 export const customerKeys = {
   all: ['customers'],
@@ -351,7 +371,46 @@ export const useCreateCustomer = () => {
   
   return useMutation({
     mutationFn: async (customerData) => {
-      const response = await axiosSecure.post('/customers', customerData);
+      // Client-side validations to match backend expectations
+      const requiredFields = ['name', 'mobile', 'address', 'division', 'district', 'upazila', 'customerType'];
+      const missing = requiredFields.filter((f) => !customerData?.[f]);
+      if (missing.length) {
+        throw new Error('Name, mobile, address, division, district, upazila, and customerType are required');
+      }
+
+      // Date validations
+      const { issueDate, expiryDate, dateOfBirth } = customerData || {};
+      if (issueDate && !isValidYmdDate(issueDate)) {
+        throw new Error('Invalid issue date format. Please use YYYY-MM-DD format');
+      }
+      if (expiryDate && !isValidYmdDate(expiryDate)) {
+        throw new Error('Invalid expiry date format. Please use YYYY-MM-DD format');
+      }
+      if (dateOfBirth && !isValidYmdDate(dateOfBirth)) {
+        throw new Error('Invalid date of birth format. Please use YYYY-MM-DD format');
+      }
+      if (issueDate && expiryDate && new Date(expiryDate) <= new Date(issueDate)) {
+        throw new Error('Expiry date must be after issue date');
+      }
+
+      // Normalize payload to what backend expects
+      const payload = { ...customerData };
+      payload.customerImage = extractImageUrl(customerData?.customerImage);
+      // Normalize numeric fields
+      if (payload.totalAmount !== undefined) {
+        payload.totalAmount = typeof payload.totalAmount === 'number' ? payload.totalAmount : Number(payload.totalAmount);
+        if (Number.isNaN(payload.totalAmount)) payload.totalAmount = null;
+      }
+      if (payload.paidAmount !== undefined) {
+        payload.paidAmount = typeof payload.paidAmount === 'number' ? payload.paidAmount : Number(payload.paidAmount);
+        if (Number.isNaN(payload.paidAmount)) payload.paidAmount = null;
+      }
+      // isActive default true if not explicitly boolean
+      if (typeof payload.isActive !== 'boolean') {
+        payload.isActive = true;
+      }
+
+      const response = await axiosSecure.post('/customers', payload);
       
       if (response.data.success) {
         return response.data;
@@ -366,7 +425,7 @@ export const useCreateCustomer = () => {
       // Add the new customer to the cache if needed
       if (data.customer) {
         queryClient.setQueryData(
-          customerKeys.detail(data.customer.id || data.customer.customerId),
+          customerKeys.detail(data.customer._id || data.customer.customerId),
           data.customer
         );
       }
@@ -383,7 +442,7 @@ export const useCreateCustomer = () => {
     onError: (error) => {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: 'কাস্টমার যোগ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        text: error?.response?.data?.message || error?.message || 'কাস্টমার যোগ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',

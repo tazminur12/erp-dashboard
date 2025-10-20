@@ -17,9 +17,9 @@ import {
   Search,
   CheckCircle,
   Users,
-  Wand2
 } from 'lucide-react';
 import { useCustomers, useCreateCustomer } from '../../../hooks/useCustomerQueries';
+import { useCreateUmrah } from '../../../hooks/UseUmrahQuries';
 import Swal from 'sweetalert2';
 
 const toast = {
@@ -133,6 +133,9 @@ const AddUmrahHaji = () => {
   // Fetch customers for search functionality
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
   const createCustomerMutation = useCreateCustomer();
+  const createUmrahMutation = useCreateUmrah();
+  const isSubmitting = loading || createUmrahMutation.isPending;
+
   
   const [formData, setFormData] = useState({
     name: '',
@@ -357,19 +360,37 @@ const AddUmrahHaji = () => {
   }, [packages]);
 
   const validateForm = () => {
-    const requiredFields = ['name', 'passport', 'phone', 'packageId', 'agentId', 'departureDate'];
+    const requiredFields = ['name'];
     for (const field of requiredFields) {
       if (!formData[field]) {
-        toast.error(`${field.charAt(0).toUpperCase() + field.slice(1)} is required`);
+        Swal.fire({
+          title: 'Validation Error',
+          text: `${field.charAt(0).toUpperCase() + field.slice(1)} is required`,
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#EF4444',
+        });
         return false;
       }
     }
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
-      toast.error('Please enter a valid email address');
+      Swal.fire({
+        title: 'Validation Error',
+        text: 'Please enter a valid email address',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+      });
       return false;
     }
     if (Number(formData.paidAmount) > Number(formData.totalAmount)) {
-      toast.error('Paid amount cannot be greater than total amount');
+      Swal.fire({
+        title: 'Validation Error',
+        text: 'Paid amount cannot be greater than total amount',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+      });
       return false;
     }
     return true;
@@ -378,23 +399,88 @@ const AddUmrahHaji = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
+    
+    // Show confirmation dialog
+    const result = await Swal.fire({
+      title: 'Confirm Umrah Registration',
+      text: `Are you sure you want to register ${formData.name} for Umrah?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Register',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#EF4444',
+    });
+    
+    if (!result.isConfirmed) return;
+    
     setLoading(true);
+    
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const hajiId = `U${String(Date.now()).slice(-6)}`;
-      const hajiData = {
-        ...formData,
-        id: hajiId,
-        registrationDate: new Date().toISOString().split('T')[0],
-        status: Number(formData.paidAmount) === Number(formData.totalAmount) ? 'confirmed' : 'pending',
-        type: 'umrah'
+      // Prepare the data for API submission
+      const umrahData = {
+        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        fatherName: formData.fatherName,
+        motherName: formData.motherName,
+        spouseName: formData.spouseName,
+        occupation: formData.occupation,
+        passportNumber: formData.passport || formData.passportNumber,
+        passportType: formData.passportType,
+        issueDate: formData.issueDate,
+        expiryDate: formData.passportExpiry || formData.expiryDate,
+        nidNumber: formData.nid || formData.nidNumber,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        maritalStatus: formData.maritalStatus,
+        nationality: formData.nationality,
+        mobile: formData.phone || formData.mobile,
+        whatsappNo: formData.whatsappNo,
+        email: formData.email,
+        address: formData.address,
+        division: formData.division,
+        district: formData.district,
+        upazila: formData.upazila,
+        postCode: formData.postCode,
+        emergencyContact: formData.emergencyContact,
+        emergencyPhone: formData.emergencyPhone,
+        packageId: formData.packageId,
+        agentId: formData.agentId,
+        departureDate: formData.departureDate,
+        returnDate: formData.returnDate,
+        totalAmount: Number(formData.totalAmount),
+        paidAmount: Number(formData.paidAmount),
+        paymentMethod: formData.paymentMethod,
+        paymentStatus: formData.paymentStatus,
+        previousHajj: formData.previousHajj,
+        previousUmrah: formData.previousUmrah,
+        specialRequirements: formData.specialRequirements,
+        notes: formData.notes,
+        customerType: 'umrah',
+        customerId: formData.customerId,
+        passportFirstName: formData.passportFirstName,
+        passportLastName: formData.passportLastName,
+        referenceBy: formData.referenceBy,
+        referenceCustomerId: formData.referenceCustomerId,
+        serviceType: 'umrah',
+        serviceStatus: formData.serviceStatus,
+        isActive: formData.isActive,
+        // Add file uploads if needed
+        passportCopy: formData.passportCopy,
+        nidCopy: formData.nidCopy,
+        photo: formData.photo
       };
-      console.log('New Umrah Haji created:', hajiData);
-      toast.success('Umrah Haji registered successfully!');
+
+      // Use the API mutation
+      await createUmrahMutation.mutateAsync(umrahData);
+      
+      // Success is handled by the mutation's onSuccess callback
       navigate('/umrah/haji-list');
+      
     } catch (error) {
       console.error('Error creating Umrah haji:', error);
-      toast.error('Failed to register Umrah Haji. Please try again.');
+      // Error is handled by the mutation's onError callback
     } finally {
       setLoading(false);
     }
@@ -418,11 +504,15 @@ const AddUmrahHaji = () => {
         </div>
         <button
           onClick={handleSubmit}
-          disabled={loading}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          disabled={isSubmitting}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Save className="w-4 h-4" />
-          <span>{loading ? 'Saving...' : 'Save Umrah Haji'}</span>
+          {isSubmitting ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          <span>{isSubmitting ? 'Saving...' : 'Save Umrah Haji'}</span>
         </button>
         <button
           type="button"
@@ -598,6 +688,18 @@ const AddUmrahHaji = () => {
               onChange={handleInputChange}
             />
             <InputGroup 
+              label="First Name" 
+              name="firstName" 
+              value={formData.firstName}
+              onChange={handleInputChange}
+            />
+            <InputGroup 
+              label="Last Name" 
+              name="lastName" 
+              value={formData.lastName}
+              onChange={handleInputChange}
+            />
+            <InputGroup 
               label="Father's Name" 
               name="fatherName" 
               value={formData.fatherName}
@@ -612,7 +714,6 @@ const AddUmrahHaji = () => {
             <InputGroup 
               label="Passport Number" 
               name="passport" 
-              required 
               value={formData.passport}
               onChange={handleInputChange}
             />
@@ -667,7 +768,6 @@ const AddUmrahHaji = () => {
               label="Phone Number" 
               name="phone" 
               type="tel" 
-              required 
               value={formData.phone}
               onChange={handleInputChange}
             />
@@ -709,7 +809,6 @@ const AddUmrahHaji = () => {
               name="packageId" 
               value={formData.packageId}
               options={packages}
-              required 
               onChange={handlePackageChange}
             />
             <SelectGroup 
@@ -717,14 +816,12 @@ const AddUmrahHaji = () => {
               name="agentId" 
               value={formData.agentId}
               options={agents}
-              required 
               onChange={handleInputChange}
             />
             <InputGroup 
               label="Departure Date" 
               name="departureDate" 
               type="date" 
-              required 
               value={formData.departureDate}
               onChange={handleInputChange}
             />
@@ -836,7 +933,6 @@ const AddUmrahHaji = () => {
               label="Passport Copy" 
               name="passportCopy" 
               accept=".pdf,.jpg,.jpeg,.png"
-              required 
               value={formData.passportCopy}
               onFileChange={handleFileUpload('passportCopy')}
               onRemoveFile={removeFile('passportCopy')}
@@ -865,11 +961,15 @@ const AddUmrahHaji = () => {
       <div className="flex justify-center pt-6">
         <button
           onClick={handleSubmit}
-          disabled={loading}
-          className="flex items-center space-x-2 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-lg font-medium"
+          disabled={isSubmitting}
+          className="flex items-center space-x-2 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium"
         >
-          <Save className="w-5 h-5" />
-          <span>{loading ? 'Saving...' : 'Save Umrah Haji'}</span>
+          {isSubmitting ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Save className="w-5 h-5" />
+          )}
+          <span>{isSubmitting ? 'Saving...' : 'Save Umrah Haji'}</span>
         </button>
       </div>
     </div>

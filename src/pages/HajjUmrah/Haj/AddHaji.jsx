@@ -19,7 +19,8 @@ import {
   Users,
   Wand2
 } from 'lucide-react';
-import { useCustomers, useCreateCustomer } from '../../../hooks/useCustomerQueries';
+import { useCustomers } from '../../../hooks/useCustomerQueries';
+import { useCreateHaji, useUpdateHaji } from '../../../hooks/UseHajiQueries';
 import Swal from 'sweetalert2';
 
 const toast = {
@@ -100,20 +101,19 @@ const FileUploadGroup = memo(({ label, name, accept, required = false, value, on
           </button>
         </div>
       ) : (
-        <div className="text-center">
+        <label htmlFor={`file-${name}`} className="block text-center cursor-pointer">
           <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <label className="cursor-pointer">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              Click to upload or drag and drop
-            </span>
-            <input
-              type="file"
-              accept={accept}
-              onChange={onFileChange}
-              className="hidden"
-            />
-          </label>
-        </div>
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            Click to upload or drag and drop
+          </span>
+          <input
+            id={`file-${name}`}
+            type="file"
+            accept={accept}
+            onChange={onFileChange}
+            className="hidden"
+          />
+        </label>
       )}
     </div>
   </div>
@@ -132,7 +132,8 @@ const AddHaji = () => {
   
   // Fetch customers for search functionality
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
-  const createCustomerMutation = useCreateCustomer();
+  const createHajiMutation = useCreateHaji();
+  const updateHajiMutation = useUpdateHaji();
   
   // Check for URL parameters
   const urlParams = new URLSearchParams(location.search);
@@ -151,6 +152,8 @@ const AddHaji = () => {
   
   const [formData, setFormData] = useState({
     name: '',
+    firstName: '',
+    lastName: '',
     fatherName: '',
     motherName: '',
     passport: '',
@@ -159,6 +162,7 @@ const AddHaji = () => {
     dateOfBirth: '',
     gender: 'male',
     maritalStatus: 'single',
+    mobile: '',
     phone: '',
     email: '',
     address: '',
@@ -238,6 +242,7 @@ const AddHaji = () => {
       firstName: customer.firstName || '',
       lastName: customer.lastName || '',
       mobile: customer.mobile || '',
+      phone: customer.mobile || '',
       whatsappNo: customer.whatsappNo || '',
       email: customer.email || '',
       address: customer.address || '',
@@ -288,6 +293,7 @@ const AddHaji = () => {
       firstName: '',
       lastName: '',
       mobile: '',
+      phone: '',
       whatsappNo: '',
       email: '',
       address: '',
@@ -355,18 +361,13 @@ const AddHaji = () => {
   }, [packages]);
 
   const validateForm = () => {
-    const requiredFields = ['name', 'passportNumber', 'mobile', 'packageId', 'agentId', 'departureDate'];
+    const requiredFields = ['name'];
     for (const field of requiredFields) {
-      if (!formData[field]) {
-        const fieldLabel = field === 'passportNumber' ? 'Passport Number' : 
-                          field === 'mobile' ? 'Mobile Number' :
-                          field === 'packageId' ? 'Package' :
-                          field === 'agentId' ? 'Agent' :
-                          field === 'departureDate' ? 'Departure Date' :
-                          field.charAt(0).toUpperCase() + field.slice(1);
+      const value = formData[field];
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
         Swal.fire({
           title: 'Validation Error',
-          text: `${fieldLabel} is required`,
+          text: 'Name is required',
           icon: 'error',
           confirmButtonText: 'OK'
         });
@@ -382,17 +383,9 @@ const AddHaji = () => {
       });
       return false;
     }
-    if (Number(formData.paidAmount) > Number(formData.totalAmount)) {
-      Swal.fire({
-        title: 'Validation Error',
-        text: 'Paid amount cannot be greater than total amount',
-        icon: 'error',
-        confirmButtonText: 'OK'
-      });
-      return false;
-    }
     return true;
   };
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -400,14 +393,21 @@ const AddHaji = () => {
     setLoading(true);
     
     try {
-      // Prepare customer data for API
-      const customerData = {
-        // Basic Information
-        customerType: 'haj',
-        name: formData.name,
+      const computedName = (formData.name && formData.name.trim())
+        ? formData.name.trim()
+        : `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+
+      // Prepare Haji payload for API
+      const hajiPayload = {
+        // Link to customer if selected/known
+        customerId: selectedCustomer?.customerId || formData.customerId || undefined,
+
+        // Personal
+        name: computedName,
         firstName: formData.firstName || formData.name.split(' ')[0] || '',
         lastName: formData.lastName || formData.name.split(' ').slice(1).join(' ') || '',
         mobile: formData.mobile || formData.phone,
+        phone: formData.mobile || formData.phone,
         whatsappNo: formData.whatsappNo,
         email: formData.email,
         occupation: formData.occupation,
@@ -416,88 +416,82 @@ const AddHaji = () => {
         district: formData.district,
         upazila: formData.upazila,
         postCode: formData.postCode,
-        
-        // Passport Information
+
+        // Passport/NID and dates (hooks validate YYYY-MM-DD)
         passportNumber: formData.passportNumber || formData.passport,
         passportType: formData.passportType || 'ordinary',
         issueDate: formData.issueDate,
         expiryDate: formData.expiryDate,
         dateOfBirth: formData.dateOfBirth,
         nidNumber: formData.nidNumber || formData.nid,
-        passportFirstName: formData.firstName || formData.name.split(' ')[0] || '',
-        passportLastName: formData.lastName || formData.name.split(' ').slice(1).join(' ') || '',
         nationality: formData.nationality,
         gender: formData.gender,
-        
-        // Family Information
+
+        // Family
         fatherName: formData.fatherName,
         motherName: formData.motherName,
         spouseName: formData.spouseName,
         maritalStatus: formData.maritalStatus,
-        
-        // Additional Information
-        customerImage: null,
+
+        // Service and status
+        serviceType: 'hajj',
+        serviceStatus: formData.paymentStatus === 'paid' ? 'confirmed' : 'pending',
         isActive: formData.isActive,
         notes: formData.notes,
         referenceBy: formData.referenceBy,
         referenceCustomerId: formData.referenceCustomerId,
-        
-        // Service linkage
-        serviceType: 'hajj',
-        serviceStatus: formData.paymentStatus === 'paid' ? 'confirmed' : 'pending',
-        
-        // Financial Information
+
+        // Financial
         totalAmount: formData.totalAmount,
         paidAmount: formData.paidAmount,
         paymentMethod: formData.paymentMethod,
         paymentStatus: formData.paymentStatus,
-        
-        // Haji-specific Information
+
+        // Haji-specific journey
+        departureDate: formData.departureDate,
+        returnDate: formData.returnDate,
+        previousHajj: formData.previousHajj,
+        previousUmrah: formData.previousUmrah,
+        specialRequirements: formData.specialRequirements,
+
+        // Package/agent meta
+        packageId: formData.packageId,
+        agentId: formData.agentId,
         packageInfo: {
           packageName: packages.find(p => p.id === formData.packageId)?.name || '',
           packageType: 'hajj',
           agent: agents.find(a => a.id === formData.agentId)?.name || '',
-          agentContact: agents.find(a => a.id === formData.agentId)?.phone || '',
-          departureDate: formData.departureDate,
-          returnDate: formData.returnDate,
-          previousHajj: formData.previousHajj,
-          previousUmrah: formData.previousUmrah,
-          specialRequirements: formData.specialRequirements
+          agentContact: agents.find(a => a.id === formData.agentId)?.phone || ''
         }
       };
 
-      if (selectedCustomer) {
-        // Update existing customer with Haji information
-        await createCustomerMutation.mutateAsync({
-          ...customerData,
-          id: selectedCustomer.id,
-          customerId: selectedCustomer.customerId
-        });
-        
-        await Swal.fire({
-          title: 'Success!',
-          text: `${selectedCustomer.name} has been registered as Haji successfully!`,
-          icon: 'success',
-          confirmButtonText: 'OK'
-        });
-      } else {
-        // Create new customer with Haji information
-        const result = await createCustomerMutation.mutateAsync(customerData);
-        
-        await Swal.fire({
-          title: 'Success!',
-          text: `New Haji ${customerData.name} has been registered successfully!`,
-          icon: 'success',
-          confirmButtonText: 'OK'
-        });
+      if (editMode) {
+        const targetId = selectedCustomer?._id || selectedCustomer?.id || selectedCustomer?.customerId || customerIdParam;
+        if (!targetId) {
+          throw new Error('Missing Haji identifier for update');
+        }
+        const result = await updateHajiMutation.mutateAsync({ id: targetId, updates: hajiPayload });
+        const updated = result?.data || {};
+        const navId = targetId;
+        navigate(`/hajj-umrah/haji/${navId}`);
+        return;
+      }
+
+      const result = await createHajiMutation.mutateAsync(hajiPayload);
+      const created = result?.data || {};
+      const createdId = created._id || created.id || created.customerId;
+      if (createdId) {
+        navigate(`/hajj-umrah/haji/${createdId}`);
+        return;
       }
       
+      // Fallback navigation if no id available
       navigate('/hajj-umrah/haji-list');
     } catch (error) {
       console.error('Error creating/updating Haji:', error);
       await Swal.fire({
         title: 'Error!',
-        text: 'Failed to register Haji. Please try again.',
+        text: error?.response?.data?.message || error?.message || 'Failed to register Haji. Please try again.',
         icon: 'error',
         confirmButtonText: 'OK'
       });
@@ -631,7 +625,7 @@ const AddHaji = () => {
             <InputGroup 
               label="Full Name" 
               name="name" 
-              required 
+              required
               value={formData.name}
               onChange={handleInputChange}
             />
@@ -643,7 +637,7 @@ const AddHaji = () => {
             />
             <InputGroup 
               label="Last Name" 
-              name="lastName" 
+              name="lastName"
               value={formData.lastName}
               onChange={handleInputChange}
             />
@@ -714,7 +708,6 @@ const AddHaji = () => {
             <InputGroup 
               label="Passport Number" 
               name="passportNumber" 
-              required 
               value={formData.passportNumber}
               onChange={handleInputChange}
             />
@@ -753,7 +746,6 @@ const AddHaji = () => {
               label="Mobile Number" 
               name="mobile" 
               type="tel" 
-              required 
               value={formData.mobile}
               onChange={handleInputChange}
             />
@@ -836,7 +828,6 @@ const AddHaji = () => {
               name="packageId" 
               value={formData.packageId}
               options={packages}
-              required 
               onChange={handlePackageChange}
             />
             <SelectGroup 
@@ -844,14 +835,12 @@ const AddHaji = () => {
               name="agentId" 
               value={formData.agentId}
               options={agents}
-              required 
               onChange={handleInputChange}
             />
             <InputGroup 
               label="Departure Date" 
               name="departureDate" 
               type="date" 
-              required 
               value={formData.departureDate}
               onChange={handleInputChange}
             />
@@ -963,7 +952,6 @@ const AddHaji = () => {
               label="Passport Copy" 
               name="passportCopy" 
               accept=".pdf,.jpg,.jpeg,.png"
-              required 
               value={formData.passportCopy}
               onFileChange={handleFileUpload('passportCopy')}
               onRemoveFile={removeFile('passportCopy')}

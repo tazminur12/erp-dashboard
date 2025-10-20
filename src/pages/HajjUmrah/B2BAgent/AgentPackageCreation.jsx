@@ -20,8 +20,12 @@ import {
   EyeOff
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { useCreateAgentPackage } from '../../../hooks/UseAgentPacakageQueries';
 
 const AgentPackageCreation = () => {
+  // API mutation hook
+  const createAgentPackageMutation = useCreateAgentPackage();
+
   // Form state
   const [formData, setFormData] = useState({
     packageName: '',
@@ -96,7 +100,6 @@ const AgentPackageCreation = () => {
     attachments: false
   });
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
@@ -868,78 +871,65 @@ const AgentPackageCreation = () => {
       return;
     }
 
-    setIsSubmitting(true);
+    const payload = {
+      ...formData,
+      bangladeshAirfarePassengers,
+      bangladeshBusPassengers,
+      bangladeshTrainingOtherPassengers,
+      saudiVisaPassengers,
+      saudiMakkahHotelPassengers,
+      saudiMadinaHotelPassengers,
+      saudiMakkahFoodPassengers,
+      saudiMadinaFoodPassengers,
+      saudiMakkahZiyaraPassengers,
+      saudiMadinaZiyaraPassengers,
+      saudiTransportPassengers,
+      saudiOthersPassengers,
+      costs,
+      totals,
+      attachments,
+      status: 'Draft',
+      createdAt: new Date().toISOString()
+    };
 
-    try {
-      const payload = {
-        ...formData,
-        bangladeshAirfarePassengers,
-        bangladeshBusPassengers,
-        bangladeshTrainingOtherPassengers,
-        saudiVisaPassengers,
-        saudiMakkahHotelPassengers,
-        saudiMadinaHotelPassengers,
-        saudiMakkahFoodPassengers,
-        saudiMadinaFoodPassengers,
-        saudiMakkahZiyaraPassengers,
-        saudiMadinaZiyaraPassengers,
-        saudiTransportPassengers,
-        saudiOthersPassengers,
-        costs,
-        totals,
-        attachments,
-        status: 'Draft',
-        createdAt: new Date().toISOString()
-      };
+    console.log('Package Payload:', payload);
 
-      console.log('Package Payload:', payload);
-
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      Swal.fire({
-        title: 'Success!',
-        text: 'Package created successfully!',
-        icon: 'success',
-        confirmButtonColor: '#059669'
-      });
-
-      // Reset form
-      setFormData({
-        packageName: '',
-        packageYear: '',
-        packageType: 'Regular',
-        customPackageType: '',
-        sarToBdtRate: '',
-        notes: ''
-      });
-      setCosts(Object.fromEntries(Object.keys(costs || {}).map(key => [key, ''])));
-      setBangladeshAirfarePassengers([]);
-      setBangladeshBusPassengers([]);
-      setBangladeshTrainingOtherPassengers([]);
-      setSaudiVisaPassengers([]);
-      setSaudiMakkahHotelPassengers([]);
-      setSaudiMadinaHotelPassengers([]);
-      setSaudiMakkahFoodPassengers([]);
-      setSaudiMadinaFoodPassengers([]);
-      setSaudiMakkahZiyaraPassengers([]);
-      setSaudiMadinaZiyaraPassengers([]);
-      setSaudiTransportPassengers([]);
-      setSaudiOthersPassengers([]);
-      setDiscount('');
-      setAttachments([]);
-
-    } catch (error) {
-      console.error('Error creating package:', error);
-      Swal.fire({
-        title: 'Error!',
-        text: 'Something went wrong. Please try again.',
-        icon: 'error',
-        confirmButtonColor: '#dc2626'
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+    // Use the mutation hook to create the package
+    createAgentPackageMutation.mutate(payload, {
+      onSuccess: (data) => {
+        console.log('Package created successfully:', data);
+        // Reset form on success
+        setFormData({
+          packageName: '',
+          packageYear: '',
+          packageType: 'Regular',
+          customPackageType: '',
+          sarToBdtRate: '',
+          notes: ''
+        });
+        setCosts(Object.fromEntries(Object.keys(costs || {}).map(key => [key, ''])));
+        setBangladeshAirfarePassengers([]);
+        setBangladeshBusPassengers([]);
+        setBangladeshTrainingOtherPassengers([]);
+        setSaudiVisaPassengers([]);
+        setSaudiMakkahHotelPassengers([]);
+        setSaudiMadinaHotelPassengers([]);
+        setSaudiMakkahFoodPassengers([]);
+        setSaudiMadinaFoodPassengers([]);
+        setSaudiMakkahZiyaraPassengers([]);
+        setSaudiMadinaZiyaraPassengers([]);
+        setSaudiTransportPassengers([]);
+        setSaudiOthersPassengers([]);
+        setDiscount('');
+        setAttachments([]);
+        setErrors({});
+      },
+      onError: (error) => {
+        console.error('Error creating package:', error);
+        // The error handling is already done in the mutation hook
+        // But we can add additional error handling here if needed
+      }
+    });
   };
 
   const toggleSection = (section) => {
@@ -958,6 +948,7 @@ const AgentPackageCreation = () => {
   };
 
   const isFormValid = formData.packageName.trim() && formData.packageYear && totals.subtotal > 0;
+  const isSubmitting = createAgentPackageMutation.isPending;
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
@@ -1938,8 +1929,17 @@ const AgentPackageCreation = () => {
                   disabled={!isFormValid || isSubmitting}
                   className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-8 py-3 rounded-lg flex items-center space-x-2 transition-all duration-200 disabled:cursor-not-allowed"
                 >
-                  <Save className="w-5 h-5" />
-                  <span>{isSubmitting ? 'সংরক্ষণ হচ্ছে...' : 'প্যাকেজ তৈরি করুন'}</span>
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>সংরক্ষণ হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5" />
+                      <span>প্যাকেজ তৈরি করুন</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
