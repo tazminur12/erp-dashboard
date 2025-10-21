@@ -13,11 +13,12 @@ const EditBankAccount = () => {
   const { data: bankAccount, isLoading, error } = useBankAccount(id);
   const updateBankAccountMutation = useUpdateBankAccount();
 
+
   const [formData, setFormData] = useState({
     bankName: '',
     accountNumber: '',
     accountType: 'Current',
-    accountCategory: 'bank', // New field with default value
+    accountCategory: 'bank',
     branchName: '',
     accountHolder: '',
     accountTitle: '',
@@ -25,8 +26,8 @@ const EditBankAccount = () => {
     initialBalance: '',
     currency: 'BDT',
     contactNumber: '',
-    createdBy: 'SYSTEM', // Default value
-    branchId: 'BRANCH001' // Default value - should be dynamic
+    createdBy: '',
+    branchId: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -36,7 +37,7 @@ const EditBankAccount = () => {
 
   // Populate form when bank account data is loaded
   useEffect(() => {
-    if (bankAccount) {
+    if (bankAccount && bankAccount._id) {
       setFormData({
         bankName: bankAccount.bankName || '',
         accountNumber: bankAccount.accountNumber || '',
@@ -49,8 +50,8 @@ const EditBankAccount = () => {
         initialBalance: bankAccount.initialBalance || '',
         currency: bankAccount.currency || 'BDT',
         contactNumber: bankAccount.contactNumber || '',
-        createdBy: bankAccount.createdBy || 'SYSTEM',
-        branchId: bankAccount.branchId || 'BRANCH001'
+        createdBy: bankAccount.createdBy || '',
+        branchId: bankAccount.branchId || ''
       });
     }
   }, [bankAccount]);
@@ -215,52 +216,85 @@ const EditBankAccount = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  if (!validateForm()) {
+    return;
+  }
+
+  try {
+    const payload = {
+      id,
+      ...formData,
+      initialBalance: parseFloat(formData.initialBalance),
+    };
+
+    await updateBankAccountMutation.mutateAsync(payload);
     
-    if (!validateForm()) {
-      return;
+    // Show success message and redirect
+    Swal.fire({
+      title: 'সফল!',
+      text: 'ব্যাংক অ্যাকাউন্ট সফলভাবে আপডেট হয়েছে!',
+      icon: 'success',
+      confirmButtonText: 'ঠিক আছে',
+      confirmButtonColor: '#10B981',
+      background: isDark ? '#1F2937' : '#F9FAFB',
+      customClass: {
+        title: 'text-green-600 font-bold text-xl',
+        popup: 'rounded-2xl shadow-2xl'
+      }
+    }).then(() => {
+      navigate('/account/bank-accounts');
+    });
+  } catch (error) {
+    console.error('Error updating bank account:', error);
+    
+    // Handle specific error cases
+    let errorMessage = 'ব্যাংক অ্যাকাউন্ট আপডেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+    let showRetryButton = false;
+    
+    if (error.message?.includes('404') || error.message?.includes('not found')) {
+      errorMessage = 'ব্যাংক অ্যাকাউন্ট খুঁজে পাওয়া যায়নি। দয়া করে পৃষ্ঠাটি রিফ্রেশ করুন।';
+      showRetryButton = true;
+    } else if (error.message?.includes('Network Error')) {
+      errorMessage = 'নেটওয়ার্ক সমস্যা। ইন্টারনেট সংযোগ পরীক্ষা করুন।';
+      showRetryButton = true;
+    } else if (error.message?.includes('Invalid')) {
+      errorMessage = 'অবৈধ ডেটা। দয়া করে সব ফিল্ড সঠিকভাবে পূরণ করুন।';
+    } else if (error.message?.includes('already exists')) {
+      errorMessage = 'এই অ্যাকাউন্ট নম্বর ইতিমধ্যে বিদ্যমান।';
     }
-
-    try {
-      const payload = {
-        ...formData,
-        initialBalance: parseFloat(formData.initialBalance),
-      };
-
-      await updateBankAccountMutation.mutateAsync({ id, ...payload });
-      
-      // Show success message and redirect
-      Swal.fire({
-        title: 'সফল!',
-        text: 'ব্যাংক অ্যাকাউন্ট সফলভাবে আপডেট হয়েছে!',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#10B981',
-        background: isDark ? '#1F2937' : '#F9FAFB',
-        customClass: {
-          title: 'text-green-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      }).then(() => {
-        navigate('/account/bank-accounts');
-      });
-    } catch (error) {
-      console.error('Error updating bank account:', error);
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: 'ব্যাংক অ্যাকাউন্ট আপডেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
-      });
+    
+    const swalConfig = {
+      title: 'ত্রুটি!',
+      text: errorMessage,
+      icon: 'error',
+      confirmButtonText: 'ঠিক আছে',
+      confirmButtonColor: '#EF4444',
+      background: isDark ? '#1F2937' : '#FEF2F2',
+      customClass: {
+        title: 'text-red-600 font-bold text-xl',
+        popup: 'rounded-2xl shadow-2xl'
+      }
+    };
+    
+    if (showRetryButton) {
+      swalConfig.showCancelButton = true;
+      swalConfig.cancelButtonText = 'রিফ্রেশ করুন';
+      swalConfig.cancelButtonColor = '#10B981';
     }
-  };
+    
+    Swal.fire(swalConfig).then((result) => {
+      if (result.dismiss === Swal.DismissReason.cancel) {
+        window.location.reload();
+      }
+    });
+  }
+};
+
 
   const handleCancel = () => {
     Swal.fire({
@@ -289,23 +323,67 @@ const EditBankAccount = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading bank account...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">ব্যাংক অ্যাকাউন্ট লোড হচ্ছে...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  // Show error only if there's actually an error and no data
+  if (error && !bankAccount) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 dark:text-red-400">Error loading bank account</p>
-          <button
-            onClick={() => navigate('/account/bank-accounts')}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg"
-          >
-            Back to Bank Accounts
-          </button>
+          <p className="text-red-600 dark:text-red-400 mb-4">
+            ব্যাংক অ্যাকাউন্ট লোড করতে সমস্যা হয়েছে
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Error: {error.message || 'Unknown error'}
+          </p>
+          <div className="space-x-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              পৃষ্ঠা রিফ্রেশ করুন
+            </button>
+            <button
+              onClick={() => navigate('/account/bank-accounts')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              ব্যাংক অ্যাকাউন্টে ফিরে যান
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If no data and not loading, show message
+  if (!bankAccount && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-yellow-600 dark:text-yellow-400 mb-4">
+            ব্যাংক অ্যাকাউন্ট ডেটা পাওয়া যায়নি
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            ID: {id}
+          </p>
+          <div className="space-x-4">
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              পৃষ্ঠা রিফ্রেশ করুন
+            </button>
+            <button
+              onClick={() => navigate('/account/bank-accounts')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              ব্যাংক অ্যাকাউন্টে ফিরে যান
+            </button>
+          </div>
         </div>
       </div>
     );

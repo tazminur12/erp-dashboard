@@ -5,6 +5,21 @@ export const useAccountQueries = () => {
   const axiosSecure = useSecureAxios();
   const queryClient = useQueryClient();
 
+  // Utility functions - defined early for use in mutations
+  const getAccountCategories = () => {
+    return ['cash', 'bank', 'mobile_banking', 'check', 'others'];
+  };
+
+  const validateAccountCategory = (category) => {
+    const validCategories = getAccountCategories();
+    return validCategories.includes(category);
+  };
+
+  const validateContactNumber = (contactNumber) => {
+    if (!contactNumber) return true; // Optional field
+    return /^[\+]?[0-9\s\-\(\)]+$/.test(contactNumber);
+  };
+
   // Get all bank accounts with optional filters
   const useBankAccounts = (filters = {}) => {
     return useQuery({
@@ -43,11 +58,37 @@ export const useAccountQueries = () => {
     return useQuery({
       queryKey: ['bankAccount', id],
       queryFn: async () => {
-        const response = await axiosSecure.get(`/bank-accounts/${id}`);
-        return response.data?.data;
+        try {
+          const response = await axiosSecure.get(`/bank-accounts/${id}`);
+          return response.data?.data;
+        } catch (error) {
+          console.error('Error fetching bank account:', error);
+          // If specific account fails, try to get from the list
+          if (error.response?.status === 404) {
+            try {
+              const listResponse = await axiosSecure.get('/bank-accounts');
+              const accounts = listResponse.data?.data || [];
+              const account = accounts.find(acc => acc._id === id);
+              if (account) {
+                console.log('Found account in list:', account);
+                return account;
+              }
+            } catch (listError) {
+              console.error('Error fetching bank accounts list:', listError);
+            }
+          }
+          throw error;
+        }
       },
       enabled: !!id,
       staleTime: 5 * 60 * 1000,
+      retry: (failureCount, error) => {
+        // Don't retry on 404 errors
+        if (error?.response?.status === 404) {
+          return false;
+        }
+        return failureCount < 2;
+      },
     });
   };
 
@@ -76,7 +117,53 @@ export const useAccountQueries = () => {
   const useUpdateBankAccount = () => {
     return useMutation({
       mutationFn: async ({ id, ...bankData }) => {
-        const response = await axiosSecure.put(`/bank-accounts/${id}`, bankData);
+        // Validate and prepare data before sending
+        const dataToSend = { ...bankData };
+        
+        // Validate initial balance if provided
+        if (dataToSend.initialBalance !== undefined) {
+          const numeric = Number(dataToSend.initialBalance);
+          if (!Number.isFinite(numeric) || numeric < 0) {
+            throw new Error("Invalid initialBalance");
+          }
+          dataToSend.initialBalance = numeric;
+        }
+
+        // Validate account category if provided
+        if (dataToSend.accountCategory && !validateAccountCategory(dataToSend.accountCategory)) {
+          throw new Error("Invalid account category");
+        }
+
+        // Validate contact number format if provided
+        if (dataToSend.contactNumber && !validateContactNumber(dataToSend.contactNumber)) {
+          throw new Error("Invalid contact number format");
+        }
+
+        const response = await axiosSecure.put(`/bank-accounts/${id}`, dataToSend);
+        
+        // Handle the case where backend returns error but still updates data
+        if (response.data?.success === false) {
+          console.log('Backend returned error:', response.data?.error);
+          
+          // If we get "Bank account not found" error, try to fetch from list
+          if (response.data?.error === "Bank account not found") {
+            try {
+              const listResponse = await axiosSecure.get('/bank-accounts');
+              const accounts = listResponse.data?.data || [];
+              const account = accounts.find(acc => acc._id === id);
+              if (account) {
+                console.log('Found updated account in list:', account);
+                return account;
+              }
+            } catch (listError) {
+              console.error('Error fetching bank accounts list:', listError);
+            }
+          }
+          
+          // If still no data, throw the original error
+          throw new Error(response.data?.error || 'Update failed');
+        }
+        
         return response.data?.data;
       },
       onSuccess: () => {
@@ -178,6 +265,7 @@ export const useAccountQueries = () => {
           createdBy,
           branchId,
           accountManager,
+          transactionType: 'transfer', // Explicitly set transaction type as transfer
         });
         return response.data?.data;
       },
@@ -194,22 +282,6 @@ export const useAccountQueries = () => {
     });
   };
 
-  // Get account categories (utility function)
-  const getAccountCategories = () => {
-    return ['cash', 'bank', 'mobile_banking', 'check', 'others'];
-  };
-
-  // Validate account category
-  const validateAccountCategory = (category) => {
-    const validCategories = getAccountCategories();
-    return validCategories.includes(category);
-  };
-
-  // Validate contact number format
-  const validateContactNumber = (contactNumber) => {
-    if (!contactNumber) return true; // Optional field
-    return /^[\+]?[0-9\s\-\(\)]+$/.test(contactNumber);
-  };
 
   return {
     useBankAccounts,

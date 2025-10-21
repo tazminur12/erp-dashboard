@@ -1,12 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Save, 
   User, 
   Phone, 
+  Mail, 
+  MapPin, 
   CreditCard, 
+  Calendar,
+  Package,
+  Building,
   FileText,
+  Upload,
+  X,
+  Search,
+  CheckCircle,
+  Users,
+  Wand2,
   Edit3,
   Eye,
   AlertCircle,
@@ -14,6 +25,97 @@ import {
 } from 'lucide-react';
 import { useUpdateHaji, useHaji } from '../../../hooks/UseHajiQueries';
 import Swal from 'sweetalert2';
+
+// Reusable components
+const FormSection = memo(({ title, icon: Icon, children }) => (
+  <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+    <div className="flex items-center space-x-3 mb-6">
+      <Icon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{title}</h3>
+    </div>
+    {children}
+  </div>
+));
+
+const InputGroup = memo(({ label, name, type = 'text', required = false, value, onChange, ...props }) => (
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <input
+      type={type}
+      name={name}
+      value={value ?? ''}
+      onChange={onChange}
+      required={required}
+      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+      {...props}
+    />
+  </div>
+));
+
+const SelectGroup = memo(({ label, name, options = [], required = false, value, onChange }) => (
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <select
+      name={name}
+      value={value ?? ''}
+      onChange={onChange}
+      required={required}
+      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+    >
+      <option value="">Select {label}</option>
+      {options.map(option => (
+        <option key={option.id || option.value} value={option.id || option.value}>
+          {option.name || option.label}
+        </option>
+      ))}
+    </select>
+  </div>
+));
+
+const FileUploadGroup = memo(({ label, name, accept, required = false, value, onFileChange, onRemoveFile }) => (
+  <div className="space-y-2">
+    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+      {label} {required && <span className="text-red-500">*</span>}
+    </label>
+    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4">
+      {value ? (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <FileText className="w-5 h-5 text-gray-400" />
+            <span className="text-sm text-gray-900 dark:text-white">
+              {value.name}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onRemoveFile}
+            className="text-red-500 hover:text-red-700"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <label htmlFor={`file-${name}`} className="block text-center cursor-pointer">
+          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            Click to upload or drag and drop
+          </span>
+          <input
+            id={`file-${name}`}
+            type="file"
+            accept={accept}
+            onChange={onFileChange}
+            className="hidden"
+          />
+        </label>
+      )}
+    </div>
+  </div>
+));
 
 const EditHaji = () => {
   const navigate = useNavigate();
@@ -70,6 +172,7 @@ const EditHaji = () => {
     // Additional Haji-specific fields
     whatsappNo: '',
     passportNumber: '',
+    passportType: 'ordinary',
     issueDate: '',
     expiryDate: '',
     nidNumber: '',
@@ -77,9 +180,15 @@ const EditHaji = () => {
     spouseName: '',
     occupation: '',
     referenceBy: '',
-    serviceType: '',
-    serviceStatus: '',
-    isActive: true
+    referenceHajiId: '',
+    serviceType: 'hajj',
+    serviceStatus: 'pending',
+    isActive: true,
+    // Package/agent meta
+    packageName: '',
+    packageType: 'hajj',
+    agent: '',
+    agentContact: ''
   });
 
   // Load Haji data for edit mode
@@ -202,6 +311,17 @@ const EditHaji = () => {
       return false;
     }
 
+    if (!formData.mobile || !formData.mobile.trim()) {
+      Swal.fire({
+        title: 'ভ্যালিডেশন ত্রুটি',
+        text: 'মোবাইল নম্বর আবশ্যক',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return false;
+    }
+
     // Validate email format
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
       Swal.fire({
@@ -266,6 +386,7 @@ const EditHaji = () => {
         isActive: formData.isActive,
         notes: formData.notes,
         referenceBy: formData.referenceBy,
+        referenceHajiId: formData.referenceHajiId,
 
         // Financial
         totalAmount: formData.totalAmount,
@@ -395,351 +516,363 @@ const EditHaji = () => {
       {!hajiLoading && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="max-w-4xl mx-auto">
-            {/* Main Form */}
-            <div>
-              <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <FormSection title="Personal Information" icon={User}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <InputGroup 
+                    label="Full Name" 
+                    name="name" 
+                    required
+                    value={formData.name}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="First Name" 
+                    name="firstName" 
+                    value={formData.firstName}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Last Name" 
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Father's Name" 
+                    name="fatherName" 
+                    value={formData.fatherName}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Mother's Name" 
+                    name="motherName" 
+                    value={formData.motherName}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Spouse Name" 
+                    name="spouseName" 
+                    value={formData.spouseName}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Occupation" 
+                    name="occupation" 
+                    value={formData.occupation}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Date of Birth" 
+                    name="dateOfBirth" 
+                    type="date" 
+                    value={formData.dateOfBirth}
+                    onChange={handleInputChange}
+                  />
+                  <SelectGroup 
+                    label="Gender" 
+                    name="gender" 
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: 'male', label: 'Male' },
+                      { value: 'female', label: 'Female' }
+                    ]} 
+                  />
+                  <SelectGroup 
+                    label="Marital Status" 
+                    name="maritalStatus" 
+                    value={formData.maritalStatus}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: 'single', label: 'Single' },
+                      { value: 'married', label: 'Married' },
+                      { value: 'divorced', label: 'Divorced' },
+                      { value: 'widowed', label: 'Widowed' }
+                    ]} 
+                  />
+                  <InputGroup 
+                    label="Nationality" 
+                    name="nationality" 
+                    value={formData.nationality}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </FormSection>
 
-                {/* Personal Information */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                    <User className="w-5 h-5 text-blue-600 mr-2" />
-                    Personal Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Full Name <span className="text-red-500">*</span>
-                      </label>
+              <FormSection title="Passport Information" icon={FileText}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <InputGroup 
+                    label="Passport Number" 
+                    name="passportNumber" 
+                    value={formData.passportNumber}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Passport Type" 
+                    name="passportType" 
+                    value={formData.passportType || 'ordinary'}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Issue Date" 
+                    name="issueDate" 
+                    type="date" 
+                    value={formData.issueDate}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Expiry Date" 
+                    name="expiryDate" 
+                    type="date" 
+                    value={formData.expiryDate}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="NID Number" 
+                    name="nidNumber" 
+                    value={formData.nidNumber}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </FormSection>
+
+              <FormSection title="Contact Information" icon={Phone}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <InputGroup 
+                    label="Mobile Number" 
+                    name="mobile" 
+                    type="tel" 
+                    required
+                    value={formData.mobile}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="WhatsApp Number" 
+                    name="whatsappNo" 
+                    type="tel" 
+                    value={formData.whatsappNo}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Email Address" 
+                    name="email" 
+                    type="email" 
+                    value={formData.email}
+                    onChange={handleInputChange}
+                  />
+                  <div className="md:col-span-2">
+                    <InputGroup 
+                      label="Address" 
+                      name="address" 
+                      value={formData.address}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <SelectGroup 
+                    label="Division" 
+                    name="division" 
+                    value={formData.division}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: 'Dhaka', label: 'Dhaka' },
+                      { value: 'Chittagong', label: 'Chittagong' },
+                      { value: 'Sylhet', label: 'Sylhet' },
+                      { value: 'Rajshahi', label: 'Rajshahi' },
+                      { value: 'Khulna', label: 'Khulna' },
+                      { value: 'Barisal', label: 'Barisal' },
+                      { value: 'Rangpur', label: 'Rangpur' },
+                      { value: 'Mymensingh', label: 'Mymensingh' }
+                    ]} 
+                  />
+                  <InputGroup 
+                    label="District" 
+                    name="district" 
+                    value={formData.district}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Upazila" 
+                    name="upazila" 
+                    value={formData.upazila}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Post Code" 
+                    name="postCode" 
+                    value={formData.postCode}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Emergency Contact Name" 
+                    name="emergencyContact" 
+                    value={formData.emergencyContact}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Emergency Contact Phone" 
+                    name="emergencyPhone" 
+                    type="tel" 
+                    value={formData.emergencyPhone}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </FormSection>
+
+              <FormSection title="Package Information" icon={Package}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <SelectGroup 
+                    label="Package" 
+                    name="packageId" 
+                    value={formData.packageId}
+                    options={packages}
+                    onChange={handlePackageChange}
+                  />
+                  <SelectGroup 
+                    label="Agent" 
+                    name="agentId" 
+                    value={formData.agentId}
+                    options={agents}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Departure Date" 
+                    name="departureDate" 
+                    type="date" 
+                    value={formData.departureDate}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Return Date" 
+                    name="returnDate" 
+                    type="date" 
+                    value={formData.returnDate}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </FormSection>
+
+              <FormSection title="Financial Information" icon={CreditCard}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <InputGroup 
+                    label="Total Amount" 
+                    name="totalAmount" 
+                    type="number" 
+                    readOnly 
+                    value={formData.totalAmount}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Paid Amount" 
+                    name="paidAmount" 
+                    type="number" 
+                    min="0"
+                    max={formData.totalAmount}
+                    value={formData.paidAmount}
+                    onChange={handleInputChange}
+                  />
+                  <SelectGroup 
+                    label="Payment Method" 
+                    name="paymentMethod" 
+                    value={formData.paymentMethod}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: 'cash', label: 'Cash' },
+                      { value: 'bank_transfer', label: 'Bank Transfer' },
+                      { value: 'mobile_banking', label: 'Mobile Banking' },
+                      { value: 'check', label: 'Check' }
+                    ]} 
+                  />
+                  <SelectGroup 
+                    label="Payment Status" 
+                    name="paymentStatus" 
+                    value={formData.paymentStatus}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'partial', label: 'Partial' },
+                      { value: 'paid', label: 'Paid' }
+                    ]} 
+                  />
+                </div>
+              </FormSection>
+
+              <FormSection title="Additional Information" icon={FileText}>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-6">
+                    <label className="flex items-center space-x-2">
                       <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
+                        type="checkbox"
+                        name="previousHajj"
+                        checked={formData.previousHajj}
                         onChange={handleInputChange}
-                        required
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="rounded border-gray-300"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Father's Name
-                      </label>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Previous Hajj Experience</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
                       <input
-                        type="text"
-                        name="fatherName"
-                        value={formData.fatherName}
+                        type="checkbox"
+                        name="previousUmrah"
+                        checked={formData.previousUmrah}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        className="rounded border-gray-300"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Mother's Name
-                      </label>
-                      <input
-                        type="text"
-                        name="motherName"
-                        value={formData.motherName}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Date of Birth
-                      </label>
-                      <input
-                        type="date"
-                        name="dateOfBirth"
-                        value={formData.dateOfBirth}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Gender
-                      </label>
-                      <select
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Marital Status
-                      </label>
-                      <select
-                        name="maritalStatus"
-                        value={formData.maritalStatus}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="single">Single</option>
-                        <option value="married">Married</option>
-                        <option value="divorced">Divorced</option>
-                        <option value="widowed">Widowed</option>
-                      </select>
-                    </div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Previous Umrah Experience</span>
+                    </label>
+                  </div>
+                  <InputGroup 
+                    label="Special Requirements" 
+                    name="specialRequirements" 
+                    placeholder="Any special dietary, medical, or other requirements"
+                    value={formData.specialRequirements}
+                    onChange={handleInputChange}
+                  />
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Notes
+                    </label>
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleInputChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      placeholder="Additional notes or comments"
+                    />
                   </div>
                 </div>
+              </FormSection>
 
-                {/* Contact Information */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                    <Phone className="w-5 h-5 text-blue-600 mr-2" />
-                    Contact Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="tel"
-                        name="mobile"
-                        value={formData.mobile}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        WhatsApp Number
-                      </label>
-                      <input
-                        type="tel"
-                        name="whatsappNo"
-                        value={formData.whatsappNo}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Emergency Contact
-                      </label>
-                      <input
-                        type="text"
-                        name="emergencyContact"
-                        value={formData.emergencyContact}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Address
-                      </label>
-                      <textarea
-                        name="address"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        rows={3}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                  </div>
+              <FormSection title="Document Upload" icon={Upload}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FileUploadGroup 
+                    label="Passport Copy" 
+                    name="passportCopy" 
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    value={formData.passportCopy}
+                    onFileChange={handleFileUpload('passportCopy')}
+                    onRemoveFile={removeFile('passportCopy')}
+                  />
+                  <FileUploadGroup 
+                    label="NID Copy" 
+                    name="nidCopy" 
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    value={formData.nidCopy}
+                    onFileChange={handleFileUpload('nidCopy')}
+                    onRemoveFile={removeFile('nidCopy')}
+                  />
+                  <FileUploadGroup 
+                    label="Photo" 
+                    name="photo" 
+                    accept=".jpg,.jpeg,.png"
+                    value={formData.photo}
+                    onFileChange={handleFileUpload('photo')}
+                    onRemoveFile={removeFile('photo')}
+                  />
                 </div>
-
-                {/* Passport Information */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                    <FileText className="w-5 h-5 text-blue-600 mr-2" />
-                    Passport Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Passport Number
-                      </label>
-                      <input
-                        type="text"
-                        name="passportNumber"
-                        value={formData.passportNumber}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        NID Number
-                      </label>
-                      <input
-                        type="text"
-                        name="nidNumber"
-                        value={formData.nidNumber}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Issue Date
-                      </label>
-                      <input
-                        type="date"
-                        name="issueDate"
-                        value={formData.issueDate}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Expiry Date
-                      </label>
-                      <input
-                        type="date"
-                        name="expiryDate"
-                        value={formData.expiryDate}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Financial Information */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                    <CreditCard className="w-5 h-5 text-blue-600 mr-2" />
-                    Financial Information
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Total Amount
-                      </label>
-                      <input
-                        type="number"
-                        name="totalAmount"
-                        value={formData.totalAmount}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Paid Amount
-                      </label>
-                      <input
-                        type="number"
-                        name="paidAmount"
-                        value={formData.paidAmount}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Payment Method
-                      </label>
-                      <select
-                        name="paymentMethod"
-                        value={formData.paymentMethod}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="cash">Cash</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="mobile_banking">Mobile Banking</option>
-                        <option value="check">Check</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Payment Status
-                      </label>
-                      <select
-                        name="paymentStatus"
-                        value={formData.paymentStatus}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="partial">Partial</option>
-                        <option value="paid">Paid</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Additional Information */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                    <FileText className="w-5 h-5 text-blue-600 mr-2" />
-                    Additional Information
-                  </h3>
-                  <div className="space-y-6">
-                    <div className="flex items-center space-x-6">
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          name="previousHajj"
-                          checked={formData.previousHajj}
-                          onChange={handleInputChange}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Previous Hajj Experience</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          name="previousUmrah"
-                          checked={formData.previousUmrah}
-                          onChange={handleInputChange}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">Previous Umrah Experience</span>
-                      </label>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Special Requirements
-                      </label>
-                      <textarea
-                        name="specialRequirements"
-                        value={formData.specialRequirements}
-                        onChange={handleInputChange}
-                        rows={3}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        placeholder="Any special dietary, medical, or other requirements"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Notes
-                      </label>
-                      <textarea
-                        name="notes"
-                        value={formData.notes}
-                        onChange={handleInputChange}
-                        rows={3}
-                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                        placeholder="Additional notes or comments"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
+              </FormSection>
+            </form>
           </div>
         </div>
       )}

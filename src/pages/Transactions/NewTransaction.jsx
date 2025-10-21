@@ -27,7 +27,8 @@ import {
   Calendar,
   Building2, 
   Globe,
-  MoreHorizontal
+  MoreHorizontal,
+  X
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -38,14 +39,15 @@ import {
   useTransactionAccounts,
   useTransactionCustomers,
   useTransactionInvoices,
-  useTransactionCategories,
   useSearchAgents,
   useSearchVendors
 } from '../../hooks/useTransactionQueries';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
 import { useEmployeeSearch } from '../../hooks/useHRQueries';
+import { useCategoryQueries } from '../../hooks/useCategoryQueries';
+import { useHajiList } from '../../hooks/UseHajiQueries';
+import { useUmrahList } from '../../hooks/UseUmrahQuries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
-import EmployeeReferenceSearch from '../../components/common/EmployeeReferenceSearch';
 import Swal from 'sweetalert2';
 
 const NewTransaction = () => {
@@ -57,8 +59,12 @@ const NewTransaction = () => {
   const createTransactionMutation = useCreateTransaction();
   const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
   const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
-  const { data: categories = [], error: categoriesError } = useTransactionCategories();
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCategoryQueries().useCategories();
   const { data: transactionsData } = useTransactions({}, 1, 1000); // Fetch all transactions for balance calculation
+  
+  // Haji and Umrah queries
+  const { data: hajiData, isLoading: hajiLoading, error: hajiError } = useHajiList({ page: 1, limit: 1000 });
+  const { data: umrahData, isLoading: umrahLoading, error: umrahError } = useUmrahList({ page: 1, limit: 1000 });
   
   // Bank account queries for account-to-account transfers
   const accountQueries = useAccountQueries();
@@ -71,6 +77,7 @@ const NewTransaction = () => {
     transactionType: '',
     
     // Step 2: Customer Selection (for credit/debit)
+    customerType: 'customer', // 'customer', 'vendor', 'agent', 'haji', 'umrah'
     customerId: '',
     customerName: '',
     customerPhone: '',
@@ -115,6 +122,20 @@ const NewTransaction = () => {
       bankName: '',
       accountNumber: '',
       balance: 0
+    },
+    
+    // Account Manager for Credit/Debit transactions
+    debitAccountManager: {
+      id: '',
+      name: '',
+      phone: '',
+      email: ''
+    },
+    creditAccountManager: {
+      id: '',
+      name: '',
+      phone: '',
+      email: ''
     },
     
     // Account Transfer Fields
@@ -186,16 +207,80 @@ const NewTransaction = () => {
   );
   const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
   
-  // Filter accounts based on search term
+  // Payment methods
+  const paymentMethods = [
+    { 
+      id: 'cash', 
+      name: 'ক্যাশ', 
+      icon: Banknote, 
+      color: 'from-green-500 to-green-600',
+      fields: ['reference'],
+      accountCategory: 'cash'
+    },
+    { 
+      id: 'bank-transfer', 
+      name: 'ব্যাংক ট্রান্সফার', 
+      icon: CreditCardIcon, 
+      color: 'from-blue-500 to-blue-600',
+      fields: ['bankName', 'accountNumber', 'reference'],
+      accountCategory: 'bank'
+    },
+    { 
+      id: 'cheque', 
+      name: 'চেক', 
+      icon: Receipt, 
+      color: 'from-orange-500 to-orange-600',
+      fields: ['chequeNumber', 'bankName', 'reference'],
+      accountCategory: 'bank'
+    },
+    { 
+      id: 'mobile-banking', 
+      name: 'মোবাইল ব্যাংকিং', 
+      icon: Smartphone, 
+      color: 'from-purple-500 to-purple-600',
+      fields: ['mobileProvider', 'transactionId', 'reference'],
+      accountCategory: 'mobile_banking'
+    },
+    { 
+      id: 'others', 
+      name: 'অন্যান্য', 
+      icon: ArrowRightLeft, 
+      color: 'from-gray-500 to-gray-600',
+      fields: ['reference'],
+      accountCategory: 'others'
+    }
+  ];
+  
+  // Filter accounts based on search term and payment method
   const filteredAccounts = accounts.filter(account => {
-    if (!accountSearchTerm) return true;
-    const searchLower = accountSearchTerm.toLowerCase();
-    return (
-      account.name.toLowerCase().includes(searchLower) ||
-      account.bankName.toLowerCase().includes(searchLower) ||
-      account.accountNumber.includes(searchLower)
-    );
+    // Filter by payment method if selected
+    if (formData.paymentMethod) {
+      const selectedPaymentMethod = paymentMethods.find(
+        method => method.id === formData.paymentMethod
+      );
+
+      // Only show accounts that match the method's category (cash/bank/mobile_banking/other)
+      if (
+        selectedPaymentMethod &&
+        account.accountType !== selectedPaymentMethod.accountCategory
+      ) {
+        return false;
+      }
+    }
+
+    // Filter by search term
+    if (accountSearchTerm) {
+      const lowerSearch = accountSearchTerm.toLowerCase();
+      return (
+        account.name?.toLowerCase().includes(lowerSearch) ||
+        account.bankName?.toLowerCase().includes(lowerSearch) ||
+        account.accountNumber?.toLowerCase().includes(lowerSearch)
+      );
+    }
+
+    return true;
   });
+
   
   // Bank accounts are now fetched via React Query
   
@@ -309,121 +394,14 @@ const NewTransaction = () => {
 
   // Agent and vendor search are now handled by React Query hooks
 
-  // State for categories to allow refreshing
-  const [categoryGroups, setCategoryGroups] = useState([]);
-
-  // Load categories from localStorage
-  const loadCategories = () => {
-    try {
-      const savedCategories = localStorage.getItem('transactionCategories');
-      if (savedCategories) {
-        return JSON.parse(savedCategories);
-      } else {
-        // Default categories if none exist
-        const defaultCategories = [
-          {
-            id: 'travel-tourism',
-            name: 'ভ্রমণ ও পর্যটন',
-            icon: '✈️',
-            description: 'ভ্রমণ এবং পর্যটন সংক্রান্ত সব সেবা',
-            subCategories: [
-              { id: 'hajj', name: 'হাজ্জ', icon: '🕋', description: 'হাজ্জ প্যাকেজ এবং সেবা' },
-              { id: 'umrah', name: 'উমরাহ', icon: '🕌', description: 'উমরাহ প্যাকেজ এবং সেবা' },
-              { id: 'air-ticket', name: 'এয়ার টিকেট', icon: '✈️', description: 'বিমান টিকেট এবং ভ্রমণ' },
-              { id: 'visa', name: 'ভিসা সার্ভিস', icon: '📋', description: 'ভিসা প্রক্রিয়াকরণ এবং সহায়তা' },
-              { id: 'hotel', name: 'হোটেল বুকিং', icon: '🏨', description: 'হোটেল রিজার্ভেশন' },
-              { id: 'insurance', name: 'ইনসুরেন্স', icon: '🛡️', description: 'ভ্রমণ এবং স্বাস্থ্য বীমা' }
-            ]
-          },
-          {
-            id: 'financial-services',
-            name: 'আর্থিক সেবা',
-            icon: '💰',
-            description: 'আর্থিক লেনদেন এবং ব্যাংকিং সেবা',
-            subCategories: [
-              { id: 'loan-giving', name: 'লোন দেওয়া', icon: '💰', description: 'অন্যের কাছে ঋণ প্রদান' },
-              { id: 'loan-receiving', name: 'লোন নেওয়া', icon: '💸', description: 'অন্যের কাছ থেকে ঋণ গ্রহণ' },
-              { id: 'money-exchange', name: 'মানি এক্সচেঞ্জ', icon: '💱', description: 'মুদ্রা বিনিময় সেবা' },
-              { id: 'investment', name: 'বিনিয়োগ', icon: '📈', description: 'বিভিন্ন বিনিয়োগ কার্যক্রম' },
-              { id: 'savings', name: 'সঞ্চয়', icon: '🏦', description: 'ব্যাংক সঞ্চয় এবং জমা' }
-            ]
-          }
-        ];
-        localStorage.setItem('transactionCategories', JSON.stringify(defaultCategories));
-        return defaultCategories;
-      }
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      return [];
-    }
-  };
-
-  // Load categories on component mount
-  useEffect(() => {
-    setCategoryGroups(loadCategories());
-  }, []);
-
-  // Listen for storage changes to refresh categories
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'transactionCategories') {
-        setCategoryGroups(loadCategories());
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also listen for custom events from the same tab
-    const handleCategoryUpdate = () => {
-      setCategoryGroups(loadCategories());
-    };
-
-    window.addEventListener('categoryUpdated', handleCategoryUpdate);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('categoryUpdated', handleCategoryUpdate);
-    };
-  }, []);
-
-  // Payment methods
-  const paymentMethods = [
-    { 
-      id: 'cash', 
-      name: 'ক্যাশ', 
-      icon: Banknote, 
-      color: 'from-green-500 to-green-600',
-      fields: ['reference']
-    },
-    { 
-      id: 'bank-transfer', 
-      name: 'ব্যাংক ট্রান্সফার', 
-      icon: CreditCardIcon, 
-      color: 'from-blue-500 to-blue-600',
-      fields: ['bankName', 'accountNumber', 'reference']
-    },
-    { 
-      id: 'cheque', 
-      name: 'চেক', 
-      icon: Receipt, 
-      color: 'from-orange-500 to-orange-600',
-      fields: ['chequeNumber', 'bankName', 'reference']
-    },
-    { 
-      id: 'mobile-banking', 
-      name: 'মোবাইল ব্যাংকিং', 
-      icon: Smartphone, 
-      color: 'from-purple-500 to-purple-600',
-      fields: ['mobileProvider', 'transactionId', 'reference']
-    },
-    { 
-      id: 'others', 
-      name: 'অন্যান্য', 
-      icon: ArrowRightLeft, 
-      color: 'from-gray-500 to-gray-600',
-      fields: ['reference']
-    }
-  ];
+  // Transform categories data to match the expected structure
+  const categoryGroups = categories.map(category => ({
+    id: category.id,
+    name: category.name,
+    description: category.description,
+    icon: category.icon,
+    subCategories: category.subCategories || []
+  }));
 
   // Dynamic steps based on transaction type
   const getSteps = () => {
@@ -715,6 +693,10 @@ const NewTransaction = () => {
               if (!formData.destinationAccount.id) {
                 newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
               }
+              // Validate debit account manager
+              if (!formData.debitAccountManager.id) {
+                newErrors.debitAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
+              }
               // Validate customer bank account details for bank transfer
               if (formData.paymentMethod === 'bank-transfer') {
                 if (!formData.customerBankAccount.bankName) {
@@ -780,6 +762,10 @@ const NewTransaction = () => {
             // Validate destination account (where money comes to) for credit transactions
             if (!formData.destinationAccount.id) {
               newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
+            }
+            // Validate credit account manager
+            if (!formData.creditAccountManager.id) {
+              newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
             }
             // Validate customer bank account details for bank transfer
             if (formData.paymentMethod === 'bank-transfer') {
@@ -866,6 +852,7 @@ const NewTransaction = () => {
         createdBy: userProfile?.email || 'unknown_user',
         branchId: userProfile?.branchId || 'main_branch',
         accountManager: formData.accountManager || null,
+        transactionType: 'transfer', // Explicitly set transaction type as transfer
       };
 
       transferBetweenAccountsMutation.mutateAsync(transferPayload)
@@ -1017,6 +1004,7 @@ const NewTransaction = () => {
   const resetForm = () => {
     setFormData({
       transactionType: '',
+      customerType: 'customer',
       customerId: '',
       customerName: '',
       customerPhone: '',
@@ -1081,6 +1069,7 @@ const NewTransaction = () => {
     });
     setCurrentStep(1);
     setSearchTerm('');
+    setSelectedSearchType('customer');
     setDebitAccountSearchTerm('');
     setCreditAccountSearchTerm('');
   };
@@ -1516,7 +1505,9 @@ const NewTransaction = () => {
                     ))}
                     </div>
                 </div>
-                ) : (
+                ) : null}
+                
+                {formData.transactionType !== 'transfer' && (
                 // Credit/Debit: Category Selection
                   <>
                   {/* Category Search Bar */}
@@ -1537,90 +1528,99 @@ const NewTransaction = () => {
 
                   {/* Category Groups */}
                   <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4">
-                    {filteredCategoryGroups.map((group) => (
-                      <div key={group.id} className={`rounded-lg border transition-all duration-200 ${
-                        isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-white'
-                      }`}>
-                        {/* Main Category Header */}
-                        <button
-                          onClick={() => toggleCategoryGroup(group.id)}
-                          className={`w-full p-3 sm:p-4 rounded-lg transition-all duration-200 hover:bg-opacity-80 ${
-                            expandedCategories[group.id] 
-                              ? 'bg-blue-50 dark:bg-blue-900/20' 
-                              : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="text-2xl sm:text-3xl">{group.icon}</div>
-                              <div className="text-left">
-                                <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                                  {group.name}
-                                </h3>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  {group.description}
-                                </p>
-                        </div>
-                            </div>
-                            <div className={`transform transition-transform duration-200 ${
-                              expandedCategories[group.id] ? 'rotate-180' : ''
-                            }`}>
-                              <ChevronDown className="w-5 h-5 text-gray-500" />
-                            </div>
-                          </div>
-                        </button>
-
-                        {/* Sub Categories */}
-                        {expandedCategories[group.id] && (
-                          <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-                              {group.subCategories.map((subCategory) => (
-                          <button
-                                  key={subCategory.id}
-                                  onClick={() => handleCategorySelect(subCategory.id)}
-                                  className={`p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 text-left ${
-                                    formData.category === subCategory.id
-                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                            }`}
-                          >
-                                  <div className="flex items-center gap-2">
-                                    <div className="text-lg sm:text-xl">{subCategory.icon}</div>
-                                    <div className="min-w-0 flex-1">
-                                      <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                                        {subCategory.name}
-                                      </h4>
-                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                        {subCategory.description}
-                                  </p>
-                                </div>
-                                    {formData.category === subCategory.id && (
-                                      <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                              )}
-                            </div>
-                          </button>
-                              ))}
-                            </div>
-                        </div>
-                      )}
-                    </div>
-                    ))}
-
-                    {filteredCategoryGroups.length === 0 && (
+                    {categoriesLoading ? (
                       <div className="text-center py-8">
-                        <div className="text-4xl mb-3">🔍</div>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                          {categorySearchTerm ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই'}
-                        </p>
-                        {categorySearchTerm && (
-                          <button
-                            onClick={() => setCategorySearchTerm('')}
-                            className="mt-2 text-blue-600 hover:text-blue-700 text-sm underline"
-                          >
-                            সব ক্যাটাগরি দেখুন
-                          </button>
-                        )}
+                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
+                        <p className="text-gray-500 dark:text-gray-400">ক্যাটাগরি লোড হচ্ছে...</p>
                       </div>
+                    ) : (
+                      <>
+                        {filteredCategoryGroups.map((group) => (
+                          <div key={group.id} className={`rounded-lg border transition-all duration-200 ${
+                            isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-white'
+                          }`}>
+                            {/* Main Category Header */}
+                            <button
+                              onClick={() => toggleCategoryGroup(group.id)}
+                              className={`w-full p-3 sm:p-4 rounded-lg transition-all duration-200 hover:bg-opacity-80 ${
+                                expandedCategories[group.id] 
+                                  ? 'bg-blue-50 dark:bg-blue-900/20' 
+                                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className="text-2xl sm:text-3xl">{group.icon}</div>
+                                  <div className="text-left">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                                      {group.name}
+                                    </h3>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                      {group.description}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className={`transform transition-transform duration-200 ${
+                                  expandedCategories[group.id] ? 'rotate-180' : ''
+                                }`}>
+                                  <ChevronDown className="w-5 h-5 text-gray-500" />
+                                </div>
+                              </div>
+                            </button>
+
+                            {/* Sub Categories */}
+                            {expandedCategories[group.id] && (
+                              <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                                  {group.subCategories.map((subCategory) => (
+                                    <button
+                                      key={subCategory.id}
+                                      onClick={() => handleCategorySelect(subCategory.id)}
+                                      className={`p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 text-left ${
+                                        formData.category === subCategory.id
+                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                      : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                    }`}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className="text-lg sm:text-xl">{subCategory.icon}</div>
+                                        <div className="min-w-0 flex-1">
+                                          <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                            {subCategory.name}
+                                          </h4>
+                                          <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                            {subCategory.description}
+                                          </p>
+                                        </div>
+                                        {formData.category === subCategory.id && (
+                                          <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                        )}
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+
+                        {filteredCategoryGroups.length === 0 && (
+                          <div className="text-center py-8">
+                            <div className="text-4xl mb-3">🔍</div>
+                            <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                              {categorySearchTerm ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই'}
+                            </p>
+                            {categorySearchTerm && (
+                              <button
+                                onClick={() => setCategorySearchTerm('')}
+                                className="mt-2 text-blue-600 hover:text-blue-700 text-sm underline"
+                              >
+                                সব ক্যাটাগরি দেখুন
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -1631,7 +1631,7 @@ const NewTransaction = () => {
                     </p>
                   )}
                 </>
-              )}
+                )}
             </div>
           )}
 
@@ -1753,8 +1753,8 @@ const NewTransaction = () => {
                 // Credit/Debit: Customer Selection
                 <div className="max-w-4xl mx-auto">
                   {/* Type Selector */}
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                    {['customer','vendor','agent'].map((type) => (
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
+                    {['customer','vendor','agent','haji','umrah'].map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -1765,7 +1765,10 @@ const NewTransaction = () => {
                             : (isDark ? 'text-gray-200 border-gray-600' : 'text-gray-700 border-gray-300 hover:border-blue-400')
                         }`}
                       >
-                        {type === 'customer' ? 'Customer' : type === 'vendor' ? 'Vendor' : 'Agent'}
+                        {type === 'customer' ? 'Customer' : 
+                         type === 'vendor' ? 'Vendor' : 
+                         type === 'agent' ? 'Agent' :
+                         type === 'haji' ? 'Haji' : 'Umrah'}
                       </button>
                     ))}
                   </div>
@@ -1782,7 +1785,11 @@ const NewTransaction = () => {
                           ? 'কাস্টমার খুঁজুন... (নাম/ফোন/ইমেইল)'
                           : selectedSearchType === 'vendor'
                           ? 'ভেন্ডর খুঁজুন... (নাম/ফোন)'
-                          : 'এজেন্ট খুঁজুন... (নাম/ফোন)'
+                          : selectedSearchType === 'agent'
+                          ? 'এজেন্ট খুঁজুন... (নাম/ফোন)'
+                          : selectedSearchType === 'haji'
+                          ? 'হাজি খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
+                          : 'উমরাহ খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
                       }
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -1798,13 +1805,134 @@ const NewTransaction = () => {
                   <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
                     {(selectedSearchType === 'agent' && (agentLoading || searchLoading)) ||
                      (selectedSearchType === 'vendor' && (vendorLoading || searchLoading)) ||
-                     (selectedSearchType === 'customer' && (customersLoading || searchLoading)) ? (
+                     (selectedSearchType === 'customer' && (customersLoading || searchLoading)) ||
+                     (selectedSearchType === 'haji' && (hajiLoading || searchLoading)) ||
+                     (selectedSearchType === 'umrah' && (umrahLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
                         <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-                          {selectedSearchType === 'customer' ? 'কাস্টমার লোড হচ্ছে...' : selectedSearchType === 'vendor' ? 'ভেন্ডর লোড হচ্ছে...' : 'এজেন্ট লোড হচ্ছে...'}
+                          {selectedSearchType === 'customer' ? 'কাস্টমার লোড হচ্ছে...' : 
+                           selectedSearchType === 'vendor' ? 'ভেন্ডর লোড হচ্ছে...' : 
+                           selectedSearchType === 'agent' ? 'এজেন্ট লোড হচ্ছে...' :
+                           selectedSearchType === 'haji' ? 'হাজি লোড হচ্ছে...' : 'উমরাহ লোড হচ্ছে...'}
                         </span>
                       </div>
+                    ) : selectedSearchType === 'haji' ? (
+                      // Haji Results
+                      hajiData?.data?.length > 0 ? (
+                        hajiData.data
+                          .filter(haji => 
+                            !searchTerm || 
+                            haji.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            haji.mobile?.includes(searchTerm) ||
+                            haji.passportNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+                          )
+                          .map((haji) => (
+                            <button
+                              key={`haji-${haji._id || haji.id}`}
+                              onClick={() => handleCustomerSelect({
+                                id: haji._id || haji.id,
+                                name: haji.name,
+                                phone: haji.mobile,
+                                email: haji.email,
+                                type: 'haji'
+                              })}
+                              className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
+                                formData.customerId === (haji._id || haji.id)
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3 sm:space-x-4">
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  formData.customerId === (haji._id || haji.id)
+                                    ? 'bg-blue-100 dark:bg-blue-800'
+                                    : 'bg-green-100 dark:bg-green-800'
+                                }`}>
+                                  <span className="text-lg">🕋</span>
+                                </div>
+                                <div className="text-left min-w-0 flex-1">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                    {haji.name}
+                                  </h3>
+                                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                                    {haji.mobile}
+                                  </p>
+                                  {haji.passportNumber && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      পাসপোর্ট: {haji.passportNumber}
+                                    </p>
+                                  )}
+                                </div>
+                                {formData.customerId === (haji._id || haji.id) && (
+                                  <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                          ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                          {searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই'}
+                        </div>
+                      )
+                    ) : selectedSearchType === 'umrah' ? (
+                      // Umrah Results
+                      umrahData?.data?.length > 0 ? (
+                        umrahData.data
+                          .filter(umrah => 
+                            !searchTerm || 
+                            umrah.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            umrah.mobile?.includes(searchTerm) ||
+                            umrah.passportNumber?.toLowerCase().includes(searchTerm.toLowerCase())
+                          )
+                          .map((umrah) => (
+                            <button
+                              key={`umrah-${umrah._id || umrah.id}`}
+                              onClick={() => handleCustomerSelect({
+                                id: umrah._id || umrah.id,
+                                name: umrah.name,
+                                phone: umrah.mobile,
+                                email: umrah.email,
+                                type: 'umrah'
+                              })}
+                              className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
+                                formData.customerId === (umrah._id || umrah.id)
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3 sm:space-x-4">
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  formData.customerId === (umrah._id || umrah.id)
+                                    ? 'bg-blue-100 dark:bg-blue-800'
+                                    : 'bg-purple-100 dark:bg-purple-800'
+                                }`}>
+                                  <span className="text-lg">🕌</span>
+                                </div>
+                                <div className="text-left min-w-0 flex-1">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                    {umrah.name}
+                                  </h3>
+                                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                                    {umrah.mobile}
+                                  </p>
+                                  {umrah.passportNumber && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      পাসপোর্ট: {umrah.passportNumber}
+                                    </p>
+                                  )}
+                                </div>
+                                {formData.customerId === (umrah._id || umrah.id) && (
+                                  <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                          ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                          {searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই'}
+                        </div>
+                      )
                     ) : selectedSearchType === 'agent' ? (
                         agentResults.length > 0 ? (
                         agentResults.map((agent) => (
@@ -1961,7 +2089,11 @@ const NewTransaction = () => {
                       ))
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                        {selectedSearchType === 'customer' ? (searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই') : selectedSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 'কোন এজেন্ট পাওয়া যায়নি'}
+                        {selectedSearchType === 'customer' ? (searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই') : 
+                         selectedSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 
+                         selectedSearchType === 'agent' ? 'কোন এজেন্ট পাওয়া যায়নি' :
+                         selectedSearchType === 'haji' ? (searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই') :
+                         (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই')}
                       </div>
                     )}
                   </div>
@@ -2374,36 +2506,24 @@ const NewTransaction = () => {
                       </h3>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                        {[
-                          { id: 'cash', label: 'নগদ', icon: Banknote, color: 'green' },
-                          { id: 'bank-transfer', label: 'ব্যাংক ট্রান্সফার', icon: Building2, color: 'blue' },
-                          { id: 'cheque', label: 'চেক', icon: FileText, color: 'purple' },
-                          { id: 'mobile-banking', label: 'মোবাইল ব্যাংকিং', icon: Smartphone, color: 'indigo' },
-                          { id: 'others', label: 'অন্যান্য', icon: MoreHorizontal, color: 'gray' }
-                        ].map((method) => (
+                        {paymentMethods.map((method) => (
                           <button
                             key={method.id}
                             type="button"
                             onClick={() => setFormData(prev => ({ ...prev, paymentMethod: method.id }))}
-                            className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                            className={`p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
                               formData.paymentMethod === method.id
                                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                 : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
                             }`}
                           >
-                            <div className="flex flex-col items-center gap-2">
-                              <method.icon className={`w-6 h-6 ${
-                                formData.paymentMethod === method.id 
-                                  ? 'text-blue-600' 
-                                  : 'text-gray-400'
-                              }`} />
-                              <span className={`text-sm font-medium ${
-                                formData.paymentMethod === method.id 
-                                  ? 'text-blue-900 dark:text-blue-100' 
-                                  : 'text-gray-700 dark:text-gray-300'
-                              }`}>
-                                {method.label}
-                              </span>
+                            <div className="text-center">
+                              <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${method.color} rounded-full flex items-center justify-center mx-auto mb-2 sm:mb-3`}>
+                                <method.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                              </div>
+                              <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm">
+                                {method.name}
+                              </h3>
                             </div>
                           </button>
                         ))}
@@ -2415,6 +2535,358 @@ const NewTransaction = () => {
                         </p>
                       )}
                     </div>
+
+                    {/* Account Selection */}
+                    {selectedPaymentMethod && (
+                      <div className="mb-4 sm:mb-6">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                          <CreditCard className="w-5 h-5 text-blue-600" />
+                          অ্যাকাউন্ট নির্বাচন
+                        </h3>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                          {/* Source Account */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                              আমাদের অ্যাকাউন্ট (যেখান থেকে টাকা যাবে) *
+                            </label>
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <input
+                                type="text"
+                                placeholder="অ্যাকাউন্ট খুঁজুন..."
+                                value={accountSearchTerm}
+                                onChange={(e) => setAccountSearchTerm(e.target.value)}
+                                className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                  isDark 
+                                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                    : 'border-gray-300'
+                                }`}
+                              />
+                            </div>
+                            
+                            {/* Account Selection Dropdown */}
+                            <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                              {accountsLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                                  <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">অ্যাকাউন্ট লোড হচ্ছে...</span>
+                                </div>
+                              ) : filteredAccounts.length > 0 ? (
+                                filteredAccounts.map((account) => (
+                                  <button
+                                    key={account.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        sourceAccount: {
+                                          id: account.id,
+                                          name: account.name,
+                                          bankName: account.bankName,
+                                          accountNumber: account.accountNumber,
+                                          balance: account.balance
+                                        }
+                                      }));
+                                      setErrors(prev => ({ ...prev, sourceAccount: '' }));
+                                    }}
+                                    className={`w-full p-3 text-left rounded-lg border transition-all duration-200 hover:scale-102 ${
+                                      formData.sourceAccount.id === account.id
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                    }`}
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <div>
+                                        <p className="font-medium text-gray-900 dark:text-white text-sm">
+                                          {account.name}
+                                        </p>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                                          {account.bankName} - {account.accountNumber}
+                                        </p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                          ৳{account.balance.toLocaleString()}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))
+                              ) : (
+                                <div className="text-center py-4">
+                                  <p className="text-gray-500 dark:text-gray-400 text-sm">কোন অ্যাকাউন্ট পাওয়া যায়নি</p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {errors.sourceAccount && (
+                              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {errors.sourceAccount}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Customer */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                              কাস্টমার (যার কাছ থেকে টাকা আসবে)
+                            </label>
+                            {formData.customerName ? (
+                              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                    <User className="w-5 h-5 text-blue-600" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-gray-900 dark:text-white text-sm">
+                                      {formData.customerName}
+                                    </p>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                      {formData.customerPhone}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-dashed">
+                                <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
+                                  কাস্টমার নির্বাচন করা হয়েছে
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Account Manager Selection for Debit */}
+                    {formData.sourceAccount.id && (
+                      <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 sm:p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <User className="w-5 h-5 text-green-600" />
+                          একাউন্ট ম্যানেজার নির্বাচন
+                        </h3>
+                        
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            একাউন্ট ম্যানেজার নির্বাচন
+                          </label>
+                          
+                          {/* Account Manager Search Bar */}
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
+                              value={accountManagerSearchTerm}
+                              onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                  : 'border-gray-300'
+                              }`}
+                            />
+                          </div>
+
+                          {/* Account Manager List */}
+                          {accountManagerSearchTerm && (
+                            <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
+                              {employeeLoading ? (
+                                <div className="flex items-center justify-center py-4">
+                                  <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                                  <span className="ml-2 text-gray-600 dark:text-gray-400">খুঁজছি...</span>
+                                </div>
+                              ) : employeeSearchError ? (
+                                <div className="text-center py-4 text-red-500 dark:text-red-400 text-sm">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <AlertCircle className="w-4 h-4" />
+                                    <span>খোঁজার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।</span>
+                                  </div>
+                                </div>
+                              ) : employeeSearchResults.length === 0 ? (
+                                <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                                  {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
+                                </div>
+                              ) : (
+                                employeeSearchResults.map((employee) => (
+                                  <button
+                                    key={employee._id || employee.id}
+                                    onClick={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        debitAccountManager: {
+                                          id: employee._id || employee.id,
+                                          name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+                                          phone: employee.phone || employee.phoneNumber,
+                                          email: employee.email || employee.emailAddress,
+                                          designation: employee.designation || employee.position
+                                        }
+                                      }));
+                                      setAccountManagerSearchTerm('');
+                                    }}
+                                    className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
+                                      formData.debitAccountManager?.id === employee._id
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center space-x-3">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                        formData.debitAccountManager?.id === employee._id
+                                          ? 'bg-blue-100 dark:bg-blue-800'
+                                          : 'bg-gray-100 dark:bg-gray-700'
+                                      }`}>
+                                        <User className={`w-5 h-5 ${
+                                          formData.debitAccountManager?.id === employee._id
+                                            ? 'text-blue-600 dark:text-blue-400'
+                                            : 'text-gray-600 dark:text-gray-400'
+                                        }`} />
+                                      </div>
+                                      <div className="flex-1 text-left">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                          {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই'}
+                                        </h4>
+                                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                                          {employee.designation || employee.position || 'পদবী নেই'}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                          {(employee.phone || employee.phoneNumber) && (
+                                            <span className="text-xs text-blue-600 dark:text-blue-400">
+                                              📞 {employee.phone || employee.phoneNumber}
+                                            </span>
+                                          )}
+                                          {(employee.email || employee.emailAddress) && (
+                                            <span className="text-xs text-green-600 dark:text-green-400">
+                                              ✉️ {employee.email || employee.emailAddress}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {formData.debitAccountManager?.id === employee._id && (
+                                        <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                      )}
+                                    </div>
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+
+                          {/* Selected Account Manager Display */}
+                          {formData.debitAccountManager?.name && !accountManagerSearchTerm && (
+                            <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                                    <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                      {formData.debitAccountManager.name}
+                                    </h4>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                      {formData.debitAccountManager.designation}
+                                    </p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => setFormData(prev => ({ ...prev, debitAccountManager: { id: '', name: '', phone: '', email: '', designation: '' } }))}
+                                  className="text-red-500 hover:text-red-700 text-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Payment Details */}
+                    {selectedPaymentMethod && formData.sourceAccount.id && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 sm:p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                          <selectedPaymentMethod.icon className="w-5 h-5 text-blue-600" />
+                          {selectedPaymentMethod.name}
+                        </h3>
+                        
+                        <div className="space-y-4">
+                          {/* Amount */}
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                              পরিমাণ *
+                            </label>
+                            <div className="relative">
+                              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <input
+                                type="number"
+                                placeholder="পরিমাণ লিখুন..."
+                                value={formData.paymentDetails.amount}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  paymentDetails: { ...prev.paymentDetails, amount: e.target.value }
+                                }))}
+                                className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                  isDark 
+                                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                    : 'border-gray-300'
+                                }`}
+                              />
+                            </div>
+                            {errors.amount && (
+                              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {errors.amount}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Dynamic Fields based on Payment Method */}
+                          {selectedPaymentMethod.fields.map((field) => (
+                            <div key={field}>
+                              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                {field === 'bankName' && 'ব্যাংকের নাম'}
+                                {field === 'accountNumber' && 'অ্যাকাউন্ট নম্বর'}
+                                {field === 'cardNumber' && 'কার্ড নম্বর'}
+                                {field === 'chequeNumber' && 'চেক নম্বর'}
+                                {field === 'mobileProvider' && 'মোবাইল প্রোভাইডার'}
+                                {field === 'transactionId' && 'ট্রানজেকশন আইডি'}
+                                {field === 'reference' && 'রেফারেন্স'}
+                                {field !== 'reference' && ' *'}
+                              </label>
+                              <input
+                                type="text"
+                                placeholder={`${field === 'bankName' && 'ব্যাংকের নাম লিখুন...'}
+                                  ${field === 'accountNumber' && 'অ্যাকাউন্ট নম্বর লিখুন...'}
+                                  ${field === 'cardNumber' && 'কার্ড নম্বর লিখুন...'}
+                                  ${field === 'chequeNumber' && 'চেক নম্বর লিখুন...'}
+                                  ${field === 'mobileProvider' && 'মোবাইল প্রোভাইডার লিখুন...'}
+                                  ${field === 'transactionId' && 'ট্রানজেকশন আইডি লিখুন...'}
+                                  ${field === 'reference' && 'রেফারেন্স লিখুন...'}`}
+                                value={formData.paymentDetails[field] || ''}
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  paymentDetails: { ...prev.paymentDetails, [field]: e.target.value }
+                                }))}
+                                className={`w-full px-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                  isDark 
+                                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                    : 'border-gray-300'
+                                }`}
+                              />
+                              {errors[field] && (
+                                <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                  <AlertCircle className="w-3 h-3" />
+                                  {errors[field]}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   // Credit: Invoice Selection
@@ -3085,12 +3557,155 @@ const NewTransaction = () => {
                     </div>
                   )}
 
+                  {/* Account Manager Selection for Credit */}
+                  {formData.destinationAccount.id && (
+                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 sm:p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                        <User className="w-5 h-5 text-green-600" />
+                        একাউন্ট ম্যানেজার নির্বাচন
+                      </h3>
+                      
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                          একাউন্ট ম্যানেজার নির্বাচন
+                        </label>
+                        
+                        {/* Account Manager Search Bar */}
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
+                            value={accountManagerSearchTerm}
+                            onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
+                            className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                              isDark 
+                                ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                : 'border-gray-300'
+                            }`}
+                          />
+                        </div>
+
+                        {/* Account Manager List */}
+                        {accountManagerSearchTerm && (
+                          <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
+                            {employeeLoading ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                                <span className="ml-2 text-gray-600 dark:text-gray-400">খুঁজছি...</span>
+                              </div>
+                            ) : employeeSearchError ? (
+                              <div className="text-center py-4 text-red-500 dark:text-red-400 text-sm">
+                                <div className="flex items-center justify-center gap-2">
+                                  <AlertCircle className="w-4 h-4" />
+                                  <span>খোঁজার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।</span>
+                                </div>
+                              </div>
+                            ) : employeeSearchResults.length === 0 ? (
+                              <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                                {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
+                              </div>
+                            ) : (
+                              employeeSearchResults.map((employee) => (
+                                <button
+                                  key={employee._id || employee.id}
+                                  onClick={() => {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      creditAccountManager: {
+                                        id: employee._id || employee.id,
+                                        name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+                                        phone: employee.phone || employee.phoneNumber,
+                                        email: employee.email || employee.emailAddress,
+                                        designation: employee.designation || employee.position
+                                      }
+                                    }));
+                                    setAccountManagerSearchTerm('');
+                                  }}
+                                  className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
+                                    formData.creditAccountManager?.id === employee._id
+                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                      : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                      formData.creditAccountManager?.id === employee._id
+                                        ? 'bg-blue-100 dark:bg-blue-800'
+                                        : 'bg-gray-100 dark:bg-gray-700'
+                                    }`}>
+                                      <User className={`w-5 h-5 ${
+                                        formData.creditAccountManager?.id === employee._id
+                                          ? 'text-blue-600 dark:text-blue-400'
+                                          : 'text-gray-600 dark:text-gray-400'
+                                      }`} />
+                                    </div>
+                                    <div className="flex-1 text-left">
+                                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                        {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই'}
+                                      </h4>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                                        {employee.designation || employee.position || 'পদবী নেই'}
+                                      </p>
+                                      <div className="flex flex-wrap gap-2 mt-1">
+                                        {(employee.phone || employee.phoneNumber) && (
+                                          <span className="text-xs text-blue-600 dark:text-blue-400">
+                                            📞 {employee.phone || employee.phoneNumber}
+                                          </span>
+                                        )}
+                                        {(employee.email || employee.emailAddress) && (
+                                          <span className="text-xs text-green-600 dark:text-green-400">
+                                            ✉️ {employee.email || employee.emailAddress}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {formData.creditAccountManager?.id === employee._id && (
+                                      <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                    )}
+                                  </div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+
+                        {/* Selected Account Manager Display */}
+                        {formData.creditAccountManager?.name && !accountManagerSearchTerm && (
+                          <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                                  <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                    {formData.creditAccountManager.name}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {formData.creditAccountManager.designation}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => setFormData(prev => ({ ...prev, creditAccountManager: { id: '', name: '', phone: '', email: '', designation: '' } }))}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Payment Details Form */}
                   {selectedPaymentMethod && (
                     <div className={`p-3 sm:p-4 rounded-lg border-2 border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800`}>
                       <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                         <selectedPaymentMethod.icon className="w-4 h-4 text-blue-600" />
-                        {selectedPaymentMethod.name} - বিবরণ
+                        {selectedPaymentMethod.name}
                       </h3>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -3616,22 +4231,145 @@ const NewTransaction = () => {
                     </div>
                   </div>
 
-                  {/* Employee Reference */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                      কর্মচারী রেফারেন্স (ঐচ্ছিক)
-                    </label>
-                    <EmployeeReferenceSearch
-                      onSelect={handleEmployeeReferenceSelect}
-                      placeholder="কর্মচারীর নাম লিখুন..."
-                      buttonText="খুঁজুন"
-                      selectedEmployee={formData.employeeReference.id ? formData.employeeReference : null}
-                    />
-                    {formData.employeeReference.id && (
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        ✅ কর্মচারী রেফারেন্স নির্বাচন করা হয়েছে
-                      </p>
-                    )}
+                  {/* Account Manager Selection */}
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 sm:p-6 mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                      <User className="w-5 h-5 text-green-600" />
+                      একাউন্ট ম্যানেজার নির্বাচন
+                    </h3>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                        একাউন্ট ম্যানেজার নির্বাচন
+                      </label>
+                      
+                      {/* Account Manager Search Bar */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
+                          value={accountManagerSearchTerm}
+                          onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
+                          className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                            isDark 
+                              ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                              : 'border-gray-300'
+                          }`}
+                        />
+                      </div>
+
+                      {/* Account Manager List */}
+                      {accountManagerSearchTerm && (
+                        <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
+                          {employeeLoading ? (
+                            <div className="flex items-center justify-center py-4">
+                              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                              <span className="ml-2 text-gray-600 dark:text-gray-400">খুঁজছি...</span>
+                            </div>
+                          ) : employeeSearchError ? (
+                            <div className="text-center py-4 text-red-500 dark:text-red-400 text-sm">
+                              <div className="flex items-center justify-center gap-2">
+                                <AlertCircle className="w-4 h-4" />
+                                <span>খোঁজার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।</span>
+                              </div>
+                            </div>
+                          ) : employeeSearchResults.length === 0 ? (
+                            <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                              {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
+                            </div>
+                          ) : (
+                            employeeSearchResults.map((employee) => (
+                              <button
+                                key={employee._id || employee.id}
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    employeeReference: {
+                                      id: employee._id || employee.id,
+                                      name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+                                      employeeId: employee.employeeId || employee.id,
+                                      position: employee.designation || employee.position || '',
+                                      department: employee.department || ''
+                                    }
+                                  }));
+                                  setAccountManagerSearchTerm('');
+                                }}
+                                className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
+                                  formData.employeeReference?.id === employee._id
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                    : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                    formData.employeeReference?.id === employee._id
+                                      ? 'bg-blue-100 dark:bg-blue-800'
+                                      : 'bg-gray-100 dark:bg-gray-700'
+                                  }`}>
+                                    <User className={`w-5 h-5 ${
+                                      formData.employeeReference?.id === employee._id
+                                        ? 'text-blue-600 dark:text-blue-400'
+                                        : 'text-gray-600 dark:text-gray-400'
+                                    }`} />
+                                  </div>
+                                  <div className="flex-1 text-left">
+                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                      {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই'}
+                                    </h4>
+                                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                                      {employee.designation || employee.position || 'পদবী নেই'}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                      {(employee.phone || employee.phoneNumber) && (
+                                        <span className="text-xs text-blue-600 dark:text-blue-400">
+                                          📞 {employee.phone || employee.phoneNumber}
+                                        </span>
+                                      )}
+                                      {(employee.email || employee.emailAddress) && (
+                                        <span className="text-xs text-green-600 dark:text-green-400">
+                                          ✉️ {employee.email || employee.emailAddress}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {formData.employeeReference?.id === employee._id && (
+                                    <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                  )}
+                                </div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+
+                      {/* Selected Account Manager Display */}
+                      {formData.employeeReference?.name && !accountManagerSearchTerm && (
+                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                                <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                  {formData.employeeReference.name}
+                                </h4>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  {formData.employeeReference.position}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setFormData(prev => ({ ...prev, employeeReference: { id: '', name: '', employeeId: '', position: '', department: '' } }))}
+                              className="text-red-500 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Additional Notes */}
@@ -4071,22 +4809,145 @@ const NewTransaction = () => {
                   </div>
                 </div>
 
-                {/* Employee Reference */}
-                <div className="mb-4">
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                    কর্মচারী রেফারেন্স (ঐচ্ছিক)
-                  </label>
-                  <EmployeeReferenceSearch
-                    onSelect={handleEmployeeReferenceSelect}
-                    placeholder="কর্মচারীর নাম লিখুন..."
-                    buttonText="খুঁজুন"
-                    selectedEmployee={formData.employeeReference.id ? formData.employeeReference : null}
-                  />
-                  {formData.employeeReference.id && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      ✅ কর্মচারী রেফারেন্স নির্বাচন করা হয়েছে
-                    </p>
-                  )}
+                {/* Account Manager Selection */}
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 sm:p-6 mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5 text-green-600" />
+                    একাউন্ট ম্যানেজার নির্বাচন
+                  </h3>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      একাউন্ট ম্যানেজার নির্বাচন
+                    </label>
+                    
+                    {/* Account Manager Search Bar */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
+                        value={accountManagerSearchTerm}
+                        onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
+                        className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                          isDark 
+                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                            : 'border-gray-300'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Account Manager List */}
+                    {accountManagerSearchTerm && (
+                      <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
+                        {employeeLoading ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                            <span className="ml-2 text-gray-600 dark:text-gray-400">খুঁজছি...</span>
+                          </div>
+                        ) : employeeSearchError ? (
+                          <div className="text-center py-4 text-red-500 dark:text-red-400 text-sm">
+                            <div className="flex items-center justify-center gap-2">
+                              <AlertCircle className="w-4 h-4" />
+                              <span>খোঁজার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।</span>
+                            </div>
+                          </div>
+                        ) : employeeSearchResults.length === 0 ? (
+                          <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
+                            {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
+                          </div>
+                        ) : (
+                          employeeSearchResults.map((employee) => (
+                            <button
+                              key={employee._id || employee.id}
+                              onClick={() => {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  employeeReference: {
+                                    id: employee._id || employee.id,
+                                    name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
+                                    employeeId: employee.employeeId || employee.id,
+                                    position: employee.designation || employee.position || '',
+                                    department: employee.department || ''
+                                  }
+                                }));
+                                setAccountManagerSearchTerm('');
+                              }}
+                              className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
+                                formData.employeeReference?.id === employee._id
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  formData.employeeReference?.id === employee._id
+                                    ? 'bg-blue-100 dark:bg-blue-800'
+                                    : 'bg-gray-100 dark:bg-gray-700'
+                                }`}>
+                                  <User className={`w-5 h-5 ${
+                                    formData.employeeReference?.id === employee._id
+                                      ? 'text-blue-600 dark:text-blue-400'
+                                      : 'text-gray-600 dark:text-gray-400'
+                                  }`} />
+                                </div>
+                                <div className="flex-1 text-left">
+                                  <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                    {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই'}
+                                  </h4>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                                    {employee.designation || employee.position || 'পদবী নেই'}
+                                  </p>
+                                  <div className="flex flex-wrap gap-2 mt-1">
+                                    {(employee.phone || employee.phoneNumber) && (
+                                      <span className="text-xs text-blue-600 dark:text-blue-400">
+                                        📞 {employee.phone || employee.phoneNumber}
+                                      </span>
+                                    )}
+                                    {(employee.email || employee.emailAddress) && (
+                                      <span className="text-xs text-green-600 dark:text-green-400">
+                                        ✉️ {employee.email || employee.emailAddress}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                {formData.employeeReference?.id === employee._id && (
+                                  <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* Selected Account Manager Display */}
+                    {formData.employeeReference?.name && !accountManagerSearchTerm && (
+                      <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
+                              <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
+                                {formData.employeeReference.name}
+                              </h4>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {formData.employeeReference.position}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => setFormData(prev => ({ ...prev, employeeReference: { id: '', name: '', employeeId: '', position: '', department: '' } }))}
+                            className="text-red-500 hover:text-red-700 text-sm"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Additional Notes */}
@@ -4146,15 +5007,7 @@ const NewTransaction = () => {
                     <span className="hidden sm:inline">PDF ডাউনলোড করুন</span>
                     <span className="sm:hidden">PDF ডাউনলোড</span>
                   </button>
-                  
-                  <button
-                    onClick={() => {}} // Email functionality
-                    className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
-                  >
-                    <Mail className="w-4 h-4" />
-                    <span className="hidden sm:inline">ইমেইল পাঠান</span>
-                    <span className="sm:hidden">ইমেইল</span>
-                  </button>
+               
                 </div>
               </div>
             </div>

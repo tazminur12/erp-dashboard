@@ -95,6 +95,15 @@ const AgentPackageCreation = () => {
   const [discount, setDiscount] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [uploadingFiles, setUploadingFiles] = useState([]);
+  
+  // Popup states for passenger addition
+  const [showAirfarePassengerPopup, setShowAirfarePassengerPopup] = useState(false);
+  const [newAirfarePassenger, setNewAirfarePassenger] = useState({
+    type: 'Adult',
+    count: 0,
+    price: 0
+  });
+  
   const [collapsedSections, setCollapsedSections] = useState({
     costDetails: false,
     attachments: false
@@ -312,6 +321,43 @@ const AgentPackageCreation = () => {
       count: 0,
       price: 0
     }]);
+  };
+
+  // Popup handlers for airfare passenger
+  const openAirfarePassengerPopup = () => {
+    setNewAirfarePassenger({
+      type: 'Adult',
+      count: 0,
+      price: 0
+    });
+    setShowAirfarePassengerPopup(true);
+  };
+
+  const closeAirfarePassengerPopup = () => {
+    setShowAirfarePassengerPopup(false);
+    setNewAirfarePassenger({
+      type: 'Adult',
+      count: 0,
+      price: 0
+    });
+  };
+
+  const handleNewAirfarePassengerChange = (field, value) => {
+    setNewAirfarePassenger(prev => ({
+      ...prev,
+      [field]: field === 'count' ? Math.max(0, parseInt(value) || 0) : parseFloat(value) || 0
+    }));
+  };
+
+  const saveNewAirfarePassenger = () => {
+    if (newAirfarePassenger.count > 0 && newAirfarePassenger.price > 0) {
+      const newId = Date.now();
+      setBangladeshAirfarePassengers(prev => [...prev, {
+        id: newId,
+        ...newAirfarePassenger
+      }]);
+      closeAirfarePassengerPopup();
+    }
   };
 
   // Remove Bangladesh airfare passenger type
@@ -1000,8 +1046,8 @@ const AgentPackageCreation = () => {
                       className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     >
                       <option value="">কাস্টম প্যাকেজ নির্বাচন করুন</option>
-                      <option value="Custom Hajj">Custom Hajj</option>
-                      <option value="Custom Umrah">Custom Umrah</option>
+                      <option value="Custom Hajj">Hajj</option>
+                      <option value="Custom Umrah">Umrah</option>
                     </select>
                   </div>
                   <div>
@@ -1292,7 +1338,7 @@ const AgentPackageCreation = () => {
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">বিমান ভাড়া (যাত্রীর ধরন অনুযায়ী)</label>
                             <button
                               type="button"
-                              onClick={addBangladeshAirfarePassenger}
+                              onClick={openAirfarePassengerPopup}
                               className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
                             >
                               + যাত্রী যোগ করুন
@@ -2072,6 +2118,97 @@ const AgentPackageCreation = () => {
           </div>
         </div>
       </div>
+
+      {/* Airfare Passenger Addition Popup Modal */}
+      {showAirfarePassengerPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                যাত্রী যোগ করুন
+              </h3>
+              <button
+                onClick={closeAirfarePassengerPopup}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  যাত্রীর ধরন
+                </label>
+                <select
+                  value={newAirfarePassenger.type}
+                  onChange={(e) => handleNewAirfarePassengerChange('type', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="Adult">Adult</option>
+                  <option value="Child">Child</option>
+                  <option value="Infant">Infant</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  সংখ্যা
+                </label>
+                <input
+                  type="number"
+                  value={newAirfarePassenger.count}
+                  onChange={(e) => handleNewAirfarePassengerChange('count', e.target.value)}
+                  min="1"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="যাত্রীর সংখ্যা"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  মূল্য (SAR)
+                </label>
+                <input
+                  type="number"
+                  value={newAirfarePassenger.price}
+                  onChange={(e) => handleNewAirfarePassengerChange('price', e.target.value)}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="0.00 SAR"
+                />
+              </div>
+
+              {newAirfarePassenger.count > 0 && newAirfarePassenger.price > 0 && (
+                <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    মোট: {newAirfarePassenger.count} × {newAirfarePassenger.price.toLocaleString()} = {(newAirfarePassenger.count * newAirfarePassenger.price).toLocaleString()} SAR
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={closeAirfarePassengerPopup}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                বাতিল
+              </button>
+              <button
+                onClick={saveNewAirfarePassenger}
+                disabled={newAirfarePassenger.count <= 0 || newAirfarePassenger.price <= 0}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                যোগ করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

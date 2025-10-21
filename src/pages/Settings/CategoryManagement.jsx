@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Plus,
   Edit2,
@@ -10,13 +10,28 @@ import {
   FolderOpen,
 } from "lucide-react";
 import Swal from "sweetalert2";
-import useAxiosSecure from "../../hooks/UseAxiosSecure";
+import useCategoryQueries from "../../hooks/useCategoryQueries";
 
 const CategoryManagement = () => {
-  const axiosSecure = useAxiosSecure();
+  const {
+    useCategories,
+    useCreateCategory,
+    useUpdateCategory,
+    useDeleteCategory,
+    useAddSubCategory,
+    useUpdateSubCategory,
+    useDeleteSubCategory,
+  } = useCategoryQueries();
 
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(false);
+  // React Query hooks
+  const { data: categories = [], isLoading: loading, error } = useCategories();
+  const createCategoryMutation = useCreateCategory();
+  const updateCategoryMutation = useUpdateCategory();
+  const deleteCategoryMutation = useDeleteCategory();
+  const addSubCategoryMutation = useAddSubCategory();
+  const updateSubCategoryMutation = useUpdateSubCategory();
+  const deleteSubCategoryMutation = useDeleteSubCategory();
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState(new Set());
@@ -28,62 +43,6 @@ const CategoryManagement = () => {
     description: "",
     subCategories: [],
   });
-
-  // Normalize API data
-  const normalizeCategories = (raw) => {
-    const list = Array.isArray(raw)
-      ? raw
-      : Array.isArray(raw?.data)
-      ? raw.data
-      : Array.isArray(raw?.categories)
-      ? raw.categories
-      : Array.isArray(raw?.items)
-      ? raw.items
-      : [];
-
-    return list.map((cat) => {
-      const subs = Array.isArray(cat.subCategories)
-        ? cat.subCategories
-        : Array.isArray(cat.subcategories)
-        ? cat.subcategories
-        : [];
-
-      return {
-        id: cat.id || cat._id || String(cat.categoryId || ""),
-        name: cat.name || "",
-        icon: cat.icon || "",
-        description: cat.description || "",
-        subCategories: subs.map((s) => ({
-          id: s.id || s._id || String(s.subCategoryId || ""),
-          name: s.name || "",
-          icon: s.icon || "",
-          description: s.description || "",
-        })),
-      };
-    });
-  };
-
-  // Load all categories
-  const loadCategories = async () => {
-    setLoading(true);
-    try {
-      const { data } = await axiosSecure.get("/api/categories");
-      setCategories(normalizeCategories(data));
-    } catch (err) {
-      console.error("Error loading categories:", err);
-      Swal.fire({
-        icon: "error",
-        title: "লোডিং ব্যর্থ",
-        text: "ক্যাটাগরি লোড করতে সমস্যা হয়েছে",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
 
   // Add new
   const handleAddCategory = () => {
@@ -121,8 +80,7 @@ const CategoryManagement = () => {
     if (!confirm.isConfirmed) return;
 
     try {
-      await axiosSecure.delete(`/api/categories/${categoryId}`);
-      await loadCategories();
+      await deleteCategoryMutation.mutateAsync(categoryId);
       Swal.fire({
         toast: true,
         position: "top-end",
@@ -157,10 +115,7 @@ const CategoryManagement = () => {
     if (!confirm.isConfirmed) return;
 
     try {
-      await axiosSecure.delete(
-        `/api/categories/${categoryId}/subcategories/${subCategoryId}`
-      );
-      await loadCategories();
+      await deleteSubCategoryMutation.mutateAsync({ categoryId, subCategoryId });
       Swal.fire({
         toast: true,
         position: "top-end",
@@ -202,12 +157,11 @@ const CategoryManagement = () => {
 
     try {
       if (editingCategory?.id) {
-        await axiosSecure.put(`/api/categories/${editingCategory.id}`, payload);
+        await updateCategoryMutation.mutateAsync({ id: editingCategory.id, ...payload });
       } else {
-        await axiosSecure.post("/api/categories", payload);
+        await createCategoryMutation.mutateAsync(payload);
       }
 
-      await loadCategories();
       setShowAddForm(false);
       setEditingCategory(null);
 
@@ -247,11 +201,9 @@ const CategoryManagement = () => {
       name: "নতুন সাব-ক্যাটাগরি",
       icon: "📁",
       description: "সাব-ক্যাটাগরি বর্ণনা",
-      categoryId,
     };
     try {
-      await axiosSecure.post(`/api/categories/${categoryId}/subcategories`, newSub);
-      await loadCategories();
+      await addSubCategoryMutation.mutateAsync({ categoryId, subCategoryData: newSub });
       setExpandedCategories((prev) => new Set([...prev, categoryId]));
       Swal.fire({
         toast: true,
@@ -278,11 +230,7 @@ const CategoryManagement = () => {
   // Update subcategory inline
   const updateSubCategory = async (categoryId, subCategoryId, field, value) => {
     try {
-      await axiosSecure.patch(
-        `/api/categories/${categoryId}/subcategories/${subCategoryId}`,
-        { [field]: value }
-      );
-      await loadCategories();
+      await updateSubCategoryMutation.mutateAsync({ categoryId, subCategoryId, field, value });
     } catch (err) {
       console.error("Update subcategory error:", err);
       Swal.fire({
@@ -405,7 +353,13 @@ const CategoryManagement = () => {
           <div className="text-sm text-gray-600 dark:text-gray-400">লোড হচ্ছে...</div>
         )}
 
-        {!loading &&
+        {error && (
+          <div className="text-sm text-red-600 dark:text-red-400">
+            ক্যাটাগরি লোড করতে সমস্যা হয়েছে
+          </div>
+        )}
+
+        {!loading && !error &&
           categories.map((category) => (
             <div
               key={category.id}

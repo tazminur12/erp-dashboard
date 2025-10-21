@@ -5,6 +5,7 @@ import DataTable from '../../components/common/DataTable';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import SmallStat from '../../components/common/SmallStat';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
+import Swal from 'sweetalert2';
 
 // Transaction History Component
 const TransactionHistory = ({ accountId }) => {
@@ -398,11 +399,61 @@ const BankAccounts = () => {
 
   const handleDeleteBank = async (bank) => {
     if (!bank?._id) return;
-    if (window.confirm(`Are you sure you want to delete ${bank.bankName} account?`)) {
+    
+    // Check if dark mode is enabled
+    const isDark = document.documentElement.classList.contains('dark');
+    
+    const result = await Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: `আপনি "${bank.bankName}" ব্যাংক অ্যাকাউন্টটি মুছে ফেলতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+      cancelButtonText: 'না, বাতিল করুন',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      background: isDark ? '#1F2937' : '#F9FAFB',
+      customClass: {
+        title: 'text-red-600 font-bold text-xl',
+        popup: 'rounded-2xl shadow-2xl',
+        confirmButton: 'px-6 py-2 rounded-lg font-medium',
+        cancelButton: 'px-6 py-2 rounded-lg font-medium'
+      }
+    });
+
+    if (result.isConfirmed) {
       try {
         await deleteBankAccountMutation.mutateAsync(bank._id);
+        
+        // Success message
+        Swal.fire({
+          title: 'সফল!',
+          text: 'ব্যাংক অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে।',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F9FAFB',
+          customClass: {
+            title: 'text-green-600 font-bold text-xl',
+            popup: 'rounded-2xl shadow-2xl'
+          }
+        });
       } catch (err) {
         console.error('Delete failed:', err);
+        
+        // Error message
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'ব্যাংক অ্যাকাউন্ট মুছতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2',
+          customClass: {
+            title: 'text-red-600 font-bold text-xl',
+            popup: 'rounded-2xl shadow-2xl'
+          }
+        });
       }
     }
   };
