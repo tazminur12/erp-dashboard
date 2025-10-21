@@ -13,6 +13,7 @@ export const useAccountQueries = () => {
         const params = new URLSearchParams();
         if (filters.status) params.append('status', filters.status);
         if (filters.accountType) params.append('accountType', filters.accountType);
+        if (filters.accountCategory) params.append('accountCategory', filters.accountCategory);
         if (filters.currency) params.append('currency', filters.currency);
         if (filters.search) params.append('search', filters.search);
         
@@ -54,7 +55,14 @@ export const useAccountQueries = () => {
   const useCreateBankAccount = () => {
     return useMutation({
       mutationFn: async (bankData) => {
-        const response = await axiosSecure.post('/bank-accounts', bankData);
+        // Ensure required fields are included with defaults
+        const dataToSend = {
+          accountCategory: 'bank', // Default value
+          currency: 'BDT', // Default value
+          ...bankData
+        };
+        
+        const response = await axiosSecure.post('/bank-accounts', dataToSend);
         return response.data?.data;
       },
       onSuccess: () => {
@@ -68,7 +76,7 @@ export const useAccountQueries = () => {
   const useUpdateBankAccount = () => {
     return useMutation({
       mutationFn: async ({ id, ...bankData }) => {
-        const response = await axiosSecure.patch(`/bank-accounts/${id}`, bankData);
+        const response = await axiosSecure.put(`/bank-accounts/${id}`, bankData);
         return response.data?.data;
       },
       onSuccess: () => {
@@ -186,6 +194,23 @@ export const useAccountQueries = () => {
     });
   };
 
+  // Get account categories (utility function)
+  const getAccountCategories = () => {
+    return ['cash', 'bank', 'mobile_banking', 'check', 'others'];
+  };
+
+  // Validate account category
+  const validateAccountCategory = (category) => {
+    const validCategories = getAccountCategories();
+    return validCategories.includes(category);
+  };
+
+  // Validate contact number format
+  const validateContactNumber = (contactNumber) => {
+    if (!contactNumber) return true; // Optional field
+    return /^[\+]?[0-9\s\-\(\)]+$/.test(contactNumber);
+  };
+
   return {
     useBankAccounts,
     useBankAccountStats,
@@ -197,6 +222,9 @@ export const useAccountQueries = () => {
     useBankAccountTransactions,
     useCreateBankAccountTransaction,
     useTransferBetweenAccounts,
+    getAccountCategories,
+    validateAccountCategory,
+    validateContactNumber,
   };
 };
 

@@ -19,8 +19,8 @@ import {
   Users,
   Wand2
 } from 'lucide-react';
+import { useCreateHaji, useUpdateHaji, useHaji } from '../../../hooks/UseHajiQueries';
 import { useCustomers } from '../../../hooks/useCustomerQueries';
-import { useCreateHaji, useUpdateHaji } from '../../../hooks/UseHajiQueries';
 import Swal from 'sweetalert2';
 
 const toast = {
@@ -130,25 +130,87 @@ const AddHaji = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
   
+  // Check for URL parameters
+  const urlParams = new URLSearchParams(location.search);
+  const hajiIdParam = urlParams.get('hajiId');
+  const editMode = urlParams.get('edit') === 'true';
+  
   // Fetch customers for search functionality
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
   const createHajiMutation = useCreateHaji();
   const updateHajiMutation = useUpdateHaji();
   
-  // Check for URL parameters
-  const urlParams = new URLSearchParams(location.search);
-  const customerIdParam = urlParams.get('customerId');
-  const editMode = urlParams.get('edit') === 'true';
+  // Fetch Haji data for edit mode
+  const { data: hajiData, isLoading: hajiLoading } = useHaji(hajiIdParam);
   
-  // Auto-select customer if customerId is provided in URL
+  // Combined loading state
+  const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.isPending || (editMode && hajiLoading);
+  
+  // Load Haji data for edit mode
   useEffect(() => {
+    if (editMode && hajiData && !customerAutoFilled) {
+      // Populate form with Haji data
+      setFormData({
+        name: hajiData.name || '',
+        firstName: hajiData.firstName || '',
+        lastName: hajiData.lastName || '',
+        mobile: hajiData.mobile || '',
+        email: hajiData.email || '',
+        whatsappNo: hajiData.whatsappNo || '',
+        address: hajiData.address || '',
+        division: hajiData.division || '',
+        district: hajiData.district || '',
+        upazila: hajiData.upazila || '',
+        postCode: hajiData.postCode || '',
+        passportNumber: hajiData.passportNumber || '',
+        passportType: hajiData.passportType || '',
+        issueDate: hajiData.issueDate || '',
+        expiryDate: hajiData.expiryDate || '',
+        dateOfBirth: hajiData.dateOfBirth || '',
+        gender: hajiData.gender || '',
+        maritalStatus: hajiData.maritalStatus || '',
+        nationality: hajiData.nationality || '',
+        occupation: hajiData.occupation || '',
+        fatherName: hajiData.fatherName || '',
+        motherName: hajiData.motherName || '',
+        spouseName: hajiData.spouseName || '',
+        nidNumber: hajiData.nidNumber || '',
+        passportFirstName: hajiData.passportFirstName || '',
+        passportLastName: hajiData.passportLastName || '',
+        emergencyContact: hajiData.emergencyContact || '',
+        emergencyPhone: hajiData.emergencyPhone || '',
+        packageName: hajiData.packageName || '',
+        packageType: hajiData.packageType || '',
+        agent: hajiData.agent || '',
+        agentContact: hajiData.agentContact || '',
+        departureDate: hajiData.departureDate || '',
+        returnDate: hajiData.returnDate || '',
+        previousHajj: hajiData.previousHajj || false,
+        previousUmrah: hajiData.previousUmrah || false,
+        specialRequirements: hajiData.specialRequirements || '',
+        totalAmount: hajiData.totalAmount || 0,
+        paidAmount: hajiData.paidAmount || 0,
+        paymentMethod: hajiData.paymentMethod || '',
+        paymentStatus: hajiData.paymentStatus || 'pending',
+        status: hajiData.status || 'active',
+        referenceBy: hajiData.referenceBy || '',
+        referenceHajiId: hajiData.referenceHajiId || '',
+        notes: hajiData.notes || ''
+      });
+      setCustomerAutoFilled(true);
+    }
+  }, [editMode, hajiData, customerAutoFilled]);
+
+  // Auto-select customer if customerId is provided in URL (for backward compatibility)
+  useEffect(() => {
+    const customerIdParam = urlParams.get('customerId');
     if (customerIdParam && customers.length > 0 && !selectedCustomer) {
       const customer = customers.find(c => c.customerId === customerIdParam);
       if (customer) {
         handleCustomerSelect(customer);
       }
     }
-  }, [customerIdParam, customers, selectedCustomer]);
+  }, [customers, selectedCustomer]);
   
   const [formData, setFormData] = useState({
     name: '',
@@ -361,28 +423,41 @@ const AddHaji = () => {
   }, [packages]);
 
   const validateForm = () => {
-    const requiredFields = ['name'];
-    for (const field of requiredFields) {
-      const value = formData[field];
-      if (!value || (typeof value === 'string' && value.trim() === '')) {
-        Swal.fire({
-          title: 'Validation Error',
-          text: 'Name is required',
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
-        return false;
-      }
-    }
-    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+    // Validate required fields
+    if (!formData.name || !formData.name.trim()) {
       Swal.fire({
-        title: 'Validation Error',
-        text: 'Please enter a valid email address',
+        title: 'ভ্যালিডেশন ত্রুটি',
+        text: 'নাম আবশ্যক',
         icon: 'error',
-        confirmButtonText: 'OK'
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
       });
       return false;
     }
+
+    if (!formData.mobile || !formData.mobile.trim()) {
+      Swal.fire({
+        title: 'ভ্যালিডেশন ত্রুটি',
+        text: 'মোবাইল নম্বর আবশ্যক',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return false;
+    }
+
+    // Validate email format
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      Swal.fire({
+        title: 'ভ্যালিডেশন ত্রুটি',
+        text: 'সঠিক ইমেইল ঠিকানা দিন',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -466,7 +541,7 @@ const AddHaji = () => {
       };
 
       if (editMode) {
-        const targetId = selectedCustomer?._id || selectedCustomer?.id || selectedCustomer?.customerId || customerIdParam;
+        const targetId = hajiIdParam || selectedCustomer?._id || selectedCustomer?.id || selectedCustomer?.customerId;
         if (!targetId) {
           throw new Error('Missing Haji identifier for update');
         }
@@ -489,12 +564,8 @@ const AddHaji = () => {
       navigate('/hajj-umrah/haji-list');
     } catch (error) {
       console.error('Error creating/updating Haji:', error);
-      await Swal.fire({
-        title: 'Error!',
-        text: error?.response?.data?.message || error?.message || 'Failed to register Haji. Please try again.',
-        icon: 'error',
-        confirmButtonText: 'OK'
-      });
+      // Error handling is already done in the mutation hooks
+      // This catch block is for any additional error handling if needed
     } finally {
       setLoading(false);
     }
@@ -521,13 +592,23 @@ const AddHaji = () => {
         </div>
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={isLoading}
           className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           <Save className="w-4 h-4" />
-          <span>{loading ? 'Saving...' : editMode ? 'Update Haji' : 'Save Haji'}</span>
+          <span>{isLoading ? 'Saving...' : editMode ? 'Update Haji' : 'Save Haji'}</span>
         </button>
       </div>
+
+      {/* Loading indicator for edit mode */}
+      {editMode && hajiLoading && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <span className="text-blue-700 dark:text-blue-300">Loading Haji data...</span>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Customer Search Section */}
@@ -980,11 +1061,11 @@ const AddHaji = () => {
       <div className="flex justify-center pt-6">
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={isLoading}
           className="flex items-center space-x-2 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-lg font-medium"
         >
           <Save className="w-5 h-5" />
-          <span>{loading ? 'Saving...' : 'Save Haji'}</span>
+          <span>{isLoading ? 'Saving...' : 'Save Haji'}</span>
         </button>
       </div>
     </div>

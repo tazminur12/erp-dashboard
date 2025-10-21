@@ -18,10 +18,10 @@ import {
   MapPin,
   Calendar
 } from 'lucide-react';
-import DataTable from '../../../components/common/DataTable';
-import FilterBar from '../../../components/common/FilterBar';
-import ExcelUploader from '../../../components/common/ExcelUploader';
-import { useCustomers } from '../../../hooks/useCustomerQueries';
+import DataTable from '../../components/common/DataTable';
+import FilterBar from '../../components/common/FilterBar';
+import ExcelUploader from '../../components/common/ExcelUploader';
+import { useUmrahList, useDeleteUmrah } from '../../hooks/UseUmrahQuries';
 
 const UmrahHajiList = () => {
   const navigate = useNavigate();
@@ -32,15 +32,12 @@ const UmrahHajiList = () => {
     paymentStatus: 'all'
   });
 
-  // Fetch customers with type "umrah"
-  const { data: customers = [], isLoading, error } = useCustomers();
-
-  // Filter customers by customer type "umrah" - memoized to prevent infinite re-renders
-  const umrahPilgrims = useMemo(() => {
-    return customers.filter(customer => 
-      customer.customerType && customer.customerType.toLowerCase() === 'umrah'
-    );
-  }, [customers]);
+  // Fetch Umrah pilgrims data
+  const { data: umrahData, isLoading, error } = useUmrahList({});
+  const umrahPilgrims = umrahData?.data || [];
+  
+  // Delete Umrah mutation
+  const deleteUmrahMutation = useDeleteUmrah();
 
   // Filter and search functionality - memoized to prevent infinite re-renders
   const filteredPilgrims = useMemo(() => {
@@ -53,7 +50,7 @@ const UmrahHajiList = () => {
         (pilgrim.passportNumber && pilgrim.passportNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (pilgrim.mobile && pilgrim.mobile.includes(searchTerm)) ||
         (pilgrim.email && pilgrim.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (pilgrim.customerId && pilgrim.customerId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (pilgrim._id && pilgrim._id.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (pilgrim.nidNumber && pilgrim.nidNumber.includes(searchTerm))
       );
     }
@@ -100,12 +97,12 @@ const UmrahHajiList = () => {
 
   const columns = [
     {
-      key: 'customerId',
+      key: '_id',
       header: 'Umrah ID',
       sortable: true,
       render: (value, pilgrim) => (
         <span className="font-medium text-blue-600 dark:text-blue-400">
-          {pilgrim.customerId || pilgrim.id}
+          {pilgrim._id || pilgrim.id}
         </span>
       )
     },
@@ -116,10 +113,10 @@ const UmrahHajiList = () => {
       render: (value, pilgrim) => (
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-            {pilgrim.customerImage ? (
+            {pilgrim.image ? (
               <img 
-                src={pilgrim.customerImage} 
-                alt={pilgrim.name || 'Customer'} 
+                src={pilgrim.image} 
+                alt={pilgrim.name || 'Pilgrim'} 
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.style.display = 'none';
@@ -127,7 +124,7 @@ const UmrahHajiList = () => {
                 }}
               />
             ) : null}
-            <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${pilgrim.customerImage ? 'hidden' : 'flex'}`}>
+            <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${pilgrim.image ? 'hidden' : 'flex'}`}>
               <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
@@ -182,7 +179,7 @@ const UmrahHajiList = () => {
       sortable: true,
       render: (value, pilgrim) => (
         <div className="text-sm">
-          <div className="font-medium text-gray-900 dark:text-white">{pilgrim.packageInfo?.packageName || 'N/A'}</div>
+          <div className="font-medium text-gray-900 dark:text-white">{pilgrim.packageName || 'N/A'}</div>
           <div className="text-gray-500 dark:text-gray-400">{pilgrim.referenceBy || 'N/A'}</div>
         </div>
       )
@@ -212,14 +209,14 @@ const UmrahHajiList = () => {
       render: (value, pilgrim) => (
         <div className="flex items-center space-x-2">
           <button
-            onClick={() => navigate(`/hajj-umrah/haji/${pilgrim.customerId}`)}
+            onClick={() => navigate(`/umrah/haji/${pilgrim._id}`)}
             className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg"
             title="View Details"
           >
             <Eye className="w-4 h-4" />
           </button>
           <button
-            onClick={() => navigate(`/hajj-umrah/haji/add?customerId=${pilgrim.customerId}&edit=true`)}
+            onClick={() => navigate(`/umrah/haji/${pilgrim._id}/edit`)}
             className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg"
             title="Edit"
           >
@@ -227,13 +224,14 @@ const UmrahHajiList = () => {
           </button>
           <button
             onClick={() => {
-              const fullName = `${pilgrim.firstName || ''} ${pilgrim.lastName || ''}`.trim() || 'This pilgrim';
+              const fullName = pilgrim.name || 'This pilgrim';
               if (window.confirm(`Are you sure you want to delete ${fullName}?`)) {
-                console.log('Delete pilgrim:', pilgrim.id);
+                deleteUmrahMutation.mutate(pilgrim._id);
               }
             }}
             className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
             title="Delete"
+            disabled={deleteUmrahMutation.isPending}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -268,7 +266,7 @@ const UmrahHajiList = () => {
 
   const handleExcelDataProcessed = (processed) => {
     const rows = processed.map((row, index) => ({
-      id: `U${String(Date.now() + index).slice(-3)}`,
+      _id: `U${String(Date.now() + index).slice(-3)}`,
       ...row,
       status: row.status || 'pending',
       paymentStatus: row.paymentStatus || 'pending',
@@ -279,7 +277,7 @@ const UmrahHajiList = () => {
       paidAmount: parseFloat(row.paidAmount) || 0,
       dueAmount: (parseFloat(row.totalAmount) || 0) - (parseFloat(row.paidAmount) || 0)
     }));
-    // Note: This would need to be implemented with actual API call to add customers
+    // Note: This would need to be implemented with actual API call to add Umrah pilgrims
     console.log('Excel data processed:', rows);
     setShowExcelUploader(false);
     alert(`Successfully processed ${rows.length} Umrah Haji from Excel! Note: This data needs to be saved via API.`);
@@ -330,8 +328,8 @@ const UmrahHajiList = () => {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Umrah Pilgrims List</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage all registered Umrah pilgrims</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Umrah Haji List</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage all registered Umrah Haji List</p>
         </div>
         <div className="flex items-center space-x-3 mt-4 sm:mt-0">
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -346,11 +344,11 @@ const UmrahHajiList = () => {
             <span>Upload Excel</span>
           </button>
           <Link
-            to="/hajj-umrah/umrah/haji/add"
+            to="/umrah/haji/add"
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Umrah Pilgrim</span>
+            <span>Add New Umrah Haji</span>
           </Link>
         </div>
       </div>
@@ -360,7 +358,7 @@ const UmrahHajiList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Pilgrims</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Umrah Haji List</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{umrahPilgrims.length}</p>
             </div>
             <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
@@ -407,7 +405,7 @@ const UmrahHajiList = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by name, passport, mobile, email, customer ID, or NID..."
+              placeholder="Search by name, passport, mobile, email, Umrah ID, or NID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"

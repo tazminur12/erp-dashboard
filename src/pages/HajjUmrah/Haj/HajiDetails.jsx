@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft,
   Edit,
@@ -22,16 +22,27 @@ import {
   Package,
   Users
 } from 'lucide-react';
-import { useHaji } from '../../hooks/UseHajiQueries';
+import { useHaji } from '../../../hooks/UseHajiQueries';
+import { useUmrah } from '../../../hooks/UseUmrahQuries';
 
 const HajiDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Fetch haji data using the hajiId from URL params
-  const { data: haji, isLoading, error } = useHaji(id);
+  // Determine if this is a Haji or Umrah based on query parameter
+  const isUmrah = searchParams.get('type') === 'umrah';
+  
+  // Fetch data based on type
+  const { data: hajiData, isLoading: hajiLoading, error: hajiError } = useHaji(id);
+  const { data: umrahData, isLoading: umrahLoading, error: umrahError } = useUmrah(id);
+  
+  // Use the appropriate data based on type
+  const haji = isUmrah ? umrahData : hajiData;
+  const isLoading = isUmrah ? umrahLoading : hajiLoading;
+  const error = isUmrah ? umrahError : hajiError;
 
   const getStatusBadge = (status) => {
     const statusClasses = {
@@ -90,15 +101,15 @@ const HajiDetails = () => {
     return (
       <div className="p-6 text-center">
         <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Error Loading Data</h2>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">ডেটা লোড করতে ত্রুটি</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-4">
-          {error.message || 'Failed to load Haji information. Please try again.'}
+          {error.message || `${isUmrah ? 'উমরাহ' : 'হাজি'} তথ্য লোড করতে ব্যর্থ। আবার চেষ্টা করুন।`}
         </p>
         <button
-          onClick={() => navigate('/hajj-umrah/haji-list')}
+          onClick={() => navigate(isUmrah ? '/hajj-umrah/umrah' : '/hajj-umrah/haji-list')}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
-          Back to Haji List
+          {isUmrah ? 'উমরাহ' : 'হাজি'} তালিকায় ফিরুন
         </button>
       </div>
     );
@@ -108,13 +119,13 @@ const HajiDetails = () => {
     return (
       <div className="p-6 text-center">
         <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Haji Not Found</h2>
-        <p className="text-gray-600 dark:text-gray-400 mb-4">The requested Haji information could not be found.</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{isUmrah ? 'উমরাহ' : 'হাজি'} পাওয়া যায়নি</h2>
+        <p className="text-gray-600 dark:text-gray-400 mb-4">অনুরোধকৃত {isUmrah ? 'উমরাহ' : 'হাজি'} তথ্য পাওয়া যায়নি।</p>
         <button
-          onClick={() => navigate('/hajj-umrah/haji-list')}
+          onClick={() => navigate(isUmrah ? '/hajj-umrah/umrah' : '/hajj-umrah/haji-list')}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
-          Back to Haji List
+          {isUmrah ? 'উমরাহ' : 'হাজি'} তালিকায় ফিরুন
         </button>
       </div>
     );
@@ -127,10 +138,10 @@ const HajiDetails = () => {
         <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
           <div className="flex items-center space-x-4 sm:block">
             <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full overflow-hidden flex-shrink-0">
-              {haji.customerImage ? (
+              {haji.image ? (
                 <img 
-                  src={haji.customerImage} 
-                  alt={haji.name || 'Customer'} 
+                  src={haji.image} 
+                  alt={haji.name || 'Haji'} 
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.target.style.display = 'none';
@@ -138,7 +149,7 @@ const HajiDetails = () => {
                   }}
                 />
               ) : null}
-              <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${haji.customerImage ? 'hidden' : 'flex'}`}>
+              <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${haji.image ? 'hidden' : 'flex'}`}>
                 <User className="w-8 h-8 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
@@ -146,7 +157,7 @@ const HajiDetails = () => {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
                 {haji.name || 'N/A'}
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{haji.customerType || 'Haj'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{haji.packageName || 'Haj'}</p>
             </div>
           </div>
           <div className="flex-1 min-w-0">
@@ -154,7 +165,7 @@ const HajiDetails = () => {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 {haji.name || 'N/A'}
               </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{haji.customerType || 'Haj'}</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">{haji.packageName || 'Haj'}</p>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
               <div className="flex items-center space-x-2">
@@ -183,8 +194,8 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Customer ID</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.customerId || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{isUmrah ? 'Umrah' : 'Haji'} ID</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji._id || 'N/A'}</p>
             </div>
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
           </div>
@@ -192,8 +203,8 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Customer Type</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{haji.customerType || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{haji.packageName || 'N/A'}</p>
             </div>
             <Plane className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
           </div>
@@ -224,7 +235,10 @@ const HajiDetails = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
-          <button className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base">
+          <button 
+            onClick={() => navigate(isUmrah ? `/hajj-umrah/umrah/add?umrahId=${id}&edit=true` : `/hajj-umrah/haji/${id}/edit`)}
+            className="flex items-center justify-center space-x-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
+          >
             <Edit className="w-4 h-4 flex-shrink-0" />
             <span className="truncate">Edit Information</span>
           </button>
@@ -264,8 +278,8 @@ const HajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.lastName || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Customer ID</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.customerId || 'N/A'}</p>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{isUmrah ? 'Umrah' : 'Haji'} ID</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji._id || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
@@ -315,8 +329,8 @@ const HajiDetails = () => {
           <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Status & Reference Information</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Customer Type</label>
-              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.customerType || 'N/A'}</p>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageName || 'N/A'}</p>
             </div>
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Status</label>
@@ -327,8 +341,8 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.referenceBy || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Reference Customer ID</label>
-              <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.referenceCustomerId || 'N/A'}</p>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Reference Haji ID</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.referenceHajiId || 'N/A'}</p>
             </div>
           </div>
         </div>
@@ -439,38 +453,38 @@ const HajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{haji.packageInfo?.packageName || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{haji.packageName || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Type</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.packageType || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageType || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Travel Agent</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo?.agent || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.agent || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Agent Contact</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.packageInfo?.agentContact || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.agentContact || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Departure Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.departureDate || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.departureDate || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Return Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.returnDate || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.returnDate || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Hajj Experience</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.previousHajj ? 'Yes' : 'No'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousHajj ? 'Yes' : 'No'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Umrah Experience</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.previousUmrah ? 'Yes' : 'No'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'Yes' : 'No'}</p>
           </div>
         </div>
-        {haji.packageInfo?.specialRequirements && (
+        {haji.specialRequirements && (
           <div className="mt-4">
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Special Requirements</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo.specialRequirements}</p>
@@ -559,34 +573,34 @@ const HajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Type</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.packageType || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageType || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Travel Agent</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo?.agent || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.agent || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Agent Contact</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.packageInfo?.agentContact || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.agentContact || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Departure Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.departureDate || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.departureDate || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Return Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.returnDate || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.returnDate || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Hajj Experience</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.previousHajj ? 'Yes' : 'No'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousHajj ? 'Yes' : 'No'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Umrah Experience</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.previousUmrah ? 'Yes' : 'No'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'Yes' : 'No'}</p>
           </div>
         </div>
-        {haji.packageInfo?.specialRequirements && (
+        {haji.specialRequirements && (
           <div className="mt-4">
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Special Requirements</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo.specialRequirements}</p>
@@ -902,16 +916,18 @@ const HajiDetails = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-3 sm:space-x-4">
           <button
-            onClick={() => navigate('/hajj-umrah/haji-list')}
+            onClick={() => navigate(isUmrah ? '/hajj-umrah/umrah' : '/hajj-umrah/haji-list')}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex-shrink-0"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           </button>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
-              Haji Details - {haji.name || 'N/A'}
+              {isUmrah ? 'Umrah' : 'Haji'} Details - {haji.name || 'N/A'}
             </h1>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 hidden sm:block">Complete information about the Haji</p>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 hidden sm:block">
+              Complete information about the {isUmrah ? 'Umrah Haji' : 'Haji'}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-2 sm:space-x-3">
@@ -920,7 +936,7 @@ const HajiDetails = () => {
             <span className="hidden sm:inline">Export</span>
           </button>
           <button 
-            onClick={() => navigate(`/hajj-umrah/haji/edit/${id}`)}
+            onClick={() => navigate(isUmrah ? `/umrah/haji/${id}/edit` : `/hajj-umrah/haji/${id}/edit`)}
             className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
           >
             <Edit className="w-4 h-4" />

@@ -208,6 +208,7 @@ const BankAccounts = () => {
   const [filters, setFilters] = useState({
     status: '',
     accountType: '',
+    accountCategory: '',
     currency: '',
     search: ''
   });
@@ -272,6 +273,22 @@ const BankAccounts = () => {
           'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
         }`}>
           {value}
+        </span>
+      )
+    },
+    {
+      key: 'accountCategory',
+      header: 'Category',
+      sortable: true,
+      render: (value) => (
+        <span className={`px-2 py-1 text-xs rounded-full ${
+          value === 'bank' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' :
+          value === 'cash' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+          value === 'mobile_banking' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' :
+          value === 'check' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+          'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+        }`}>
+          {value?.replace('_', ' ').toUpperCase()}
         </span>
       )
     },
@@ -373,6 +390,7 @@ const BankAccounts = () => {
     setFilters({
       status: '',
       accountType: '',
+      accountCategory: '',
       currency: '',
       search: ''
     });
@@ -417,7 +435,7 @@ const BankAccounts = () => {
             <Filter className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filters</h3>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Search
@@ -460,6 +478,23 @@ const BankAccounts = () => {
                 <option value="Current">Current</option>
                 <option value="Savings">Savings</option>
                 <option value="Business">Business</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Account Category
+              </label>
+              <select
+                value={filters.accountCategory}
+                onChange={(e) => handleFilterChange('accountCategory', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="">All Categories</option>
+                <option value="cash">Cash</option>
+                <option value="bank">Bank</option>
+                <option value="mobile_banking">Mobile Banking</option>
+                <option value="check">Check</option>
+                <option value="others">Others</option>
               </select>
             </div>
             <div>

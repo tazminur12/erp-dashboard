@@ -17,6 +17,7 @@ const EditBankAccount = () => {
     bankName: '',
     accountNumber: '',
     accountType: 'Current',
+    accountCategory: 'bank', // New field with default value
     branchName: '',
     accountHolder: '',
     accountTitle: '',
@@ -40,6 +41,7 @@ const EditBankAccount = () => {
         bankName: bankAccount.bankName || '',
         accountNumber: bankAccount.accountNumber || '',
         accountType: bankAccount.accountType || 'Current',
+        accountCategory: bankAccount.accountCategory || 'bank',
         branchName: bankAccount.branchName || '',
         accountHolder: bankAccount.accountHolder || '',
         accountTitle: bankAccount.accountTitle || '',
@@ -179,6 +181,10 @@ const EditBankAccount = () => {
       newErrors.accountNumber = 'Account number is required';
     }
 
+    if (!formData.accountCategory.trim()) {
+      newErrors.accountCategory = 'Account category is required';
+    }
+
     if (!formData.branchName.trim()) {
       newErrors.branchName = 'Branch name is required';
     }
@@ -197,6 +203,12 @@ const EditBankAccount = () => {
 
     if (formData.contactNumber && !/^[\+]?[0-9\s\-\(\)]+$/.test(formData.contactNumber)) {
       newErrors.contactNumber = 'Please enter a valid contact number';
+    }
+
+    // Validate account category
+    const validCategories = ['cash', 'bank', 'mobile_banking', 'check', 'others'];
+    if (formData.accountCategory && !validCategories.includes(formData.accountCategory)) {
+      newErrors.accountCategory = 'Please select a valid account category';
     }
 
     setErrors(newErrors);
@@ -219,16 +231,57 @@ const EditBankAccount = () => {
       await updateBankAccountMutation.mutateAsync({ id, ...payload });
       
       // Show success message and redirect
-      alert('Bank account updated successfully!');
-      navigate('/account/bank-accounts');
+      Swal.fire({
+        title: 'সফল!',
+        text: 'ব্যাংক অ্যাকাউন্ট সফলভাবে আপডেট হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB',
+        customClass: {
+          title: 'text-green-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      }).then(() => {
+        navigate('/account/bank-accounts');
+      });
     } catch (error) {
       console.error('Error updating bank account:', error);
-      alert('Failed to update bank account. Please try again.');
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'ব্যাংক অ্যাকাউন্ট আপডেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+        customClass: {
+          title: 'text-red-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      });
     }
   };
 
   const handleCancel = () => {
-    navigate('/account/bank-accounts');
+    Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: 'আপনার পরিবর্তনগুলি সংরক্ষিত হবে না।',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, বেরিয়ে যান',
+      cancelButtonText: 'না, থাকুন',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      background: isDark ? '#1F2937' : '#F9FAFB',
+      customClass: {
+        title: 'text-yellow-600 font-bold text-xl',
+        popup: 'rounded-2xl shadow-2xl'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        navigate('/account/bank-accounts');
+      }
+    });
   };
 
   if (isLoading) {
@@ -265,7 +318,7 @@ const EditBankAccount = () => {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <button
-              onClick={() => navigate('/account/bank-accounts')}
+              onClick={handleCancel}
               className="p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors duration-200"
             >
               <ArrowLeft className="w-6 h-6" />
@@ -433,6 +486,29 @@ const EditBankAccount = () => {
                     <option value="Savings">Savings Account</option>
                     <option value="Business">Business Account</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Account Category *
+                  </label>
+                  <select
+                    name="accountCategory"
+                    value={formData.accountCategory}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                      errors.accountCategory ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="bank">Bank</option>
+                    <option value="mobile_banking">Mobile Banking</option>
+                    <option value="check">Check</option>
+                    <option value="others">Others</option>
+                  </select>
+                  {errors.accountCategory && (
+                    <p className="text-red-500 text-xs mt-1">{errors.accountCategory}</p>
+                  )}
                 </div>
 
                 <div>

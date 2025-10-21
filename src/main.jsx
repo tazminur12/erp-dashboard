@@ -61,7 +61,9 @@ const VendorDetails = React.lazy(() => import('./pages/Vendors/VendorDetails'));
 // Hajj & Umrah pages
 const HajjUmrahDashboard = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajjUmrahDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
 const HajiList = React.lazy(() => import('./pages/HajjUmrah/Haj/HajiList'));
-const HajiDetails = React.lazy(() => import('./pages/HajjUmrah/HajiDetails'));
+const HajiDetails = React.lazy(() => import('./pages/HajjUmrah/Haj/HajiDetails'));
+const EditHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/EditHaji'));
+const UmrahHajiDetails = React.lazy(() => import('./pages/HajjUmrah/Umrah/UmrahHajiDetails'));
 const AddHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/AddHaji'));
 const Agent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.Agent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const AgentPackageCreation = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageCreation'));
@@ -72,7 +74,6 @@ const B2BSellPage = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/B2BSellP
 const B2BSellList = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/B2BSellList'));
 const PackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCreation })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageList })).catch(() => ({ default: () => <div>Component not found</div> })));
-const EditHaji = React.lazy(() => import('./pages/HajjUmrah/EditHaji'));
 const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahHajiList })).catch(() => ({ default: () => <div>Component not found</div> })));
 
@@ -421,7 +422,7 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: "haji/edit/:id",
+        path: "haji/:id/edit",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <EditHaji />
@@ -529,7 +530,15 @@ const router = createBrowserRouter([
             <AddUmrahHaji />
           </Suspense>
         )
-      }
+          },
+          {
+            path: "haji/:id",
+            element: (
+              <Suspense fallback={<LoadingSpinner />}>
+                <UmrahHajiDetails />
+              </Suspense>
+            )
+          },
     ]
   },
   {

@@ -25,7 +25,7 @@ import {
   List,
   Loader
 } from 'lucide-react';
-import { useCustomers } from '../../hooks/useCustomerQueries';
+import { useCustomers } from '../../../hooks/useCustomerQueries';
 
 const HajjUmrahDashboard = () => {
   // Fetch real customer data

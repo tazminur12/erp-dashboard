@@ -45,7 +45,11 @@ export const useHaji = (id) => {
     queryFn: async () => {
       const response = await axiosSecure.get(`/haj-umrah/haji/${id}`);
       const data = response?.data;
-      if (data?.success) return data?.data;
+      
+      if (data?.success) {
+        return data?.data;
+      }
+      
       throw new Error(data?.message || 'Failed to load haji');
     },
     enabled: !!id,
@@ -60,6 +64,22 @@ export const useCreateHaji = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
+      // Validate required fields like backend
+      if (!payload?.name || !String(payload.name).trim()) {
+        throw new Error('Name is required');
+      }
+      if (!payload?.mobile || !String(payload.mobile).trim()) {
+        throw new Error('Mobile is required');
+      }
+
+      // Validate email format like backend
+      if (payload?.email) {
+        const emailRegex = /^\S+@\S+\.\S+$/;
+        if (!emailRegex.test(String(payload.email).trim())) {
+          throw new Error('Invalid email address');
+        }
+      }
+
       // Validate dates per backend expectation
       const dateFields = ['issueDate', 'expiryDate', 'dateOfBirth', 'departureDate', 'returnDate'];
       for (const field of dateFields) {
@@ -67,6 +87,7 @@ export const useCreateHaji = () => {
           throw new Error(`Invalid date format for ${field} (YYYY-MM-DD)`);
         }
       }
+
       const response = await axiosSecure.post('/haj-umrah/haji', payload || {});
       const data = response?.data;
       if (data?.success) return data;
@@ -88,9 +109,10 @@ export const useCreateHaji = () => {
       });
     },
     onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'হাজি তৈরি করতে সমস্যা হয়েছে।';
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error?.response?.data?.message || error?.message || 'হাজি তৈরি করতে সমস্যা হয়েছে।',
+        text: errorMessage,
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -105,6 +127,14 @@ export const useUpdateHaji = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, updates }) => {
+      // Validate email format like backend
+      if (updates?.email) {
+        const emailRegex = /^\S+@\S+\.\S+$/;
+        if (!emailRegex.test(String(updates.email).trim())) {
+          throw new Error('Invalid email address');
+        }
+      }
+
       // Validate dates per backend expectation
       const dateFields = ['issueDate', 'expiryDate', 'dateOfBirth', 'departureDate', 'returnDate'];
       for (const field of dateFields) {
@@ -112,6 +142,7 @@ export const useUpdateHaji = () => {
           throw new Error(`Invalid date format for ${field} (YYYY-MM-DD)`);
         }
       }
+
       const response = await axiosSecure.put(`/haj-umrah/haji/${id}`, updates || {});
       const data = response?.data;
       if (data?.success) return data;
@@ -132,9 +163,10 @@ export const useUpdateHaji = () => {
       });
     },
     onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'হাজি আপডেটে সমস্যা হয়েছে।';
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error?.response?.data?.message || error?.message || 'হাজি আপডেটে সমস্যা হয়েছে।',
+        text: errorMessage,
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -143,12 +175,13 @@ export const useUpdateHaji = () => {
   });
 };
 
-// Soft delete Haji
+// ✅ CORRECTED useDeleteHaji hook:
 export const useDeleteHaji = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id) => {
+      // Simply use DELETE endpoint - it exists and works!
       const response = await axiosSecure.delete(`/haj-umrah/haji/${id}`);
       const data = response?.data;
       if (data?.success) return data;
@@ -165,9 +198,10 @@ export const useDeleteHaji = () => {
       });
     },
     onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'হাজি মুছতে সমস্যা হয়েছে।';
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error?.response?.data?.message || error?.message || 'হাজি মুছতে সমস্যা হয়েছে।',
+        text: errorMessage,
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',

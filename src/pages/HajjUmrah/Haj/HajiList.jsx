@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Plus, 
@@ -23,7 +23,8 @@ import DataTable from '../../../components/common/DataTable';
 import FilterBar from '../../../components/common/FilterBar';
 import Modal from '../../../components/common/Modal';
 import ExcelUploader from '../../../components/common/ExcelUploader';
-import { useCustomers } from '../../../hooks/useCustomerQueries';
+import { useHajiList, useDeleteHaji } from '../../../hooks/UseHajiQueries';
+import Swal from 'sweetalert2';
 
 const HajiList = () => {
   const navigate = useNavigate();
@@ -38,13 +39,12 @@ const HajiList = () => {
     dateRange: 'all'
   });
 
-  // Fetch customers with type "haj"
-  const { data: customers = [], isLoading, error } = useCustomers();
-
-  // Filter customers by customer type "haj"
-  const hajis = customers.filter(customer => 
-    customer.customerType && customer.customerType.toLowerCase() === 'haj'
-  );
+  // Fetch Haji data with proper error handling
+  const { data: hajiData, isLoading, error } = useHajiList({});
+  const hajis = useMemo(() => hajiData?.data || [], [hajiData?.data]);
+  
+  // Delete Haji mutation
+  const deleteHajiMutation = useDeleteHaji();
 
   // Filter and search functionality
   useEffect(() => {
@@ -57,7 +57,7 @@ const HajiList = () => {
         (haji.passportNumber && haji.passportNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (haji.mobile && haji.mobile.includes(searchTerm)) ||
         (haji.email && haji.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (haji.customerId && haji.customerId.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (haji._id && haji._id.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (haji.nidNumber && haji.nidNumber.includes(searchTerm))
       );
     }
@@ -78,21 +78,72 @@ const HajiList = () => {
   }, [hajis, searchTerm, filters]);
 
   const handleViewDetails = (haji) => {
-    // Navigate to details page using customerId
-    navigate(`/hajj-umrah/haji/${haji.customerId}`);
+    // Get the primary ID for navigation
+    const hajiId = haji._id || haji.id || haji.customerId;
+    
+    if (!hajiId) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হাজির ID পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    
+    // Navigate to details page using the found ID
+    navigate(`/hajj-umrah/haji/${hajiId}`);
   };
 
   const handleEdit = (haji) => {
-    // Navigate to edit page with customer data
-    navigate(`/hajj-umrah/haji/add?customerId=${haji.customerId}&edit=true`);
+    // Get the primary ID for navigation
+    const hajiId = haji._id || haji.id || haji.customerId;
+    
+    if (!hajiId) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হাজির ID পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    
+    // Navigate to edit page with haji data
+    navigate(`/hajj-umrah/haji/${hajiId}/edit`);
   };
 
   const handleDelete = (haji) => {
-    const fullName = `${haji.firstName || ''} ${haji.lastName || ''}`.trim() || 'This haji';
-    if (window.confirm(`Are you sure you want to delete ${fullName}?`)) {
-      // This would need to be implemented with a delete mutation
-      console.log('Delete haji:', haji.id);
+    const fullName = haji.name || 'এই হাজি';
+    const hajiId = haji._id || haji.id || haji.customerId;
+    
+    if (!hajiId) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হাজির ID পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
     }
+
+    Swal.fire({
+      title: 'নিশ্চিত করুন',
+      text: `আপনি কি ${fullName} কে মুছে ফেলতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+      cancelButtonText: 'বাতিল',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        deleteHajiMutation.mutate(hajiId);
+      }
+    });
   };
 
   const handleExcelUpload = () => {
@@ -135,12 +186,12 @@ const HajiList = () => {
 
   const columns = [
     {
-      key: 'customerId',
+      key: '_id',
       header: 'Haji ID',
       sortable: true,
         render: (value, haji) => (
           <span className="font-medium text-blue-600 dark:text-blue-400">
-            {haji.customerId || haji.id}
+            {haji._id || haji.id}
           </span>
         )
     },
@@ -151,10 +202,10 @@ const HajiList = () => {
       render: (value, haji) => (
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-            {haji.customerImage ? (
+            {haji.image ? (
               <img 
-                src={haji.customerImage} 
-                alt={haji.name || 'Customer'} 
+                src={haji.image} 
+                alt={haji.name || 'Haji'} 
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.style.display = 'none';
@@ -162,7 +213,7 @@ const HajiList = () => {
                 }}
               />
             ) : null}
-            <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${haji.customerImage ? 'hidden' : 'flex'}`}>
+            <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${haji.image ? 'hidden' : 'flex'}`}>
               <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
@@ -212,12 +263,12 @@ const HajiList = () => {
       )
     },
     {
-      key: 'customerType',
+      key: 'package',
       header: 'Package',
       sortable: true,
       render: (value, haji) => (
         <div className="text-sm">
-          <div className="font-medium text-gray-900 dark:text-white">{haji.customerType || 'N/A'}</div>
+          <div className="font-medium text-gray-900 dark:text-white">{haji.packageName || 'N/A'}</div>
           <div className="text-gray-500 dark:text-gray-400">{haji.referenceBy || 'N/A'}</div>
         </div>
       )
@@ -262,10 +313,19 @@ const HajiList = () => {
           </button>
           <button
             onClick={() => handleDelete(haji)}
-            className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
-            title="Delete"
+            className={`p-2 rounded-lg ${
+              deleteHajiMutation.isPending 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'
+            }`}
+            title={deleteHajiMutation.isPending ? 'Deleting...' : 'Delete'}
+            disabled={deleteHajiMutation.isPending}
           >
-            <Trash2 className="w-4 h-4" />
+            {deleteHajiMutation.isPending ? (
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
           </button>
         </div>
       )
@@ -416,7 +476,7 @@ const HajiList = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by name, passport, mobile, email, customer ID, or NID..."
+              placeholder="Search by name, passport, mobile, email, Haji ID, or NID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -456,8 +516,8 @@ const HajiList = () => {
                   <p className="text-gray-900 dark:text-white">{selectedHaji.name || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Customer ID</label>
-                  <p className="text-gray-900 dark:text-white">{selectedHaji.customerId || 'N/A'}</p>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Haji ID</label>
+                  <p className="text-gray-900 dark:text-white">{selectedHaji._id || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600 dark:text-gray-400">Mobile</label>
@@ -532,8 +592,8 @@ const HajiList = () => {
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Package Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Customer Type</label>
-                  <p className="text-gray-900 dark:text-white">{selectedHaji.customerType || 'N/A'}</p>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Package</label>
+                  <p className="text-gray-900 dark:text-white">{selectedHaji.packageName || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600 dark:text-gray-400">Reference By</label>

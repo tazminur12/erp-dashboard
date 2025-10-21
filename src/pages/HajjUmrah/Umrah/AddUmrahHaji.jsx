@@ -18,8 +18,8 @@ import {
   CheckCircle,
   Users,
 } from 'lucide-react';
-import { useCustomers, useCreateCustomer } from '../../../hooks/useCustomerQueries';
-import { useCreateUmrah } from '../../../hooks/UseUmrahQuries';
+import { useCreateUmrah, useUpdateUmrah, useUmrah } from '../../../hooks/UseUmrahQuries';
+import { useCustomers } from '../../../hooks/useCustomerQueries';
 import Swal from 'sweetalert2';
 
 const toast = {
@@ -130,10 +130,21 @@ const AddUmrahHaji = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
   
+  // Check for URL parameters
+  const urlParams = new URLSearchParams(location.search);
+  const umrahIdParam = urlParams.get('umrahId');
+  const editMode = urlParams.get('edit') === 'true';
+  
   // Fetch customers for search functionality
   const { data: customers = [], isLoading: customersLoading } = useCustomers();
-  const createCustomerMutation = useCreateCustomer();
   const createUmrahMutation = useCreateUmrah();
+  const updateUmrahMutation = useUpdateUmrah();
+  
+  // Fetch Umrah data for edit mode
+  const { data: umrahData, isLoading: umrahLoading } = useUmrah(umrahIdParam);
+  
+  // Combined loading state
+  const isLoading = loading || createUmrahMutation.isPending || updateUmrahMutation.isPending || (editMode && umrahLoading);
   const isSubmitting = loading || createUmrahMutation.isPending;
 
   
@@ -194,6 +205,64 @@ const AddUmrahHaji = () => {
     serviceStatus: '',
     isActive: true
   });
+
+  // Populate form for edit mode using loaded Umrah data
+  useEffect(() => {
+    if (!editMode || !umrahData) return;
+    setFormData(prev => ({
+      ...prev,
+      name: umrahData.name || '',
+      firstName: umrahData.firstName || '',
+      lastName: umrahData.lastName || '',
+      fatherName: umrahData.fatherName || '',
+      motherName: umrahData.motherName || '',
+      spouseName: umrahData.spouseName || '',
+      occupation: umrahData.occupation || '',
+      passportNumber: umrahData.passportNumber || '',
+      passport: umrahData.passportNumber || '',
+      passportType: umrahData.passportType || '',
+      issueDate: umrahData.issueDate || '',
+      expiryDate: umrahData.expiryDate || '',
+      passportExpiry: umrahData.expiryDate || '',
+      nidNumber: umrahData.nidNumber || '',
+      nid: umrahData.nidNumber || '',
+      dateOfBirth: umrahData.dateOfBirth || '',
+      gender: umrahData.gender || 'male',
+      maritalStatus: umrahData.maritalStatus || 'single',
+      nationality: umrahData.nationality || 'Bangladeshi',
+      phone: umrahData.mobile || '',
+      mobile: umrahData.mobile || '',
+      whatsappNo: umrahData.whatsappNo || '',
+      email: umrahData.email || '',
+      address: umrahData.address || '',
+      division: umrahData.division || '',
+      district: umrahData.district || '',
+      upazila: umrahData.upazila || '',
+      postCode: umrahData.postCode || '',
+      emergencyContact: umrahData.emergencyContact || '',
+      emergencyPhone: umrahData.emergencyPhone || '',
+      packageId: umrahData.packageId || '',
+      agentId: umrahData.agentId || '',
+      departureDate: umrahData.departureDate || '',
+      returnDate: umrahData.returnDate || '',
+      totalAmount: umrahData.totalAmount ?? 0,
+      paidAmount: umrahData.paidAmount ?? 0,
+      paymentMethod: umrahData.paymentMethod || 'cash',
+      paymentStatus: umrahData.paymentStatus || 'pending',
+      previousHajj: !!umrahData.previousHajj,
+      previousUmrah: !!umrahData.previousUmrah,
+      specialRequirements: umrahData.specialRequirements || '',
+      notes: umrahData.notes || '',
+      customerId: umrahData._id || umrahData.customerId || '',
+      passportFirstName: umrahData.passportFirstName || '',
+      passportLastName: umrahData.passportLastName || '',
+      referenceBy: umrahData.referenceBy || '',
+      referenceCustomerId: umrahData.referenceCustomerId || '',
+      serviceType: 'umrah',
+      serviceStatus: umrahData.serviceStatus || '',
+      isActive: umrahData.status ? umrahData.status === 'active' : true
+    }));
+  }, [editMode, umrahData]);
 
   useEffect(() => {
     const mockPackages = [
@@ -402,11 +471,13 @@ const AddUmrahHaji = () => {
     
     // Show confirmation dialog
     const result = await Swal.fire({
-      title: 'Confirm Umrah Registration',
-      text: `Are you sure you want to register ${formData.name} for Umrah?`,
+      title: editMode ? 'Confirm Update' : 'Confirm Umrah Registration',
+      text: editMode
+        ? `Are you sure you want to update ${formData.name}'s Umrah information?`
+        : `Are you sure you want to register ${formData.name} for Umrah?`,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonText: 'Yes, Register',
+      confirmButtonText: editMode ? 'Yes, Update' : 'Yes, Register',
       cancelButtonText: 'Cancel',
       confirmButtonColor: '#10B981',
       cancelButtonColor: '#EF4444',
@@ -472,11 +543,13 @@ const AddUmrahHaji = () => {
         photo: formData.photo
       };
 
-      // Use the API mutation
-      await createUmrahMutation.mutateAsync(umrahData);
-      
-      // Success is handled by the mutation's onSuccess callback
-      navigate('/umrah/haji-list');
+      if (editMode) {
+        await updateUmrahMutation.mutateAsync({ id: umrahIdParam, updates: umrahData });
+        navigate(`/hajj-umrah/haji/${umrahIdParam}?type=umrah`);
+      } else {
+        await createUmrahMutation.mutateAsync(umrahData);
+        navigate('/umrah/haji-list');
+      }
       
     } catch (error) {
       console.error('Error creating Umrah haji:', error);
@@ -498,8 +571,8 @@ const AddUmrahHaji = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Add New Umrah Haji</h1>
-            <p className="text-gray-600 dark:text-gray-400">Register a new pilgrim for Umrah</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{editMode ? 'Edit Umrah Haji' : 'Add New Umrah Haji'}</h1>
+            <p className="text-gray-600 dark:text-gray-400">{editMode ? 'Update Umrah pilgrim information' : 'Register a new Haji for Umrah'}</p>
           </div>
         </div>
         <button
@@ -512,7 +585,7 @@ const AddUmrahHaji = () => {
           ) : (
             <Save className="w-4 h-4" />
           )}
-          <span>{isSubmitting ? 'Saving...' : 'Save Umrah Haji'}</span>
+          <span>{isSubmitting ? 'Saving...' : editMode ? 'Update Umrah Haji' : 'Save Umrah Haji'}</span>
         </button>
         <button
           type="button"
@@ -969,7 +1042,7 @@ const AddUmrahHaji = () => {
           ) : (
             <Save className="w-5 h-5" />
           )}
-          <span>{isSubmitting ? 'Saving...' : 'Save Umrah Haji'}</span>
+          <span>{isSubmitting ? 'Saving...' : editMode ? 'Update Umrah Haji' : 'Save Umrah Haji'}</span>
         </button>
       </div>
     </div>
