@@ -18,10 +18,12 @@ export const useAgents = (page = 1, limit = 10, searchTerm = '') => {
   return useQuery({
     queryKey: agentKeys.list({ page, limit, searchTerm }),
     queryFn: async () => {
-      const response = await axiosSecure.get('/haj-umrah/agents', {
+      const response = await axiosSecure.get('/api/haj-umrah/agents', {
         params: { page, limit, search: searchTerm }
       });
-      return response.data;
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to load agents');
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error) => {
@@ -41,8 +43,10 @@ export const useAgent = (id) => {
     queryKey: agentKeys.detail(id),
     queryFn: async () => {
       if (!id) return null;
-      const response = await axiosSecure.get(`/haj-umrah/agents/${id}`);
-      return response.data;
+      const response = await axiosSecure.get(`/api/haj-umrah/agents/${id}`);
+      const data = response?.data;
+      if (data?.success) return data?.data;
+      throw new Error(data?.message || 'Failed to load agent');
     },
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
@@ -62,8 +66,10 @@ export const useCreateAgent = () => {
 
   return useMutation({
     mutationFn: async (agentData) => {
-      const response = await axiosSecure.post('/haj-umrah/agents', agentData);
-      return response.data;
+      const response = await axiosSecure.post('/api/haj-umrah/agents', agentData);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to create agent');
     },
     onSuccess: (data) => {
       // Invalidate and refetch agents list
@@ -96,8 +102,10 @@ export const useUpdateAgent = () => {
 
   return useMutation({
     mutationFn: async ({ id, ...agentData }) => {
-      const response = await axiosSecure.put(`/haj-umrah/agents/${id}`, agentData);
-      return response.data;
+      const response = await axiosSecure.put(`/api/haj-umrah/agents/${id}`, agentData);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to update agent');
     },
     onSuccess: (data, variables) => {
       // Invalidate and refetch agents list and specific agent detail
@@ -131,8 +139,10 @@ export const useDeleteAgent = () => {
 
   return useMutation({
     mutationFn: async (id) => {
-      const response = await axiosSecure.delete(`/haj-umrah/agents/${id}`);
-      return response.data;
+      const response = await axiosSecure.delete(`/api/haj-umrah/agents/${id}`);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to delete agent');
     },
     onSuccess: (data) => {
       // Invalidate and refetch agents list
@@ -165,12 +175,14 @@ export const useBulkAgentOperation = () => {
 
   return useMutation({
     mutationFn: async (formData) => {
-      const response = await axiosSecure.post('/haj-umrah/agents/bulk', formData, {
+      const response = await axiosSecure.post('/api/haj-umrah/agents/bulk', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-      return response.data;
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to upload agents');
     },
     onSuccess: (data) => {
       // Invalidate and refetch agents list
@@ -203,8 +215,10 @@ export const useAgentStats = () => {
   return useQuery({
     queryKey: [...agentKeys.all, 'stats'],
     queryFn: async () => {
-      const response = await axiosSecure.get('/haj-umrah/agents/stats');
-      return response.data;
+      const response = await axiosSecure.get('/api/haj-umrah/agents/stats');
+      const data = response?.data;
+      if (data?.success) return data?.data;
+      throw new Error(data?.message || 'Failed to load agent statistics');
     },
     staleTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error) => {

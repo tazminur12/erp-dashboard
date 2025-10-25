@@ -67,6 +67,8 @@ const UmrahHajiDetails = React.lazy(() => import('./pages/HajjUmrah/Umrah/UmrahH
 const AddHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/AddHaji'));
 const Agent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.Agent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const AgentPackageCreation = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageCreation'));
+const AgentPackageDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageDetails'));
+const AgentPackageEdit = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageEdit'));
 const AgentDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentDetails'));
 const AddAgent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddAgent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditB2BAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/EditAgent'));
@@ -470,6 +472,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <EditB2BAgent />
+          </Suspense>
+        )
+      },
+      {
+        path: "agent-packages/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentPackageDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "agent-packages/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentPackageEdit />
           </Suspense>
         )
       },

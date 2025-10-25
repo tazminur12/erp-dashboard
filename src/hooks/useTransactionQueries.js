@@ -72,6 +72,7 @@ export const useTransactions = (filters = {}, page = 1, limit = 10) => {
 
       const response = await axiosSecure.get(`/transactions?${params.toString()}`);
       
+      
       if (response.data.success) {
         return {
           transactions: response.data.transactions || [],
@@ -277,7 +278,9 @@ export const useCreateTransaction = () => {
       }
 
       // Validate amount precision (max 2 decimal places)
-      if (amount % 0.01 !== 0) {
+      const amountStr = amount.toString();
+      const decimalParts = amountStr.split('.');
+      if (decimalParts.length > 1 && decimalParts[1].length > 2) {
         throw new Error('Amount can have maximum 2 decimal places');
       }
 
@@ -832,5 +835,105 @@ export const useTransactionAuditTrail = (transactionId) => {
     enabled: !!transactionId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// Mutation to create bank account to bank account transfer
+export const useBankAccountTransfer = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (transferData) => {
+      // Validate required fields
+      if (!transferData.fromAccountId || !transferData.toAccountId || !transferData.amount) {
+        throw new Error('From account, to account, and amount are required');
+      }
+
+      // Validate amount
+      const amount = parseFloat(transferData.amount);
+      if (isNaN(amount) || amount <= 0) {
+        throw new Error('Amount must be a valid positive number');
+      }
+
+      // Validate amount precision (max 2 decimal places)
+      const amountStr = amount.toString();
+      const decimalParts = amountStr.split('.');
+      if (decimalParts.length > 1 && decimalParts[1].length > 2) {
+        throw new Error('Amount can have maximum 2 decimal places');
+      }
+
+      // Check if same account
+      if (transferData.fromAccountId === transferData.toAccountId) {
+        throw new Error('Cannot transfer to the same account');
+      }
+
+      // Prepare transfer payload
+      const transferPayload = {
+        fromAccountId: transferData.fromAccountId,
+        toAccountId: transferData.toAccountId,
+        amount: amount,
+        reference: transferData.reference || '',
+        notes: transferData.notes || '',
+        createdBy: transferData.createdBy || 'SYSTEM',
+        branchId: transferData.branchId || 'main_branch',
+        accountManager: transferData.accountManager || null
+      };
+
+      const response = await axiosSecure.post('/bank-accounts/transfers', transferPayload);
+      
+      if (response.data.success) {
+        return response.data;
+      } else {
+        throw new Error(response.data.error || 'Failed to process transfer');
+      }
+    },
+    onSuccess: (data) => {
+      // Invalidate and refetch transaction list
+      queryClient.invalidateQueries({ queryKey: transactionKeys.lists() });
+      
+      // Invalidate bank accounts to refresh balances
+      queryClient.invalidateQueries({ queryKey: transactionKeys.accounts() });
+      
+      // Add the new transfer transaction to the cache if needed
+      if (data.data?.transaction) {
+        queryClient.setQueryData(
+          transactionKeys.detail(data.data.transaction.transactionId),
+          data.data.transaction
+        );
+      }
+      
+      // Show success message
+      Swal.fire({
+        title: 'সফল!',
+        text: `Account to Account Transfer সফলভাবে সম্পন্ন হয়েছে। Transfer ID: ${data.data?.transactionId}`,
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      // Enhanced error handling
+      let errorMessage = 'Account transfer করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      // Show specific error for validation failures
+      if (error.response?.data?.details) {
+        errorMessage += `\n\nবিস্তারিত: ${error.response.data.details.join(', ')}`;
+      }
+
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
   });
 };

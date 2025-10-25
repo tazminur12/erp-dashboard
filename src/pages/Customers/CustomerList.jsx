@@ -340,7 +340,7 @@ const CustomerList = () => {
               <div className="w-5 h-5 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center">
                 !
               </div>
-              {error}
+              {error?.message || error?.response?.data?.message || 'An error occurred'}
             </div>
           </div>
         )}
@@ -551,7 +551,7 @@ const CustomerList = () => {
                           </div>
                         ) : error ? (
                           <div className="text-red-500">
-                            ❌ {error}
+                            ❌ {error?.message || error?.response?.data?.message || 'An error occurred'}
                           </div>
                         ) : (
                           <div>

@@ -39,8 +39,11 @@ import {
   useTransactionAccounts,
   useTransactionCustomers,
   useTransactionInvoices,
+  useTransactionCategories,
   useSearchAgents,
-  useSearchVendors
+  useSearchVendors,
+  useTransactionStats,
+  useBankAccountTransfer
 } from '../../hooks/useTransactionQueries';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
 import { useEmployeeSearch } from '../../hooks/useHRQueries';
@@ -57,9 +60,10 @@ const NewTransaction = () => {
   
   // React Query hooks
   const createTransactionMutation = useCreateTransaction();
+  const bankAccountTransferMutation = useBankAccountTransfer();
   const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
   const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
-  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCategoryQueries().useCategories();
+  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useTransactionCategories();
   const { data: transactionsData } = useTransactions({}, 1, 1000); // Fetch all transactions for balance calculation
   
   // Haji and Umrah queries
@@ -183,6 +187,46 @@ const NewTransaction = () => {
       department: ''
     }
   });
+
+  // Invoice query hook (after formData is initialized)
+  const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useTransactionInvoices(formData.customerId);
+
+  // Demo invoices fallback when API has no data
+  const demoInvoices = [
+    {
+      id: 'DEMO-INV-001',
+      invoiceNumber: 'INV-2025-001',
+      customerName: 'ডেমো কাস্টমার ১',
+      amount: 12500,
+      dueDate: '2025-11-05',
+      status: 'Pending',
+      description: 'এয়ার টিকেট - ঢাকা থেকে দুবাই'
+    },
+    {
+      id: 'DEMO-INV-002',
+      invoiceNumber: 'INV-2025-002',
+      customerName: 'ডেমো কাস্টমার ২',
+      amount: 28900,
+      dueDate: '2025-11-12',
+      status: 'Pending',
+      description: 'উমরাহ প্যাকেজ - স্ট্যান্ডার্ড'
+    },
+    {
+      id: 'DEMO-INV-003',
+      invoiceNumber: 'INV-2025-003',
+      customerName: 'ডেমো কাস্টমার ৩',
+      amount: 7600,
+      dueDate: '2025-11-20',
+      status: 'Paid',
+      description: 'ভিসা সার্ভিস - সৌদি ভিসা'
+    }
+  ];
+
+  // Choose effective invoices (API data first, then demo)
+  // Show demo invoices when no customer is selected, API is loading, or API has no data
+  const shouldShowDemoInvoices = !formData.customerId || invoicesLoading || (invoices && invoices.length === 0);
+  const effectiveInvoices = shouldShowDemoInvoices ? demoInvoices : invoices;
+  const isUsingDemoInvoices = shouldShowDemoInvoices;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSearchType, setSelectedSearchType] = useState('customer');
@@ -309,56 +353,16 @@ const NewTransaction = () => {
     }
   ]);
   
-  // Mock invoice data
-  const [invoices] = useState([
-    {
-      id: 'INV-001',
-      invoiceNumber: 'INV-2024-001',
-      customerName: 'আহমেদ রহমান',
-      amount: 25000,
-      dueDate: '2024-02-15',
-      status: 'Pending',
-      description: 'এয়ার টিকেট - ঢাকা থেকে দুবাই'
-    },
-    {
-      id: 'INV-002',
-      invoiceNumber: 'INV-2024-002',
-      customerName: 'ফাতিমা বেগম',
-      amount: 15000,
-      dueDate: '2024-02-20',
-      status: 'Pending',
-      description: 'ভিসা সার্ভিস - সৌদি উমরাহ ভিসা'
-    },
-    {
-      id: 'INV-003',
-      invoiceNumber: 'INV-2024-003',
-      customerName: 'করিম উদ্দিন',
-      amount: 450000,
-      dueDate: '2024-02-25',
-      status: 'Pending',
-      description: 'হজ প্যাকেজ - হজ ২০২৪ প্রিমিয়াম'
-    },
-    {
-      id: 'INV-004',
-      invoiceNumber: 'INV-2024-004',
-      customerName: 'রশিদা খান',
-      amount: 75000,
-      dueDate: '2024-02-28',
-      status: 'Pending',
-      description: 'এয়ার টিকেট - ঢাকা থেকে লন্ডন'
-    }
-  ]);
-
   // Filter invoices based on search term
-  const filteredInvoices = invoices.filter(invoice => {
+  const filteredInvoices = effectiveInvoices.filter(invoice => {
     if (!invoiceSearchTerm.trim()) return true;
     
     const searchLower = invoiceSearchTerm.toLowerCase();
     return (
-      invoice.invoiceNumber.toLowerCase().includes(searchLower) ||
-      invoice.customerName.toLowerCase().includes(searchLower) ||
-      invoice.description.toLowerCase().includes(searchLower) ||
-      invoice.amount.toString().includes(searchLower)
+      (invoice.invoiceNumber || '').toLowerCase().includes(searchLower) ||
+      (invoice.customerName || '').toLowerCase().includes(searchLower) ||
+      (invoice.description || '').toLowerCase().includes(searchLower) ||
+      (invoice.amount || 0).toString().includes(searchLower)
     );
   });
 
@@ -518,10 +522,10 @@ const NewTransaction = () => {
     setFormData(prev => ({
       ...prev,
       selectedInvoice: invoice,
-      invoiceId: invoice.id,
+      invoiceId: invoice.id || invoice._id,
       paymentDetails: {
         ...prev.paymentDetails,
-        amount: invoice.amount.toString()
+        amount: (invoice.amount || 0).toString()
       }
     }));
   };
@@ -611,7 +615,6 @@ const NewTransaction = () => {
     group.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
     group.description.toLowerCase().includes(categorySearchTerm.toLowerCase())
   );
-
   const validateStep = (step) => {
     const newErrors = {};
 
@@ -654,24 +657,24 @@ const NewTransaction = () => {
       // Regular credit/debit validation flow
       if (formData.transactionType === 'debit') {
         // Debit flow: skip invoice step
-      switch (step) {
-        case 1:
-          if (!formData.transactionType) {
-            newErrors.transactionType = 'লেনদেনের ধরন নির্বাচন করুন';
-          } else if (!['credit', 'debit', 'transfer'].includes(formData.transactionType)) {
-            newErrors.transactionType = 'লেনদেনের ধরন অবৈধ';
-          }
-          break;
-        case 2:
+        switch (step) {
+          case 1:
+            if (!formData.transactionType) {
+              newErrors.transactionType = 'লেনদেনের ধরন নির্বাচন করুন';
+            } else if (!['credit', 'debit', 'transfer'].includes(formData.transactionType)) {
+              newErrors.transactionType = 'লেনদেনের ধরন অবৈধ';
+            }
+            break;
+          case 2:
             if (!formData.category) {
               newErrors.category = 'ক্যাটাগরি নির্বাচন করুন';
             }
             break;
           case 3:
-          if (!formData.customerId) {
-            newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
-          }
-          break;
+            if (!formData.customerId) {
+              newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
+            }
+            break;
           case 4:
             if (!formData.paymentMethod) {
               newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
@@ -689,14 +692,6 @@ const NewTransaction = () => {
               if (!formData.sourceAccount.id) {
                 newErrors.sourceAccount = 'সোর্স একাউন্ট নির্বাচন করুন';
               }
-              // Validate destination account (where money comes to)
-              if (!formData.destinationAccount.id) {
-                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
-              }
-              // Validate debit account manager
-              if (!formData.debitAccountManager.id) {
-                newErrors.debitAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
-              }
               // Validate customer bank account details for bank transfer
               if (formData.paymentMethod === 'bank-transfer') {
                 if (!formData.customerBankAccount.bankName) {
@@ -707,6 +702,9 @@ const NewTransaction = () => {
                 }
               }
             }
+            break;
+          case 5:
+            // Final confirmation step for debit
             break;
         }
       } else {
@@ -741,8 +739,11 @@ const NewTransaction = () => {
         case 5:
           // Invoice selection - only for non-agent customers
           if (formData.customerType !== 'agent') {
-            if (!formData.selectedInvoice || !formData.invoiceId) {
-              newErrors.invoiceId = 'ইনভয়েস নির্বাচন করুন';
+            // Require invoice only when real API invoices are available
+            if (!isUsingDemoInvoices) {
+              if (!formData.selectedInvoice || !formData.invoiceId) {
+                newErrors.invoiceId = 'ইনভয়েস নির্বাচন করুন';
+              }
             }
           }
           break;
@@ -788,7 +789,6 @@ const NewTransaction = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-
   const nextStep = () => {
     if (validateStep(currentStep)) {
       let maxSteps;
@@ -804,6 +804,9 @@ const NewTransaction = () => {
       // For agents, go to step 5 (payment method) from step 4
       if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 4) {
         setCurrentStep(5); // Go to payment method
+      } else if (formData.transactionType === 'debit' && currentStep === 4) {
+        // For debit, go directly to step 5 (confirmation) from step 4
+        setCurrentStep(5);
       } else {
         setCurrentStep(prev => Math.min(prev + 1, maxSteps));
       }
@@ -814,6 +817,9 @@ const NewTransaction = () => {
     // Special handling for agent: go back from step 5 to step 4
     if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
       setCurrentStep(4); // Go back to balance display
+    } else if (formData.transactionType === 'debit' && currentStep === 5) {
+      // For debit, go back from step 5 to step 4
+      setCurrentStep(4);
     } else {
       setCurrentStep(prev => Math.max(prev - 1, 1));
     }
@@ -842,7 +848,8 @@ const NewTransaction = () => {
         setErrors(prev => ({ ...prev, transferAmount: 'পরিমাণ একাউন্ট ব্যালেন্সের চেয়ে বেশি হতে পারে না' }));
         return;
       }
-      // Call backend atomic transfer API
+      
+      // Call new backend transfer API using the dedicated transfer hook
       const transferPayload = {
         fromAccountId: formData.debitAccount.id,
         toAccountId: formData.creditAccount.id,
@@ -851,36 +858,17 @@ const NewTransaction = () => {
         notes: formData.transferNotes || `Transfer from ${formData.debitAccount.bankName} (${formData.debitAccount.accountNumber}) to ${formData.creditAccount.bankName} (${formData.creditAccount.accountNumber})`,
         createdBy: userProfile?.email || 'unknown_user',
         branchId: userProfile?.branchId || 'main_branch',
-        accountManager: formData.accountManager || null,
-        transactionType: 'transfer', // Explicitly set transaction type as transfer
+        accountManager: formData.accountManager || null
       };
 
-      transferBetweenAccountsMutation.mutateAsync(transferPayload)
-      .then((result) => {
-        console.log('Transfer completed:', result);
-        
-        // Show success message
-        Swal.fire({
-          title: 'সফল!',
-          text: `৳${transferAmount.toLocaleString()} সফলভাবে ${formData.debitAccount.name} থেকে ${formData.creditAccount.name} এ ট্রান্সফার হয়েছে`,
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F9FAFB'
-        });
-
-        // Reset form
-        resetForm();
-      }).catch((error) => {
-        console.error('Transfer failed:', error);
-        Swal.fire({
-          title: 'ত্রুটি!',
-          text: 'ট্রান্সফার সম্পন্ন করতে ব্যর্থ হয়েছে',
-          icon: 'error',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#EF4444',
-          background: isDark ? '#1F2937' : '#F9FAFB'
-        });
+      // Use the dedicated bank account transfer mutation
+      bankAccountTransferMutation.mutate(transferPayload, {
+        onSuccess: (response) => {
+          console.log('Transfer completed:', response);
+          
+          // Reset form after successful submission
+          resetForm();
+        }
       });
 
       return;
@@ -893,55 +881,61 @@ const NewTransaction = () => {
       return;
     }
 
-    // Prepare transaction data for API
-    const transactionData = {
+    // Prepare transaction data for the unified createTransaction mutation
+    const unifiedTransactionData = {
       transactionType: formData.transactionType,
-      customerId: formData.customerId,
-      category: formData.category,
-      paymentMethod: formData.paymentMethod,
+      debitAccount: formData.transactionType === 'debit' ? {
+        id: formData.sourceAccount.id,
+        name: formData.sourceAccount.name,
+        bankName: formData.sourceAccount.bankName,
+        accountNumber: formData.sourceAccount.accountNumber
+      } : {
+        id: formData.sourceAccount.id,
+        name: formData.sourceAccount.name,
+        bankName: formData.sourceAccount.bankName,
+        accountNumber: formData.sourceAccount.accountNumber
+      },
+      creditAccount: formData.transactionType === 'credit' ? {
+        id: formData.sourceAccount.id,
+        name: formData.sourceAccount.name,
+        bankName: formData.sourceAccount.bankName,
+        accountNumber: formData.sourceAccount.accountNumber
+      } : {
+        id: formData.sourceAccount.id,
+        name: formData.sourceAccount.name,
+        bankName: formData.sourceAccount.bankName,
+        accountNumber: formData.sourceAccount.accountNumber
+      },
       paymentDetails: {
+        amount: amount,
         bankName: formData.paymentDetails.bankName || null,
         accountNumber: formData.paymentDetails.accountNumber || null,
         chequeNumber: formData.paymentDetails.chequeNumber || null,
         mobileProvider: formData.paymentDetails.mobileProvider || null,
         transactionId: formData.paymentDetails.transactionId || null,
-        amount: amount,
         reference: formData.paymentDetails.reference || null
       },
+      customerId: formData.customerId,
+      category: formData.category,
+      paymentMethod: formData.paymentMethod,
       customerBankAccount: {
         bankName: formData.customerBankAccount.bankName || null,
         accountNumber: formData.customerBankAccount.accountNumber || null
       },
-      sourceAccount: {
-        id: formData.sourceAccount.id,
-        name: formData.sourceAccount.name,
-        bankName: formData.sourceAccount.bankName,
-        accountNumber: formData.sourceAccount.accountNumber,
-        balance: formData.sourceAccount.balance
-      },
-      destinationAccount: {
-        id: formData.destinationAccount.id,
-        name: formData.destinationAccount.name,
-        bankName: formData.destinationAccount.bankName,
-        accountNumber: formData.destinationAccount.accountNumber,
-        balance: formData.destinationAccount.balance
-      },
       notes: formData.notes || null,
-      date: formData.date,
+      date: new Date().toISOString().split('T')[0],
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch',
       employeeReference: formData.employeeReference.id ? formData.employeeReference : null
     };
 
     // Log the data being sent for debugging
-    console.log('Sending transaction data:', transactionData);
+    console.log('Sending transaction data:', unifiedTransactionData);
 
-    // Use React Query mutation
-    createTransactionMutation.mutate(transactionData, {
+    createTransactionMutation.mutate(unifiedTransactionData, {
       onSuccess: (response) => {
-        console.log('Transaction response:', response.data);
+        console.log('Transaction response:', response);
         
-        // Success handling is now done in the mutation's onSuccess callback
         // Reset form after successful submission
         resetForm();
 
@@ -964,7 +958,7 @@ const NewTransaction = () => {
           if (result.isConfirmed) {
             // Generate PDF with the created transaction data
             const pdfData = {
-              transactionId: response.data.transaction?.transactionId || `TXN-${Date.now()}`,
+              transactionId: response.transaction?.transactionId || `TXN-${Date.now()}`,
               transactionType: formData.transactionType,
               customerId: formData.customerId,
               customerName: formData.customerName,
@@ -1187,9 +1181,7 @@ const NewTransaction = () => {
     
     return balance;
   };
-
   const customerBalance = formData.customerId ? calculateCustomerBalance(formData.customerId) : 0;
-
   return (
     <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${
       isDark 
@@ -1634,7 +1626,6 @@ const NewTransaction = () => {
                 )}
             </div>
           )}
-
           {/* Step 3: Customer Selection (for credit/debit) or Credit Account Selection (for transfer) */}
           {currentStep === 3 && (
             <div className="p-3 sm:p-4 lg:p-6">
@@ -2108,7 +2099,6 @@ const NewTransaction = () => {
               )}
             </div>
           )}
-
           {/* Step 4: Agent Balance Display (for credit with agent) or Invoice Selection (for credit with customer) or Account Manager Selection (for transfer) or Payment Method (for debit) */}
           {currentStep === 4 && (
             <div className="p-3 sm:p-4 lg:p-6">
@@ -2256,55 +2246,91 @@ const NewTransaction = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                         {/* Hajj Option */}
                         <div 
-                          className={`bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                          className={`rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
                             formData.selectedOption === 'hajj' 
-                              ? 'border-amber-400 dark:border-amber-500 shadow-lg' 
-                              : 'border-amber-200 dark:border-amber-700'
+                              ? 'bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 border-amber-400 dark:border-amber-500 shadow-lg' 
+                              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                           }`}
                           onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'hajj' }))}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">হজ্জ বাবদ</p>
-                              <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">হজ্জের জন্য পেমেন্ট</p>
+                              <p className={`text-sm font-medium ${
+                                formData.selectedOption === 'hajj' 
+                                  ? 'text-amber-700 dark:text-amber-300' 
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>হজ্জ বাবদ</p>
+                              <p className={`text-xs mt-1 ${
+                                formData.selectedOption === 'hajj' 
+                                  ? 'text-amber-600 dark:text-amber-400' 
+                                  : 'text-gray-600 dark:text-gray-400'
+                              }`}>হজ্জের জন্য পেমেন্ট</p>
                             </div>
-                            <Building className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                            <Building className={`w-6 h-6 ${
+                              formData.selectedOption === 'hajj' 
+                                ? 'text-amber-600 dark:text-amber-400' 
+                                : 'text-gray-600 dark:text-gray-400'
+                            }`} />
                           </div>
                         </div>
                         
                         {/* Umrah Option */}
                         <div 
-                          className={`bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                          className={`rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
                             formData.selectedOption === 'umrah' 
-                              ? 'border-blue-400 dark:border-blue-500 shadow-lg' 
-                              : 'border-blue-200 dark:border-blue-700'
+                              ? 'bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-400 dark:border-blue-500 shadow-lg' 
+                              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                           }`}
                           onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'umrah' }))}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-blue-700 dark:text-blue-300">উমরাহ বাবদ</p>
-                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">উমরাহর জন্য পেমেন্ট</p>
+                              <p className={`text-sm font-medium ${
+                                formData.selectedOption === 'umrah' 
+                                  ? 'text-blue-700 dark:text-blue-300' 
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>উমরাহ বাবদ</p>
+                              <p className={`text-xs mt-1 ${
+                                formData.selectedOption === 'umrah' 
+                                  ? 'text-blue-600 dark:text-blue-400' 
+                                  : 'text-gray-600 dark:text-gray-400'
+                              }`}>উমরাহর জন্য পেমেন্ট</p>
                             </div>
-                            <Globe className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                            <Globe className={`w-6 h-6 ${
+                              formData.selectedOption === 'umrah' 
+                                ? 'text-blue-600 dark:text-blue-400' 
+                                : 'text-gray-600 dark:text-gray-400'
+                            }`} />
                           </div>
                         </div>
                         
                         {/* Others Option */}
                         <div 
-                          className={`bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                          className={`rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
                             formData.selectedOption === 'others' 
-                              ? 'border-gray-400 dark:border-gray-500 shadow-lg' 
-                              : 'border-gray-200 dark:border-gray-600'
+                              ? 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 border-gray-400 dark:border-gray-500 shadow-lg' 
+                              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                           }`}
                           onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'others' }))}
                         >
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">অনন্যা বাবদ</p>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">অন্যান্য পেমেন্ট</p>
+                              <p className={`text-sm font-medium ${
+                                formData.selectedOption === 'others' 
+                                  ? 'text-gray-700 dark:text-gray-300' 
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>অনন্যা বাবদ</p>
+                              <p className={`text-xs mt-1 ${
+                                formData.selectedOption === 'others' 
+                                  ? 'text-gray-600 dark:text-gray-400' 
+                                  : 'text-gray-600 dark:text-gray-400'
+                              }`}>অন্যান্য পেমেন্ট</p>
                             </div>
-                            <DollarSign className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                            <DollarSign className={`w-6 h-6 ${
+                              formData.selectedOption === 'others' 
+                                ? 'text-gray-600 dark:text-gray-400' 
+                                : 'text-gray-600 dark:text-gray-400'
+                            }`} />
                           </div>
                         </div>
                       </div>
@@ -2628,34 +2654,62 @@ const NewTransaction = () => {
                             )}
                           </div>
 
-                          {/* Customer */}
+                          {/* Customer Bank Details */}
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                              কাস্টমার (যার কাছ থেকে টাকা আসবে)
+                              কাস্টমার অ্যাকাউন্ট (যেখানে টাকা পাঠানো হবে)
                             </label>
-                            {formData.customerName ? (
-                              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                                    <User className="w-5 h-5 text-blue-600" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-gray-900 dark:text-white text-sm">
-                                      {formData.customerName}
-                                    </p>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                                      {formData.customerPhone}
-                                    </p>
-                                  </div>
-                                </div>
+                            <div className="space-y-3">
+                              {/* Bank Name */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                  ব্যাংকের নাম
+                                </label>
+                                <input
+                                  type="text"
+                                  name="customerBankAccount.bankName"
+                                  value={formData.customerBankAccount.bankName}
+                                  onChange={handleInputChange}
+                                  placeholder="ব্যাংকের নাম লিখুন..."
+                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
+                                    isDark 
+                                      ? 'bg-white border-gray-300 text-gray-900' 
+                                      : 'border-gray-300'
+                                  } ${errors.customerBankName ? 'border-red-500 focus:ring-red-500' : ''}`}
+                                />
+                                {errors.customerBankName && (
+                                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {errors.customerBankName}
+                                  </p>
+                                )}
                               </div>
-                            ) : (
-                              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg border border-dashed">
-                                <p className="text-gray-500 dark:text-gray-400 text-sm text-center">
-                                  কাস্টমার নির্বাচন করা হয়েছে
-                                </p>
+                              
+                              {/* Account Number */}
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                  একাউন্ট নম্বর
+                                </label>
+                                <input
+                                  type="text"
+                                  name="customerBankAccount.accountNumber"
+                                  value={formData.customerBankAccount.accountNumber}
+                                  onChange={handleInputChange}
+                                  placeholder="একাউন্ট নম্বর লিখুন..."
+                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
+                                    isDark 
+                                      ? 'bg-white border-gray-300 text-gray-900' 
+                                      : 'border-gray-300'
+                                  } ${errors.customerAccountNumber ? 'border-red-500 focus:ring-red-500' : ''}`}
+                                />
+                                {errors.customerAccountNumber && (
+                                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    {errors.customerAccountNumber}
+                                  </p>
+                                )}
                               </div>
-                            )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2896,17 +2950,35 @@ const NewTransaction = () => {
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                         <FileText className="w-5 h-5 text-green-600" />
                         ইনভয়েস তালিকা
+                        {isUsingDemoInvoices && (
+                          <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full">
+                            ডেমো ডেটা
+                          </span>
+                        )}
                       </h3>
                       
                       <div className="space-y-3">
-                        {invoices.length > 0 ? (
-                          invoices.map((invoice) => (
+                        {invoicesError ? (
+                          <div className="text-center py-8 text-red-500">
+                            <AlertCircle className="w-8 h-8 mx-auto mb-3" />
+                            <p>ইনভয়েস লোড করতে সমস্যা হয়েছে</p>
+                          </div>
+                        ) : (
+                          <>
+                            {invoicesLoading && formData.customerId && (
+                              <div className="text-center py-2 text-blue-500 dark:text-blue-400">
+                                <Loader2 className="w-4 h-4 mx-auto mb-1 animate-spin inline" />
+                                <p className="text-sm">লাইভ ডেটা লোড হচ্ছে...</p>
+                              </div>
+                            )}
+                            {filteredInvoices.length > 0 ? (
+                          filteredInvoices.map((invoice) => (
                             <button
-                              key={invoice.id}
+                              key={invoice.id || invoice._id}
                               type="button"
                               onClick={() => handleInvoiceSelect(invoice)}
                               className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
-                                formData.selectedInvoice?.id === invoice.id
+                                formData.selectedInvoice?.id === (invoice.id || invoice._id)
                                   ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                                   : 'border-gray-200 dark:border-gray-600 hover:border-green-300'
                               }`}
@@ -2914,27 +2986,42 @@ const NewTransaction = () => {
                               <div className="flex justify-between items-center">
                                 <div className="text-left">
                                   <p className="font-medium text-gray-900 dark:text-white">
-                                    ইনভয়েস #{invoice.invoiceNumber}
+                                    ইনভয়েস #{invoice.invoiceNumber || invoice.invoiceId}
                                   </p>
                                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                                    পরিমাণ: ৳{invoice.amount.toLocaleString()}
+                                    পরিমাণ: ৳{(invoice.amount || 0).toLocaleString()}
                                   </p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                                    {new Date(invoice.date).toLocaleDateString('en-US')}
+                                    {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-US') : 
+                                     invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString('en-US') : 
+                                     'তারিখ নেই'}
                                   </p>
                                 </div>
                               </div>
                             </button>
                           ))
-                        ) : (
-                          <div className="text-center py-8">
-                            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                            <p className="text-gray-500 dark:text-gray-400">কোন ইনভয়েস পাওয়া যায়নি</p>
-                          </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                                <p className="text-gray-500 dark:text-gray-400">কোন ইনভয়েস পাওয়া যায়নি</p>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
+                      {isUsingDemoInvoices && (
+                        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                          <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                            <Info className="w-4 h-4" />
+                            <span>
+                              <strong>ডেমো ডেটা:</strong> এই ইনভয়েসগুলো শুধুমাত্র প্রদর্শনের জন্য। 
+                              {formData.customerId ? ' নির্বাচিত কাস্টমারের জন্য কোন ইনভয়েস পাওয়া যায়নি।' : ' কোন কাস্টমার নির্বাচন করা হয়নি।'}
+                            </span>
+                          </p>
+                        </div>
+                      )}
                       {errors.invoiceId && (
                         <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
                           <AlertCircle className="w-3 h-3" />
@@ -2967,17 +3054,35 @@ const NewTransaction = () => {
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                       <FileText className="w-5 h-5 text-green-600" />
                       ইনভয়েস তালিকা
+                      {isUsingDemoInvoices && (
+                        <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full">
+                          ডেমো ডেটা
+                        </span>
+                      )}
                     </h3>
                     
                     <div className="space-y-3">
-                      {invoices.length > 0 ? (
-                        invoices.map((invoice) => (
+                      {invoicesError ? (
+                        <div className="text-center py-8 text-red-500">
+                          <AlertCircle className="w-8 h-8 mx-auto mb-3" />
+                          <p>ইনভয়েস লোড করতে সমস্যা হয়েছে</p>
+                        </div>
+                      ) : (
+                        <>
+                          {invoicesLoading && formData.customerId && (
+                            <div className="text-center py-2 text-blue-500 dark:text-blue-400">
+                              <Loader2 className="w-4 h-4 mx-auto mb-1 animate-spin inline" />
+                              <p className="text-sm">লাইভ ডেটা লোড হচ্ছে...</p>
+                            </div>
+                          )}
+                          {filteredInvoices.length > 0 ? (
+                        filteredInvoices.map((invoice) => (
                           <button
-                            key={invoice.id}
+                            key={invoice.id || invoice._id}
                             type="button"
                             onClick={() => handleInvoiceSelect(invoice)}
                             className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
-                              formData.selectedInvoice?.id === invoice.id
+                              formData.selectedInvoice?.id === (invoice.id || invoice._id)
                                 ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
                                 : 'border-gray-200 dark:border-gray-600 hover:border-green-300'
                             }`}
@@ -2985,27 +3090,42 @@ const NewTransaction = () => {
                             <div className="flex justify-between items-center">
                               <div className="text-left">
                                 <p className="font-medium text-gray-900 dark:text-white">
-                                  ইনভয়েস #{invoice.invoiceNumber}
+                                  ইনভয়েস #{invoice.invoiceNumber || invoice.invoiceId}
                                 </p>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                                  পরিমাণ: ৳{invoice.amount.toLocaleString()}
+                                  পরিমাণ: ৳{(invoice.amount || 0).toLocaleString()}
                                 </p>
                               </div>
                               <div className="text-right">
                                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {new Date(invoice.date).toLocaleDateString('en-US')}
+                                  {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString('en-US') : 
+                                   invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString('en-US') : 
+                                   'তারিখ নেই'}
                                 </p>
                               </div>
                             </div>
                           </button>
                         ))
-                      ) : (
-                        <div className="text-center py-8">
-                          <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                          <p className="text-gray-500 dark:text-gray-400">কোন ইনভয়েস পাওয়া যায়নি</p>
-                        </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-500 dark:text-gray-400">কোন ইনভয়েস পাওয়া যায়নি</p>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
+                    {isUsingDemoInvoices && (
+                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                          <Info className="w-4 h-4" />
+                          <span>
+                            <strong>ডেমো ডেটা:</strong> এই ইনভয়েসগুলো শুধুমাত্র প্রদর্শনের জন্য। 
+                            {formData.customerId ? ' নির্বাচিত কাস্টমারের জন্য কোন ইনভয়েস পাওয়া যায়নি।' : ' কোন কাস্টমার নির্বাচন করা হয়নি।'}
+                          </span>
+                        </p>
+                      </div>
+                    )}
                     {errors.invoiceId && (
                       <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
                         <AlertCircle className="w-3 h-3" />
@@ -3017,7 +3137,6 @@ const NewTransaction = () => {
               </div>
             </div>
           )}
-
           {/* Step 5: Invoice Selection (for credit with customer) or Account Manager Selection (for transfer) or Payment Method (for debit) - REMOVED - DUPLICATE */}
           {false && currentStep === 5 && !(formData.transactionType === 'credit' && formData.customerType === 'agent') && (
             <div className="p-3 sm:p-4 lg:p-6">
@@ -3556,7 +3675,6 @@ const NewTransaction = () => {
                       </div>
                     </div>
                   )}
-
                   {/* Account Manager Selection for Credit */}
                   {formData.destinationAccount.id && (
                     <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 sm:p-6">
@@ -3917,10 +4035,10 @@ const NewTransaction = () => {
                       ) : (
                         filteredInvoices.map((invoice) => (
                           <button
-                            key={invoice.id}
+                            key={invoice.id || invoice._id}
                             onClick={() => handleInvoiceSelect(invoice)}
                             className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
-                              formData.selectedInvoice?.id === invoice.id
+                              formData.selectedInvoice?.id === (invoice.id || invoice._id)
                                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                 : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
                             }`}
@@ -3928,37 +4046,39 @@ const NewTransaction = () => {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                               <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                                 <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                  formData.selectedInvoice?.id === invoice.id
+                                  formData.selectedInvoice?.id === (invoice.id || invoice._id)
                                     ? 'bg-blue-100 dark:bg-blue-800'
                                     : 'bg-gray-100 dark:bg-gray-700'
                                 }`}>
                                   <Receipt className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                                    formData.selectedInvoice?.id === invoice.id
+                                    formData.selectedInvoice?.id === (invoice.id || invoice._id)
                                       ? 'text-blue-600 dark:text-blue-400'
                                       : 'text-gray-600 dark:text-gray-400'
                                   }`} />
                                 </div>
                                 <div className="text-left min-w-0 flex-1">
                                   <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
-                                    {invoice.invoiceNumber}
+                                    {invoice.invoiceNumber || invoice.invoiceId}
                                   </h3>
                                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                                    {invoice.customerName}
+                                    {invoice.customerName || 'কাস্টমার নাম নেই'}
                                   </p>
                                   <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
-                                    {invoice.description}
+                                    {invoice.description || 'বিবরণ নেই'}
                                   </p>
                                 </div>
                               </div>
                               <div className="text-left sm:text-right">
                                 <p className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400">
-                                  ৳{invoice.amount.toLocaleString()}
+                                  ৳{(invoice.amount || 0).toLocaleString()}
                                 </p>
                                 <p className="text-xs text-gray-500 dark:text-gray-500">
-                                  Due: {new Date(invoice.dueDate).toLocaleDateString()}
+                                  Due: {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 
+                                        invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : 
+                                        'তারিখ নেই'}
                                 </p>
                                 <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                                  invoice.status === 'Pending' 
+                                  (invoice.status || 'Pending') === 'Pending' 
                                     ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
                                     : 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                                 }`}>
@@ -4003,7 +4123,6 @@ const NewTransaction = () => {
               </div>
             </div>
           )}
-
           {/* Step 5: Payment Method (for credit with customer) or Confirmation with SMS (for transfer) or Confirmation (for debit) or Payment Method (for credit with agent) */}
           {currentStep === 5 && (
             <div className="p-3 sm:p-4 lg:p-6">
@@ -4137,10 +4256,10 @@ const NewTransaction = () => {
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-6">
                     <button
                       onClick={handleSubmit}
-                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending}
+                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending}
                       className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
-                      {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending) ? (
+                      {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending) ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span className="hidden sm:inline">ট্রান্সফার হচ্ছে...</span>
@@ -4395,10 +4514,10 @@ const NewTransaction = () => {
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                     <button
                       onClick={handleSubmit}
-                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending}
+                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending}
                       className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
-                      {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending) ? (
+                      {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending) ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span className="hidden sm:inline">
@@ -4556,24 +4675,60 @@ const NewTransaction = () => {
                         </div>
                       </div>
 
-                      {/* Destination Account */}
+                      {/* Customer Bank Details */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          কাস্টমার (যার কাছ থেকে টাকা আসবে)
+                          কাস্টমার অ্যাকাউন্ট (যেখান থেকে টাকা পাঠানো হবে)
                         </label>
-                        <div className="p-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
-                          <div className="flex items-center gap-2">
-                            <User className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                                {formData.customerName}
-                              </h4>
-                              {formData.customerPhone && (
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  📞 {formData.customerPhone}
-                                </p>
-                              )}
-                            </div>
+                        <div className="space-y-3">
+                          {/* Bank Name */}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                              ব্যাংকের নাম
+                            </label>
+                            <input
+                              type="text"
+                              name="customerBankAccount.bankName"
+                              value={formData.customerBankAccount.bankName}
+                              onChange={handleInputChange}
+                              placeholder="ব্যাংকের নাম লিখুন..."
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
+                                isDark 
+                                  ? 'bg-white border-gray-300 text-gray-900' 
+                                  : 'border-gray-300'
+                              } ${errors.customerBankName ? 'border-red-500 focus:ring-red-500' : ''}`}
+                            />
+                            {errors.customerBankName && (
+                              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {errors.customerBankName}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {/* Account Number */}
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                              একাউন্ট নম্বর
+                            </label>
+                            <input
+                              type="text"
+                              name="customerBankAccount.accountNumber"
+                              value={formData.customerBankAccount.accountNumber}
+                              onChange={handleInputChange}
+                              placeholder="একাউন্ট নম্বর লিখুন..."
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
+                                isDark 
+                                  ? 'bg-white border-gray-300 text-gray-900' 
+                                  : 'border-gray-300'
+                              } ${errors.customerAccountNumber ? 'border-red-500 focus:ring-red-500' : ''}`}
+                            />
+                            {errors.customerAccountNumber && (
+                              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                {errors.customerAccountNumber}
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>

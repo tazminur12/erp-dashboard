@@ -69,6 +69,7 @@ const TransactionsList = () => {
     itemsPerPage
   );
 
+
   const updateTransactionMutation = useUpdateTransaction();
   const deleteTransactionMutation = useDeleteTransaction();
   const bulkDeleteMutation = useBulkDeleteTransactions();
@@ -672,6 +673,31 @@ const TransactionsList = () => {
           )}
         </div>
 
+        {/* Error Display */}
+        {error && (
+          <div className={`mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4`}>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                <X className="w-5 h-5 text-red-600 dark:text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-red-800 dark:text-red-200">
+                  ডেটা লোড করতে সমস্যা
+                </h3>
+                <p className="text-sm text-red-600 dark:text-red-300 mt-1">
+                  {error?.response?.data?.message || error?.message || 'অজানা ত্রুটি'}
+                </p>
+                <button
+                  onClick={() => refetch()}
+                  className="mt-2 text-sm text-red-700 dark:text-red-300 hover:text-red-800 dark:hover:text-red-200 underline"
+                >
+                  আবার চেষ্টা করুন
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Results Summary */}
         <div className={`mb-4 bg-white dark:bg-gray-800 rounded-xl p-4 border transition-colors duration-300 ${
           isDark ? 'border-gray-700' : 'border-gray-100'
@@ -757,9 +783,34 @@ const TransactionsList = () => {
                 {loading ? (
                   <tr>
                     <td colSpan="9" className="px-6 py-12 text-center">
-                      <div className="flex items-center justify-center gap-3">
-                        <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-                        <span className="text-gray-600 dark:text-gray-400">লেনদেন লোড হচ্ছে...</span>
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                        <span className="text-gray-600 dark:text-gray-400 text-lg">লেনদেন লোড হচ্ছে...</span>
+                        <span className="text-gray-500 dark:text-gray-500 text-sm">অনুগ্রহ করে অপেক্ষা করুন</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan="9" className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center gap-3">
+                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+                          <X className="w-6 h-6 text-red-500" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                            ডেটা লোড করতে সমস্যা
+                          </h3>
+                          <p className="text-gray-500 dark:text-gray-400 mb-4">
+                            {error?.response?.data?.message || error?.message || 'অজানা ত্রুটি'}
+                          </p>
+                          <button
+                            onClick={() => refetch()}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+                          >
+                            আবার চেষ্টা করুন
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -875,18 +926,46 @@ const TransactionsList = () => {
           </div>
           
           {/* Empty State */}
-          {currentTransactions.length === 0 && (
-            <div className="text-center py-12">
-              <CreditCard className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          {!loading && !error && currentTransactions.length === 0 && (
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CreditCard className="w-10 h-10 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
                 কোন লেনদেন পাওয়া যায়নি
               </h3>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-md mx-auto">
                 {searchTerm || Object.values(filters).some(value => value !== '')
-                  ? 'আপনার অনুসন্ধানের সাথে মিলে এমন কোন লেনদেন নেই'
-                  : 'এখনও কোন লেনদেন যোগ করা হয়নি'
+                  ? 'আপনার অনুসন্ধানের সাথে মিলে এমন কোন লেনদেন নেই। অনুগ্রহ করে ভিন্ন শব্দ দিয়ে খুঁজুন।'
+                  : 'এখনও কোন লেনদেন যোগ করা হয়নি। নতুন লেনদেন যোগ করে শুরু করুন।'
                 }
               </p>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                {searchTerm || Object.values(filters).some(value => value !== '') ? (
+                  <button
+                    onClick={() => {
+                      setSearchTerm('');
+                      clearFilters();
+                    }}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
+                  >
+                    ফিল্টার সরান
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => window.location.href = '/transactions/new'}
+                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-200"
+                  >
+                    নতুন লেনদেন যোগ করুন
+                  </button>
+                )}
+                <button
+                  onClick={() => refetch()}
+                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200"
+                >
+                  রিফ্রেশ করুন
+                </button>
+              </div>
             </div>
           )}
         </div>
