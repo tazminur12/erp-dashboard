@@ -648,8 +648,8 @@ export const useSearchAgents = (searchTerm, enabled = true) => {
     queryFn: async () => {
       if (!searchTerm?.trim()) return [];
       
-      const response = await axiosSecure.get('/haj-umrah/agents', { 
-        params: { q: searchTerm, limit: 20, page: 1 } 
+      const response = await axiosSecure.get('/api/haj-umrah/agents', { 
+        params: { search: searchTerm, limit: 20, page: 1 } 
       });
       
       if (response.data?.success) {

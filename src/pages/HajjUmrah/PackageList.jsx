@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { List, Search, Filter, Eye, Edit, Trash2, Package, Calculator, Download, Share2 } from 'lucide-react';
 import Modal from '../../components/common/Modal';
 import Swal from 'sweetalert2';
 
 const PackageList = () => {
+  const navigate = useNavigate();
   const [packages, setPackages] = useState([
     {
       id: 1,
@@ -175,7 +177,10 @@ const PackageList = () => {
             <Download className="w-4 h-4" />
             <span className="text-sm sm:text-base">এক্সপোর্ট</span>
           </button>
-          <button className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors w-full sm:w-auto">
+          <button 
+            onClick={() => navigate('/hajj-umrah/package-creation')}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors w-full sm:w-auto"
+          >
             <Package className="w-4 h-4" />
             <span className="text-sm sm:text-base">নতুন প্যাকেজ</span>
           </button>

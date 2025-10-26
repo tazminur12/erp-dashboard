@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Save, 
@@ -25,6 +26,9 @@ import { useCreateAgentPackage } from '../../../hooks/UseAgentPacakageQueries';
 import { useAgents } from '../../../hooks/useAgentQueries';
 
 const AgentPackageCreation = () => {
+  // Navigation hook
+  const navigate = useNavigate();
+  
   // API mutation hook
   const createAgentPackageMutation = useCreateAgentPackage();
   
@@ -1129,6 +1133,24 @@ const AgentPackageCreation = () => {
     createAgentPackageMutation.mutate(payload, {
       onSuccess: (data) => {
         console.log('Package created successfully:', data);
+        
+        // Show success message
+        Swal.fire({
+          title: 'Success!',
+          text: 'Package created successfully!',
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+          timer: 2000,
+          showConfirmButton: false
+        }).then(() => {
+          // Navigate to agent profile after success
+          if (formData.agentId) {
+            navigate(`/hajj-umrah/agent/${formData.agentId}`);
+          } else {
+            // Fallback to agent list if no agentId
+            navigate('/hajj-umrah/agents');
+          }
+        });
         
         // Backend already updates agent due amounts, so no need to update manually
         // The query invalidation in the mutation hook will refresh the agent data
