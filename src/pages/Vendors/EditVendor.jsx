@@ -130,12 +130,13 @@ const EditVendor = () => {
         
         // Find vendor by vendorId
         const vendorData = vendorsData.find(v => 
-          v.vendorId === id || v._id === id || v.id === id
+          v._id === id || v.vendorId === id || v.id === id
         );
         
         if (vendorData) {
           // Transform vendor data to match frontend expectations
           const transformedVendor = {
+            _id: vendorData._id || vendorData.id,
             vendorId: vendorData.vendorId || vendorData._id || vendorData.id,
             tradeName: vendorData.tradeName || '',
             tradeLocation: vendorData.tradeLocation || '',

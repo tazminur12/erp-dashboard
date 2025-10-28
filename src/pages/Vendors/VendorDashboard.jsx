@@ -111,6 +111,7 @@ const VendorDashboard = () => {
 
         const vendorsData = vendorsRes.data?.vendors || vendorsRes.data || [];
         const transformed = vendorsData.map(v => ({
+          _id: v._id || v.id,
           vendorId: v.vendorId || v.id || v._id,
           tradeName: v.tradeName || '',
           tradeLocation: v.tradeLocation || '',
@@ -404,7 +405,7 @@ const VendorDashboard = () => {
               ) : filteredVendors.length === 0 ? (
                 <div className="p-6 text-center text-gray-500 dark:text-gray-400">No vendors found</div>
               ) : filteredVendors.map((vendor) => (
-                <div key={vendor.vendorId} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                <div key={vendor._id || vendor.vendorId} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
@@ -413,7 +414,7 @@ const VendorDashboard = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Link 
-                            to={`/vendors/${vendor.vendorId}`}
+                            to={`/vendors/${vendor._id || vendor.vendorId}`}
                             className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400"
                           >
                             {vendor.tradeName}
@@ -445,7 +446,7 @@ const VendorDashboard = () => {
                     <div className="flex items-center space-x-6">
                       <div className="flex items-center space-x-2">
                         <Link
-                          to={`/vendors/${vendor.vendorId}`}
+                          to={`/vendors/${vendor._id || vendor.vendorId}`}
                           className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                         >
                           <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />

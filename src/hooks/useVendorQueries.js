@@ -26,6 +26,7 @@ export const useVendors = (filters = {}) => {
       
       // Transform vendor data to match frontend expectations
       const transformedVendors = vendorsData.map(vendor => ({
+        _id: vendor._id || vendor.id,
         vendorId: vendor.vendorId || vendor.id || vendor._id,
         tradeName: vendor.tradeName || '',
         tradeLocation: vendor.tradeLocation || '',
@@ -80,6 +81,7 @@ export const useVendor = (vendorId) => {
       
       // Transform vendor data to match frontend expectations
       return {
+        _id: vendor._id || vendor.id,
         vendorId: vendor.vendorId || vendor.id || vendor._id,
         tradeName: vendor.tradeName || '',
         tradeLocation: vendor.tradeLocation || '',
@@ -138,8 +140,9 @@ export const useCreateVendor = () => {
       
       // Add the new vendor to the cache if needed
       if (data.vendor) {
+        const cacheId = data.vendor._id || data.vendor.id || data.vendor.vendorId;
         queryClient.setQueryData(
-          vendorKeys.detail(data.vendor.vendorId || data.vendor.id),
+          vendorKeys.detail(cacheId),
           data.vendor
         );
       }

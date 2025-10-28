@@ -63,6 +63,42 @@ const NewTransaction = () => {
   const bankAccountTransferMutation = useBankAccountTransfer();
   const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
   const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
+  
+
+  
+  // Fallback demo customers if API fails
+  const demoCustomers = [
+    {
+      id: 'DEMO-CUST-001',
+      customerId: 'DEMO-CUST-001',
+      name: 'আহমেদ আলী',
+      mobile: '01712345678',
+      phone: '01712345678',
+      email: 'ahmed@example.com',
+      customerType: 'customer'
+    },
+    {
+      id: 'DEMO-CUST-002',
+      customerId: 'DEMO-CUST-002',
+      name: 'ফাতেমা খাতুন',
+      mobile: '01876543210',
+      phone: '01876543210',
+      email: 'fatema@example.com',
+      customerType: 'customer'
+    },
+    {
+      id: 'DEMO-CUST-003',
+      customerId: 'DEMO-CUST-003',
+      name: 'করিম উদ্দিন',
+      mobile: '01987654321',
+      phone: '01987654321',
+      email: 'karim@example.com',
+      customerType: 'customer'
+    }
+  ];
+  
+  // Use demo customers if API customers are empty
+  const effectiveCustomers = customers && customers.length > 0 ? customers : demoCustomers;
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useTransactionCategories();
   const { data: transactionsData } = useTransactions({}, 1, 1000); // Fetch all transactions for balance calculation
   
@@ -760,13 +796,21 @@ const NewTransaction = () => {
             } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
               newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
             }
-            // Validate destination account (where money comes to) for credit transactions
-            if (!formData.destinationAccount.id) {
-              newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
-            }
-            // Validate credit account manager
-            if (!formData.creditAccountManager.id) {
-              newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
+            // For non-agent credit transactions, destination account can fallback to business account
+            // So only require explicit destination/manager for agent flows
+            if (formData.customerType === 'agent') {
+              if (!formData.destinationAccount.id) {
+                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
+              }
+              if (!formData.creditAccountManager.id) {
+                newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
+              }
+            } else {
+              // If there is no business/account fallback available, require destination account explicitly
+              const hasAnyAccount = Array.isArray(accounts) && accounts.length > 0;
+              if (!hasAnyAccount && !formData.destinationAccount.id) {
+                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন (কোন ডিফল্ট একাউন্ট নেই)';
+              }
             }
             // Validate customer bank account details for bank transfer
             if (formData.paymentMethod === 'bank-transfer') {
@@ -832,8 +876,20 @@ const NewTransaction = () => {
   };
 
   const handleSubmit = () => {
+    console.log('TXN Save clicked', {
+      currentStep,
+      transactionType: formData.transactionType,
+      customerType: formData.customerType,
+      customerId: formData.customerId,
+      paymentMethod: formData.paymentMethod,
+      amount: formData?.paymentDetails?.amount,
+    });
     const finalStep = formData.transactionType === 'credit' && formData.customerType === 'agent' ? 7 : 6;
-    if (!validateStep(finalStep)) return;
+    const isValid = validateStep(finalStep);
+    if (!isValid) {
+      console.warn('TXN validation failed at final step', { finalStep, errors });
+      return;
+    }
 
     // Handle account-to-account transfer
     if (formData.transactionType === 'transfer') {
@@ -875,37 +931,112 @@ const NewTransaction = () => {
     }
 
     // Handle regular transactions (credit/debit)
+    // Basic final guards for credit/debit
+    if (!formData.customerId) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'কাস্টমার নির্বাচন করুন',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+      console.warn('TXN blocked: no customerId');
+      return;
+    }
+
+    if (!formData.paymentMethod) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'পেমেন্ট মেথড নির্বাচন করুন',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+      console.warn('TXN blocked: no paymentMethod');
+      return;
+    }
+
     const amount = parseFloat(formData.paymentDetails.amount);
     if (!amount || amount <= 0) {
       setErrors(prev => ({ ...prev, amount: 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে' }));
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+      console.warn('TXN blocked: invalid amount', { amountRaw: formData.paymentDetails.amount });
+      return;
+    }
+
+    // Map customerType to partyType for backend compatibility
+    // Map 'haji' and 'umrah' to 'customer' since they are types of customers
+    const mapPartyType = (customerType) => {
+      if (customerType === 'vendor') return 'vendor';
+      if (customerType === 'agent') return 'agent';
+      // All other types (customer, haji, umrah) are treated as 'customer'
+      return 'customer';
+    };
+
+    // Choose account based on transaction type
+    const isDebit = formData.transactionType === 'debit';
+    const isCredit = formData.transactionType === 'credit';
+    const isAgent = formData.customerType === 'agent';
+    // Fallback business account when destination account is not selected (helps satisfy backend targetAccountId)
+    const businessFallback = accounts.find(a => a.type === 'business') || accounts[0];
+    // For credit, if destination is not chosen, fallback to business account
+    const selectedAccount = isDebit
+      ? formData.sourceAccount
+      : (isCredit
+          ? (formData.destinationAccount?.id ? formData.destinationAccount : businessFallback)
+          : undefined);
+
+    // Validate required account selection for credit/debit
+    if (isDebit && !selectedAccount?.id) {
+      const msg = isDebit ? 'সোর্স একাউন্ট নির্বাচন করুন' : 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
+      setErrors(prev => ({
+        ...prev,
+        [isDebit ? 'sourceAccount' : 'destinationAccount']: msg
+      }));
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: msg,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
       return;
     }
 
     // Prepare transaction data for the unified createTransaction mutation
     const unifiedTransactionData = {
       transactionType: formData.transactionType,
-      debitAccount: formData.transactionType === 'debit' ? {
+      // Add partyType and partyId for backend API compatibility
+      partyType: mapPartyType(formData.customerType),
+      partyId: formData.customerId,
+      // Keep customerId for backward compatibility
+      customerId: formData.customerId,
+      // Add targetAccountId for backend API (for credit/debit transactions)
+      targetAccountId: selectedAccount?.id || null,
+      // Only set debitAccount for debit transactions
+      debitAccount: isDebit ? {
         id: formData.sourceAccount.id,
         name: formData.sourceAccount.name,
         bankName: formData.sourceAccount.bankName,
         accountNumber: formData.sourceAccount.accountNumber
-      } : {
-        id: formData.sourceAccount.id,
-        name: formData.sourceAccount.name,
-        bankName: formData.sourceAccount.bankName,
-        accountNumber: formData.sourceAccount.accountNumber
-      },
-      creditAccount: formData.transactionType === 'credit' ? {
-        id: formData.sourceAccount.id,
-        name: formData.sourceAccount.name,
-        bankName: formData.sourceAccount.bankName,
-        accountNumber: formData.sourceAccount.accountNumber
-      } : {
-        id: formData.sourceAccount.id,
-        name: formData.sourceAccount.name,
-        bankName: formData.sourceAccount.bankName,
-        accountNumber: formData.sourceAccount.accountNumber
-      },
+      } : null,
+      // Only set creditAccount for credit transactions
+      creditAccount: isCredit && formData.destinationAccount?.id ? {
+        id: formData.destinationAccount.id,
+        name: formData.destinationAccount.name,
+        bankName: formData.destinationAccount.bankName,
+        accountNumber: formData.destinationAccount.accountNumber
+      } : null,
       paymentDetails: {
         amount: amount,
         bankName: formData.paymentDetails.bankName || null,
@@ -915,7 +1046,7 @@ const NewTransaction = () => {
         transactionId: formData.paymentDetails.transactionId || null,
         reference: formData.paymentDetails.reference || null
       },
-      customerId: formData.customerId,
+      serviceCategory: formData.category,
       category: formData.category,
       paymentMethod: formData.paymentMethod,
       customerBankAccount: {
@@ -923,14 +1054,16 @@ const NewTransaction = () => {
         accountNumber: formData.customerBankAccount.accountNumber || null
       },
       notes: formData.notes || null,
+      invoiceId: formData.invoiceId || null,
+      accountManagerId: formData.accountManager?.id || null,
       date: new Date().toISOString().split('T')[0],
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch',
-      employeeReference: formData.employeeReference.id ? formData.employeeReference : null
+      employeeReference: formData.employeeReference?.id ? formData.employeeReference : null
     };
 
     // Log the data being sent for debugging
-    console.log('Sending transaction data:', unifiedTransactionData);
+    console.log('Submitting credit/debit transaction payload:', unifiedTransactionData);
 
     createTransactionMutation.mutate(unifiedTransactionData, {
       onSuccess: (response) => {
@@ -990,6 +1123,21 @@ const NewTransaction = () => {
             });
           }
         });
+      },
+      onError: (error) => {
+        console.error('Create transaction failed:', error);
+        const message = error?.response?.data?.message || error?.message || 'লেনদেন তৈরি করতে সমস্যা হয়েছে।';
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: message,
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2'
+        });
+      },
+      onSettled: () => {
+        console.log('Create transaction settled');
       }
     });
   };
@@ -1150,6 +1298,7 @@ const NewTransaction = () => {
     customer.phone?.includes(searchTerm) ||
     customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
 
   const selectedPaymentMethod = paymentMethods.find(method => method.id === formData.paymentMethod);
   

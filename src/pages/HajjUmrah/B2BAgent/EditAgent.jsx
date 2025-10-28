@@ -26,8 +26,8 @@ const EditAgent = () => {
 
   // Update form when agent data is loaded
   useEffect(() => {
-    if (agentData?.data) {
-      const data = agentData.data;
+    if (agentData) {
+      const data = agentData;
       setForm({
         tradeName: data.tradeName || '',
         tradeLocation: data.tradeLocation || '',
@@ -82,8 +82,8 @@ const EditAgent = () => {
 
   const handleReset = () => {
     // reset to loaded values, not empty
-    if (agentData?.data) {
-      const data = agentData.data;
+    if (agentData) {
+      const data = agentData;
       setForm({
         tradeName: data.tradeName || '',
         tradeLocation: data.tradeLocation || '',

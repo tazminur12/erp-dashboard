@@ -13,6 +13,7 @@ import {
   DollarSign,
   User,
   Building,
+  Globe,
   Package,
   CheckCircle,
   Clock,
@@ -29,7 +30,8 @@ import {
   ChevronUp,
   MoreHorizontal,
   X,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 import { useTheme } from '../../../contexts/ThemeContext';
 import { useAuth } from '../../../contexts/AuthContext';

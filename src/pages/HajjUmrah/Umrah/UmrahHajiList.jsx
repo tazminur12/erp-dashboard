@@ -18,10 +18,10 @@ import {
   MapPin,
   Calendar
 } from 'lucide-react';
-import DataTable from '../../components/common/DataTable';
-import FilterBar from '../../components/common/FilterBar';
-import ExcelUploader from '../../components/common/ExcelUploader';
-import { useUmrahList, useDeleteUmrah } from '../../hooks/UseUmrahQuries';
+import DataTable from '../../../components/common/DataTable';
+import FilterBar from '../../../components/common/FilterBar';
+import ExcelUploader from '../../../components/common/ExcelUploader';
+import { useUmrahList, useDeleteUmrah } from '../../../hooks/UseUmrahQuries';
 
 const UmrahHajiList = () => {
   const navigate = useNavigate();

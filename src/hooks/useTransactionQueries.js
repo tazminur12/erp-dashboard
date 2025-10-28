@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import useAxiosSecure from './UseAxiosSecure';
 import Swal from 'sweetalert2';
+import { vendorKeys } from './useVendorQueries';
 
 // Query keys
 export const transactionKeys = {
@@ -24,65 +25,61 @@ export const useTransactions = (filters = {}, page = 1, limit = 10) => {
   return useQuery({
     queryKey: transactionKeys.list({ ...filters, page, limit }),
     queryFn: async () => {
-      // Build query parameters
+      // Build query parameters to match backend API
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString()
       });
 
-      // Add filters to query parameters
-      if (filters.transactionType) params.append('transactionType', filters.transactionType);
-      if (filters.category) params.append('category', filters.category);
-      if (filters.paymentMethod) params.append('paymentMethod', filters.paymentMethod);
-      if (filters.search) params.append('search', filters.search);
+      if (filters.partyType) params.append('partyType', String(filters.partyType));
+      if (filters.partyId) params.append('partyId', String(filters.partyId));
+      if (filters.transactionType) params.append('transactionType', String(filters.transactionType));
+      if (filters.serviceCategory || filters.category) params.append('serviceCategory', String(filters.serviceCategory || filters.category));
+      if (filters.branchId) params.append('branchId', String(filters.branchId));
+      if (filters.accountId) params.append('accountId', String(filters.accountId));
+      if (filters.status) params.append('status', String(filters.status));
 
-      // Add date range filters
+      // Date filters (map to fromDate/toDate expected by backend)
+      const appendDate = (from, to) => {
+        if (from) params.append('fromDate', from);
+        if (to) params.append('toDate', to);
+      };
+
       if (filters.dateRange) {
         const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const lastWeek = new Date(today);
-        lastWeek.setDate(lastWeek.getDate() - 7);
-        const lastMonth = new Date(today);
-        lastMonth.setMonth(lastMonth.getMonth() - 1);
-        
-        switch (filters.dateRange) {
-          case 'today':
-            params.append('dateFrom', today.toISOString().split('T')[0]);
-            params.append('dateTo', today.toISOString().split('T')[0]);
-            break;
-          case 'yesterday':
-            params.append('dateFrom', yesterday.toISOString().split('T')[0]);
-            params.append('dateTo', yesterday.toISOString().split('T')[0]);
-            break;
-          case 'last-week':
-            params.append('dateFrom', lastWeek.toISOString().split('T')[0]);
-            params.append('dateTo', today.toISOString().split('T')[0]);
-            break;
-          case 'last-month':
-            params.append('dateFrom', lastMonth.toISOString().split('T')[0]);
-            params.append('dateTo', today.toISOString().split('T')[0]);
-            break;
+        const iso = (d) => d.toISOString().split('T')[0];
+        if (filters.dateRange === 'today') appendDate(iso(today), iso(today));
+        else if (filters.dateRange === 'yesterday') {
+          const y = new Date(today); y.setDate(y.getDate() - 1);
+          appendDate(iso(y), iso(y));
+        } else if (filters.dateRange === 'last-week') {
+          const lw = new Date(today); lw.setDate(lw.getDate() - 7);
+          appendDate(iso(lw), iso(today));
+        } else if (filters.dateRange === 'last-month') {
+          const lm = new Date(today); lm.setMonth(lm.getMonth() - 1);
+          appendDate(iso(lm), iso(today));
         }
       }
+      // Direct date values
+      if (filters.dateFrom) params.append('fromDate', filters.dateFrom);
+      if (filters.dateTo) params.append('toDate', filters.dateTo);
 
-      // Add date range filters if provided directly
-      if (filters.dateFrom) params.append('dateFrom', filters.dateFrom);
-      if (filters.dateTo) params.append('dateTo', filters.dateTo);
+      // Text search
+      if (filters.search) params.append('q', String(filters.search));
 
-      const response = await axiosSecure.get(`/transactions?${params.toString()}`);
-      
-      
-      if (response.data.success) {
+      const response = await axiosSecure.get(`/api/transactions?${params.toString()}`);
+
+      if (response.data?.success) {
+        const items = response.data.data || [];
+        const pagination = response.data.pagination || {};
         return {
-          transactions: response.data.transactions || [],
-          totalCount: response.data.totalCount || 0,
-          totalPages: response.data.totalPages || 0,
-          currentPage: page
+          transactions: items,
+          totalCount: pagination.total || 0,
+          totalPages: pagination.totalPages || 0,
+          currentPage: pagination.page || page
         };
-      } else {
-        throw new Error(response.data.message || 'Failed to load transactions');
       }
+      throw new Error(response.data?.message || 'Failed to load transactions');
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 5 * 60 * 1000, // 5 minutes
@@ -138,6 +135,8 @@ export const useTransactionAccounts = () => {
           balance: account.balance || account.currentBalance || account.initialBalance || 0,
           accountType: account.accountCategory || account.accountType || 'bank', // Map accountCategory to accountType
           accountCategory: account.accountCategory || 'bank', // Keep original accountCategory
+          // Backward-compat: some UI expects `type` for badges/filters
+          type: account.type || account.accountCategory || account.accountType || 'bank',
           branch: account.branch || '',
           routingNumber: account.routingNumber || '',
           swiftCode: account.swiftCode || '',
@@ -173,16 +172,44 @@ export const useTransactionCustomers = () => {
   return useQuery({
     queryKey: transactionKeys.customers(),
     queryFn: async () => {
-      const response = await axiosSecure.get('/customers');
-      
-      if (response.data.success) {
-        return response.data.customers || [];
-      } else {
-        throw new Error(response.data.message || 'Failed to load customers');
+      try {
+        // Try multiple endpoints for customers
+        const endpoints = ['/customers', '/api/customers', '/api/haj-umrah/customers'];
+        
+        for (const endpoint of endpoints) {
+          try {
+            console.log(`Trying customers endpoint: ${endpoint}`);
+            const response = await axiosSecure.get(endpoint);
+            console.log(`Customers API response from ${endpoint}:`, response.data);
+            
+            if (response.data.success) {
+              return response.data.customers || response.data.data || [];
+            } else if (response.data.data) {
+              return response.data.data;
+            }
+          } catch (endpointError) {
+            console.log(`Endpoint ${endpoint} failed:`, endpointError.message);
+            continue;
+          }
+        }
+        
+        // If all endpoints fail, return empty array
+        console.warn('All customer endpoints failed, returning empty array');
+        return [];
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+        return [];
       }
     },
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
+    retry: (failureCount, error) => {
+      // Don't retry on 4xx errors
+      if (error?.response?.status >= 400 && error?.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 2;
+    },
   });
 };
 
@@ -246,33 +273,33 @@ export const useTransactionCategories = () => {
   });
 };
 
-// Mutation to create a new transaction with double entry bookkeeping
+// Mutation to create a new transaction
 export const useCreateTransaction = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async (transactionData) => {
-      // Enhanced validation for double entry bookkeeping
-      if (!transactionData.debitAccount?.id || !transactionData.creditAccount?.id) {
-        throw new Error('Both debit and credit accounts are required for double entry bookkeeping');
+      // Extract values from nested objects if provided (matching backend logic)
+      const finalAmount = transactionData.amount || transactionData.paymentDetails?.amount;
+      const finalPartyId = transactionData.partyId || transactionData.customerId;
+      const finalTargetAccountId = transactionData.targetAccountId || transactionData.creditAccount?.id || transactionData.debitAccount?.id;
+      const finalFromAccountId = transactionData.fromAccountId || transactionData.debitAccount?.id;
+      const finalToAccountId = transactionData.toAccountId || transactionData.creditAccount?.id;
+      const finalServiceCategory = transactionData.serviceCategory || transactionData.category;
+
+      // Validate required fields based on backend API
+      if (!transactionData.transactionType || !finalAmount || !finalPartyId) {
+        throw new Error('Transaction type, amount, and party ID are required');
       }
 
-      if (transactionData.debitAccount.id === transactionData.creditAccount.id) {
-        throw new Error('Debit and credit accounts cannot be the same');
+      // Validate transaction type
+      if (!['credit', 'debit', 'transfer'].includes(transactionData.transactionType)) {
+        throw new Error("Transaction type must be 'credit', 'debit', or 'transfer'");
       }
-
-      // Normalize payload as per backend requirements
-      const normalizeDate = (d) => {
-        if (!d) return d;
-        // Accept Date instance or date-like string; output YYYY-MM-DD
-        const dateObj = d instanceof Date ? d : new Date(d);
-        if (Number.isNaN(dateObj.getTime())) return d;
-        return dateObj.toISOString().split('T')[0];
-      };
 
       // Validate amount
-      const amount = parseFloat(transactionData?.paymentDetails?.amount);
+      const amount = parseFloat(finalAmount);
       if (isNaN(amount) || amount <= 0) {
         throw new Error('Amount must be a valid positive number');
       }
@@ -284,33 +311,60 @@ export const useCreateTransaction = () => {
         throw new Error('Amount can have maximum 2 decimal places');
       }
 
-      const normalizedPayload = {
-        ...transactionData,
-        paymentMethod:
-          transactionData?.paymentMethod === 'bank'
-            ? 'bank-transfer'
-            : transactionData?.paymentMethod,
-        date: normalizeDate(transactionData?.date),
-        paymentDetails: {
-          ...(transactionData?.paymentDetails || {}),
-          amount: amount,
-        },
-        // Ensure debit and credit accounts are properly structured
-        debitAccount: {
-          id: transactionData.debitAccount.id,
-          name: transactionData.debitAccount.name,
-          bankName: transactionData.debitAccount.bankName,
-          accountNumber: transactionData.debitAccount.accountNumber
-        },
-        creditAccount: {
-          id: transactionData.creditAccount.id,
-          name: transactionData.creditAccount.name,
-          bankName: transactionData.creditAccount.bankName,
-          accountNumber: transactionData.creditAccount.accountNumber
+      // Validate account fields based on transaction type
+      if (transactionData.transactionType === 'credit' || transactionData.transactionType === 'debit') {
+        const isAgent = transactionData.partyType === 'agent' || transactionData.customerType === 'agent';
+        // For agent credit/debit, allow missing targetAccountId (input-based flow)
+        if (!finalTargetAccountId && !isAgent) {
+          throw new Error('Target account ID is required for credit/debit transactions');
         }
+      }
+
+      if (transactionData.transactionType === 'transfer') {
+        if (!finalFromAccountId || !finalToAccountId) {
+          throw new Error('From and to account IDs are required for transfer transactions');
+        }
+        if (finalFromAccountId === finalToAccountId) {
+          throw new Error('Cannot transfer to the same account');
+        }
+      }
+
+      // Build the payload for backend API (matching backend structure)
+      const payload = {
+        transactionType: transactionData.transactionType,
+        amount: amount,
+        partyId: finalPartyId,
+        partyType: transactionData.partyType || 'customer', // customer, agent, vendor
+        serviceCategory: finalServiceCategory || '',
+        paymentMethod: transactionData.paymentMethod || 'cash',
+        // For credit/debit, always pass the selected target account if provided,
+        // regardless of party type. Only transfers use toAccountId.
+        targetAccountId: transactionData.transactionType === 'transfer' ? finalToAccountId : finalTargetAccountId,
+        fromAccountId: transactionData.transactionType === 'transfer' ? finalFromAccountId : null,
+        toAccountId: transactionData.transactionType === 'transfer' ? finalToAccountId : null,
+        invoiceId: transactionData.invoiceId || null,
+        accountManagerId: transactionData.accountManagerId || null,
+        branchId: transactionData.branchId || 'main_branch',
+        createdBy: transactionData.createdBy || 'SYSTEM',
+        notes: transactionData.notes || '',
+        reference: transactionData.reference || transactionData.paymentDetails?.reference || '',
+        employeeReference: transactionData.employeeReference || null,
+        // Include nested objects for backend compatibility
+        debitAccount: transactionData.debitAccount || (transactionData.transactionType === 'debit' ? { id: finalTargetAccountId } : null),
+        creditAccount: transactionData.creditAccount || (transactionData.transactionType === 'credit' ? { id: finalTargetAccountId } : null),
+        paymentDetails: transactionData.paymentDetails || { amount: amount },
+        customerBankAccount: transactionData.customerBankAccount || null,
+        customerId: finalPartyId
       };
 
-      const response = await axiosSecure.post('/transactions', normalizedPayload);
+      // Remove null or undefined fields to keep payload clean
+      Object.keys(payload).forEach(key => {
+        if (payload[key] === null || payload[key] === undefined || payload[key] === '') {
+          delete payload[key];
+        }
+      });
+
+      const response = await axiosSecure.post('/api/transactions', payload);
       
       if (response.data.success) {
         return response.data;
@@ -318,12 +372,21 @@ export const useCreateTransaction = () => {
         throw new Error(response.data.message || 'Failed to create transaction');
       }
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       // Invalidate and refetch transaction list
       queryClient.invalidateQueries({ queryKey: transactionKeys.lists() });
       
       // Invalidate bank accounts to refresh balances
       queryClient.invalidateQueries({ queryKey: transactionKeys.accounts() });
+      
+      // If this transaction is linked to a vendor, refresh vendor caches as well
+      const partyType = variables?.partyType || data?.transaction?.partyType;
+      const partyId = variables?.partyId || variables?.customerId || data?.transaction?.partyId || data?.transaction?.customerId;
+      if (partyType === 'vendor' && partyId) {
+        queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: vendorKeys.detail(partyId) });
+        queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(partyId), 'financials'] });
+      }
       
       // Add the new transaction to the cache if needed
       if (data.transaction) {
@@ -333,10 +396,10 @@ export const useCreateTransaction = () => {
         );
       }
       
-      // Show success message with double entry info
+      // Show success message
       Swal.fire({
         title: 'সফল!',
-        text: 'নতুন লেনদেন সফলভাবে যোগ করা হয়েছে (Double Entry Bookkeeping)।',
+        text: 'নতুন লেনদেন সফলভাবে যোগ করা হয়েছে।',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',

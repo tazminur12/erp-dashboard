@@ -50,8 +50,8 @@ const VendorDetails = () => {
     status: 'Unknown'
   };
 
-  // Use actual data or fallback to defaults
-  const financial = financialData || defaultFinancialData;
+  // Use actual data merged with defaults to avoid undefined fields
+  const financial = { ...defaultFinancialData, ...(financialData || {}) };
 
   // Icon mapping for activities
   const iconMap = {
@@ -88,31 +88,17 @@ const VendorDetails = () => {
     }
   }, [activitiesData]);
 
-  // Handle error state
+  // Handle error state: avoid modal; rely on inline not-found UI
   React.useEffect(() => {
     if (vendorError) {
       console.error('Vendor fetch error:', vendorError);
-      Swal.fire({
-        icon: 'error',
-        title: 'Error',
-        text: `Failed to fetch vendor details: ${vendorError.message}`,
-        confirmButtonColor: '#7c3aed'
-      });
     }
   }, [vendorError]);
 
   // Debug logging
   React.useEffect(() => {
     console.log('VendorDetails - ID:', id);
-    console.log('VendorDetails - Loading:', loading);
-    console.log('VendorDetails - Vendor:', vendor);
-    console.log('VendorDetails - Error:', vendorError);
-    console.log('VendorDetails - Financial Loading:', financialLoading);
-    console.log('VendorDetails - Financial Data:', financialData);
-    console.log('VendorDetails - Financial Error:', financialError);
-    console.log('VendorDetails - Activities Loading:', activitiesLoading);
-    console.log('VendorDetails - Activities Data:', activitiesData);
-    console.log('VendorDetails - Activities Error:', activitiesError);
+
   }, [id, loading, vendor, vendorError, financialLoading, financialData, financialError, activitiesLoading, activitiesData, activitiesError]);
 
   if (loading) {
@@ -181,7 +167,7 @@ const VendorDetails = () => {
               Refresh
             </button>
             <Link 
-              to={`/vendors/${vendor.vendorId}/edit`} 
+              to={`/vendors/${vendor._id || vendor.vendorId}/edit`} 
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
             >
               <Edit className="w-4 h-4" />
@@ -216,7 +202,7 @@ const VendorDetails = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">৳{financial.totalAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">৳{Number(financial.totalAmount ?? 0).toLocaleString()}</p>
             </div>
             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -228,7 +214,7 @@ const VendorDetails = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Outstanding</p>
-              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">৳{financial.outstandingAmount.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">৳{Number(financial.outstandingAmount ?? 0).toLocaleString()}</p>
             </div>
             <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
               <AlertCircle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
@@ -240,7 +226,7 @@ const VendorDetails = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Avg Order Value</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">৳{financial.averageOrderValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">৳{Number(financial.averageOrderValue ?? 0).toLocaleString()}</p>
             </div>
             <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
@@ -332,14 +318,14 @@ const VendorDetails = () => {
                 <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
                   <div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Paid Amount</div>
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">৳{financial.paidAmount.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(financial.paidAmount ?? 0).toLocaleString()}</div>
                   </div>
                   <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                   <div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Outstanding Amount</div>
-                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">৳{financial.outstandingAmount.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">৳{Number(financial.outstandingAmount ?? 0).toLocaleString()}</div>
                   </div>
                   <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
                 </div>
@@ -347,7 +333,7 @@ const VendorDetails = () => {
               <div className="space-y-4">
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <div className="text-sm text-gray-600 dark:text-gray-400">Credit Limit</div>
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">৳{financial.creditLimit.toLocaleString()}</div>
+                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">৳{Number(financial.creditLimit ?? 0).toLocaleString()}</div>
                 </div>
                 <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                   <div className="text-sm text-gray-600 dark:text-gray-400">Payment Terms</div>

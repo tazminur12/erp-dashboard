@@ -57,32 +57,16 @@ const Agent = () => {
   }, [agents, searchTerm]);
 
   const handleAdd = () => {
-    setModalType('add');
-    setFormData({
-      tradeName: '',
-      tradeLocation: '',
-      ownerName: '',
-      contactNo: '',
-      dob: '',
-      nid: '',
-      passport: ''
-    });
-    setShowModal(true);
+    // Navigate to dedicated Add page instead of using local modal state
+    navigate('/hajj-umrah/agent/add');
   };
 
   const handleEdit = (agent) => {
-    setModalType('edit');
-    setSelectedAgent(agent);
-    setFormData({
-      tradeName: agent.tradeName || '',
-      tradeLocation: agent.tradeLocation || '',
-      ownerName: agent.ownerName || '',
-      contactNo: agent.contactNo || '',
-      dob: agent.dob || '',
-      nid: agent.nid || '',
-      passport: agent.passport || ''
-    });
-    setShowModal(true);
+    // Navigate to dedicated Edit page instead of using local modal state
+    const id = agent._id || agent.id;
+    if (id) {
+      navigate(`/hajj-umrah/agent/${id}/edit`);
+    }
   };
 
   const handleView = async (agent) => {

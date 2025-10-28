@@ -1,85 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { List, Search, Filter, Eye, Edit, Trash2, Package, Calculator, Download, Share2 } from 'lucide-react';
-import Modal from '../../components/common/Modal';
 import Swal from 'sweetalert2';
+import { usePackages, useDeletePackage } from '../../hooks/usePackageQueries';
 
 const PackageList = () => {
   const navigate = useNavigate();
-  const [packages, setPackages] = useState([
-    {
-      id: 1,
-      packageId: 'PKG2024001',
-      name: 'প্রিমিয়াম হজ্জ প্যাকেজ ২০২৪',
-      year: '2024',
-      type: 'Haj',
-      makkahHouseFee: 50000,
-      madinaHouseFee: 40000,
-      airFare: 80000,
-      totalCost: 170000,
-      status: 'Active',
-      bookings: 45,
-      maxCapacity: 100,
-      createdAt: '2024-01-15',
-      description: 'উচ্চমানের হজ্জ প্যাকেজ, মক্কা-মদিনায় প্রিমিয়াম বাড়ি সহ'
-    },
-    {
-      id: 2,
-      packageId: 'PKG2024002',
-      name: 'স্ট্যান্ডার্ড উমরাহ প্যাকেজ ২০২৪',
-      year: '2024',
-      type: 'Umrah',
-      makkahHouseFee: 35000,
-      madinaHouseFee: 30000,
-      airFare: 70000,
-      totalCost: 135000,
-      status: 'Active',
-      bookings: 78,
-      maxCapacity: 150,
-      createdAt: '2024-01-16',
-      description: 'সাশ্রয়ী উমরাহ প্যাকেজ, মানসম্পন্ন বাড়ি ও বিমান সেবা'
-    },
-    {
-      id: 3,
-      packageId: 'PKG2024003',
-      name: 'ইকোনমি হজ্জ প্যাকেজ ২০২৪',
-      year: '2024',
-      type: 'Haj',
-      makkahHouseFee: 25000,
-      madinaHouseFee: 20000,
-      airFare: 60000,
-      totalCost: 105000,
-      status: 'Draft',
-      bookings: 0,
-      maxCapacity: 80,
-      createdAt: '2024-01-17',
-      description: 'সাশ্রয়ী হজ্জ প্যাকেজ, বাজেট-বান্ধব বিকল্প'
-    }
-  ]);
-
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [showModal, setShowModal] = useState(false);
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  const [modalType, setModalType] = useState('view');
+
+  // Fetch packages using the hook
+  const { data: packagesData, isLoading, refetch } = usePackages({});
+  const deletePackageMutation = useDeletePackage();
+
+  const packages = packagesData?.data || [];
 
   const handleView = (pkg) => {
-    setSelectedPackage(pkg);
-    setModalType('view');
-    setShowModal(true);
+    navigate(`/hajj-umrah/package-list/${pkg._id}`);
   };
 
   const handleEdit = (pkg) => {
-    setSelectedPackage(pkg);
-    setModalType('edit');
-    setShowModal(true);
+    navigate(`/hajj-umrah/package-list/${pkg._id}/edit`);
   };
 
   const handleDelete = (pkg) => {
     Swal.fire({
       title: 'আপনি কি নিশ্চিত?',
-      text: `${pkg.name} প্যাকেজ মুছে ফেলতে চান? এই কাজটি অপরিবর্তনীয়।`,
+      text: `${pkg.packageName || pkg.name} প্যাকেজ মুছে ফেলতে চান? এই কাজটি অপরিবর্তনীয়।`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#dc2626',
@@ -89,14 +37,10 @@ const PackageList = () => {
       reverseButtons: true
     }).then((result) => {
       if (result.isConfirmed) {
-        setPackages(prev => prev.filter(p => p.id !== pkg.id));
-        
-        Swal.fire({
-          title: 'মুছে ফেলা হয়েছে!',
-          text: `${pkg.name} প্যাকেজ সফলভাবে মুছে ফেলা হয়েছে।`,
-          icon: 'success',
-          confirmButtonColor: '#059669',
-          confirmButtonText: 'ঠিক আছে'
+        deletePackageMutation.mutate(pkg._id, {
+          onSuccess: () => {
+            refetch();
+          }
         });
       }
     });
@@ -118,14 +62,24 @@ const PackageList = () => {
   };
 
   const getTypeColor = (type) => {
-    switch (type) {
+    // Remove "Custom " prefix if present
+    const cleanType = type?.replace(/^Custom\s+/i, '') || type;
+    
+    switch (cleanType) {
       case 'Haj':
+      case 'Hajj':
         return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
       case 'Umrah':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
     }
+  };
+
+  const getDisplayType = (type) => {
+    // Remove "Custom " prefix if present for display
+    if (!type) return 'Unknown';
+    return type.replace(/^Custom\s+/i, '');
   };
 
   const formatCurrency = (amount) => {
@@ -137,10 +91,14 @@ const PackageList = () => {
   };
 
   const filteredPackages = packages.filter(pkg => {
-    const matchesSearch = pkg.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         pkg.packageId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === 'all' || pkg.type === selectedType;
-    const matchesStatus = selectedStatus === 'all' || pkg.status === selectedStatus;
+    const pkgName = pkg.packageName || pkg.name || '';
+    const matchesSearch = pkgName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (pkg._id?.slice(-6) || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = selectedType === 'all' || 
+                       (pkg.customPackageType && selectedType === 'Haj') ||
+                       (pkg.packageType && selectedType.toLowerCase() === pkg.packageType.toLowerCase());
+    const matchesStatus = selectedStatus === 'all' || 
+                         (pkg.status && selectedStatus.toLowerCase() === pkg.status.toLowerCase());
     
     return matchesSearch && matchesType && matchesStatus;
   });
@@ -151,9 +109,9 @@ const PackageList = () => {
   };
 
   const totalPackages = packages.length;
-  const activePackages = packages.filter(p => p.status === 'Active').length;
-  const totalBookings = packages.reduce((sum, p) => sum + p.bookings, 0);
-  const totalRevenue = packages.reduce((sum, p) => sum + (p.totalCost * p.bookings), 0);
+  const activePackages = packages.filter(p => p.status === 'Active' || p.status === 'Draft').length;
+  const totalBookings = 0; // Will be calculated based on actual bookings
+  const totalRevenue = 0; // Will be calculated based on actual revenue
 
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
@@ -285,212 +243,126 @@ const PackageList = () => {
         </div>
       </div>
 
-      {/* Packages Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700/50">
-              <tr>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  প্যাকেজ
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  ধরন
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  বছর
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  মোট খরচ
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  বুকিং
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  স্ট্যাটাস
-                </th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  অ্যাকশন
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {filteredPackages.map((pkg) => (
-                <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
-                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
-                          <Package className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                      </div>
-                      <div className="ml-2 sm:ml-4 min-w-0 flex-1">
-                        <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {pkg.name}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {pkg.packageId}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(pkg.type)}`}>
-                      {pkg.type}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
-                      {pkg.year}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400 truncate block">
-                      {formatCurrency(pkg.totalCost)}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <div className="min-w-0">
-                      <div className="flex items-center justify-between text-xs sm:text-sm text-gray-900 dark:text-white">
-                        <span>{pkg.bookings}/{pkg.maxCapacity}</span>
-                        <span className="text-gray-500 dark:text-gray-400">
-                          {getBookingPercentage(pkg.bookings, pkg.maxCapacity)}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-1">
-                        <div
-                          className="bg-purple-600 h-2 rounded-full"
-                          style={{ width: `${getBookingPercentage(pkg.bookings, pkg.maxCapacity)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(pkg.status)}`}>
-                      {pkg.status}
-                    </span>
-                  </td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4">
-                    <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
-                      <button
-                        onClick={() => handleView(pkg)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
-                        title="দেখুন"
-                      >
-                        <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(pkg)}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 p-1"
-                        title="সম্পাদনা করুন"
-                      >
-                        <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(pkg)}
-                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"
-                        title="মুছুন"
-                      >
-                        <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">প্যাকেজ লোড করা হচ্ছে...</p>
         </div>
-      </div>
+      )}
 
-      {/* Modal */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title={
-          modalType === 'view' ? 'প্যাকেজ তথ্য দেখুন' :
-          modalType === 'edit' ? 'প্যাকেজ সম্পাদনা করুন' :
-          'প্যাকেজ মুছুন'
-        }
-      >
-        {modalType === 'view' && selectedPackage && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  প্যাকেজ নাম
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedPackage.name}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  প্যাকেজ আইডি
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white font-mono">{selectedPackage.packageId}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  ধরন
-                </label>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(selectedPackage.type)}`}>
-                  {selectedPackage.type}
-                </span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  বছর
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedPackage.year}</p>
-              </div>
-            </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">খরচের বিবরণ</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">মক্কার বাড়ির ফি</label>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(selectedPackage.makkahHouseFee)}</p>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">মদিনার বাড়ির ফি</label>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(selectedPackage.madinaHouseFee)}</p>
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">বিমান ভাড়া</label>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(selectedPackage.airFare)}</p>
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">মোট খরচ</label>
-                <p className="text-lg font-bold text-purple-600 dark:text-purple-400">{formatCurrency(selectedPackage.totalCost)}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  স্ট্যাটাস
-                </label>
-                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedPackage.status)}`}>
-                  {selectedPackage.status}
-                </span>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  বুকিং
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedPackage.bookings}/{selectedPackage.maxCapacity}</p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                বিবরণ
-              </label>
-              <p className="text-sm text-gray-900 dark:text-white">{selectedPackage.description}</p>
-            </div>
+      {/* Packages Table */}
+      {!isLoading && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
+                <tr>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    প্যাকেজ
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    ধরন
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    বছর
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    মোট খরচ
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    স্ট্যাটাস
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    অ্যাকশন
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {filteredPackages.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center">
+                      <Package className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">কোন প্যাকেজ নেই</h3>
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        এখনও কোন প্যাকেজ তৈরি করা হয়নি। একটি নতুন প্যাকেজ তৈরি করুন।
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPackages.map((pkg) => (
+                    <tr key={pkg._id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-8 w-8 sm:h-10 sm:w-10">
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
+                              <Package className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600 dark:text-purple-400" />
+                            </div>
+                          </div>
+                          <div className="ml-2 sm:ml-4 min-w-0 flex-1">
+                            <div className="text-xs sm:text-sm font-medium text-gray-900 dark:text-white truncate">
+                              {pkg.packageName || pkg.name || 'Unnamed Package'}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {pkg._id?.slice(-6) || pkg.packageId || 'N/A'}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(pkg.customPackageType || pkg.type || 'Unknown')}`}>
+                          {getDisplayType(pkg.customPackageType || pkg.type || 'Unknown')}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
+                          {pkg.packageYear || pkg.year || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400 truncate block">
+                          {formatCurrency(pkg.totals?.grandTotal || pkg.totals?.subtotal || pkg.totalCost || 0)}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(pkg.status || 'Unknown')}`}>
+                          {pkg.status || 'Unknown'}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
+                          <button
+                            onClick={() => handleView(pkg)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-1"
+                            title="দেখুন"
+                          >
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEdit(pkg)}
+                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 p-1"
+                            title="সম্পাদনা করুন"
+                          >
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(pkg)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-1"
+                            title="মুছুন"
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
-      </Modal>
+        </div>
+      )}
+
     </div>
   );
 };

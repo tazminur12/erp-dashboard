@@ -25,9 +25,11 @@ import {
   useTransactions, 
   useUpdateTransaction, 
   useDeleteTransaction,
-  useBulkDeleteTransactions 
+  useBulkDeleteTransactions,
+  useTransactionCategories
 } from '../../hooks/useTransactionQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
+import { getAllSubCategories } from '../../utils/categoryUtils';
 import Swal from 'sweetalert2';
 import { formatDate as formatDateShared } from '../../lib/format';
 
@@ -41,7 +43,8 @@ const TransactionsList = () => {
     dateRange: '',
     transactionType: '',
     category: '',
-    paymentMethod: ''
+    paymentMethod: '',
+    status: ''
   });
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,6 +76,9 @@ const TransactionsList = () => {
   const updateTransactionMutation = useUpdateTransaction();
   const deleteTransactionMutation = useDeleteTransaction();
   const bulkDeleteMutation = useBulkDeleteTransactions();
+
+  // Categories from API for ID->name mapping
+  const { data: apiCategories = [] } = useTransactionCategories();
 
   // Extract data from query result
   const transactions = transactionsData?.transactions || [];
@@ -106,6 +112,13 @@ const TransactionsList = () => {
       { value: 'ব্যাংক ট্রান্সফার', label: 'ব্যাংক ট্রান্সফার' },
       { value: 'মোবাইল ব্যাংকিং', label: 'মোবাইল ব্যাংকিং' },
       { value: 'চেক', label: 'চেক' }
+    ],
+    status: [
+      { value: '', label: 'সব স্ট্যাটাস' },
+      { value: 'submitted', label: 'Submitted' },
+      { value: 'pending', label: 'Pending' },
+      { value: 'completed', label: 'Completed' },
+      { value: 'cancelled', label: 'Cancelled' }
     ]
   };
 
@@ -121,6 +134,8 @@ const TransactionsList = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'submitted':
+        return 'text-blue-600 bg-blue-100 dark:bg-blue-900/20';
       case 'completed':
         return 'text-green-600 bg-green-100 dark:bg-green-900/20';
       case 'pending':
@@ -142,6 +157,61 @@ const TransactionsList = () => {
 
   const formatDate = (dateString) => formatDateShared(dateString);
 
+  // Data access helpers with fallbacks for varying backend shapes
+  const getCustomerName = (t) => (
+    t.customerName ||
+    t.customer?.name ||
+    t.partyName ||
+    t.party?.name ||
+    t.customer?.fullName ||
+    t.customer?.customerName ||
+    'N/A'
+  );
+
+  const subCategoryIndex = useMemo(() => {
+    // Build a quick ID->name map for all known subcategories
+    const map = {};
+    try {
+      const subs = getAllSubCategories();
+      subs.forEach(s => { map[s.id] = s.name; });
+    } catch (e) { /* ignore */ }
+    return map;
+  }, []);
+
+  const apiCategoryIndex = useMemo(() => {
+    const map = {};
+    try {
+      (apiCategories || []).forEach((c) => {
+        if (!c) return;
+        if (typeof c === 'string') {
+          map[c] = c;
+          return;
+        }
+        const id = c._id || c.id || c.value || c.slug;
+        const name = c.name || c.label || c.title || c.categoryName || c.value;
+        if (id && name) map[id] = name;
+        if (name) map[name] = name; // allow direct name passthrough
+      });
+    } catch (e) { /* ignore */ }
+    return map;
+  }, [apiCategories]);
+
+  const getCategory = (t) => {
+    // Support multiple shapes
+    if (t.category && typeof t.category === 'object') {
+      return t.category.name || t.category.label || t.category.title || t.category.categoryName || 'N/A';
+    }
+    if (t.serviceCategory && typeof t.serviceCategory === 'object') {
+      return t.serviceCategory.name || t.serviceCategory.label || t.serviceCategory.title || 'N/A';
+    }
+
+    const raw = t.category || t.categoryId || t.serviceCategory || t.paymentDetails?.category || '';
+    // If looks like an ID and present in our map, show readable name
+    if (raw && subCategoryIndex[raw]) return subCategoryIndex[raw];
+    if (raw && apiCategoryIndex[raw]) return apiCategoryIndex[raw];
+    return raw || 'N/A';
+  };
+
   // Event handlers
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -153,7 +223,8 @@ const TransactionsList = () => {
       dateRange: '',
       transactionType: '',
       category: '',
-      paymentMethod: ''
+      paymentMethod: '',
+      status: ''
     });
     setSearchTerm('');
     setCurrentPage(1);
@@ -668,6 +739,27 @@ const TransactionsList = () => {
                     ))}
                   </select>
                 </div>
+            {/* Status Filter */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                স্ট্যাটাস
+              </label>
+              <select
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  isDark 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'border-gray-300'
+                }`}
+              >
+                {filterOptions.status.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
               </div>
             </div>
           )}
@@ -775,6 +867,9 @@ const TransactionsList = () => {
                     তারিখ
                   </th>
                   <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
+                    স্ট্যাটাস
+                  </th>
+                  <th className={`px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider`}>
                     অ্যাকশন
                   </th>
                 </tr>
@@ -842,7 +937,7 @@ const TransactionsList = () => {
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {transaction.customerName}
+                          {getCustomerName(transaction)}
                           </div>
                           <div className="text-sm text-gray-500 dark:text-gray-400">
                             {transaction.customerPhone}
@@ -859,7 +954,7 @@ const TransactionsList = () => {
                       <div className="flex items-center">
                         <Tag className="w-4 h-4 text-gray-400 mr-2" />
                         <span className="text-sm text-gray-900 dark:text-white">
-                          {transaction.category}
+                          {getCategory(transaction)}
                         </span>
                       </div>
                     </td>
@@ -885,6 +980,11 @@ const TransactionsList = () => {
                         <Calendar className="w-4 h-4 text-gray-400 mr-2" />
                         {formatDate(transaction.date)}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor((transaction.status || '').toLowerCase())}`}>
+                        {transaction.status || 'N/A'}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
@@ -1087,21 +1187,29 @@ const TransactionsList = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    স্ট্যাটাস
+                  </label>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor((selectedTransaction.status || '').toLowerCase())}`}>
+                    {selectedTransaction.status || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     কাস্টমারের নাম
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerName}</p>
+                  <p className="text-gray-900 dark:text-white">{getCustomerName(selectedTransaction)}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     ফোন নম্বর
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerPhone}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerPhone || selectedTransaction.customer?.phone || selectedTransaction.party?.phone || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     ইমেইল
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerEmail}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerEmail || selectedTransaction.customer?.email || selectedTransaction.party?.email || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
@@ -1115,7 +1223,7 @@ const TransactionsList = () => {
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
                     ক্যাটাগরি
                   </label>
-                  <p className="text-gray-900 dark:text-white">{selectedTransaction.category}</p>
+                  <p className="text-gray-900 dark:text-white">{getCategory(selectedTransaction)}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
