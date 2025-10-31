@@ -22,6 +22,8 @@ import {
 import { useCreateHaji, useUpdateHaji, useHaji } from '../../../hooks/UseHajiQueries';
 import { useCustomers } from '../../../hooks/useCustomerQueries';
 import Swal from 'sweetalert2';
+import { usePackages } from '../../../hooks/usePackageQueries';
+import { useAgents } from '../../../hooks/useAgentQueries';
 
 const toast = {
   success: (message) => console.log('Success:', message),
@@ -142,9 +144,13 @@ const AddHaji = () => {
   
   // Fetch Haji data for edit mode
   const { data: hajiData, isLoading: hajiLoading } = useHaji(hajiIdParam);
+ 
+ // Fetch real packages and agents from backend
+ const { data: packagesResponse, isLoading: packagesLoading } = usePackages({ customPackageType: 'Custom Hajj', limit: 1000 });
+ const { data: agentsResponse, isLoading: agentsLoading } = useAgents(1, 1000, '');
   
-  // Combined loading state
-  const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.isPending || (editMode && hajiLoading);
+// Combined loading state
+const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.isPending || (editMode && hajiLoading) || packagesLoading || agentsLoading;
   
   // Load Haji data for edit mode
   useEffect(() => {
@@ -267,21 +273,32 @@ const AddHaji = () => {
     isActive: true
   });
 
-  useEffect(() => {
-    const mockPackages = [
-      { id: 'P001', name: 'Premium Hajj 2024', price: 450000, type: 'hajj' },
-      { id: 'P002', name: 'Standard Hajj 2024', price: 350000, type: 'hajj' }
-    ];
+// Load packages from backend
+useEffect(() => {
+  const list = packagesResponse?.data || packagesResponse?.packages || [];
+  if (Array.isArray(list)) {
+    const normalized = list.map(p => ({
+      id: p._id || p.id || p.packageId,
+      name: p.packageName || p.name,
+      price: p.totalPriceBdt ?? p.totals?.grandTotal ?? p.totals?.subtotal ?? p.price ?? 0,
+      type: p.type || p.customPackageType || 'hajj'
+    })).filter(opt => opt.id && opt.name);
+    setPackages(normalized);
+  }
+}, [packagesResponse]);
 
-    const mockAgents = [
-      { id: 'A001', name: 'Al-Hijrah Travels', phone: '+8801712345678' },
-      { id: 'A002', name: 'Madina Tours', phone: '+8801712345679' },
-      { id: 'A003', name: 'Mecca Travels', phone: '+8801712345680' }
-    ];
-
-    setPackages(mockPackages);
-    setAgents(mockAgents);
-  }, []);
+// Load agents from backend
+useEffect(() => {
+  const list = agentsResponse?.data || agentsResponse?.agents || [];
+  if (Array.isArray(list)) {
+    const normalized = list.map(a => ({
+      id: a._id || a.id || a.agentId,
+      name: a.tradeName || a.name,
+      phone: a.contactNo || a.phone || ''
+    })).filter(opt => opt.id && opt.name);
+    setAgents(normalized);
+  }
+}, [agentsResponse]);
 
   // Customer search functionality
   const filteredCustomers = customers.filter(customer => 

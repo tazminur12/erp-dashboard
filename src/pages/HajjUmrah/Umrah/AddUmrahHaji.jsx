@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useCreateUmrah, useUpdateUmrah, useUmrah } from '../../../hooks/UseUmrahQuries';
 import { useCustomers } from '../../../hooks/useCustomerQueries';
+import { usePackages } from '../../../hooks/usePackageQueries';
+import { useAgents } from '../../../hooks/useAgentQueries';
 import Swal from 'sweetalert2';
 
 const toast = {
@@ -143,8 +145,12 @@ const AddUmrahHaji = () => {
   // Fetch Umrah data for edit mode
   const { data: umrahData, isLoading: umrahLoading } = useUmrah(umrahIdParam);
   
+  // Fetch real packages and agents from backend
+  const { data: packagesResponse, isLoading: packagesLoading } = usePackages({ customPackageType: 'Custom Umrah', limit: 1000 });
+  const { data: agentsResponse, isLoading: agentsLoading } = useAgents(1, 1000, '');
+  
   // Combined loading state
-  const isLoading = loading || createUmrahMutation.isPending || updateUmrahMutation.isPending || (editMode && umrahLoading);
+  const isLoading = loading || createUmrahMutation.isPending || updateUmrahMutation.isPending || (editMode && umrahLoading) || packagesLoading || agentsLoading;
   const isSubmitting = loading || createUmrahMutation.isPending;
 
   
@@ -264,21 +270,32 @@ const AddUmrahHaji = () => {
     }));
   }, [editMode, umrahData]);
 
+  // Load packages from backend
   useEffect(() => {
-    const mockPackages = [
-      { id: 'P003', name: 'Deluxe Umrah 2024', price: 180000, type: 'umrah' },
-      { id: 'P004', name: 'Standard Umrah 2024', price: 120000, type: 'umrah' }
-    ];
+    const list = packagesResponse?.data || packagesResponse?.packages || [];
+    if (Array.isArray(list)) {
+      const normalized = list.map(p => ({
+        id: p._id || p.id || p.packageId,
+        name: p.packageName || p.name,
+        price: p.totalPriceBdt ?? p.totals?.grandTotal ?? p.totals?.subtotal ?? p.price ?? 0,
+        type: p.type || p.customPackageType || 'umrah'
+      })).filter(opt => opt.id && opt.name);
+      setPackages(normalized);
+    }
+  }, [packagesResponse]);
 
-    const mockAgents = [
-      { id: 'A001', name: 'Al-Hijrah Travels', phone: '+8801712345678' },
-      { id: 'A002', name: 'Madina Tours', phone: '+8801712345679' },
-      { id: 'A003', name: 'Mecca Travels', phone: '+8801712345680' }
-    ];
-
-    setPackages(mockPackages);
-    setAgents(mockAgents);
-  }, []);
+  // Load agents from backend
+  useEffect(() => {
+    const list = agentsResponse?.data || agentsResponse?.agents || [];
+    if (Array.isArray(list)) {
+      const normalized = list.map(a => ({
+        id: a._id || a.id || a.agentId,
+        name: a.tradeName || a.name,
+        phone: a.contactNo || a.phone || ''
+      })).filter(opt => opt.id && opt.name);
+      setAgents(normalized);
+    }
+  }, [agentsResponse]);
 
   // Customer search functionality - prioritize Umrah customers
   const filteredCustomers = customers.filter(customer => {

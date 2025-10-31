@@ -71,6 +71,12 @@ const PackageEdit = () => {
   });
 
   const [discount, setDiscount] = useState('');
+  const [discountDetails, setDiscountDetails] = useState({
+    adult: '',
+    child: '',
+    infant: ''
+  });
+  const [showDiscountPopup, setShowDiscountPopup] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({
     costDetails: false
   });
@@ -177,6 +183,15 @@ const PackageEdit = () => {
       // Set discount
       if (existingPackage.costs?.discount) {
         setDiscount(existingPackage.costs.discount.toString());
+      }
+
+      // Set discount details
+      if (existingPackage.costs?.discountDetails) {
+        setDiscountDetails({
+          adult: existingPackage.costs.discountDetails.adult || '',
+          child: existingPackage.costs.discountDetails.child || '',
+          infant: existingPackage.costs.discountDetails.infant || ''
+        });
       }
     }
   }, [existingPackage]);
@@ -363,8 +378,33 @@ const PackageEdit = () => {
     return parts.length > 0 ? parts.join(', ') : 'কোন যাত্রী যোগ করা হয়নি';
   };
 
+  // Discount popup functions
+  const handleDiscountDetailChange = (passengerType, value) => {
+    setDiscountDetails(prev => ({
+      ...prev,
+      [passengerType]: value
+    }));
+  };
+
+  const saveDiscountDetails = () => {
+    const totalDiscount =
+      (parseFloat(discountDetails.adult) || 0) +
+      (parseFloat(discountDetails.child) || 0) +
+      (parseFloat(discountDetails.infant) || 0);
+    setDiscount(totalDiscount);
+    setShowDiscountPopup(false);
+  };
+
+  const openDiscountPopup = () => {
+    if (costs.discountDetails) {
+      setDiscountDetails(costs.discountDetails);
+    }
+    setShowDiscountPopup(true);
+  };
+
   const calculatePassengerTypeTotals = () => {
     const sarToBdtRate = parseFloat(formData.sarToBdtRate) || 1;
+    const discountAmount = parseFloat(discount) || 0; // kept for parity though distributed per passenger below
     
     let adultTotal = 0;
     let childTotal = 0;
@@ -393,11 +433,19 @@ const PackageEdit = () => {
     childTotal += otherCosts;
     infantTotal += otherCosts;
 
+    let adultFinal = adultTotal - (parseFloat(discountDetails.adult) || 0);
+    let childFinal = childTotal - (parseFloat(discountDetails.child) || 0);
+    let infantFinal = infantTotal - (parseFloat(discountDetails.infant) || 0);
+
+    adultFinal = Math.max(0, adultFinal);
+    childFinal = Math.max(0, childFinal);
+    infantFinal = Math.max(0, infantFinal);
+
     return {
-      adult: adultTotal,
-      child: childTotal,
-      infant: infantTotal,
-      total: adultTotal + childTotal + infantTotal
+      adult: adultFinal,
+      child: childFinal,
+      infant: infantFinal,
+      total: adultFinal + childFinal + infantFinal
     };
   };
 
@@ -448,7 +496,8 @@ const PackageEdit = () => {
         notes: formData.notes,
         costs: {
           ...costs,
-          discount: parseFloat(discount) || 0
+          discount: parseFloat(discount) || 0,
+          discountDetails: discountDetails
         },
         totals: {
           bangladeshCosts: totals.bangladeshCosts,
@@ -525,6 +574,7 @@ const PackageEdit = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
       <style>{`
+        /* Hide number input spinners */
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {
           -webkit-appearance: none;
@@ -535,71 +585,99 @@ const PackageEdit = () => {
         }
       `}</style>
       <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="mb-8">
+          {/* Back Button */}
           <div className="mb-6">
             <button
               onClick={() => navigate(`/hajj-umrah/package-list/${id}`)}
               className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span className="text-sm font-medium">পিছনে ফিরুন</span>
+              <span className="text-sm font-medium">প্যাকেজ তালিকায় ফিরুন</span>
             </button>
           </div>
           
+          {/* Title Section */}
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full mb-4">
               <Package className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              হজ ও উমরাহ প্যাকেজ সম্পাদনা
+              হজ ও উমরাহ প্যাকেজ তৈরি
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              প্যাকেজের তথ্য আপ데িট করুন
+              পেশাদার হজ ও উমরাহ প্যাকেজ তৈরি করুন এবং পরিচালনা করুন
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Form */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* All the form sections from PackageCreation.jsx would go here */}
-              {/* For brevity, I'm including just the structure - you would copy all the JSX from PackageCreation.jsx */}
-              {/* The main difference is the header saying "Edit" instead of "Create" */}
-              
+              {/* Basic Information */}
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                   <Package className="w-5 h-5 mr-2 text-purple-600" />
                   মৌলিক তথ্য
                 </h2>
                 
-                {/* Form fields would go here - same as PackageCreation.jsx */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      প্যাকেজ নাম <span className="text-red-500">*</span>
+                      কাস্টম প্যাকেজ টাইপ
                     </label>
-                    <input
-                      type="text"
-                      name="packageName"
-                      value={formData.packageName}
+                    <select
+                      name="customPackageType"
+                      value={formData.customPackageType}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white border-gray-300 dark:border-gray-600"
-                      placeholder="প্যাকেজের নাম লিখুন"
-                    />
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="">কাস্টম প্যাকেজ নির্বাচন করুন</option>
+                      <option value="Custom Hajj">Hajj</option>
+                      <option value="Custom Umrah">Umrah</option>
+                    </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       সাল <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="packageYear"
                       value={formData.packageYear}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white border-gray-300 dark:border-gray-600"
-                      placeholder="সাল"
-                    />
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        errors.packageYear ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    >
+                      <option value="">Select Year</option>
+                      <option value="2030">2030</option>
+                      <option value="2029">2029</option>
+                      <option value="2028">2028</option>
+                      <option value="2027">2027</option>
+                      <option value="2026">2026</option>
+                      <option value="2025">2025</option>
+                      <option value="2024">2024</option>
+                      <option value="2023">2023</option>
+                      <option value="2022">2022</option>
+                      <option value="2021">2021</option>
+                      <option value="2020">2020</option>
+                      <option value="2019">2019</option>
+                      <option value="2018">2018</option>
+                      <option value="2017">2017</option>
+                      <option value="2016">2016</option>
+                      <option value="2015">2015</option>
+                      <option value="2014">2014</option>
+                      <option value="2013">2013</option>
+                      <option value="2012">2012</option>
+                      <option value="2011">2011</option>
+                      <option value="2010">2010</option>
+                    </select>
+                    {errors.packageYear && (
+                      <p className="mt-1 text-sm text-red-600">{errors.packageYear}</p>
+                    )}
                   </div>
 
                   <div>
@@ -627,9 +705,495 @@ const PackageEdit = () => {
                       <option value="December">ডিসেম্বর (December)</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      প্যাকেজ টাইপ
+                    </label>
+                    <select
+                      name="packageType"
+                      value={formData.packageType}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="Regular">Regular</option>
+                      <option value="Standard">Standard</option>
+                      <option value="Premium">Premium</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        প্যাকেজ নাম <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="packageName"
+                        value={formData.packageName}
+                        onChange={handleInputChange}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                          errors.packageName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                        placeholder="প্যাকেজের নাম লিখুন"
+                      />
+                      {errors.packageName && (
+                        <p className="mt-1 text-sm text-red-600">{errors.packageName}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        রিয়াল রেট (SAR → BDT)
+                      </label>
+                      <input
+                        type="number"
+                        name="sarToBdtRate"
+                        value={formData.sarToBdtRate}
+                        onChange={handleInputChange}
+                        min="0"
+                        step="0.01"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      স্ট্যাটাস
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    >
+                      <option value="Active">সক্রিয় (Active)</option>
+                      <option value="Draft">খসড়া (Draft)</option>
+                      <option value="Inactive">নিষ্ক্রিয় (Inactive)</option>
+                      <option value="Suspended">স্থগিত (Suspended)</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
+              {/* Cost Details */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700">
+                <div 
+                  className="p-6 cursor-pointer"
+                  onClick={() => toggleSection('costDetails')}
+                >
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center justify-between">
+                    <span className="flex items-center">
+                      <Calculator className="w-5 h-5 mr-2 text-purple-600" />
+                      খরচের বিবরণ
+                    </span>
+                    {collapsedSections.costDetails ? (
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    ) : (
+                      <ChevronUp className="w-5 h-5 text-gray-400" />
+                    )}
+                  </h2>
+                </div>
+
+                {!collapsedSections.costDetails && (
+                  <div className="px-6 pb-6 space-y-8">
+                    {/* Bangladesh Portion */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">বাংলাদেশ অংশ</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {formData.customPackageType === 'Custom Umrah' ? (
+                          // Show fields for Custom Umrah Bangladesh portion
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">বিমান ভাড়া</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={costs.airFareDetails ? 
+                                    `Adult: ${costs.airFareDetails.adult.price || '0'}, Child: ${costs.airFareDetails.child.price || '0'}, Infant: ${costs.airFareDetails.infant.price || '0'}` 
+                                    : 'বিস্তারিত দেখুন'} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="বিস্তারিত দেখুন" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={openAirFarePopup}
+                                  className="px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  <span>বিস্তারিত</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ভিসা ফি</label>
+                              <input type="number" name="visaFee" value={costs.visaFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">হজ গাইড ফি</label>
+                              <input type="number" name="hajjGuide" value={costs.hajjGuide} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">অন্যান্য বাংলাদেশি খরচ</label>
+                              <input type="number" name="otherBdCosts" value={costs.otherBdCosts} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+                          </>
+                        ) : (
+                          // Show all fields for other package types
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">বিমান ভাড়া</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={costs.airFareDetails ? 
+                                    `Adult: ${costs.airFareDetails.adult.price || '0'}, Child: ${costs.airFareDetails.child.price || '0'}, Infant: ${costs.airFareDetails.infant.price || '0'}` 
+                                    : 'বিস্তারিত দেখুন'} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="বিস্তারিত দেখুন" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={openAirFarePopup}
+                                  className="px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  <span>বিস্তারিত</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">আইডি কার্ড ফি</label>
+                              <input type="number" name="idCard" value={costs.idCard} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">হজ্জ কল্যাণ ফি</label>
+                              <input type="number" name="hajjKollan" value={costs.hajjKollan} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ট্রেনিং ফি</label>
+                              <input type="number" name="trainFee" value={costs.trainFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">হজ গাইড ফি</label>
+                              <input type="number" name="hajjGuide" value={costs.hajjGuide} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">সার্ভিস চার্জ (সরকারি)</label>
+                              <input type="number" name="govtServiceCharge" value={costs.govtServiceCharge} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">লাইসেন্স চার্জ ফি</label>
+                              <input type="number" name="licenseFee" value={costs.licenseFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">যাতায়াত ফি</label>
+                              <input type="number" name="transportFee" value={costs.transportFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ভিসা ফি</label>
+                              <input type="number" name="visaFee" value={costs.visaFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ইনস্যুরেন্স ফি</label>
+                              <input type="number" name="insuranceFee" value={costs.insuranceFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">অন্যান্য বাংলাদেশি খরচ</label>
+                              <input type="number" name="otherBdCosts" value={costs.otherBdCosts} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Saudi Portion */}
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">সৌদি অংশ</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Conditional rendering based on Custom Umrah selection */}
+                        {formData.customPackageType === 'Custom Umrah' ? (
+                          // Show only specific fields for Custom Umrah
+                          <>
+                            {/* Makkah Hotels */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মক্কা হোটেল (যাত্রীর ধরন অনুযায়ী)</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={getHotelSummary('makkahHotel1')} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="কোন যাত্রী যোগ করা হয়নি। 'যাত্রী যোগ করুন' বাটনে ক্লিক করুন।" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => openHotelPopup('makkahHotel1')}
+                                  className="px-2 py-2 sm:px-3 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm"
+                                >
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">যাত্রী যোগ করুন</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Madina Hotels */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মদিনা হোটেল (যাত্রীর ধরন অনুযায়ী)</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={getHotelSummary('madinaHotel1')} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="কোন যাত্রী যোগ করা হয়নি। 'যাত্রী যোগ করুন' বাটনে ক্লিক করুন।" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => openHotelPopup('madinaHotel1')}
+                                  className="px-2 py-2 sm:px-3 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm"
+                                >
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">যাত্রী যোগ করুন</span>
+                                  <span className="sm:hidden">যোগ</span>
+                                </button>
+                              </div>
+                            </div>
+
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">খাবার</label>
+                              <input type="number" name="food" value={costs.food} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">জিয়ারা ফি</label>
+                              <input type="number" name="ziyaraFee" value={costs.ziyaraFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+                          </>
+                        ) : (
+                          // Show all fields for other package types
+                          <>
+                            {/* Makkah Hotels */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মক্কা হোটেল ০১ (যাত্রীর ধরন অনুযায়ী)</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={getHotelSummary('makkahHotel1')} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="কোন যাত্রী যোগ করা হয়নি। 'যাত্রী যোগ করুন' বাটনে ক্লিক করুন।" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => openHotelPopup('makkahHotel1')}
+                                  className="px-2 py-2 sm:px-3 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm"
+                                >
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">যাত্রী যোগ করুন</span>
+                                  <span className="sm:hidden">যোগ</span>
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মক্কা হোটেল ০২ (যাত্রীর ধরন অনুযায়ী)</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={getHotelSummary('makkahHotel2')} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="কোন যাত্রী যোগ করা হয়নি। 'যাত্রী যোগ করুন' বাটনে ক্লিক করুন।" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => openHotelPopup('makkahHotel2')}
+                                  className="px-2 py-2 sm:px-3 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm"
+                                >
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">যাত্রী যোগ করুন</span>
+                                  <span className="sm:hidden">যোগ</span>
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মক্কা হোটেল ০৩ (যাত্রীর ধরন অনুযায়ী)</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={getHotelSummary('makkahHotel3')} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="কোন যাত্রী যোগ করা হয়নি। 'যাত্রী যোগ করুন' বাটনে ক্লিক করুন।" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => openHotelPopup('makkahHotel3')}
+                                  className="px-2 py-2 sm:px-3 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm"
+                                >
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">যাত্রী যোগ করুন</span>
+                                  <span className="sm:hidden">যোগ</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Madina Hotels */}
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মদিনা হোটেল ০১ (যাত্রীর ধরন অনুযায়ী)</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={getHotelSummary('madinaHotel1')} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="কোন যাত্রী যোগ করা হয়নি। 'যাত্রী যোগ করুন' বাটনে ক্লিক করুন।" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => openHotelPopup('madinaHotel1')}
+                                  className="px-2 py-2 sm:px-3 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm"
+                                >
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">যাত্রী যোগ করুন</span>
+                                  <span className="sm:hidden">যোগ</span>
+                                </button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মদিনা হোটেল ০২ (যাত্রীর ধরন অনুযায়ী)</label>
+                              <div className="flex items-center space-x-2">
+                                <input 
+                                  type="text" 
+                                  value={getHotelSummary('madinaHotel2')} 
+                                  readOnly
+                                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                                  placeholder="কোন যাত্রী যোগ করা হয়নি। 'যাত্রী যোগ করুন' বাটনে ক্লিক করুন।" 
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => openHotelPopup('madinaHotel2')}
+                                  className="px-2 py-2 sm:px-3 sm:py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center space-x-1 text-xs sm:text-sm"
+                                >
+                                  <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">যাত্রী যোগ করুন</span>
+                                  <span className="sm:hidden">যোগ</span>
+                                </button>
+                              </div>
+                            </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">জমজম পানি ফি</label>
+                          <input type="number" name="zamzamWater" value={costs.zamzamWater} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মক্তব ফি</label>
+                          <input type="number" name="maktab" value={costs.maktab} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ইলেকট্রনিক্স ফি</label>
+                          <input type="number" name="electronicsFee" value={costs.electronicsFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">গ্রাউন্ড সার্ভিস ফি</label>
+                          <input type="number" name="groundServiceFee" value={costs.groundServiceFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মক্কা রুট ফি</label>
+                          <input type="number" name="makkahRoute" value={costs.makkahRoute} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ব্যাগেজ ফি</label>
+                          <input type="number" name="baggage" value={costs.baggage} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">সার্ভিস চার্জ ফি</label>
+                          <input type="number" name="serviceCharge" value={costs.serviceCharge} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মোনাজ্জেম ফি</label>
+                          <input type="number" name="monazzem" value={costs.monazzem} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                        </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Discount */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ছাড় (যাত্রীর ধরন অনুযায়ী)</label>
+                        <div className="flex items-center space-x-2">
+                          <input 
+                            type="text" 
+                            value={
+                              discountDetails.adult || discountDetails.child || discountDetails.infant 
+                                ? `Adult: ${discountDetails.adult || '0'}, Child: ${discountDetails.child || '0'}, Infant: ${discountDetails.infant || '0'}` 
+                                : 'বিস্তারিত দেখুন'
+                            } 
+                            readOnly
+                            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm" 
+                            placeholder="বিস্তারিত দেখুন" 
+                          />
+                          <button
+                            type="button"
+                            onClick={openDiscountPopup}
+                            className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>বিস্তারিত</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+              {/* Notes */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  <FileText className="w-5 h-5 mr-2 text-purple-600" />
+                  নোট
+                </h2>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  rows={4}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="প্যাকেজ সম্পর্কে অতিরিক্ত তথ্য লিখুন..."
+                />
+              </div>
+
+              {/* Submit Button */}
               <div className="flex justify-end">
                 <button
                   type="submit"
@@ -641,6 +1205,614 @@ const PackageEdit = () => {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Air Fare Popup Modal */}
+          {showAirFarePopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      বিমান ভাড়া বিস্তারিত
+                    </h3>
+                    <button
+                      onClick={() => setShowAirFarePopup(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Adult */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Adult</h4>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Price (BDT)</label>
+                        <input
+                          type="number"
+                          value={airFareDetails.adult.price}
+                          onChange={(e) => handleAirFareDetailChange('adult', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Child */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Child</h4>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Price (BDT)</label>
+                        <input
+                          type="number"
+                          value={airFareDetails.child.price}
+                          onChange={(e) => handleAirFareDetailChange('child', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Infant */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Infant</h4>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Price (BDT)</label>
+                        <input
+                          type="number"
+                          value={airFareDetails.infant.price}
+                          onChange={(e) => handleAirFareDetailChange('infant', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setShowAirFarePopup(false)}
+                      className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveAirFareDetails}
+                      className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Hotel Details Popup Modal */}
+          {showHotelPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-2xl w-full mx-4">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {getHotelDisplayName(currentHotelType)} - যাত্রীর ধরন অনুযায়ী
+                    </h3>
+                    <button
+                      onClick={() => setShowHotelPopup(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Adult */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Adult</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Price per Night (SAR)</label>
+                          <input
+                            type="number"
+                            value={hotelDetails[currentHotelType]?.adult?.price || ''}
+                            onChange={(e) => handleHotelDetailChange(currentHotelType, 'adult', 'price', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Number of Nights</label>
+                          <input
+                            type="number"
+                            value={hotelDetails[currentHotelType]?.adult?.nights || ''}
+                            onChange={(e) => handleHotelDetailChange(currentHotelType, 'adult', 'nights', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                            placeholder="0"
+                            min="0"
+                            step="1"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                        Total: {((parseFloat(hotelDetails[currentHotelType]?.adult?.price) || 0) * (parseFloat(hotelDetails[currentHotelType]?.adult?.nights) || 0)).toFixed(2)} SAR
+                      </div>
+                    </div>
+
+                    {/* Child */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Child</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Price per Night (SAR)</label>
+                          <input
+                            type="number"
+                            value={hotelDetails[currentHotelType]?.child?.price || ''}
+                            onChange={(e) => handleHotelDetailChange(currentHotelType, 'child', 'price', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Number of Nights</label>
+                          <input
+                            type="number"
+                            value={hotelDetails[currentHotelType]?.child?.nights || ''}
+                            onChange={(e) => handleHotelDetailChange(currentHotelType, 'child', 'nights', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                            placeholder="0"
+                            min="0"
+                            step="1"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                        Total: {((parseFloat(hotelDetails[currentHotelType]?.child?.price) || 0) * (parseFloat(hotelDetails[currentHotelType]?.child?.nights) || 0)).toFixed(2)} SAR
+                      </div>
+                    </div>
+
+                    {/* Infant */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Infant</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Price per Night (SAR)</label>
+                          <input
+                            type="number"
+                            value={hotelDetails[currentHotelType]?.infant?.price || ''}
+                            onChange={(e) => handleHotelDetailChange(currentHotelType, 'infant', 'price', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Number of Nights</label>
+                          <input
+                            type="number"
+                            value={hotelDetails[currentHotelType]?.infant?.nights || ''}
+                            onChange={(e) => handleHotelDetailChange(currentHotelType, 'infant', 'nights', e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                            placeholder="0"
+                            min="0"
+                            step="1"
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                        Total: {((parseFloat(hotelDetails[currentHotelType]?.infant?.price) || 0) * (parseFloat(hotelDetails[currentHotelType]?.infant?.nights) || 0)).toFixed(2)} SAR
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setShowHotelPopup(false)}
+                      className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveHotelDetails}
+                      className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Discount Details Popup Modal */}
+          {showDiscountPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      ছাড় বিস্তারিত
+                    </h3>
+                    <button
+                      onClick={() => setShowDiscountPopup(false)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Adult Discount */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Adult</h4>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Discount Amount (BDT)</label>
+                        <input
+                          type="number"
+                          value={discountDetails.adult}
+                          onChange={(e) => handleDiscountDetailChange('adult', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Child Discount */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Child</h4>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Discount Amount (BDT)</label>
+                        <input
+                          type="number"
+                          value={discountDetails.child}
+                          onChange={(e) => handleDiscountDetailChange('child', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Infant Discount */}
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Infant</h4>
+                      <div>
+                        <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Discount Amount (BDT)</label>
+                        <input
+                          type="number"
+                          value={discountDetails.infant}
+                          onChange={(e) => handleDiscountDetailChange('infant', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setShowDiscountPopup(false)}
+                      className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={saveDiscountDetails}
+                      className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Summary Panel */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8">
+              <div className="bg-gradient-to-br from-white to-purple-50/30 dark:from-gray-800 dark:to-purple-900/10 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center">
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center mr-3">
+                      <Calculator className="w-5 h-5 text-white" />
+                    </div>
+                    খরচের সারসংক্ষেপ
+                  </h3>
+                </div>
+
+                <div className="space-y-5">
+                  {/* Comprehensive Passenger Breakdown */}
+                  <div className="bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-blue-900/20 dark:via-purple-900/20 dark:to-pink-900/20 rounded-xl p-4 border border-purple-200/50 dark:border-purple-700/30 shadow-sm">
+                    <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                      <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-md flex items-center justify-center mr-2">
+                        <Package className="w-3.5 h-3.5 text-white" />
+                      </div>
+                      সম্পূর্ণ খরচ বিস্তারিত
+                    </h4>
+                    
+                    {/* Adult Breakdown */}
+                    <div className="bg-white dark:bg-gray-700/80 backdrop-blur-sm rounded-xl p-4 mb-3 shadow-sm border border-blue-200/50 dark:border-blue-700/30">
+                      <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                        <span className="text-sm font-bold text-blue-700 dark:text-blue-400 flex items-center">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                          Adult (প্রাপ্তবয়স্ক)
+                        </span>
+                        <span className="text-base font-bold text-blue-600 dark:text-blue-400">
+                          {formatCurrency(passengerTotals.adult)}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        {/* Air Fare */}
+                        {totals.airFareDetails?.adult?.price && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600 dark:text-gray-400">বিমান ভাড়া</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {formatCurrency(totals.airFareDetails.adult.price)}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Hotel Costs */}
+                        {Object.keys(hotelDetails).map((hotelType) => {
+                          const hotel = hotelDetails[hotelType];
+                          const sarToBdtRate = parseFloat(formData.sarToBdtRate) || 1;
+                          const adultHotelTotal = ((parseFloat(hotel.adult?.price) || 0) * (parseFloat(hotel.adult?.nights) || 0)) * sarToBdtRate;
+                          
+                          if (adultHotelTotal > 0) {
+                            return (
+                              <div key={hotelType} className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">{getHotelDisplayName(hotelType)}</span>
+                                <span className="font-semibold text-gray-900 dark:text-white">
+                                  {formatCurrency(adultHotelTotal)}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                        
+                        {/* Other Costs (same for all passengers) */}
+                        {(() => {
+                          const otherCosts = totals.bangladeshCosts + totals.saudiCosts;
+                          
+                          if (otherCosts > 0) {
+                            return (
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">অন্যান্য খরচ (সমান)</span>
+                                <span className="font-semibold text-gray-900 dark:text-white">
+                                  {formatCurrency(otherCosts)}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Child Breakdown */}
+                    <div className="bg-white dark:bg-gray-700/80 backdrop-blur-sm rounded-xl p-4 mb-3 shadow-sm border border-green-200/50 dark:border-green-700/30">
+                      <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                        <span className="text-sm font-bold text-green-700 dark:text-green-400 flex items-center">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                          Child (শিশু)
+                        </span>
+                        <span className="text-base font-bold text-green-600 dark:text-green-400">
+                          {formatCurrency(passengerTotals.child)}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        {/* Air Fare */}
+                        {totals.airFareDetails?.child?.price && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600 dark:text-gray-400">বিমান ভাড়া</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {formatCurrency(totals.airFareDetails.child.price)}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Hotel Costs */}
+                        {Object.keys(hotelDetails).map((hotelType) => {
+                          const hotel = hotelDetails[hotelType];
+                          const sarToBdtRate = parseFloat(formData.sarToBdtRate) || 1;
+                          const childHotelTotal = ((parseFloat(hotel.child?.price) || 0) * (parseFloat(hotel.child?.nights) || 0)) * sarToBdtRate;
+                          
+                          if (childHotelTotal > 0) {
+                            return (
+                              <div key={hotelType} className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">{getHotelDisplayName(hotelType)}</span>
+                                <span className="font-semibold text-gray-900 dark:text-white">
+                                  {formatCurrency(childHotelTotal)}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                        
+                        {/* Other Costs (same for all passengers) */}
+                        {(() => {
+                          const otherCosts = totals.bangladeshCosts + totals.saudiCosts;
+                          
+                          if (otherCosts > 0) {
+                            return (
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">অন্যান্য খরচ (সমান)</span>
+                                <span className="font-semibold text-gray-900 dark:text-white">
+                                  {formatCurrency(otherCosts)}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Infant Breakdown */}
+                    <div className="bg-white dark:bg-gray-700/80 backdrop-blur-sm rounded-xl p-4 shadow-sm border border-orange-200/50 dark:border-orange-700/30">
+                      <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                        <span className="text-sm font-bold text-orange-700 dark:text-orange-400 flex items-center">
+                          <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                          Infant (শিশু)
+                        </span>
+                        <span className="text-base font-bold text-orange-600 dark:text-orange-400">
+                          {formatCurrency(passengerTotals.infant)}
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        {/* Air Fare */}
+                        {totals.airFareDetails?.infant?.price && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600 dark:text-gray-400">বিমান ভাড়া</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {formatCurrency(totals.airFareDetails.infant.price)}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {/* Hotel Costs */}
+                        {Object.keys(hotelDetails).map((hotelType) => {
+                          const hotel = hotelDetails[hotelType];
+                          const sarToBdtRate = parseFloat(formData.sarToBdtRate) || 1;
+                          const infantHotelTotal = ((parseFloat(hotel.infant?.price) || 0) * (parseFloat(hotel.infant?.nights) || 0)) * sarToBdtRate;
+                          
+                          if (infantHotelTotal > 0) {
+                            return (
+                              <div key={hotelType} className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">{getHotelDisplayName(hotelType)}</span>
+                                <span className="font-semibold text-gray-900 dark:text-white">
+                                  {formatCurrency(infantHotelTotal)}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                        
+                        {/* Other Costs (same for all passengers) */}
+                        {(() => {
+                          const otherCosts = totals.bangladeshCosts + totals.saudiCosts;
+                          
+                          if (otherCosts > 0) {
+                            return (
+                              <div className="flex justify-between items-center">
+                                <span className="text-gray-600 dark:text-gray-400">অন্যান্য খরচ (সমান)</span>
+                                <span className="font-semibold text-gray-900 dark:text-white">
+                                  {formatCurrency(otherCosts)}
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Discount Summary */}
+                  {discountDetails.adult || discountDetails.child || discountDetails.infant ? (
+                    <div className="bg-gradient-to-br from-red-50 via-pink-50 to-orange-50 dark:from-red-900/20 dark:via-pink-900/20 dark:to-orange-900/20 rounded-xl p-4 border-2 border-red-200 dark:border-red-700/50 shadow-md">
+                      <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
+                        <div className="w-6 h-6 bg-gradient-to-r from-red-600 to-orange-600 rounded-md flex items-center justify-center mr-2">
+                          <Package className="w-3.5 h-3.5 text-white" />
+                        </div>
+                        ছাড় বিস্তারিত
+                      </h4>
+                      <div className="space-y-2.5">
+                        {discountDetails.adult && (
+                          <div className="flex justify-between items-center py-2.5 px-4 bg-white dark:bg-gray-800 rounded-xl border-l-4 border-blue-500 shadow-sm">
+                            <span className="text-sm font-semibold text-blue-700 dark:text-blue-400">Adult (প্রাপ্তবয়স্ক)</span>
+                            <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                              -{formatCurrency(discountDetails.adult)}
+                            </span>
+                          </div>
+                        )}
+                        {discountDetails.child && (
+                          <div className="flex justify-between items-center py-2.5 px-4 bg-white dark:bg-gray-800 rounded-xl border-l-4 border-green-500 shadow-sm">
+                            <span className="text-sm font-semibold text-green-700 dark:text-green-400">Child (শিশু)</span>
+                            <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                              -{formatCurrency(discountDetails.child)}
+                            </span>
+                          </div>
+                        )}
+                        {discountDetails.infant && (
+                          <div className="flex justify-between items-center py-2.5 px-4 bg-white dark:bg-gray-800 rounded-xl border-l-4 border-orange-500 shadow-sm">
+                            <span className="text-sm font-semibold text-orange-700 dark:text-orange-400">Infant (শিশু)</span>
+                            <span className="text-sm font-bold text-red-600 dark:text-red-400">
+                              -{formatCurrency(discountDetails.infant)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center py-3 px-4 bg-gradient-to-r from-red-600 to-orange-600 dark:from-red-700 dark:to-orange-700 rounded-xl shadow-lg mt-2">
+                          <span className="text-base font-bold text-white">মোট ছাড়</span>
+                          <span className="text-base font-bold text-white">
+                            -{formatCurrency(discount)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Final Totals by Passenger Type */}
+                  <div className="bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 dark:from-purple-900/20 dark:via-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 border border-purple-300/50 dark:border-purple-700/30 shadow-lg">
+                    <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center">
+                      <CheckCircle className="w-5 h-5 mr-2 text-purple-600" />
+                      চূড়ান্ত মোট খরচ (ছাড় পরে)
+                    </h4>
+                    <div className="space-y-2.5">
+                      <div className="flex justify-between items-center py-3 px-4 bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/30 dark:to-blue-900/40 rounded-xl border-2 border-blue-300 dark:border-blue-700 shadow-sm">
+                        <span className="text-sm font-bold text-blue-700 dark:text-blue-300">Adult (প্রাপ্তবয়স্ক)</span>
+                        <span className="text-base font-bold text-blue-600 dark:text-blue-400">
+                          {formatCurrency(passengerTotals.adult)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 px-4 bg-gradient-to-r from-green-50 to-green-100 dark:from-green-900/30 dark:to-green-900/40 rounded-xl border-2 border-green-300 dark:border-green-700 shadow-sm">
+                        <span className="text-sm font-bold text-green-700 dark:text-green-300">Child (শিশু)</span>
+                        <span className="text-base font-bold text-green-600 dark:text-green-400">
+                          {formatCurrency(passengerTotals.child)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-3 px-4 bg-gradient-to-r from-orange-50 to-orange-100 dark:from-orange-900/30 dark:to-orange-900/40 rounded-xl border-2 border-orange-300 dark:border-orange-700 shadow-sm">
+                        <span className="text-sm font-bold text-orange-700 dark:text-orange-300">Infant (শিশু)</span>
+                        <span className="text-base font-bold text-orange-600 dark:text-orange-400">
+                          {formatCurrency(passengerTotals.infant)}
+                        </span>
+                      </div>
+                      
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
           </div>
         </div>
       </div>

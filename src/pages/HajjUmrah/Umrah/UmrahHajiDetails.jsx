@@ -17,13 +17,18 @@ import {
   Package
 } from 'lucide-react';
 import { useUmrah } from '../../../hooks/UseUmrahQuries';
+import { usePackages } from '../../../hooks/usePackageQueries';
 
 const UmrahHajiDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+  const [showPackagePicker, setShowPackagePicker] = useState(false);
+  const [packageSearch, setPackageSearch] = useState('');
 
   const { data: umrah, isLoading, error } = useUmrah(id);
+  const { data: packagesResp } = usePackages({ status: 'Active', limit: 200, page: 1 });
+  const packageList = packagesResp?.data || packagesResp?.packages || [];
 
   const getStatusBadge = (status) => {
     const statusClasses = {
@@ -179,6 +184,23 @@ const UmrahHajiDetails = () => {
               <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white">{umrah.createdAt ? new Date(umrah.createdAt).toLocaleDateString() : 'N/A'}</p>
             </div>
             <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600 dark:text-orange-400 flex-shrink-0" />
+          </div>
+        </div>
+      </div>
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Financial Summary</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{(umrah.totalAmount || 0).toLocaleString()}</p>
+          </div>
+          <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Paid Amount</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{(umrah.paidAmount || 0).toLocaleString()}</p>
+          </div>
+          <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Math.max((umrah.totalAmount || 0) - (umrah.paidAmount || 0), 0).toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -350,6 +372,13 @@ const UmrahHajiDetails = () => {
           </div>
         </div>
         <div className="flex items-center space-x-2 sm:space-x-3">
+        <button 
+          onClick={() => setShowPackagePicker(true)}
+          className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
+        >
+          <Package className="w-4 h-4" />
+          <span className="hidden sm:inline">Add Package</span>
+        </button>
           <button className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm sm:text-base">
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Export</span>
@@ -388,6 +417,74 @@ const UmrahHajiDetails = () => {
       </div>
 
       <div className="min-h-[400px] sm:min-h-[600px]">{renderTabContent()}</div>
+
+      {showPackagePicker && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full mx-4">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Select a Package</h3>
+                <button
+                  onClick={() => setShowPackagePicker(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={packageSearch}
+                  onChange={(e) => setPackageSearch(e.target.value)}
+                  placeholder="Search by name, type, year..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                />
+              </div>
+              <div className="max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                {(packageList || [])
+                  .filter((p) => {
+                    const q = packageSearch.toLowerCase();
+                    if (!q) return true;
+                    const name = (p.packageName || '').toLowerCase();
+                    const type = (p.packageType || '').toLowerCase();
+                    const year = String(p.packageYear || '').toLowerCase();
+                    const customType = (p.customPackageType || '').toLowerCase();
+                    return name.includes(q) || type.includes(q) || year.includes(q) || customType.includes(q);
+                  })
+                  .map((p) => (
+                    <div key={p._id} className="flex items-center justify-between p-3 sm:p-4">
+                      <div className="min-w-0">
+                        <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">{p.packageName}</p>
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                          {p.packageType || 'N/A'} • {p.customPackageType || 'General'} • {p.packageYear || '-'}
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => navigate(`/hajj-umrah/package-list/${p._id}`)}
+                          className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs sm:text-sm"
+                        >
+                          Select
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                {packageList && packageList.length === 0 && (
+                  <div className="p-6 text-center text-sm text-gray-600 dark:text-gray-400">No packages found.</div>
+                )}
+              </div>
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={() => setShowPackagePicker(false)}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
