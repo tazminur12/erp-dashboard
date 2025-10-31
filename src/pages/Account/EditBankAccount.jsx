@@ -24,6 +24,7 @@ const EditBankAccount = () => {
     accountTitle: '',
     logo: null,
     initialBalance: '',
+    currentBalance: '',
     currency: 'BDT',
     contactNumber: '',
     createdBy: '',
@@ -34,6 +35,7 @@ const EditBankAccount = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
   const [isDark, setIsDark] = useState(false);
+  const [originalCurrentBalance, setOriginalCurrentBalance] = useState(0);
 
   // Populate form when bank account data is loaded
   useEffect(() => {
@@ -48,11 +50,13 @@ const EditBankAccount = () => {
         accountTitle: bankAccount.accountTitle || '',
         logo: bankAccount.logo || null,
         initialBalance: bankAccount.initialBalance || '',
+        currentBalance: bankAccount.currentBalance ?? bankAccount.balance ?? '',
         currency: bankAccount.currency || 'BDT',
         contactNumber: bankAccount.contactNumber || '',
         createdBy: bankAccount.createdBy || '',
         branchId: bankAccount.branchId || ''
       });
+      setOriginalCurrentBalance(Number(bankAccount.currentBalance ?? bankAccount.balance ?? 0));
     }
   }, [bankAccount]);
 
@@ -202,6 +206,10 @@ const EditBankAccount = () => {
       newErrors.initialBalance = 'Valid initial balance is required';
     }
 
+    if (formData.currentBalance === '' || Number.isNaN(Number(formData.currentBalance)) || parseFloat(formData.currentBalance) < 0) {
+      newErrors.currentBalance = 'Valid current balance is required';
+    }
+
     if (formData.contactNumber && !/^[\+]?[0-9\s\-\(\)]+$/.test(formData.contactNumber)) {
       newErrors.contactNumber = 'Please enter a valid contact number';
     }
@@ -226,13 +234,16 @@ const handleSubmit = async (e) => {
   }
 
   try {
+    // Send all fields directly via PUT to update everything, including balances
     const payload = {
       id,
       ...formData,
       initialBalance: parseFloat(formData.initialBalance),
+      currentBalance: parseFloat(formData.currentBalance),
     };
 
     await updateBankAccountMutation.mutateAsync(payload);
+    setOriginalCurrentBalance(Number(payload.currentBalance) || 0);
     
     // Show success message and redirect
     Swal.fire({
@@ -646,6 +657,28 @@ const handleSubmit = async (e) => {
                   {errors.initialBalance && (
                     <p className="text-red-500 text-xs mt-1">{errors.initialBalance}</p>
                   )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Current Balance *
+                  </label>
+                  <input
+                    type="number"
+                    name="currentBalance"
+                    value={formData.currentBalance}
+                    onChange={handleInputChange}
+                    min="0"
+                    step="0.01"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                      errors.currentBalance ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="0.00"
+                  />
+                  {errors.currentBalance && (
+                    <p className="text-red-500 text-xs mt-1">{errors.currentBalance}</p>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Previous: {originalCurrentBalance?.toLocaleString?.('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 </div>
 
                 <div>

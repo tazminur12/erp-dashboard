@@ -349,6 +349,8 @@ export const useCreateTransaction = () => {
         notes: transactionData.notes || '',
         reference: transactionData.reference || transactionData.paymentDetails?.reference || '',
         employeeReference: transactionData.employeeReference || null,
+        // Forward meta if provided (e.g., { selectedOption: 'umrah' })
+        meta: transactionData.meta || null,
         // Include nested objects for backend compatibility
         debitAccount: transactionData.debitAccount || (transactionData.transactionType === 'debit' ? { id: finalTargetAccountId } : null),
         creditAccount: transactionData.creditAccount || (transactionData.transactionType === 'credit' ? { id: finalTargetAccountId } : null),
@@ -898,6 +900,56 @@ export const useTransactionAuditTrail = (transactionId) => {
     enabled: !!transactionId,
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// Mutation to complete a transaction (atomic updates to accounts, parties, invoices)
+export const useCompleteTransaction = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (transactionId) => {
+      if (!transactionId) {
+        throw new Error('Transaction ID is required');
+      }
+
+      const response = await axiosSecure.post(`/api/transactions/${transactionId}/complete`);
+      
+      if (response.data.success) {
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to complete transaction');
+      }
+    },
+    onSuccess: (data, transactionId) => {
+      // Invalidate all relevant caches to refresh balances
+      queryClient.invalidateQueries({ queryKey: transactionKeys.accounts() });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: transactionKeys.detail(transactionId) });
+
+      // Update specific party caches if returned
+      if (data.agent) {
+        queryClient.invalidateQueries({ queryKey: transactionKeys.agents() });
+      }
+      if (data.customer) {
+        queryClient.invalidateQueries({ queryKey: transactionKeys.customers() });
+      }
+      if (data.vendor) {
+        queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
+        if (data.vendor._id || data.vendor.vendorId) {
+          const vendorId = data.vendor._id || data.vendor.vendorId;
+          queryClient.invalidateQueries({ queryKey: vendorKeys.detail(vendorId) });
+        }
+      }
+      if (data.invoice) {
+        queryClient.invalidateQueries({ queryKey: transactionKeys.invoices() });
+      }
+    },
+    onError: (error) => {
+      console.error('Complete transaction error:', error);
+      // Error handling is done at the calling component level
+    },
   });
 };
 

@@ -166,7 +166,7 @@ const VendorDetails = () => {
               <Clock className="w-4 h-4" />
               Refresh
             </button>
-            <Link 
+              <Link 
               to={`/vendors/${vendor._id || vendor.vendorId}/edit`} 
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
             >
@@ -235,6 +235,43 @@ const VendorDetails = () => {
         </div>
       </div>
 
+      {/* Profile Totals (live from vendor document) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Paid (Profile)</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(vendor?.totalPaid ?? 0).toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Due (Profile)</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">৳{Number(vendor?.totalDue ?? 0).toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Last Updated</p>
+              <p className="text-lg font-semibold text-gray-900 dark:text-white">{vendor?.updatedAt ? new Date(vendor.updatedAt).toLocaleString() : '—'}</p>
+            </div>
+            <div className="w-12 h-12 bg-gray-100 dark:bg-gray-900/20 rounded-lg flex items-center justify-center">
+              <CalendarIcon className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Vendor Information */}
         <div className="lg:col-span-2 space-y-6">
@@ -249,7 +286,7 @@ const VendorDetails = () => {
                   <Hash className="w-5 h-5 mt-1 text-gray-500" />
                   <div>
                     <div className="text-sm text-gray-500 dark:text-gray-400">Vendor ID</div>
-                    <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{vendor.vendorId}</div>
+                    <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{vendor.vendorId || vendor._id}</div>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -329,6 +366,19 @@ const VendorDetails = () => {
                   </div>
                   <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
                 </div>
+                {/* Optional breakdown if available on profile */}
+                {(vendor?.hajDue !== undefined || vendor?.umrahDue !== undefined) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Hajj Due</div>
+                      <div className="text-lg font-semibold text-red-600 dark:text-red-400">৳{Number(vendor?.hajDue ?? 0).toLocaleString()}</div>
+                    </div>
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Umrah Due</div>
+                      <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">৳{Number(vendor?.umrahDue ?? 0).toLocaleString()}</div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-4">
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">

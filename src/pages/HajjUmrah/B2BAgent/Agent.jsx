@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, Eye, Search, Filter, Upload, FileSpreadsheet } from 'lucide-react';
 import Modal from '../../../components/common/Modal';
 import ExcelUploader from '../../../components/common/ExcelUploader';
+import Swal from 'sweetalert2';
 import { useAgents, useDeleteAgent, useBulkAgentOperation } from '../../../hooks/useAgentQueries';
 
 const Agent = () => {
@@ -236,9 +237,6 @@ const Agent = () => {
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">লোকেশন</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">মালিক</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">যোগাযোগ</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">জন্ম তারিখ</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">NID</th>
-                <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden xl:table-cell">Passport</th>
                 <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   অ্যাকশন
                 </th>
@@ -291,9 +289,6 @@ const Agent = () => {
                   <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-white">{agent.tradeLocation}</td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-white">{agent.ownerName}</td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 dark:text-white">{agent.contactNo}</td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4 hidden lg:table-cell text-xs sm:text-sm text-gray-900 dark:text-white">{agent.dob || '-'}</td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4 hidden xl:table-cell text-xs sm:text-sm text-gray-900 dark:text-white">{agent.nid || '-'}</td>
-                  <td className="px-3 sm:px-6 py-3 sm:py-4 hidden xl:table-cell text-xs sm:text-sm text-gray-900 dark:text-white">{agent.passport || '-'}</td>
                   <td className="px-3 sm:px-6 py-3 sm:py-4">
                     <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
                       <button
@@ -365,24 +360,6 @@ const Agent = () => {
                 </label>
                 <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.contactNo}</p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  জন্ম তারিখ
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.dob || '-'}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  NID
-                </label>
-                <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.nid || '-'}</p>
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Passport
-              </label>
-              <p className="text-sm text-gray-900 dark:text-white">{selectedAgent.passport || '-'}</p>
             </div>
           </div>
         )}

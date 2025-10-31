@@ -35,6 +35,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import { 
   useCreateTransaction,
+  useCompleteTransaction,
   useTransactions,
   useTransactionAccounts,
   useTransactionCustomers,
@@ -45,6 +46,9 @@ import {
   useTransactionStats,
   useBankAccountTransfer
 } from '../../hooks/useTransactionQueries';
+import { transactionKeys } from '../../hooks/useTransactionQueries';
+import { useQueryClient } from '@tanstack/react-query';
+import { vendorKeys } from '../../hooks/useVendorQueries';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
 import { useEmployeeSearch } from '../../hooks/useHRQueries';
 import { useCategoryQueries } from '../../hooks/useCategoryQueries';
@@ -57,9 +61,11 @@ const NewTransaction = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
   const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
   
   // React Query hooks
   const createTransactionMutation = useCreateTransaction();
+  const completeTransactionMutation = useCompleteTransaction();
   const bankAccountTransferMutation = useBankAccountTransfer();
   const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
   const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
@@ -131,6 +137,8 @@ const NewTransaction = () => {
     
     // Step 3: Category (for credit/debit)
     category: '',
+    // Slug for backend detection (e.g., 'hajj', 'umrah')
+    serviceCategory: '',
     
     // Step 4: Invoice Selection (for credit/debit)
     selectedInvoice: null,
@@ -330,6 +338,28 @@ const NewTransaction = () => {
       accountCategory: 'others'
     }
   ];
+
+  // Helper: Avoid "false" showing in placeholders by mapping field → text
+  const getPaymentFieldPlaceholder = (field) => {
+    switch (field) {
+      case 'bankName':
+        return 'ব্যাংকের নাম লিখুন...';
+      case 'accountNumber':
+        return 'অ্যাকাউন্ট নম্বর লিখুন...';
+      case 'cardNumber':
+        return 'কার্ড নম্বর লিখুন...';
+      case 'chequeNumber':
+        return 'চেক নম্বর লিখুন...';
+      case 'mobileProvider':
+        return 'মোবাইল প্রোভাইডার লিখুন...';
+      case 'transactionId':
+        return 'ট্রানজেকশন আইডি লিখুন...';
+      case 'reference':
+        return 'রেফারেন্স লিখুন...';
+      default:
+        return 'তথ্য লিখুন...';
+    }
+  };
   
   // Filter accounts based on search term and payment method
   const filteredAccounts = accounts.filter(account => {
@@ -408,10 +438,10 @@ const NewTransaction = () => {
     
     const searchLower = debitAccountSearchTerm.toLowerCase();
     return (
-      account.name.toLowerCase().includes(searchLower) ||
-      account.bankName.toLowerCase().includes(searchLower) ||
-      account.accountNumber.includes(debitAccountSearchTerm) ||
-      account.type.toLowerCase().includes(searchLower)
+      (account.name || '').toLowerCase().includes(searchLower) ||
+      (account.bankName || '').toLowerCase().includes(searchLower) ||
+      String(account.accountNumber || '').includes(debitAccountSearchTerm) ||
+      (account.type || '').toLowerCase().includes(searchLower)
     );
   });
 
@@ -420,10 +450,10 @@ const NewTransaction = () => {
     
     const searchLower = creditAccountSearchTerm.toLowerCase();
     return (
-      account.name.toLowerCase().includes(searchLower) ||
-      account.bankName.toLowerCase().includes(searchLower) ||
-      account.accountNumber.includes(creditAccountSearchTerm) ||
-      account.type.toLowerCase().includes(searchLower)
+      (account.name || '').toLowerCase().includes(searchLower) ||
+      (account.bankName || '').toLowerCase().includes(searchLower) ||
+      String(account.accountNumber || '').includes(creditAccountSearchTerm) ||
+      (account.type || '').toLowerCase().includes(searchLower)
     );
   });
 
@@ -509,14 +539,24 @@ const NewTransaction = () => {
   };
 
   const handleCustomerSelect = (customer) => {
+    const resolvedType = customer.customerType || customer.type || customer._type || 'customer';
+    const autoCategory = resolvedType === 'haji' ? 'হাজ্জ প্যাকেজ' : (resolvedType === 'umrah' ? 'ওমরাহ প্যাকেজ' : undefined);
+    const autoSelectedOption = resolvedType === 'haji' ? 'hajj' : (resolvedType === 'umrah' ? 'umrah' : undefined);
+    const autoServiceCategory = resolvedType === 'haji' ? 'hajj' : (resolvedType === 'umrah' ? 'umrah' : undefined);
+
     setFormData(prev => ({
       ...prev,
-      customerId: customer.id || customer.customerId,
+      customerId: (customer.id || customer.customerId) ? String(customer.id || customer.customerId) : '',
       customerName: customer.name,
       customerPhone: customer.mobile || customer.phone,
       customerEmail: customer.email,
-      customerType: customer.customerType || 'customer',
-      // Clear agent due info when selecting regular customer
+      customerType: resolvedType,
+      // Autofill fields for proper Umrah/Hajj backend mapping
+      ...(autoCategory ? { category: autoCategory } : {}),
+      ...(autoSelectedOption ? { selectedOption: autoSelectedOption } : {}),
+      ...(autoServiceCategory ? { serviceCategory: autoServiceCategory } : {}),
+      selectedInvoice: null,
+      invoiceId: '',
       agentDueInfo: null
     }));
     setSearchLoading(false);
@@ -534,7 +574,8 @@ const NewTransaction = () => {
       agentDueInfo: {
         totalDue: agent.totalDue || 0,
         hajDue: agent.hajDue || 0,
-        umrahDue: agent.umrahDue || 0
+        umrahDue: agent.umrahDue || 0,
+        totalDeposit: agent.totalDeposit || 0
       }
     }));
     setSearchLoading(false);
@@ -616,10 +657,9 @@ const NewTransaction = () => {
   };
 
   const handleCategorySelect = (categoryId) => {
-    setFormData(prev => ({ ...prev, category: categoryId }));
+    setFormData(prev => ({ ...prev, category: prev.category === categoryId ? '' : categoryId }));
     setErrors(prev => ({ ...prev, category: '' }));
   };
-
   const handleAccountSelectForTransaction = (account, type) => {
     setFormData(prev => ({
       ...prev,
@@ -636,21 +676,33 @@ const NewTransaction = () => {
   };
 
   // Filter categories based on search term
-  const filteredCategoryGroups = categoryGroups.map(group => {
-    const filteredSubCategories = group.subCategories.filter(subCategory =>
-      subCategory.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
-      subCategory.description.toLowerCase().includes(categorySearchTerm.toLowerCase())
+  const filteredCategoryGroups = categoryGroups
+    .map(group => {
+      const filteredSubCategories = (group.subCategories || []).filter(subCategory =>
+        ((subCategory.name || '').toLowerCase().includes(categorySearchTerm.toLowerCase())) ||
+        ((subCategory.description || '').toLowerCase().includes(categorySearchTerm.toLowerCase()))
+      );
+      
+      return {
+        ...group,
+        subCategories: filteredSubCategories
+      };
+    })
+    .filter(group => 
+      (group.subCategories || []).length > 0 ||
+      (group.name || '').toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
+      (group.description || '').toLowerCase().includes(categorySearchTerm.toLowerCase())
     );
-    
-    return {
-      ...group,
-      subCategories: filteredSubCategories
-    };
-  }).filter(group => 
-    group.subCategories.length > 0 ||
-    group.name.toLowerCase().includes(categorySearchTerm.toLowerCase()) ||
-    group.description.toLowerCase().includes(categorySearchTerm.toLowerCase())
-  );
+
+  // When a category is selected, hide all other categories and show only the selected one
+  const visibleCategoryGroups = formData.category
+    ? categoryGroups
+        .map(group => ({
+          ...group,
+          subCategories: group.subCategories.filter(subCategory => subCategory.id === formData.category)
+        }))
+        .filter(group => group.subCategories.length > 0)
+    : filteredCategoryGroups;
   const validateStep = (step) => {
     const newErrors = {};
 
@@ -974,11 +1026,11 @@ const NewTransaction = () => {
     }
 
     // Map customerType to partyType for backend compatibility
-    // Map 'haji' and 'umrah' to 'customer' since they are types of customers
     const mapPartyType = (customerType) => {
       if (customerType === 'vendor') return 'vendor';
       if (customerType === 'agent') return 'agent';
-      // All other types (customer, haji, umrah) are treated as 'customer'
+      if (customerType === 'haji') return 'haji';
+      if (customerType === 'umrah') return 'umrah';
       return 'customer';
     };
 
@@ -986,13 +1038,16 @@ const NewTransaction = () => {
     const isDebit = formData.transactionType === 'debit';
     const isCredit = formData.transactionType === 'credit';
     const isAgent = formData.customerType === 'agent';
-    // Fallback business account when destination account is not selected (helps satisfy backend targetAccountId)
+    // Fallback when nothing is selected
     const businessFallback = accounts.find(a => a.type === 'business') || accounts[0];
-    // For credit, if destination is not chosen, fallback to business account
+    // For credit: use the selected company account input (sourceAccount) as the receiving/target account.
+    // If not selected, try destinationAccount (agent flow), else fallback.
     const selectedAccount = isDebit
       ? formData.sourceAccount
       : (isCredit
-          ? (formData.destinationAccount?.id ? formData.destinationAccount : businessFallback)
+          ? (formData.sourceAccount?.id
+              ? formData.sourceAccount
+              : (formData.destinationAccount?.id ? formData.destinationAccount : businessFallback))
           : undefined);
 
     // Validate required account selection for credit/debit
@@ -1014,13 +1069,21 @@ const NewTransaction = () => {
     }
 
     // Prepare transaction data for the unified createTransaction mutation
+    const resolvedServiceCategory =
+      // Prefer explicit serviceCategory if provided (e.g., 'hajj' | 'umrah')
+      (formData.serviceCategory && String(formData.serviceCategory).trim()) ||
+      // For agents, use selectedOption slug
+      ((formData.customerType === 'agent' && formData.selectedOption) ? formData.selectedOption :
+      // For haji/umrah customers, enforce slug
+      (formData.customerType === 'haji' ? 'hajj' : (formData.customerType === 'umrah' ? 'umrah' : formData.category)));
+
     const unifiedTransactionData = {
       transactionType: formData.transactionType,
       // Add partyType and partyId for backend API compatibility
       partyType: mapPartyType(formData.customerType),
-      partyId: formData.customerId,
+      partyId: formData.customerId ? String(formData.customerId) : undefined,
       // Keep customerId for backward compatibility
-      customerId: formData.customerId,
+      customerId: formData.customerId ? String(formData.customerId) : undefined,
       // Add targetAccountId for backend API (for credit/debit transactions)
       targetAccountId: selectedAccount?.id || null,
       // Only set debitAccount for debit transactions
@@ -1046,13 +1109,21 @@ const NewTransaction = () => {
         transactionId: formData.paymentDetails.transactionId || null,
         reference: formData.paymentDetails.reference || null
       },
-      serviceCategory: formData.category,
+      serviceCategory: resolvedServiceCategory,
       category: formData.category,
       paymentMethod: formData.paymentMethod,
       customerBankAccount: {
         bankName: formData.customerBankAccount.bankName || null,
         accountNumber: formData.customerBankAccount.accountNumber || null
       },
+      // Provide display fields so list can show name for Haji/Umrah too
+      customerName: formData.customerName || undefined,
+      customerPhone: formData.customerPhone || undefined,
+      customerEmail: formData.customerEmail || undefined,
+      // Some backends use partyName for generic parties
+      partyName: formData.customerName || undefined,
+      // Pass meta to backend for better categorization (agent: hajj/umrah/others)
+      meta: formData.selectedOption ? { selectedOption: formData.selectedOption } : undefined,
       notes: formData.notes || null,
       invoiceId: formData.invoiceId || null,
       accountManagerId: formData.accountManager?.id || null,
@@ -1066,9 +1137,54 @@ const NewTransaction = () => {
     console.log('Submitting credit/debit transaction payload:', unifiedTransactionData);
 
     createTransactionMutation.mutate(unifiedTransactionData, {
-      onSuccess: (response) => {
+      onSuccess: async (response) => {
         console.log('Transaction response:', response);
         
+        const txId =
+          response?.transaction?._id ||
+          response?.transaction?.transactionId ||
+          response?.data?.transaction?._id ||
+          response?.data?.transaction?.transactionId ||
+          response?.data?.transactionId ||
+          response?.transactionId;
+        if (!txId) {
+          console.error('No transaction ID found in response');
+          resetForm();
+          return;
+        }
+
+        // Complete the transaction atomically on backend (idempotent)
+        // This will update accounts, parties (agent/customer/vendor), and invoices
+        completeTransactionMutation.mutate(txId, {
+          onSuccess: (completeData) => {
+            console.log('Transaction completed successfully:', completeData);
+            
+            // Additional cache invalidation for invoice if present
+            if (unifiedTransactionData.invoiceId) {
+              queryClient.invalidateQueries({ queryKey: [...transactionKeys.invoices(), unifiedTransactionData.invoiceId] });
+            }
+            // Ensure vendor caches refresh even if backend didn't return vendor snapshot
+            const partyType = unifiedTransactionData.partyType;
+            const partyId = unifiedTransactionData.partyId || unifiedTransactionData.customerId;
+            if (partyType === 'vendor' && partyId) {
+              queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
+              queryClient.invalidateQueries({ queryKey: vendorKeys.detail(partyId) });
+              queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(partyId), 'financials'] });
+            }
+          },
+          onError: (error) => {
+            console.error('Transaction completion failed:', error);
+            Swal.fire({
+              title: 'সতর্কতা!',
+              text: 'লেনদেন তৈরি হয়েছে কিন্তু সম্পূর্ণ করতে সমস্যা হয়েছে। পরবর্তীতে আবার সম্পূর্ণ করার চেষ্টা করুন।',
+              icon: 'warning',
+              confirmButtonText: 'ঠিক আছে',
+              confirmButtonColor: '#F59E0B',
+              background: isDark ? '#1F2937' : '#FEF2F2'
+            });
+          }
+        });
+
         // Reset form after successful submission
         resetForm();
 
@@ -1141,7 +1257,6 @@ const NewTransaction = () => {
       }
     });
   };
-
   // Helper function to reset form
   const resetForm = () => {
     setFormData({
@@ -1156,6 +1271,7 @@ const NewTransaction = () => {
         accountNumber: ''
       },
       category: '',
+      serviceCategory: '',
       selectedInvoice: null,
       invoiceId: '',
       paymentMethod: '',
@@ -1676,7 +1792,7 @@ const NewTransaction = () => {
                       </div>
                     ) : (
                       <>
-                        {filteredCategoryGroups.map((group) => (
+                        {visibleCategoryGroups.map((group) => (
                           <div key={group.id} className={`rounded-lg border transition-all duration-200 ${
                             isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-white'
                           }`}>
@@ -1745,7 +1861,7 @@ const NewTransaction = () => {
                           </div>
                         ))}
 
-                        {filteredCategoryGroups.length === 0 && (
+                        {visibleCategoryGroups.length === 0 && (
                           <div className="text-center py-8">
                             <div className="text-4xl mb-3">🔍</div>
                             <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
@@ -1975,7 +2091,7 @@ const NewTransaction = () => {
                                 name: haji.name,
                                 phone: haji.mobile,
                                 email: haji.email,
-                                type: 'haji'
+                                customerType: 'haji'
                               })}
                               className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
                                 formData.customerId === (haji._id || haji.id)
@@ -2033,7 +2149,7 @@ const NewTransaction = () => {
                                 name: umrah.name,
                                 phone: umrah.mobile,
                                 email: umrah.email,
-                                type: 'umrah'
+                                customerType: 'umrah'
                               })}
                               className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
                                 formData.customerId === (umrah._id || umrah.id)
@@ -2304,13 +2420,13 @@ const NewTransaction = () => {
                       </h3>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* Total Balance */}
+                        {/* Total Deposit */}
                         <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট ব্যালেন্স</p>
+                              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট ডিপোজিট</p>
                               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                ৳{formData.agentDueInfo?.totalDue?.toLocaleString() || '0'}
+                                ৳{formData.agentDueInfo?.totalDeposit?.toLocaleString() || '0'}
                               </p>
                             </div>
                             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
@@ -2723,7 +2839,7 @@ const NewTransaction = () => {
                           {/* Source Account */}
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                              আমাদের অ্যাকাউন্ট (যেখান থেকে টাকা যাবে) *
+                              আমাদের অ্যাকাউন্ট (যেখান থেকে টাকা পাঠানো হবে) *
                             </label>
                             <div className="relative">
                               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -2804,22 +2920,23 @@ const NewTransaction = () => {
                           </div>
 
                           {/* Customer Bank Details */}
+                          {formData.paymentMethod !== 'cash' && (
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                               কাস্টমার অ্যাকাউন্ট (যেখানে টাকা পাঠানো হবে)
                             </label>
                             <div className="space-y-3">
-                              {/* Bank Name */}
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                  ব্যাংকের নাম
-                                </label>
+                            {/* Bank Name or Mobile Provider (conditional) */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার' : 'ব্যাংকের নাম'}
+                              </label>
                                 <input
                                   type="text"
                                   name="customerBankAccount.bankName"
                                   value={formData.customerBankAccount.bankName}
                                   onChange={handleInputChange}
-                                  placeholder="ব্যাংকের নাম লিখুন..."
+                                placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার লিখুন...' : 'ব্যাংকের নাম লিখুন...'}
                                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                                     isDark 
                                       ? 'bg-white border-gray-300 text-gray-900' 
@@ -2834,17 +2951,17 @@ const NewTransaction = () => {
                                 )}
                               </div>
                               
-                              {/* Account Number */}
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                  একাউন্ট নম্বর
-                                </label>
+                            {/* Account Number or Mobile Number (conditional) */}
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর' : 'একাউন্ট নম্বর'}
+                              </label>
                                 <input
                                   type="text"
                                   name="customerBankAccount.accountNumber"
                                   value={formData.customerBankAccount.accountNumber}
                                   onChange={handleInputChange}
-                                  placeholder="একাউন্ট নম্বর লিখুন..."
+                                placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর লিখুন...' : 'একাউন্ট নম্বর লিখুন...'}
                                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                                     isDark 
                                       ? 'bg-white border-gray-300 text-gray-900' 
@@ -2860,152 +2977,12 @@ const NewTransaction = () => {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Account Manager Selection for Debit */}
-                    {formData.sourceAccount.id && (
-                      <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 sm:p-6">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                          <User className="w-5 h-5 text-green-600" />
-                          একাউন্ট ম্যানেজার নির্বাচন
-                        </h3>
-                        
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            একাউন্ট ম্যানেজার নির্বাচন
-                          </label>
-                          
-                          {/* Account Manager Search Bar */}
-                          <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                            <input
-                              type="text"
-                              placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
-                              value={accountManagerSearchTerm}
-                              onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
-                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
-                                isDark 
-                                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                                  : 'border-gray-300'
-                              }`}
-                            />
-                          </div>
-
-                          {/* Account Manager List */}
-                          {accountManagerSearchTerm && (
-                            <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
-                              {employeeLoading ? (
-                                <div className="flex items-center justify-center py-4">
-                                  <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                                  <span className="ml-2 text-gray-600 dark:text-gray-400">খুঁজছি...</span>
-                                </div>
-                              ) : employeeSearchError ? (
-                                <div className="text-center py-4 text-red-500 dark:text-red-400 text-sm">
-                                  <div className="flex items-center justify-center gap-2">
-                                    <AlertCircle className="w-4 h-4" />
-                                    <span>খোঁজার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।</span>
-                                  </div>
-                                </div>
-                              ) : employeeSearchResults.length === 0 ? (
-                                <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
-                                  {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
-                                </div>
-                              ) : (
-                                employeeSearchResults.map((employee) => (
-                                  <button
-                                    key={employee._id || employee.id}
-                                    onClick={() => {
-                                      setFormData(prev => ({
-                                        ...prev,
-                                        debitAccountManager: {
-                                          id: employee._id || employee.id,
-                                          name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
-                                          phone: employee.phone || employee.phoneNumber,
-                                          email: employee.email || employee.emailAddress,
-                                          designation: employee.designation || employee.position
-                                        }
-                                      }));
-                                      setAccountManagerSearchTerm('');
-                                    }}
-                                    className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
-                                      formData.debitAccountManager?.id === employee._id
-                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                                    }`}
-                                  >
-                                    <div className="flex items-center space-x-3">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                        formData.debitAccountManager?.id === employee._id
-                                          ? 'bg-blue-100 dark:bg-blue-800'
-                                          : 'bg-gray-100 dark:bg-gray-700'
-                                      }`}>
-                                        <User className={`w-5 h-5 ${
-                                          formData.debitAccountManager?.id === employee._id
-                                            ? 'text-blue-600 dark:text-blue-400'
-                                            : 'text-gray-600 dark:text-gray-400'
-                                        }`} />
-                                      </div>
-                                      <div className="flex-1 text-left">
-                                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                                          {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই'}
-                                        </h4>
-                                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                                          {employee.designation || employee.position || 'পদবী নেই'}
-                                        </p>
-                                        <div className="flex flex-wrap gap-2 mt-1">
-                                          {(employee.phone || employee.phoneNumber) && (
-                                            <span className="text-xs text-blue-600 dark:text-blue-400">
-                                              📞 {employee.phone || employee.phoneNumber}
-                                            </span>
-                                          )}
-                                          {(employee.email || employee.emailAddress) && (
-                                            <span className="text-xs text-green-600 dark:text-green-400">
-                                              ✉️ {employee.email || employee.emailAddress}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      {formData.debitAccountManager?.id === employee._id && (
-                                        <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                      )}
-                                    </div>
-                                  </button>
-                                ))
-                              )}
-                            </div>
-                          )}
-
-                          {/* Selected Account Manager Display */}
-                          {formData.debitAccountManager?.name && !accountManagerSearchTerm && (
-                            <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-3">
-                                  <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
-                                    <User className="w-5 h-5 text-green-600 dark:text-green-400" />
-                                  </div>
-                                  <div>
-                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                                      {formData.debitAccountManager.name}
-                                    </h4>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                                      {formData.debitAccountManager.designation}
-                                    </p>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => setFormData(prev => ({ ...prev, debitAccountManager: { id: '', name: '', phone: '', email: '', designation: '' } }))}
-                                  className="text-red-500 hover:text-red-700 text-sm"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            </div>
                           )}
                         </div>
                       </div>
                     )}
+
+                    {/* Account Manager Selection for Debit - Shown only at Step 5 (confirmation) */}
 
                     {/* Payment Details */}
                     {selectedPaymentMethod && formData.sourceAccount.id && (
@@ -3061,13 +3038,7 @@ const NewTransaction = () => {
                               </label>
                               <input
                                 type="text"
-                                placeholder={`${field === 'bankName' && 'ব্যাংকের নাম লিখুন...'}
-                                  ${field === 'accountNumber' && 'অ্যাকাউন্ট নম্বর লিখুন...'}
-                                  ${field === 'cardNumber' && 'কার্ড নম্বর লিখুন...'}
-                                  ${field === 'chequeNumber' && 'চেক নম্বর লিখুন...'}
-                                  ${field === 'mobileProvider' && 'মোবাইল প্রোভাইডার লিখুন...'}
-                                  ${field === 'transactionId' && 'ট্রানজেকশন আইডি লিখুন...'}
-                                  ${field === 'reference' && 'রেফারেন্স লিখুন...'}`}
+                                placeholder={getPaymentFieldPlaceholder(field)}
                                 value={formData.paymentDetails[field] || ''}
                                 onChange={(e) => setFormData(prev => ({
                                   ...prev,
@@ -3655,7 +3626,7 @@ const NewTransaction = () => {
                         {/* Destination Account - Our Company Account */}
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            আমাদের অ্যাকাউন্ট (যেখানে টাকা আসবে) *
+                          আমাদের অ্যাকাউন্ট (যেখান টাকা জমা হবে) 
                           </label>
                           <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -4825,22 +4796,23 @@ const NewTransaction = () => {
                       </div>
 
                       {/* Customer Bank Details */}
+                      {formData.paymentMethod !== 'cash' && (
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                           কাস্টমার অ্যাকাউন্ট (যেখান থেকে টাকা পাঠানো হবে)
                         </label>
                         <div className="space-y-3">
-                          {/* Bank Name */}
-                          <div>
-                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                              ব্যাংকের নাম
-                            </label>
+                        {/* Bank Name or Mobile Provider (conditional) */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার' : 'ব্যাংকের নাম'}
+                          </label>
                             <input
                               type="text"
                               name="customerBankAccount.bankName"
                               value={formData.customerBankAccount.bankName}
                               onChange={handleInputChange}
-                              placeholder="ব্যাংকের নাম লিখুন..."
+                            placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার লিখুন...' : 'ব্যাংকের নাম লিখুন...'}
                               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                                 isDark 
                                   ? 'bg-white border-gray-300 text-gray-900' 
@@ -4855,17 +4827,17 @@ const NewTransaction = () => {
                             )}
                           </div>
                           
-                          {/* Account Number */}
-                          <div>
-                            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                              একাউন্ট নম্বর
-                            </label>
+                        {/* Account Number or Mobile Number (conditional) */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+                            {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর' : 'একাউন্ট নম্বর'}
+                          </label>
                             <input
                               type="text"
                               name="customerBankAccount.accountNumber"
                               value={formData.customerBankAccount.accountNumber}
                               onChange={handleInputChange}
-                              placeholder="একাউন্ট নম্বর লিখুন..."
+                            placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর লিখুন...' : 'একাউন্ট নম্বর লিখুন...'}
                               className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
                                 isDark 
                                   ? 'bg-white border-gray-300 text-gray-900' 
@@ -4881,6 +4853,7 @@ const NewTransaction = () => {
                           </div>
                         </div>
                       </div>
+                      )}
                     </div>
                   </div>
                 )}

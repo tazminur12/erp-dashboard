@@ -22,6 +22,7 @@ import DataTable from '../../../components/common/DataTable';
 import FilterBar from '../../../components/common/FilterBar';
 import ExcelUploader from '../../../components/common/ExcelUploader';
 import { useUmrahList, useDeleteUmrah } from '../../../hooks/UseUmrahQuries';
+import Swal from 'sweetalert2';
 
 const UmrahHajiList = () => {
   const navigate = useNavigate();
@@ -102,7 +103,7 @@ const UmrahHajiList = () => {
       sortable: true,
       render: (value, pilgrim) => (
         <span className="font-medium text-blue-600 dark:text-blue-400">
-          {pilgrim._id || pilgrim.id}
+          {pilgrim.customerId || pilgrim._id || pilgrim.id}
         </span>
       )
     },
@@ -162,18 +163,6 @@ const UmrahHajiList = () => {
       )
     },
     {
-      key: 'address',
-      header: 'Address',
-      render: (value, pilgrim) => (
-        <div className="text-sm">
-          <div className="font-medium text-gray-900 dark:text-white">{pilgrim.address || 'N/A'}</div>
-          <div className="text-gray-500 dark:text-gray-400">
-            {pilgrim.district && pilgrim.upazila ? `${pilgrim.upazila}, ${pilgrim.district}` : 'N/A'}
-          </div>
-        </div>
-      )
-    },
-    {
       key: 'package',
       header: 'Package',
       sortable: true,
@@ -224,10 +213,21 @@ const UmrahHajiList = () => {
           </button>
           <button
             onClick={() => {
-              const fullName = pilgrim.name || 'This pilgrim';
-              if (window.confirm(`Are you sure you want to delete ${fullName}?`)) {
-                deleteUmrahMutation.mutate(pilgrim._id);
-              }
+              const fullName = pilgrim.name || 'এই হাজি';
+              Swal.fire({
+                title: 'নিশ্চিত করুন',
+                text: `${fullName} কে কি মুছে ফেলতে চান?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+                cancelButtonText: 'বাতিল',
+                confirmButtonColor: '#EF4444',
+                cancelButtonColor: '#6B7280',
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  deleteUmrahMutation.mutate(pilgrim._id);
+                }
+              });
             }}
             className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
             title="Delete"

@@ -213,7 +213,7 @@ const HajiDetails = () => {
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">৳{(haji.totalAmount || 0).toLocaleString()}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString()}</p>
             </div>
             <CreditCard className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
           </div>
@@ -484,10 +484,10 @@ const HajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'Yes' : 'No'}</p>
           </div>
         </div>
-        {haji.specialRequirements && (
+        {haji.packageInfo?.specialRequirements && (
           <div className="mt-4">
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Special Requirements</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo.specialRequirements}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo?.specialRequirements}</p>
           </div>
         )}
       </div>
@@ -535,15 +535,15 @@ const HajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{(haji.totalAmount || 0).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString()}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Paid Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{(haji.paidAmount || 0).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(haji.paidAmount || 0).toLocaleString()}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{((haji.totalAmount || 0) - (haji.paidAmount || 0)).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Number((typeof haji.due === 'number' ? haji.due : Math.max((Number(haji.totalAmount || 0) - Number(haji.paidAmount || 0)), 0))).toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -600,10 +600,10 @@ const HajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'Yes' : 'No'}</p>
           </div>
         </div>
-        {haji.specialRequirements && (
+        {haji.packageInfo?.specialRequirements && (
           <div className="mt-4">
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Special Requirements</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo.specialRequirements}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo?.specialRequirements}</p>
           </div>
         )}
       </div>
@@ -658,33 +658,33 @@ const HajiDetails = () => {
             <div className="min-w-0 flex-1">
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Passport</p>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                {haji.documents.passport.expiry ? `Expires: ${haji.documents.passport.expiry}` : ''}
+                {haji.documents?.passport?.expiry ? `Expires: ${haji.documents.passport.expiry}` : ''}
               </p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.passport)}
+              {getDocumentStatus(haji.documents?.passport || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="min-w-0 flex-1">
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Visa</p>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                Status: {haji.documents.visa.status}
+                Status: {haji.documents?.visa?.status || 'N/A'}
               </p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.visa)}
+              {getDocumentStatus(haji.documents?.visa || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="min-w-0 flex-1">
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Medical Certificate</p>
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                {haji.documents.medicalCertificate.expiry ? `Expires: ${haji.documents.medicalCertificate.expiry}` : ''}
+                {haji.documents?.medicalCertificate?.expiry ? `Expires: ${haji.documents.medicalCertificate.expiry}` : ''}
               </p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.medicalCertificate)}
+              {getDocumentStatus(haji.documents?.medicalCertificate || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -692,7 +692,7 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Vaccination Record</p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.vaccinationRecord)}
+              {getDocumentStatus(haji.documents?.vaccinationRecord || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -708,7 +708,7 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">NID</p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.nid)}
+              {getDocumentStatus(haji.documents?.nid || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -716,7 +716,7 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Birth Certificate</p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.birthCertificate)}
+              {getDocumentStatus(haji.documents?.birthCertificate || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -724,7 +724,7 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Marriage Certificate</p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.marriageCertificate)}
+              {getDocumentStatus(haji.documents?.marriageCertificate || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -732,7 +732,7 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Bank Statement</p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.bankStatement)}
+              {getDocumentStatus(haji.documents?.bankStatement || { uploaded: false, verified: false })}
             </div>
           </div>
           <div className="flex items-center justify-between p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
@@ -740,7 +740,7 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Employment Letter</p>
             </div>
             <div className="flex-shrink-0 ml-2">
-              {getDocumentStatus(haji.documents.employmentLetter)}
+              {getDocumentStatus(haji.documents?.employmentLetter || { uploaded: false, verified: false })}
             </div>
           </div>
         </div>
@@ -756,29 +756,29 @@ const HajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Hotel Name</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{haji.accommodation.makkah.hotel}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{haji.accommodation?.makkah?.hotel || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Room Number</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation.makkah.roomNumber}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation?.makkah?.roomNumber || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Check-in Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation.makkah.checkIn}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation?.makkah?.checkIn || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Check-out Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation.makkah.checkOut}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation?.makkah?.checkOut || 'N/A'}</p>
           </div>
         </div>
         <div className="mt-3 sm:mt-4">
           <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Address</label>
-          <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.accommodation.makkah.address}</p>
+          <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.accommodation?.makkah?.address || 'N/A'}</p>
         </div>
         <div className="mt-3 sm:mt-4">
           <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Amenities</label>
           <div className="flex flex-wrap gap-2 mt-2">
-            {haji.accommodation.makkah.amenities.map((amenity, index) => (
+            {(haji.accommodation?.makkah?.amenities || []).map((amenity, index) => (
               <span key={index} className="px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 rounded-full text-xs sm:text-sm">
                 {amenity}
               </span>
@@ -793,29 +793,29 @@ const HajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Hotel Name</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{haji.accommodation.madinah.hotel}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{haji.accommodation?.madinah?.hotel || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Room Number</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation.madinah.roomNumber}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation?.madinah?.roomNumber || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Check-in Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation.madinah.checkIn}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation?.madinah?.checkIn || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Check-out Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation.madinah.checkOut}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.accommodation?.madinah?.checkOut || 'N/A'}</p>
           </div>
         </div>
         <div className="mt-3 sm:mt-4">
           <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Address</label>
-          <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.accommodation.madinah.address}</p>
+          <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.accommodation?.madinah?.address || 'N/A'}</p>
         </div>
         <div className="mt-3 sm:mt-4">
           <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Amenities</label>
           <div className="flex flex-wrap gap-2 mt-2">
-            {haji.accommodation.madinah.amenities.map((amenity, index) => (
+            {(haji.accommodation?.madinah?.amenities || []).map((amenity, index) => (
               <span key={index} className="px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 rounded-full text-xs sm:text-sm">
                 {amenity}
               </span>
@@ -830,7 +830,7 @@ const HajiDetails = () => {
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
       <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Travel Itinerary</h3>
       <div className="space-y-3 sm:space-y-4">
-        {haji.itinerary.map((item, index) => (
+        {(haji.itinerary || []).map((item, index) => (
           <div key={index} className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
               <Calendar className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400" />
@@ -853,7 +853,7 @@ const HajiDetails = () => {
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
       <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Emergency Contacts</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        {haji.emergencyContacts.map((contact, index) => (
+        {(haji.emergencyContacts || []).map((contact, index) => (
           <div key={index} className="p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -877,7 +877,7 @@ const HajiDetails = () => {
     <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
       <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Notes & Updates</h3>
       <div className="space-y-3 sm:space-y-4">
-        {haji.notes.map((note, index) => (
+        {(haji.notes || []).map((note, index) => (
           <div key={index} className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
               <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4 text-gray-600 dark:text-gray-400" />

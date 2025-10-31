@@ -38,6 +38,8 @@ const HajiList = () => {
     package: 'all',
     dateRange: 'all'
   });
+  // Add local state for loading indicator for delete per row
+  const [deletingHajiId, setDeletingHajiId] = useState(null);
 
   // Fetch Haji data with proper error handling
   const { data: hajiData, isLoading, error } = useHajiList({});
@@ -116,13 +118,14 @@ const HajiList = () => {
   };
 
   const handleDelete = (haji) => {
-    const fullName = haji.name || 'এই হাজি';
-    const hajiId = haji._id || haji.id || haji.customerId;
-    
+    const hajiId = haji._id;
+    // Debug output to help identify ID issue
+    console.log('Deleting Haji object:', haji);
+    console.log('Using _id for delete:', hajiId);
     if (!hajiId) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: 'হাজির ID পাওয়া যায়নি।',
+        text: 'হাজির _id (MongoDB ID) পাওয়া যায়নি।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -132,7 +135,7 @@ const HajiList = () => {
 
     Swal.fire({
       title: 'নিশ্চিত করুন',
-      text: `আপনি কি ${fullName} কে মুছে ফেলতে চান?`,
+      text: `আপনি কি ${haji.name || 'এই হাজি'} কে মুছে ফেলতে চান?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
@@ -141,7 +144,10 @@ const HajiList = () => {
       cancelButtonColor: '#6B7280',
     }).then((result) => {
       if (result.isConfirmed) {
-        deleteHajiMutation.mutate(hajiId);
+        setDeletingHajiId(hajiId);
+        deleteHajiMutation.mutate(hajiId, {
+          onSettled: () => setDeletingHajiId(null)
+        });
       }
     });
   };
@@ -191,7 +197,7 @@ const HajiList = () => {
       sortable: true,
         render: (value, haji) => (
           <span className="font-medium text-blue-600 dark:text-blue-400">
-            {haji._id || haji.id}
+            {haji.customerId || haji._id || haji.id}
           </span>
         )
     },
@@ -250,18 +256,7 @@ const HajiList = () => {
         </div>
       )
     },
-    {
-      key: 'address',
-      header: 'Address',
-      render: (value, haji) => (
-        <div className="text-sm">
-          <div className="font-medium text-gray-900 dark:text-white">{haji.address || 'N/A'}</div>
-          <div className="text-gray-500 dark:text-gray-400">
-            {haji.district && haji.upazila ? `${haji.upazila}, ${haji.district}` : 'N/A'}
-          </div>
-        </div>
-      )
-    },
+  
     {
       key: 'package',
       header: 'Package',
@@ -314,14 +309,14 @@ const HajiList = () => {
           <button
             onClick={() => handleDelete(haji)}
             className={`p-2 rounded-lg ${
-              deleteHajiMutation.isPending 
-                ? 'text-gray-400 cursor-not-allowed' 
+              deletingHajiId === haji._id
+                ? 'text-gray-400 cursor-not-allowed'
                 : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'
             }`}
-            title={deleteHajiMutation.isPending ? 'Deleting...' : 'Delete'}
-            disabled={deleteHajiMutation.isPending}
+            title={deletingHajiId === haji._id ? 'Deleting...' : 'Delete'}
+            disabled={deletingHajiId === haji._id}
           >
-            {deleteHajiMutation.isPending ? (
+            {deletingHajiId === haji._id ? (
               <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <Trash2 className="w-4 h-4" />
@@ -517,7 +512,7 @@ const HajiList = () => {
                 </div>
                 <div>
                   <label className="text-sm text-gray-600 dark:text-gray-400">Haji ID</label>
-                  <p className="text-gray-900 dark:text-white">{selectedHaji._id || 'N/A'}</p>
+                  <p className="text-gray-900 dark:text-white">{selectedHaji.customerId || selectedHaji._id || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600 dark:text-gray-400">Mobile</label>
@@ -535,10 +530,7 @@ const HajiList = () => {
                   <label className="text-sm text-gray-600 dark:text-gray-400">NID Number</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.nidNumber || 'N/A'}</p>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Address</label>
-                  <p className="text-gray-900 dark:text-white">{selectedHaji.address || 'N/A'}</p>
-                </div>
+                
                 <div>
                   <label className="text-sm text-gray-600 dark:text-gray-400">Division</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.division || 'N/A'}</p>

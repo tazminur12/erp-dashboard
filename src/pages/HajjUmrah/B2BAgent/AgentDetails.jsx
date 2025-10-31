@@ -141,6 +141,8 @@ const AgentDetails = () => {
 
   const packagesByYear = groupPackagesByYear(displayPackages);
   const availableYears = getAvailableYears();
+  const totalPackagesCount = displayPackages.length;
+  const activePackagesCount = displayPackages.filter(pkg => pkg?.isActive).length;
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-6">
@@ -203,10 +205,10 @@ const AgentDetails = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Customer Statistics Cards */}
+          {/* Customer Statistics Cards - 3x3 Responsive Grid */}
           <div className="space-y-3">
-            {/* First Row - 3 Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {/* 1 */}
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 text-white">
                 <div className="flex items-center justify-between">
                   <div>
@@ -216,6 +218,27 @@ const AgentDetails = () => {
                   <UserCheck className="w-6 h-6 opacity-80" />
                 </div>
               </div>
+              {/* 2 */}
+              <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Total Due</p>
+                    <p className="text-lg font-semibold">৳{Number(agent?.totalDue ?? 0).toLocaleString()}</p>
+                  </div>
+                  <DollarSign className="w-6 h-6 opacity-80" />
+                </div>
+              </div>
+              {/* 3 */}
+              <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Total Deposit</p>
+                    <p className="text-lg font-semibold">৳{Number(agent?.totalDeposit ?? 0).toLocaleString()}</p>
+                  </div>
+                  <DollarSign className="w-6 h-6 opacity-80" />
+                </div>
+              </div>
+              {/* 4 */}
               <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 text-white">
                 <div className="flex items-center justify-between">
                   <div>
@@ -225,6 +248,7 @@ const AgentDetails = () => {
                   <Building className="w-6 h-6 opacity-80" />
                 </div>
               </div>
+              {/* 5 */}
               <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-3 text-white">
                 <div className="flex items-center justify-between">
                   <div>
@@ -234,35 +258,44 @@ const AgentDetails = () => {
                   <Globe className="w-6 h-6 opacity-80" />
                 </div>
               </div>
-            </div>
-
-            {/* Second Row - Due Amounts */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Total Due</p>
-                    <p className="text-lg font-semibold">৳{(agent?.totalDue || 0).toLocaleString()}</p>
-                  </div>
-                  <DollarSign className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
+              {/* 6 */}
               <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg p-3 text-white">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs opacity-90">Haj Due</p>
-                    <p className="text-lg font-semibold">৳{(agent?.hajDue || 0).toLocaleString()}</p>
+                    <p className="text-lg font-semibold">৳{Number(agent?.hajDue ?? 0).toLocaleString()}</p>
                   </div>
                   <Building className="w-6 h-6 opacity-80" />
                 </div>
               </div>
+              {/* 7 */}
               <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg p-3 text-white">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs opacity-90">Umrah Due</p>
-                    <p className="text-lg font-semibold">৳{(agent?.umrahDue || 0).toLocaleString()}</p>
+                    <p className="text-lg font-semibold">৳{Number(agent?.umrahDue ?? 0).toLocaleString()}</p>
                   </div>
                   <Globe className="w-6 h-6 opacity-80" />
+                </div>
+              </div>
+              {/* 8 */}
+              <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Total Packages</p>
+                    <p className="text-lg font-semibold">{totalPackagesCount}</p>
+                  </div>
+                  <Package className="w-6 h-6 opacity-80" />
+                </div>
+              </div>
+              {/* 9 */}
+              <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg p-3 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs opacity-90">Active Packages</p>
+                    <p className="text-lg font-semibold">{activePackagesCount}</p>
+                  </div>
+                  <Target className="w-6 h-6 opacity-80" />
                 </div>
               </div>
             </div>
@@ -358,17 +391,17 @@ const AgentDetails = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Revenue</label>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                    ৳{agent.totalRevenue?.toLocaleString() || '0'}
+                    ৳{Number(agent?.totalRevenue ?? 0).toLocaleString()}
                   </p>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Commission Rate</label>
-                  <p className="text-sm text-gray-900 dark:text-white">{agent.commissionRate || '0'}%</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{Number(agent?.commissionRate ?? 0)}%</p>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Pending Payments</label>
                   <p className="text-sm text-gray-900 dark:text-white">
-                    ৳{agent.pendingPayments?.toLocaleString() || '0'}
+                    ৳{Number(agent?.pendingPayments ?? 0).toLocaleString()}
                   </p>
                 </div>
                 <div>

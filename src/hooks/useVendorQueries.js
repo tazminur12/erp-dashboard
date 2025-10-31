@@ -62,24 +62,24 @@ export const useVendor = (vendorId) => {
     queryFn: async () => {
       if (!vendorId) return null;
       
-      // Fetch all vendors and filter by vendorId (matching existing pattern)
-      const response = await axiosSecure.get('/vendors');
+      // Fetch single vendor by ID from API
+      const response = await axiosSecure.get(`/vendors/${vendorId}`);
       
-      // Extract vendors array from response
-      const vendorsData = response.data?.vendors || response.data || [];
+      if (!response?.data) {
+        throw new Error('Empty response while fetching vendor');
+      }
       
-      // Find vendor by vendorId
-      const vendor = vendorsData.find(v => 
-        v.vendorId === vendorId || v._id === vendorId || v.id === vendorId
-      );
+      if (response.data.error) {
+        throw new Error(response.data.message || 'Failed to fetch vendor');
+      }
+      
+      const vendor = response.data.vendor || response.data;
       
       if (!vendor) {
-        console.warn('Vendor not found with ID:', vendorId);
-        console.log('Available vendors:', vendorsData.map(v => ({ id: v.vendorId || v._id || v.id, tradeName: v.tradeName })));
         throw new Error(`Vendor with ID "${vendorId}" not found`);
       }
       
-      // Transform vendor data to match frontend expectations
+      // Normalize/transform vendor data to match frontend expectations
       return {
         _id: vendor._id || vendor.id,
         vendorId: vendor.vendorId || vendor.id || vendor._id,
@@ -90,6 +90,10 @@ export const useVendor = (vendorId) => {
         dob: vendor.dob || '',
         nid: vendor.nid || '',
         passport: vendor.passport || '',
+        totalPaid: vendor.totalPaid ?? 0,
+        totalDue: vendor.totalDue ?? 0,
+        hajDue: vendor.hajDue ?? 0,
+        umrahDue: vendor.umrahDue ?? 0,
         createdAt: vendor.createdAt || new Date().toISOString(),
         updatedAt: vendor.updatedAt || new Date().toISOString()
       };

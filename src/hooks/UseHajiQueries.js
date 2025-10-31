@@ -11,6 +11,9 @@ const isValidYmdDate = (value) => {
   return !isNaN(date.getTime());
 };
 
+// Utility: Validate MongoDB ObjectId (24-char hex string)
+export const isValidMongoId = (id) => typeof id === 'string' && /^[0-9a-f]{24}$/i.test(id);
+
 // Query keys for Haji domain
 export const hajiKeys = {
   all: ['haji'],
@@ -45,11 +48,18 @@ export const useHaji = (id) => {
     queryFn: async () => {
       const response = await axiosSecure.get(`/haj-umrah/haji/${id}`);
       const data = response?.data;
-      
       if (data?.success) {
-        return data?.data;
+        // Ensure numeric fields are numbers (backend already sends numbers, but normalize defensively)
+        const payload = data.data || {};
+        return {
+          ...payload,
+          totalAmount: Number(payload.totalAmount || 0),
+          paidAmount: Number(payload.paidAmount || 0),
+          due: Number(payload.due || 0),
+          ...(typeof payload.hajjDue === 'number' ? { hajjDue: Math.max(payload.hajjDue, 0) } : {}),
+          ...(typeof payload.umrahDue === 'number' ? { umrahDue: Math.max(payload.umrahDue, 0) } : {}),
+        };
       }
-      
       throw new Error(data?.message || 'Failed to load haji');
     },
     enabled: !!id,
@@ -134,7 +144,10 @@ export const useUpdateHaji = () => {
           throw new Error('Invalid email address');
         }
       }
-
+      // Validate ObjectId
+      if (!isValidMongoId(id)) {
+        throw new Error('Invalid or missing Haji ID (must be valid MongoDB _id)');
+      }
       // Validate dates per backend expectation
       const dateFields = ['issueDate', 'expiryDate', 'dateOfBirth', 'departureDate', 'returnDate'];
       for (const field of dateFields) {
@@ -142,7 +155,6 @@ export const useUpdateHaji = () => {
           throw new Error(`Invalid date format for ${field} (YYYY-MM-DD)`);
         }
       }
-
       const response = await axiosSecure.put(`/haj-umrah/haji/${id}`, updates || {});
       const data = response?.data;
       if (data?.success) return data;
@@ -181,7 +193,10 @@ export const useDeleteHaji = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id) => {
-      // Simply use DELETE endpoint - it exists and works!
+      // Validate ObjectId before making DELETE request
+      if (!isValidMongoId(id)) {
+        throw new Error('Invalid or missing Haji ID (must be valid MongoDB _id)');
+      }
       const response = await axiosSecure.delete(`/haj-umrah/haji/${id}`);
       const data = response?.data;
       if (data?.success) return data;

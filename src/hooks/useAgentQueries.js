@@ -45,7 +45,38 @@ export const useAgent = (id) => {
       if (!id) return null;
       const response = await axiosSecure.get(`/api/haj-umrah/agents/${id}`);
       const data = response?.data;
-      if (data?.success) return data?.data;
+      if (data?.success) {
+        const agent = data?.data || {};
+        // Normalize/ensure fields exist with safe defaults
+        return {
+          _id: agent._id || agent.id,
+          agentId: agent.agentId || agent._id || agent.id,
+          tradeName: agent.tradeName || '',
+          tradeLocation: agent.tradeLocation || '',
+          ownerName: agent.ownerName || '',
+          contactNo: agent.contactNo || '',
+          email: agent.email || '',
+          dob: agent.dob || agent.dateOfBirth || '',
+          nid: agent.nid || '',
+          passport: agent.passport || '',
+          licenseNumber: agent.licenseNumber || '',
+          bankAccount: agent.bankAccount || '',
+          paymentMethod: agent.paymentMethod || '',
+          isActive: agent.isActive !== undefined ? agent.isActive : true,
+          totalDue: agent.totalDue ?? 0,
+          hajDue: agent.hajDue ?? 0,
+          umrahDue: agent.umrahDue ?? 0,
+          totalDeposit: agent.totalDeposit ?? 0,
+          totalRevenue: agent.totalRevenue ?? 0,
+          commissionRate: agent.commissionRate ?? 0,
+          pendingPayments: agent.pendingPayments ?? 0,
+          lastActivity: agent.lastActivity || null,
+          createdAt: agent.createdAt || null,
+          updatedAt: agent.updatedAt || null,
+          // Preserve any other fields
+          ...agent,
+        };
+      }
       throw new Error(data?.message || 'Failed to load agent');
     },
     enabled: !!id,

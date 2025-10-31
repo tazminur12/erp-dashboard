@@ -50,6 +50,23 @@ export const useUmrah = (id) => {
   });
 };
 
+// Fetch Umrah by either Mongo _id or customerId using the same endpoint
+export const useUmrahByIdOrCustomerId = (identifier) => {
+  const axiosSecure = useAxiosSecure();
+  return useQuery({
+    queryKey: umrahKeys.detail(identifier),
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/haj-umrah/umrah/${identifier}`);
+      const data = response?.data;
+      if (data?.success) return data?.data;
+      throw new Error(data?.message || 'Failed to load umrah');
+    },
+    enabled: !!identifier,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
+  });
+};
+
 export const useCreateUmrah = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
