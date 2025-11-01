@@ -7,12 +7,12 @@ export { default as useUserRole } from './useUserRole';
 export * from './useCustomerQueries';
 export * from './useTransactionQueries';
 export * from './useHRQueries';
-export * from './useEmployeeQueries';
 export * from './useAgentQueries';
 export * from './useAccountQueries';
 export * from './UseHajiQueries';
 export * from './UseUmrahQuries';
 export * from './UseAgentPacakageQueries';
+export * from './DashboardQueries';
 // Re-export for convenience
 export { default as Axios } from './Axios';
 export { default as UseAxiosSecure } from './UseAxiosSecure';

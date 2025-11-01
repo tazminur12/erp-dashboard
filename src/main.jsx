@@ -78,7 +78,9 @@ const PackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module
 const PackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageList })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageDetails = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageDetails })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageEdit = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageEdit })).catch(() => ({ default: () => <div>Component not found</div> })));
+const PackageCustomersList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCustomersList })).catch(() => ({ default: () => <div>Component not found</div> })));
 const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
+const EditUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.EditUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahHajiList })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 // Air Ticketing pages
@@ -518,6 +520,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "package-list/:id/customers",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PackageCustomersList />
+          </Suspense>
+        )
+      },
+      {
         path: "package-list/:id/edit",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -566,15 +576,23 @@ const router = createBrowserRouter([
             <AddUmrahHaji />
           </Suspense>
         )
-          },
-          {
-            path: "haji/:id",
-            element: (
-              <Suspense fallback={<LoadingSpinner />}>
-                <UmrahHajiDetails />
-              </Suspense>
-            )
-          },
+      },
+      {
+        path: "haji/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <UmrahHajiDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "haji/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditUmrahHaji />
+          </Suspense>
+        )
+      },
     ]
   },
   {

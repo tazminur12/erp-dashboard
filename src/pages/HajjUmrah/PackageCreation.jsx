@@ -150,12 +150,8 @@ const PackageCreation = () => {
       (costs.otherBdCosts || 0);
 
     // Saudi portion costs (convert from SAR to BDT)
+    // Note: Hotel costs are calculated separately when hotelDetails exist
     const saudiCostsRaw = 
-      (costs.makkahHotel1 || 0) +
-      (costs.makkahHotel2 || 0) +
-      (costs.makkahHotel3 || 0) +
-      (costs.madinaHotel1 || 0) +
-      (costs.madinaHotel2 || 0) +
       (costs.zamzamWater || 0) +
       (costs.maktab || 0) +
       (costs.electronicsFee || 0) +
@@ -169,29 +165,23 @@ const PackageCreation = () => {
 
     const saudiCosts = saudiCostsRaw * sarToBdtRate;
     
-    const subtotal = bangladeshCosts + saudiCosts;
+    // Add hotel costs if hotelDetails exist (hotels are passenger-type specific)
+    const hotelCostsRaw = costs.hotelDetails ? calculateAllHotelCosts() : 0;
+    const hotelCosts = hotelCostsRaw * sarToBdtRate;
+    
+    const subtotal = bangladeshCosts + saudiCosts + hotelCosts;
     const grandTotal = Math.max(0, subtotal - (parseFloat(discount) || 0));
 
-    const hotelCostsRaw = costs.hotelDetails ? calculateAllHotelCosts() : 
-      (costs.makkahHotel1 || 0) +
-      (costs.makkahHotel2 || 0) +
-      (costs.makkahHotel3 || 0) +
-      (costs.madinaHotel1 || 0) +
-      (costs.madinaHotel2 || 0);
+    const serviceCostsRaw = (costs.groundServiceFee || 0);
 
-    const serviceCostsRaw =
-      (costs.groundServiceFee || 0);
-
-    const feesRaw =
-      (costs.electronicsFee || 0) +
-      (costs.serviceCharge || 0);
+    const feesRaw = (costs.electronicsFee || 0) + (costs.serviceCharge || 0);
 
     return {
       subtotal,
       grandTotal,
       bangladeshCosts,
       saudiCosts,
-      hotelCosts: hotelCostsRaw * sarToBdtRate,
+      hotelCosts,
       serviceCosts: serviceCostsRaw * sarToBdtRate,
       fees: feesRaw * sarToBdtRate,
       airFareDetails: costs.airFareDetails
@@ -400,8 +390,7 @@ const PackageCreation = () => {
     return {
       adult: adultFinal,
       child: childFinal,
-      infant: infantFinal,
-      total: adultFinal + childFinal + infantFinal
+      infant: infantFinal
     };
   };
 

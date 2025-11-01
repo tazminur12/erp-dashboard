@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Users, 
@@ -41,8 +41,21 @@ import {
   ChevronRight,
   ShoppingCart
 } from 'lucide-react';
+import { useCategoriesSummary } from '../hooks/DashboardQueries';
 
 const ProfessionalDashboard = () => {
+  const [dateRange, setDateRange] = useState({});
+  
+  // Fetch categories summary data
+  const { data: summaryData, isLoading: isSummaryLoading, error: summaryError } = useCategoriesSummary(dateRange);
+  
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('bn-BD', {
+      style: 'currency',
+      currency: 'BDT',
+      minimumFractionDigits: 0
+    }).format(amount || 0);
+  };
   const businessModules = [
     {
       title: "হজ্জ ও ওমরাহ ব্যবস্থাপনা",
@@ -549,6 +562,104 @@ const ProfessionalDashboard = () => {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Categories Summary */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">ক্যাটাগরি অনুযায়ী ক্রেডিট ও ডেবিট সারাংশ</h3>
+            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+
+          {isSummaryLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : summaryError ? (
+            <div className="text-center py-12">
+              <p className="text-red-600 dark:text-red-400">ডাটা লোড করতে সমস্যা হয়েছে</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{summaryError?.message}</p>
+            </div>
+          ) : summaryData?.categories && summaryData.categories.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">ক্যাটাগরি</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">মোট ক্রেডিট</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">মোট ডেবিট</th>
+                    <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">নিট পরিমাণ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {summaryData.categories.map((category, index) => (
+                    <tr 
+                      key={index} 
+                      className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {category.categoryName || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="text-right py-3 px-4">
+                        <span className="text-green-600 dark:text-green-400 font-semibold">
+                          {formatCurrency(category.totalCredit)}
+                        </span>
+                      </td>
+                      <td className="text-right py-3 px-4">
+                        <span className="text-red-600 dark:text-red-400 font-semibold">
+                          {formatCurrency(category.totalDebit)}
+                        </span>
+                      </td>
+                      <td className="text-right py-3 px-4">
+                        <span className={`font-bold ${
+                          category.netAmount >= 0 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {formatCurrency(category.netAmount)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Grand Total */}
+                  {summaryData.grandTotal && (
+                    <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30">
+                      <td className="py-4 px-4">
+                        <span className="font-bold text-gray-900 dark:text-white">মোট</span>
+                      </td>
+                      <td className="text-right py-4 px-4">
+                        <span className="text-green-600 dark:text-green-400 font-bold text-lg">
+                          {formatCurrency(summaryData.grandTotal.totalCredit)}
+                        </span>
+                      </td>
+                      <td className="text-right py-4 px-4">
+                        <span className="text-red-600 dark:text-red-400 font-bold text-lg">
+                          {formatCurrency(summaryData.grandTotal.totalDebit)}
+                        </span>
+                      </td>
+                      <td className="text-right py-4 px-4">
+                        <span className={`font-bold text-lg ${
+                          summaryData.grandTotal.netAmount >= 0 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {formatCurrency(summaryData.grandTotal.netAmount)}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 dark:text-gray-400">কোনো ডাটা পাওয়া যায়নি</p>
+            </div>
+          )}
         </div>
 
         {/* Recent Activities */}

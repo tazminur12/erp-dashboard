@@ -168,7 +168,7 @@ const UmrahHajiList = () => {
       sortable: true,
       render: (value, pilgrim) => (
         <div className="text-sm">
-          <div className="font-medium text-gray-900 dark:text-white">{pilgrim.packageName || 'N/A'}</div>
+          <div className="font-medium text-gray-900 dark:text-white">{pilgrim.packageInfo?.packageName || pilgrim.packageName || 'N/A'}</div>
           <div className="text-gray-500 dark:text-gray-400">{pilgrim.referenceBy || 'N/A'}</div>
         </div>
       )

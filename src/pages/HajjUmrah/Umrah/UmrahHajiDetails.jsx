@@ -16,8 +16,8 @@ import {
   FileText,
   Package
 } from 'lucide-react';
-import { useUmrah } from '../../../hooks/UseUmrahQuries';
-import { usePackages } from '../../../hooks/usePackageQueries';
+import { useUmrah, useUpdateUmrah } from '../../../hooks/UseUmrahQuries';
+import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
 
 const UmrahHajiDetails = () => {
   const { id } = useParams();
@@ -25,10 +25,35 @@ const UmrahHajiDetails = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showPackagePicker, setShowPackagePicker] = useState(false);
   const [packageSearch, setPackageSearch] = useState('');
+  const [selectedPassengerType, setSelectedPassengerType] = useState('adult');
 
   const { data: umrah, isLoading, error } = useUmrah(id);
   const { data: packagesResp } = usePackages({ status: 'Active', limit: 200, page: 1 });
   const packageList = packagesResp?.data || packagesResp?.packages || [];
+
+  // Mutation for updating umrah
+  const updateUmrahMutation = useUpdateUmrah();
+  const assignPackageMutation = useAssignPackageToPassenger();
+
+  // Handle package selection with passenger type
+  const handlePackageSelect = async (selectedPackage) => {
+    try {
+      const packageId = selectedPackage._id || selectedPackage.id;
+      
+      // Use the new assign passenger API
+      await assignPackageMutation.mutateAsync({
+        packageId: packageId,
+        passengerId: id,
+        passengerType: selectedPassengerType,
+        passengerCategory: 'umrah'
+      });
+      
+      setShowPackagePicker(false);
+    } catch (error) {
+      console.error('Error assigning package:', error);
+      // Error is already handled by the mutation hook
+    }
+  };
 
   const getStatusBadge = (status) => {
     const statusClasses = {
@@ -47,6 +72,15 @@ const UmrahHajiDetails = () => {
     };
     const cls = paymentClasses[paymentStatus] || paymentClasses.pending;
     return <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${cls}`}>{(paymentStatus || 'pending').replace(/^./, c => c.toUpperCase())}</span>;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US');
+  };
+
+  const formatNumber = (num) => {
+    return Number(num || 0).toLocaleString('en-US');
   };
 
   if (isLoading) {
@@ -119,13 +153,13 @@ const UmrahHajiDetails = () => {
             </div>
             <div className="flex-1 sm:hidden">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{umrah.name || 'N/A'}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{umrah.packageName || 'Umrah'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">{umrah.packageInfo?.packageName || umrah.packageName || 'Umrah'}</p>
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="hidden sm:block">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">{umrah.name || 'N/A'}</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{umrah.packageName || 'Umrah'}</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-4">{umrah.packageInfo?.packageName || umrah.packageName || 'Umrah'}</p>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
               <div className="flex items-center space-x-2">
@@ -154,7 +188,7 @@ const UmrahHajiDetails = () => {
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Umrah ID</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah._id || 'N/A'}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.customerId || umrah._id || umrah.id || 'N/A'}</p>
             </div>
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
           </div>
@@ -163,7 +197,7 @@ const UmrahHajiDetails = () => {
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{umrah.packageName || 'N/A'}</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{umrah.packageInfo?.packageName || umrah.packageName || 'N/A'}</p>
             </div>
             <Package className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
           </div>
@@ -172,7 +206,7 @@ const UmrahHajiDetails = () => {
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">৳{(umrah.totalAmount || 0).toLocaleString()}</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">৳{formatNumber(umrah.totalAmount)}</p>
             </div>
             <CreditCard className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
           </div>
@@ -181,7 +215,7 @@ const UmrahHajiDetails = () => {
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Created</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white">{umrah.createdAt ? new Date(umrah.createdAt).toLocaleDateString() : 'N/A'}</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white">{formatDate(umrah.createdAt)}</p>
             </div>
             <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600 dark:text-orange-400 flex-shrink-0" />
           </div>
@@ -192,15 +226,15 @@ const UmrahHajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{(umrah.totalAmount || 0).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{formatNumber(umrah.totalAmount)}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Paid Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{(umrah.paidAmount || 0).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{formatNumber(umrah.paidAmount)}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Math.max((umrah.totalAmount || 0) - (umrah.paidAmount || 0), 0).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{formatNumber(Math.max(Number(umrah.totalAmount || 0) - Number(umrah.paidAmount || 0), 0))}</p>
           </div>
         </div>
       </div>
@@ -218,7 +252,7 @@ const UmrahHajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.dateOfBirth ? new Date(umrah.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{formatDate(umrah.dateOfBirth)}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gender</label>
@@ -256,11 +290,11 @@ const UmrahHajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Issue Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.issueDate ? new Date(umrah.issueDate).toLocaleDateString() : 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{formatDate(umrah.issueDate)}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Expiry Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.expiryDate ? new Date(umrah.expiryDate).toLocaleDateString() : 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{formatDate(umrah.expiryDate)}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NID Number</label>
@@ -271,53 +305,74 @@ const UmrahHajiDetails = () => {
     </div>
   );
 
-  const renderPackage = () => (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Package Information</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{umrah.packageName || 'N/A'}</p>
+  const renderPackage = () => {
+    // Support both packageInfo object and flat package fields
+    const packageInfo = umrah.packageInfo || umrah;
+    
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Package Information</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{packageInfo.packageName || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package ID</label>
+              <p className="text-xs text-gray-900 dark:text-white break-all font-mono">{packageInfo.packageId || umrah.packageId || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Type</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.packageType || umrah.packageType || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Custom Package Type</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.customPackageType || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Year</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.packageYear || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Month</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.packageMonth || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Travel Agent</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.agent || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Agent Contact</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.agentContact || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Departure Date</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.departureDate || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Return Date</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.returnDate || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Hajj</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.previousHajj ? 'Yes' : 'No'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Umrah</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.previousUmrah ? 'Yes' : 'No'}</p>
+            </div>
           </div>
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Type</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.packageType || 'N/A'}</p>
-          </div>
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Travel Agent</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.agent || 'N/A'}</p>
-          </div>
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Agent Contact</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.agentContact || 'N/A'}</p>
-          </div>
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Departure Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.departureDate || 'N/A'}</p>
-          </div>
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Return Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.returnDate || 'N/A'}</p>
-          </div>
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Hajj</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.previousHajj ? 'Yes' : 'No'}</p>
-          </div>
-          <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Umrah</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{umrah.previousUmrah ? 'Yes' : 'No'}</p>
-          </div>
+          {(umrah.specialRequirements || packageInfo.specialRequirements) && (
+            <div className="mt-4">
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Special Requirements</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.specialRequirements || packageInfo.specialRequirements}</p>
+            </div>
+          )}
         </div>
-        {umrah.specialRequirements && (
-          <div className="mt-4">
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Special Requirements</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.specialRequirements}</p>
-          </div>
-        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderFinancial = () => (
     <div className="space-y-4 sm:space-y-6">
@@ -326,15 +381,15 @@ const UmrahHajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{(umrah.totalAmount || 0).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{formatNumber(umrah.totalAmount)}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Paid Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{(umrah.paidAmount || 0).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{formatNumber(umrah.paidAmount)}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{((umrah.totalAmount || 0) - (umrah.paidAmount || 0)).toLocaleString()}</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{formatNumber(Math.max(Number(umrah.totalAmount || 0) - Number(umrah.paidAmount || 0), 0))}</p>
           </div>
         </div>
       </div>
@@ -431,7 +486,7 @@ const UmrahHajiDetails = () => {
                   ✕
                 </button>
               </div>
-              <div className="mb-4">
+              <div className="mb-4 space-y-3">
                 <input
                   type="text"
                   value={packageSearch}
@@ -439,6 +494,20 @@ const UmrahHajiDetails = () => {
                   placeholder="Search by name, type, year..."
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
                 />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Passenger Type
+                  </label>
+                  <select
+                    value={selectedPassengerType}
+                    onChange={(e) => setSelectedPassengerType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                  >
+                    <option value="adult">Adult (প্রাপ্তবয়স্ক)</option>
+                    <option value="child">Child (শিশু)</option>
+                    <option value="infant">Infant (শিশু)</option>
+                  </select>
+                </div>
               </div>
               <div className="max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
                 {(packageList || [])
@@ -451,24 +520,35 @@ const UmrahHajiDetails = () => {
                     const customType = (p.customPackageType || '').toLowerCase();
                     return name.includes(q) || type.includes(q) || year.includes(q) || customType.includes(q);
                   })
-                  .map((p) => (
-                    <div key={p._id} className="flex items-center justify-between p-3 sm:p-4">
-                      <div className="min-w-0">
-                        <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">{p.packageName}</p>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                          {p.packageType || 'N/A'} • {p.customPackageType || 'General'} • {p.packageYear || '-'}
-                        </p>
+                  .map((p) => {
+                    const passengerTotals = p.totals?.passengerTotals || {};
+                    const selectedPrice = passengerTotals[selectedPassengerType] || 0;
+                    
+                    return (
+                      <div key={p._id} className="flex items-center justify-between p-3 sm:p-4 border-l-2 border-l-purple-500">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">{p.packageName}</p>
+                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate mb-1">
+                            {p.packageType || 'N/A'} • {p.customPackageType || 'General'} • {p.packageYear || '-'}
+                          </p>
+                          {selectedPrice > 0 && (
+                            <p className="text-xs font-bold text-purple-600 dark:text-purple-400">
+                              Price: ৳{Number(selectedPrice).toLocaleString()} ({selectedPassengerType})
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handlePackageSelect(p)}
+                            disabled={assignPackageMutation.isPending || !selectedPrice}
+                            className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Select
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => navigate(`/hajj-umrah/package-list/${p._id}`)}
-                          className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs sm:text-sm"
-                        >
-                          Select
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 {packageList && packageList.length === 0 && (
                   <div className="p-6 text-center text-sm text-gray-600 dark:text-gray-400">No packages found.</div>
                 )}

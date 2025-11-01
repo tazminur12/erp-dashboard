@@ -41,7 +41,16 @@ export const useUmrah = (id) => {
     queryFn: async () => {
       const response = await axiosSecure.get(`/haj-umrah/umrah/${id}`);
       const data = response?.data;
-      if (data?.success) return data?.data;
+      if (data?.success) {
+        // Ensure numeric fields are numbers (backend already sends numbers, but normalize defensively)
+        const payload = data.data || {};
+        return {
+          ...payload,
+          totalAmount: Number(payload.totalAmount || 0),
+          paidAmount: Number(payload.paidAmount || 0),
+          due: Number(payload.due || 0),
+        };
+      }
       throw new Error(data?.message || 'Failed to load umrah');
     },
     enabled: !!id,

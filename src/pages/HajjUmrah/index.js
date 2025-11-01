@@ -5,6 +5,8 @@ export { default as PackageCreation } from './PackageCreation';
 export { default as PackageList } from './PackageList';
 export { default as PackageDetails } from './PackageDetails';
 export { default as PackageEdit } from './PackageEdit';
+export { default as PackageCustomersList } from './PackageCustomersList';
 export { default as AddUmrahHaji } from './Umrah/AddUmrahHaji';
+export { default as EditUmrahHaji } from './Umrah/EditUmrahHaji';
 export { default as UmrahHajiList } from './Umrah/UmrahHajiList';
 export { default as UmrahHajiDetails } from './Umrah/UmrahHajiDetails';

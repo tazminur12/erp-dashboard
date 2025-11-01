@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import useAxiosSecure from './UseAxiosSecure';
 import Swal from 'sweetalert2';
+import { umrahKeys, useUmrahList } from './UseUmrahQuries';
+import { hajiKeys, useHajiList } from './UseHajiQueries';
 
 // Query keys for consistent caching
 export const packageKeys = {
@@ -172,6 +174,126 @@ export const useDeletePackage = () => {
         text: message,
       });
     },
+  });
+};
+
+// Custom hook for assigning package to passenger with type selection
+export const useAssignPackageToPassenger = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ packageId, passengerId, passengerType, passengerCategory }) => {
+      // Validation
+      if (!packageId) {
+        throw new Error('Package ID is required');
+      }
+      if (!passengerId) {
+        throw new Error('Passenger ID is required');
+      }
+      if (!passengerType || !['adult', 'child', 'infant'].includes(passengerType.toLowerCase())) {
+        throw new Error('Passenger type must be one of: adult, child, infant');
+      }
+
+      const response = await axiosSecure.post(
+        `/haj-umrah/packages/${packageId}/assign-passenger`,
+        {
+          passengerId,
+          passengerType: passengerType.toLowerCase(),
+          passengerCategory
+        }
+      );
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to assign package to passenger');
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate and refetch packages list
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: packageKeys.detail(variables.packageId) });
+      
+      // Invalidate haji and umrah lists since passenger data was updated
+      queryClient.invalidateQueries({ queryKey: hajiKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: umrahKeys.lists() });
+      
+      // Invalidate specific passenger detail to refresh the current page
+      queryClient.invalidateQueries({ queryKey: hajiKeys.detail(variables.passengerId) });
+      queryClient.invalidateQueries({ queryKey: umrahKeys.detail(variables.passengerId) });
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: data?.message || 'Package assigned successfully',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to assign package to passenger';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+      });
+    },
+  });
+};
+
+// Custom hook for fetching customers assigned to a package
+export const usePackageCustomers = (packageId) => {
+  const axiosSecure = useAxiosSecure();
+
+  // Fetch all hajj and umrah customers
+  const { data: hajiData, isLoading: hajiLoading } = useHajiList({ limit: 10000 });
+  const { data: umrahData, isLoading: umrahLoading } = useUmrahList({ limit: 10000 });
+
+  return useQuery({
+    queryKey: [...packageKeys.detail(packageId), 'customers'],
+    queryFn: async () => {
+      if (!packageId) return { haji: [], umrah: [], all: [] };
+
+      // Try to fetch from API endpoint first
+      try {
+        const response = await axiosSecure.get(`/haj-umrah/packages/${packageId}/passengers`);
+        const data = response?.data;
+        if (data?.success && data?.data) {
+          return {
+            haji: data.data.hajj || [],
+            umrah: data.data.umrah || [],
+            all: [...(data.data.hajj || []), ...(data.data.umrah || [])]
+          };
+        }
+      } catch (error) {
+        // If API endpoint doesn't exist, fall back to filtering local data
+        console.log('API endpoint not available, using local data');
+      }
+
+      // Fallback: Filter from local hajj and umrah lists
+      const hajiList = hajiData?.data || [];
+      const umrahList = umrahData?.data || [];
+
+      const assignedHaji = hajiList.filter(customer => {
+        return customer.packageId === packageId || 
+               customer.packageInfo?.packageId === packageId ||
+               customer.packageInfo?._id === packageId;
+      });
+
+      const assignedUmrah = umrahList.filter(customer => {
+        return customer.packageId === packageId || 
+               customer.packageInfo?.packageId === packageId ||
+               customer.packageInfo?._id === packageId;
+      });
+
+      return {
+        haji: assignedHaji,
+        umrah: assignedUmrah,
+        all: [...assignedHaji, ...assignedUmrah]
+      };
+    },
+    enabled: !!packageId && !hajiLoading && !umrahLoading,
+    staleTime: 5 * 60 * 1000,
+    cacheTime: 10 * 60 * 1000,
   });
 };
 

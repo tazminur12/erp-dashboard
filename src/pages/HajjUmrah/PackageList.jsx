@@ -83,7 +83,7 @@ const PackageList = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0
@@ -268,7 +268,13 @@ const PackageList = () => {
                     বছর
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    মোট খরচ
+                    Adult
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Child
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Infant
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     স্ট্যাটাস
@@ -281,7 +287,7 @@ const PackageList = () => {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredPackages.length === 0 ? (
                   <tr>
-                    <td colSpan="6" className="px-6 py-12 text-center">
+                    <td colSpan="8" className="px-6 py-12 text-center">
                       <Package className="mx-auto h-12 w-12 text-gray-400" />
                       <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">কোন প্যাকেজ নেই</h3>
                       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -320,8 +326,18 @@ const PackageList = () => {
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <span className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400 truncate block">
-                          {formatCurrency(pkg.totals?.grandTotal || pkg.totals?.subtotal || pkg.totalCost || 0)}
+                        <span className="text-xs sm:text-sm font-semibold text-blue-600 dark:text-blue-400 truncate block">
+                          {formatCurrency(pkg.totals?.passengerTotals?.adult || 0)}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className="text-xs sm:text-sm font-semibold text-green-600 dark:text-green-400 truncate block">
+                          {formatCurrency(pkg.totals?.passengerTotals?.child || 0)}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <span className="text-xs sm:text-sm font-semibold text-orange-600 dark:text-orange-400 truncate block">
+                          {formatCurrency(pkg.totals?.passengerTotals?.infant || 0)}
                         </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
