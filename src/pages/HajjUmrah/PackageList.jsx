@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { List, Search, Filter, Eye, Edit, Trash2, Package, Calculator, Download, Share2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { usePackages, useDeletePackage } from '../../hooks/usePackageQueries';
+import { useHajiList } from '../../hooks/UseHajiQueries';
+import { useUmrahList } from '../../hooks/UseUmrahQuries';
 
 const PackageList = () => {
   const navigate = useNavigate();
@@ -14,7 +16,13 @@ const PackageList = () => {
   const { data: packagesData, isLoading, refetch } = usePackages({});
   const deletePackageMutation = useDeletePackage();
 
+  // Fetch all customers to calculate bookings and revenue
+  const { data: hajiData, isLoading: hajiLoading } = useHajiList({ limit: 10000 });
+  const { data: umrahData, isLoading: umrahLoading } = useUmrahList({ limit: 10000 });
+
   const packages = packagesData?.data || [];
+  const allHajiCustomers = hajiData?.data || [];
+  const allUmrahCustomers = umrahData?.data || [];
 
   const handleView = (pkg) => {
     navigate(`/hajj-umrah/package-list/${pkg._id}`);
@@ -108,10 +116,45 @@ const PackageList = () => {
     return Math.round((bookings / maxCapacity) * 100);
   };
 
+  // Calculate bookings and revenue for all packages
+  const { totalBookings, totalRevenue } = useMemo(() => {
+    let bookings = 0;
+    let revenue = 0;
+
+    // Combine all customers
+    const allCustomers = [...allHajiCustomers, ...allUmrahCustomers];
+
+    // Group customers by package ID
+    const packageCustomersMap = new Map();
+
+    allCustomers.forEach(customer => {
+      // Check multiple possible fields for package assignment
+      const packageId = customer.packageId || 
+                       customer.packageInfo?.packageId || 
+                       customer.packageInfo?._id;
+
+      if (packageId) {
+        if (!packageCustomersMap.has(packageId)) {
+          packageCustomersMap.set(packageId, []);
+        }
+        packageCustomersMap.get(packageId).push(customer);
+      }
+    });
+
+    // Calculate totals across all packages
+    packageCustomersMap.forEach((customers) => {
+      bookings += customers.length;
+      customers.forEach(customer => {
+        const totalAmount = parseFloat(customer.totalAmount) || 0;
+        revenue += totalAmount;
+      });
+    });
+
+    return { totalBookings: bookings, totalRevenue: revenue };
+  }, [allHajiCustomers, allUmrahCustomers]);
+
   const totalPackages = packages.length;
   const activePackages = packages.filter(p => p.status === 'Active' || p.status === 'Draft').length;
-  const totalBookings = 0; // Will be calculated based on actual bookings
-  const totalRevenue = 0; // Will be calculated based on actual revenue
 
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
@@ -244,7 +287,7 @@ const PackageList = () => {
       </div>
 
       {/* Loading State */}
-      {isLoading && (
+      {(isLoading || hajiLoading || umrahLoading) && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">প্যাকেজ লোড করা হচ্ছে...</p>
@@ -252,7 +295,7 @@ const PackageList = () => {
       )}
 
       {/* Packages Table */}
-      {!isLoading && (
+      {!isLoading && !hajiLoading && !umrahLoading && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">

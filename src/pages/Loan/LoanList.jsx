@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import { 
   ArrowLeft,
   DollarSign,
@@ -21,115 +20,51 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  XCircle
+  XCircle,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { useLoans, useApproveLoan, useRejectLoan } from '../../hooks/useLoanQueries';
+import { useAccountQueries } from '../../hooks/useAccountQueries';
 
 const LoanList = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
-  const axiosSecure = useAxiosSecure();
   const navigate = useNavigate();
+  const approveLoanMutation = useApproveLoan();
+  const rejectLoanMutation = useRejectLoan();
+  const accountQueries = useAccountQueries();
+  const { data: bankAccounts = [] } = accountQueries.useBankAccounts();
 
-  const [loans, setLoans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all'); // all, giving, receiving
   const [filterStatus, setFilterStatus] = useState('all'); // all, active, completed, overdue
 
-  // Mock data for demonstration
-  const mockLoans = [
-    {
-      id: 1,
-      type: 'giving',
-      borrowerName: 'John Doe',
-      amount: 50000,
-      interestRate: 12,
-      duration: 12,
-      givenDate: '2024-01-15',
-      status: 'active',
-      remainingAmount: 35000,
-      contactPhone: '01712345678',
-      businessName: 'ABC Trading',
-      purpose: 'Business'
-    },
-    {
-      id: 2,
-      type: 'receiving',
-      lenderName: 'XYZ Bank',
-      amount: 100000,
-      interestRate: 10,
-      duration: 24,
-      receivedDate: '2024-02-01',
-      status: 'active',
-      remainingAmount: 75000,
-      contactPhone: '01787654321',
-      businessName: 'My Business',
-      purpose: 'Business'
-    },
-    {
-      id: 3,
-      type: 'giving',
-      borrowerName: 'Jane Smith',
-      amount: 25000,
-      interestRate: 15,
-      duration: 6,
-      givenDate: '2024-01-10',
-      status: 'completed',
-      remainingAmount: 0,
-      contactPhone: '01711111111',
-      businessName: 'Smith Enterprises',
-      purpose: 'Personal'
-    }
-  ];
-
-  useEffect(() => {
-    fetchLoans();
-  }, []);
-
-  const fetchLoans = async () => {
-    try {
-      setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setLoans(mockLoans);
-        setLoading(false);
-      }, 1000);
-      
-      // Uncomment when API is ready
-      // const response = await axiosSecure.get('/loans');
-      // if (response.data.success) {
-      //   setLoans(response.data.data);
-      // }
-    } catch (error) {
-      console.error('Error fetching loans:', error);
-      setLoans(mockLoans); // Fallback to mock data
-      setLoading(false);
-    }
+  // Build filters object for API
+  const filters = {
+    ...(filterType !== 'all' && { loanDirection: filterType }),
+    ...(filterStatus !== 'all' && { status: filterStatus }),
+    ...(searchTerm && { search: searchTerm })
   };
 
-  const filteredLoans = loans.filter(loan => {
-    const matchesSearch = loan.type === 'giving' 
-      ? loan.borrowerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.contactPhone?.includes(searchTerm)
-      : loan.lenderName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loan.contactPhone?.includes(searchTerm);
-
-    const matchesType = filterType === 'all' || loan.type === filterType;
-    const matchesStatus = filterStatus === 'all' || loan.status === filterStatus;
-
-    return matchesSearch && matchesType && matchesStatus;
-  });
+  // Use the loan query hook
+  const { data: loansData, isLoading: loading } = useLoans(filters, currentPage, 20);
+  
+  const loans = loansData?.loans || [];
 
   const getStatusColor = (status) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'active':
         return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
       case 'completed':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+      case 'rejected':
+        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       case 'overdue':
         return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
       default:
@@ -138,11 +73,15 @@ const LoanList = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case 'active':
         return <CheckCircle className="w-4 h-4" />;
       case 'completed':
         return <CheckCircle className="w-4 h-4" />;
+      case 'pending':
+        return <Clock className="w-4 h-4" />;
+      case 'rejected':
+        return <XCircle className="w-4 h-4" />;
       case 'overdue':
         return <XCircle className="w-4 h-4" />;
       default:
@@ -163,11 +102,148 @@ const LoanList = () => {
   };
 
   const handleViewLoan = (loan) => {
-    navigate(`/loan/details/${loan.id}`, { state: { loan } });
+    navigate(`/loan/details/${loan.loanId || loan._id}`, { state: { loan } });
   };
 
   const handleNewLoan = (type) => {
     navigate(`/loan/new-${type}`);
+  };
+
+  const handleApproveLoan = async (loan) => {
+    // First, ask for bank account selection
+    const accountOptions = bankAccounts.map(acc => 
+      `${acc.bankName || acc.accountName} - ${acc.accountNumber} (Balance: ৳${(acc.balance || acc.currentBalance || 0).toLocaleString()})`
+    ).join('\n');
+    
+    const { value: targetAccountId } = await Swal.fire({
+      title: 'Select Bank Account for Transaction',
+      text: 'Please select which bank account will receive this loan amount:',
+      input: 'select',
+      inputOptions: bankAccounts.reduce((options, acc) => {
+        options[acc._id || acc.id] = `${acc.bankName || acc.accountName} - ${acc.accountNumber} (৳${(acc.balance || acc.currentBalance || 0).toLocaleString()})`;
+        return options;
+      }, {}),
+      showCancelButton: true,
+      confirmButtonText: 'Approve Loan',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#6B7280',
+      background: isDark ? '#1F2937' : '#FFFFFF',
+      inputPlaceholder: 'Select account'
+    });
+
+    if (!targetAccountId) {
+      return; // User cancelled
+    }
+
+    const result = await Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: `এই loan application (${loan.fullName}) approve করবেন?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, Approve করুন',
+      cancelButtonText: 'না',
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#EF4444',
+      background: isDark ? '#1F2937' : '#FFFFFF'
+    });
+
+    if (result.isConfirmed) {
+      approveLoanMutation.mutate(
+        {
+          loanId: loan.loanId || loan._id,
+          targetAccountId,
+          approvedBy: userProfile?.email || 'unknown_user',
+          notes: 'Approved from Loan List'
+        },
+        {
+          onSuccess: () => {
+            Swal.fire({
+              title: 'সফল!',
+              text: 'Loan application approve করা হয়েছে এবং transaction create করা হয়েছে।',
+              icon: 'success',
+              confirmButtonText: 'ঠিক আছে',
+              confirmButtonColor: '#10B981',
+              background: isDark ? '#1F2937' : '#FFFFFF'
+            });
+          },
+          onError: (error) => {
+            Swal.fire({
+              title: 'ত্রুটি!',
+              text: error.message || 'Loan approve করতে সমস্যা হয়েছে।',
+              icon: 'error',
+              confirmButtonText: 'ঠিক আছে',
+              confirmButtonColor: '#EF4444',
+              background: isDark ? '#1F2937' : '#FFFFFF'
+            });
+          }
+        }
+      );
+    }
+  };
+
+  const handleRejectLoan = async (loan) => {
+    const { value: rejectionReason } = await Swal.fire({
+      title: 'Rejection Reason',
+      text: 'Please provide a reason for rejection:',
+      input: 'textarea',
+      inputPlaceholder: 'Enter rejection reason...',
+      showCancelButton: true,
+      confirmButtonText: 'Reject Loan',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      background: isDark ? '#1F2937' : '#FFFFFF'
+    });
+
+    if (!rejectionReason) {
+      return; // User cancelled
+    }
+
+    const result = await Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: `এই loan application (${loan.fullName}) reject করবেন?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, Reject করুন',
+      cancelButtonText: 'না',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      background: isDark ? '#1F2937' : '#FFFFFF'
+    });
+
+    if (result.isConfirmed) {
+      rejectLoanMutation.mutate(
+        {
+          loanId: loan.loanId || loan._id,
+          rejectionReason: rejectionReason.trim(),
+          rejectedBy: userProfile?.email || 'unknown_user',
+          notes: 'Rejected from Loan List'
+        },
+        {
+          onSuccess: () => {
+            Swal.fire({
+              title: 'সফল!',
+              text: 'Loan application reject করা হয়েছে।',
+              icon: 'success',
+              confirmButtonText: 'ঠিক আছে',
+              confirmButtonColor: '#10B981',
+              background: isDark ? '#1F2937' : '#FFFFFF'
+            });
+          },
+          onError: (error) => {
+            Swal.fire({
+              title: 'ত্রুটি!',
+              text: error.message || 'Loan reject করতে সমস্যা হয়েছে।',
+              icon: 'error',
+              confirmButtonText: 'ঠিক আছে',
+              confirmButtonColor: '#EF4444',
+              background: isDark ? '#1F2937' : '#FFFFFF'
+            });
+          }
+        }
+      );
+    }
   };
 
   if (loading) {
@@ -303,7 +379,7 @@ const LoanList = () => {
               <span className={`text-sm font-medium ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                {filteredLoans.length} loan(s) found
+{loansData?.totalCount || loans.length} loan(s) found
               </span>
             </div>
           </div>
@@ -313,7 +389,7 @@ const LoanList = () => {
         <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border transition-colors duration-300 overflow-hidden ${
           isDark ? 'border-gray-700' : 'border-gray-100'
         }`}>
-          {filteredLoans.length === 0 ? (
+          {loans.length === 0 ? (
             <div className="p-12 text-center">
               <DollarSign className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className={`text-lg font-semibold mb-2 ${
@@ -366,19 +442,19 @@ const LoanList = () => {
                 <tbody className={`divide-y ${
                   isDark ? 'divide-gray-700' : 'divide-gray-200'
                 }`}>
-                  {filteredLoans.map((loan) => (
-                    <tr key={loan.id} className={`hover:${
+                  {loans.map((loan) => (
+                    <tr key={loan.loanId || loan._id} className={`hover:${
                       isDark ? 'bg-gray-700/50' : 'bg-gray-50'
                     } transition-colors duration-200`}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {loan.type === 'giving' ? (
+                          {(loan.loanDirection || loan.type) === 'giving' ? (
                             <TrendingDown className="w-5 h-5 text-blue-600" />
                           ) : (
                             <TrendingUp className="w-5 h-5 text-green-600" />
                           )}
                           <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
-                            {loan.type} Loan
+                            {loan.loanDirection || loan.type} Loan
                           </span>
                         </div>
                       </td>
@@ -389,7 +465,7 @@ const LoanList = () => {
                           </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {loan.type === 'giving' ? loan.borrowerName : loan.lenderName}
+                              {(loan.loanDirection || loan.type) === 'giving' ? loan.fullName : loan.fullName}
                             </div>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {loan.businessName}
@@ -421,7 +497,7 @@ const LoanList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm text-gray-900 dark:text-white">
-                          {formatDate(loan.type === 'giving' ? loan.givenDate : loan.receivedDate)}
+                          {formatDate((loan.loanDirection || loan.type) === 'giving' ? loan.givenDate : (loan.appliedDate || loan.receivedDate))}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -431,13 +507,36 @@ const LoanList = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handleViewLoan(loan)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200 flex items-center gap-1"
-                        >
-                          <Eye className="w-4 h-4" />
-                          View
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewLoan(loan)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 transition-colors duration-200 flex items-center gap-1"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </button>
+                          {/* Approve/Reject buttons for pending loan applications */}
+                          {(loan.loanDirection || loan.type) === 'receiving' && loan.status === 'Pending' && (
+                            <>
+                              <button
+                                onClick={() => handleApproveLoan(loan)}
+                                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 transition-colors duration-200 flex items-center gap-1"
+                                title="Approve Loan"
+                              >
+                                <ThumbsUp className="w-4 h-4" />
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleRejectLoan(loan)}
+                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200 flex items-center gap-1"
+                                title="Reject Loan"
+                              >
+                                <ThumbsDown className="w-4 h-4" />
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

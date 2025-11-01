@@ -150,7 +150,7 @@ const CustomerManagment = () => {
           
           Swal.fire({
             title: 'সফল!',
-            text: 'ক্যাটাগরি সফলভাবে আপডেট হয়েছে।',
+            text: 'কাস্টমার টাইপ সফলভাবে আপডেট হয়েছে।',
             icon: 'success',
             confirmButtonText: 'ঠিক আছে',
             confirmButtonColor: '#10B981',
@@ -180,7 +180,7 @@ const CustomerManagment = () => {
           
           Swal.fire({
             title: 'সফল!',
-            text: 'নতুন ক্যাটাগরি যোগ হয়েছে!',
+            text: 'নতুন কাস্টমার টাইপ যোগ হয়েছে!',
             icon: 'success',
             confirmButtonText: 'ঠিক আছে',
             confirmButtonColor: '#10B981',
@@ -196,7 +196,7 @@ const CustomerManagment = () => {
       }
     } catch (error) {
       console.error('Category update error:', error); // Debug log
-      let errorMessage = 'ক্যাটাগরি সংরক্ষণ করতে সমস্যা হয়েছে।';
+      let errorMessage = 'কাস্টমার টাইপ সংরক্ষণ করতে সমস্যা হয়েছে।';
       
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -206,7 +206,7 @@ const CustomerManagment = () => {
       
       // Add more specific error handling for ID format issues
       if (errorMessage.includes('Invalid') && errorMessage.includes('ID')) {
-        errorMessage = 'ক্যাটাগরি ID ফরম্যাট সঠিক নয়। দয়া করে পুনরায় চেষ্টা করুন।';
+        errorMessage = 'কাস্টমার টাইপ ID ফরম্যাট সঠিক নয়। দয়া করে পুনরায় চেষ্টা করুন।';
       }
       
       Swal.fire({
@@ -363,7 +363,7 @@ const CustomerManagment = () => {
     // If no customers are using this type, proceed with normal deletion
     const confirmResult = await Swal.fire({
       title: 'নিশ্চিত করুন',
-      text: 'আপনি কি এই ক্যাটাগরি মুছে ফেলতে চান?',
+      text: 'আপনি কি এই কাস্টমার টাইপ মুছে ফেলতে চান?',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
@@ -389,7 +389,7 @@ const CustomerManagment = () => {
           
           Swal.fire({
             title: 'মুছে ফেলা হয়েছে!',
-            text: 'ক্যাটাগরি মুছে ফেলা হয়েছে।',
+            text: 'কাস্টমার টাইপ মুছে ফেলা হয়েছে।',
             icon: 'success',
             confirmButtonText: 'ঠিক আছে',
             confirmButtonColor: '#10B981',
@@ -403,7 +403,7 @@ const CustomerManagment = () => {
           throw new Error(response.data.message || 'Failed to delete category');
         }
       } catch (error) {
-        let errorMessage = 'ক্যাটাগরি মুছতে সমস্যা হয়েছে।';
+        let errorMessage = 'কাস্টমার টাইপ মুছতে সমস্যা হয়েছে।';
         
         if (error.response?.data?.message) {
           errorMessage = error.response.data.message;
@@ -462,10 +462,10 @@ const CustomerManagment = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            ক্যাটাগরি ব্যবস্থাপনা
+            কাস্টমার টাইপ ব্যবস্থাপনা
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            আপনার ব্যবসার ক্যাটাগরি সংগঠিত এবং পরিচালনা করুন
+            আপনার ব্যবসার কাস্টমার টাইপ সংগঠিত এবং পরিচালনা করুন
           </p>
         </div>
 
@@ -477,7 +477,7 @@ const CustomerManagment = () => {
           }`}>
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                নতুন ক্যাটাগরি যোগ করুন
+                নতুন কাস্টমার টাইপ যোগ করুন
               </h3>
             </div>
 
@@ -536,7 +536,7 @@ const CustomerManagment = () => {
                   placeholder="H, U, A"
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  ক্যাটাগরি আইডি জেনারেশনের জন্য (সর্বোচ্চ ৩ অক্ষর)
+                  কাস্টমার আইডি জেনারেশনের জন্য (সর্বোচ্চ ৩ অক্ষর)
                 </p>
               </div>
 
@@ -576,7 +576,7 @@ const CustomerManagment = () => {
           }`}>
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                বর্তমান ক্যাটাগরিসমূহ
+                বর্তমান কাস্টমার টাইপসমূহ
               </h3>
             </div>
 
@@ -584,8 +584,8 @@ const CustomerManagment = () => {
               {categories.length === 0 ? (
                 <div className="text-center text-gray-500 dark:text-gray-400 py-8">
                   <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>কোন ক্যাটাগরি পাওয়া যায়নি</p>
-                  <p className="text-sm">আপনার প্রথম ক্যাটাগরি তৈরি করতে শুরু করুন</p>
+                  <p>কোন কাস্টমার টাইপ পাওয়া যায়নি</p>
+                  <p className="text-sm">আপনার প্রথম কাস্টমার টাইপ তৈরি করতে শুরু করুন</p>
                 </div>
               ) : (
                 <div className="space-y-4 max-h-96 overflow-y-auto">

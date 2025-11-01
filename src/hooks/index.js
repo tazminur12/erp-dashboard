@@ -13,6 +13,7 @@ export * from './UseHajiQueries';
 export * from './UseUmrahQuries';
 export * from './UseAgentPacakageQueries';
 export * from './DashboardQueries';
+export * from './useLoanQueries';
 // Re-export for convenience
 export { default as Axios } from './Axios';
 export { default as UseAxiosSecure } from './UseAxiosSecure';

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import { 
   ArrowLeft,
   User,
@@ -25,12 +24,14 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
+import { useCreateLoanReceiving } from '../../hooks/useLoanQueries';
 
 const NewLoanReceiving = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
-  const axiosSecure = useAxiosSecure();
   const navigate = useNavigate();
+  const createLoanReceivingMutation = useCreateLoanReceiving();
 
   const [formData, setFormData] = useState({
     // Personal Profile Information
@@ -41,9 +42,9 @@ const NewLoanReceiving = () => {
     gender: '',
     maritalStatus: '',
     nidNumber: '',
-    nidFrontImage: null,
-    nidBackImage: null,
-    profilePhoto: null,
+    nidFrontImage: '',
+    nidBackImage: '',
+    profilePhoto: '',
     
     // Address Information
     presentAddress: '',
@@ -60,7 +61,7 @@ const NewLoanReceiving = () => {
     businessExperience: '',
     
     // Loan Details
-    loanType: 'Personal', // Personal or Pathisthanik
+    loanType: '', // Text field now
     amount: '',
     source: '',
     purpose: '',
@@ -80,11 +81,15 @@ const NewLoanReceiving = () => {
   });
 
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState({
     profilePhoto: null,
     nidFrontImage: null,
     nidBackImage: null
+  });
+  const [imageUploading, setImageUploading] = useState({
+    profilePhoto: false,
+    nidFrontImage: false,
+    nidBackImage: false
   });
 
   const handleInputChange = (e) => {
@@ -103,49 +108,84 @@ const NewLoanReceiving = () => {
     }
   };
 
-  const handleImageUpload = (e, fieldName) => {
-    const file = e.target.files[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({
-          ...prev,
-          [fieldName]: 'Please upload image files only'
-        }));
-        return;
+  const uploadToCloudinary = async (file, imageType) => {
+    try {
+      // Validate Cloudinary configuration first
+      if (!validateCloudinaryConfig()) {
+        throw new Error('Cloudinary configuration is incomplete. Please check your .env.local file.');
       }
       
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setErrors(prev => ({
-          ...prev,
-          [fieldName]: 'File size cannot exceed 5MB'
-        }));
-        return;
+      setImageUploading(prev => ({ ...prev, [imageType]: true }));
+      
+      // Validate file
+      if (!file || !file.type.startsWith('image/')) {
+        throw new Error('Please select a valid image file');
       }
-
-      setFormData(prev => ({
-        ...prev,
-        [fieldName]: file
-      }));
+      
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('File size must be less than 5MB');
+      }
 
       // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(prev => ({
           ...prev,
-          [fieldName]: e.target.result
+          [imageType]: e.target.result
         }));
       };
       reader.readAsDataURL(file);
-
-      // Clear error
-      if (errors[fieldName]) {
-        setErrors(prev => ({
-          ...prev,
-          [fieldName]: ''
-        }));
+      
+      // Create FormData for Cloudinary upload
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'loans');
+      
+      // Upload to Cloudinary
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
       }
+      
+      const result = await response.json();
+      const imageUrl = result.secure_url;
+      
+      // Update form data with image URL
+      setFormData(prev => ({ ...prev, [imageType]: imageUrl }));
+      
+      Swal.fire({
+        title: 'Success!',
+        text: 'Image uploaded to Cloudinary successfully!',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+      
+    } catch (error) {
+      Swal.fire({
+        title: 'Error!',
+        text: error.message || 'Failed to upload image. Please try again.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+    } finally {
+      setImageUploading(prev => ({ ...prev, [imageType]: false }));
+    }
+  };
+
+  const handleImageUpload = (e, imageType) => {
+    const file = e.target.files[0];
+    if (file) {
+      uploadToCloudinary(file, imageType);
     }
   };
 
@@ -212,6 +252,10 @@ const NewLoanReceiving = () => {
     }
 
     // Loan Details Validation
+    if (!formData.loanType.trim()) {
+      newErrors.loanType = 'Loan type is required';
+    }
+
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       newErrors.amount = 'Please enter a valid amount';
     }
@@ -240,25 +284,29 @@ const NewLoanReceiving = () => {
     e.preventDefault();
     
     if (!validateForm()) {
+      Swal.fire({
+        title: 'Error!',
+        text: 'Please fill in all required fields correctly.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
       return;
     }
 
-    setLoading(true);
+    const loanData = {
+      ...formData,
+      amount: parseFloat(formData.amount),
+      interestRate: parseFloat(formData.interestRate),
+      duration: parseInt(formData.duration),
+      status: 'Pending',
+      createdBy: userProfile?.email || 'unknown_user',
+      branchId: userProfile?.branchId || 'main_branch'
+    };
 
-    try {
-      const loanData = {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        interestRate: parseFloat(formData.interestRate),
-        duration: parseInt(formData.duration),
-        status: 'Pending',
-        createdBy: userProfile?.email || 'unknown_user',
-        branchId: userProfile?.branchId || 'main_branch'
-      };
-
-      const response = await axiosSecure.post('/loans/receiving', loanData);
-
-      if (response.data.success) {
+    createLoanReceivingMutation.mutate(loanData, {
+      onSuccess: () => {
         Swal.fire({
           title: 'Success!',
           text: 'Loan application has been submitted successfully.',
@@ -277,9 +325,9 @@ const NewLoanReceiving = () => {
           gender: '',
           maritalStatus: '',
           nidNumber: '',
-          nidFrontImage: null,
-          nidBackImage: null,
-          profilePhoto: null,
+          nidFrontImage: '',
+          nidBackImage: '',
+          profilePhoto: '',
           presentAddress: '',
           permanentAddress: '',
           district: '',
@@ -290,7 +338,7 @@ const NewLoanReceiving = () => {
           businessAddress: '',
           businessRegistration: '',
           businessExperience: '',
-          loanType: 'Personal',
+          loanType: '',
           amount: '',
           source: '',
           purpose: '',
@@ -309,20 +357,18 @@ const NewLoanReceiving = () => {
           nidFrontImage: null,
           nidBackImage: null
         });
+      },
+      onError: (error) => {
+        Swal.fire({
+          title: 'Error!',
+          text: error.message || 'There was a problem submitting the loan application.',
+          icon: 'error',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2'
+        });
       }
-    } catch (error) {
-      console.error('Loan application error:', error);
-      Swal.fire({
-        title: 'Error!',
-        text: error.response?.data?.message || 'There was a problem submitting the loan application.',
-        icon: 'error',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2'
-      });
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -404,10 +450,16 @@ const NewLoanReceiving = () => {
                     />
                     <label
                       htmlFor="profilePhoto"
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
+                      className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                        imageUploading.profilePhoto ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                      }`}
                     >
-                      <Upload className="w-4 h-4" />
-                      Upload Photo
+                      {imageUploading.profilePhoto ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4" />
+                      )}
+                      {imageUploading.profilePhoto ? 'Uploading...' : 'Upload Photo'}
                     </label>
                     {errors.profilePhoto && (
                       <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
@@ -615,8 +667,12 @@ const NewLoanReceiving = () => {
                     </div>
                   ) : (
                     <div className="py-8">
-                      <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500">NID Front Image</p>
+                      {imageUploading.nidFrontImage ? (
+                        <Loader2 className="w-12 h-12 text-green-500 mx-auto mb-2 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      )}
+                      <p className="text-gray-500">{imageUploading.nidFrontImage ? 'Uploading...' : 'NID Front Image'}</p>
                     </div>
                   )}
                   <input
@@ -625,13 +681,20 @@ const NewLoanReceiving = () => {
                     onChange={(e) => handleImageUpload(e, 'nidFrontImage')}
                     className="hidden"
                     id="nidFrontImage"
+                    disabled={imageUploading.nidFrontImage}
                   />
                   <label
                     htmlFor="nidFrontImage"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors"
+                    className={`inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${
+                      imageUploading.nidFrontImage ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                    }`}
                   >
-                    <Upload className="w-4 h-4" />
-                    Upload
+                    {imageUploading.nidFrontImage ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {imageUploading.nidFrontImage ? 'Uploading...' : 'Upload'}
                   </label>
                   {errors.nidFrontImage && (
                     <p className="mt-2 text-sm text-red-600 flex items-center justify-center gap-1">
@@ -657,8 +720,12 @@ const NewLoanReceiving = () => {
                     </div>
                   ) : (
                     <div className="py-8">
-                      <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-500">NID Back Image</p>
+                      {imageUploading.nidBackImage ? (
+                        <Loader2 className="w-12 h-12 text-green-500 mx-auto mb-2 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      )}
+                      <p className="text-gray-500">{imageUploading.nidBackImage ? 'Uploading...' : 'NID Back Image'}</p>
                     </div>
                   )}
                   <input
@@ -667,13 +734,20 @@ const NewLoanReceiving = () => {
                     onChange={(e) => handleImageUpload(e, 'nidBackImage')}
                     className="hidden"
                     id="nidBackImage"
+                    disabled={imageUploading.nidBackImage}
                   />
                   <label
                     htmlFor="nidBackImage"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 cursor-pointer transition-colors"
+                    className={`inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${
+                      imageUploading.nidBackImage ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                    }`}
                   >
-                    <Upload className="w-4 h-4" />
-                    Upload
+                    {imageUploading.nidBackImage ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {imageUploading.nidBackImage ? 'Uploading...' : 'Upload'}
                   </label>
                   {errors.nidBackImage && (
                     <p className="mt-2 text-sm text-red-600 flex items-center justify-center gap-1">
@@ -842,19 +916,26 @@ const NewLoanReceiving = () => {
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Loan Type *
                 </label>
-                <select
+                <input
+                  type="text"
                   name="loanType"
                   value={formData.loanType}
                   onChange={handleInputChange}
+                  placeholder="Enter loan type (e.g., Personal, Educational, Business)"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'border-gray-300'
+                    errors.loanType
+                      ? 'border-red-500 focus:ring-red-500'
+                      : isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
                   }`}
-                >
-                  <option value="Personal">Personal Loan</option>
-                  <option value="Pathisthanik">Educational Loan</option>
-                </select>
+                />
+                {errors.loanType && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.loanType}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1053,10 +1134,10 @@ const NewLoanReceiving = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={createLoanReceivingMutation.isPending}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                {loading ? (
+                {createLoanReceivingMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Submitting...

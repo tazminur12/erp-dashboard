@@ -10,6 +10,10 @@ export const vendorKeys = {
   details: () => [...vendorKeys.all, 'detail'],
   detail: (id) => [...vendorKeys.details(), id],
   categories: () => [...vendorKeys.all, 'categories'],
+  bills: () => [...vendorKeys.all, 'bills'],
+  billsList: (filters) => [...vendorKeys.bills(), 'list', { filters }],
+  billDetail: (id) => [...vendorKeys.bills(), 'detail', id],
+  vendorBills: (vendorId) => [...vendorKeys.bills(), 'vendor', vendorId],
 };
 
 // Hook to fetch all vendors
@@ -393,6 +397,233 @@ export const useCreateVendorOrder = () => {
       Swal.fire({
         icon: 'error',
         title: 'Failed to create order',
+        text: message,
+        confirmButtonColor: '#dc2626'
+      });
+    },
+  });
+};
+
+// Hook to fetch all vendor bills with filters
+export const useVendorBills = (filters = {}) => {
+  const axiosSecure = useSecureAxios();
+  
+  return useQuery({
+    queryKey: vendorKeys.billsList(filters),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      
+      if (filters.vendorId) params.append('vendorId', filters.vendorId);
+      if (filters.billType) params.append('billType', filters.billType);
+      if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus);
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (filters.limit) params.append('limit', filters.limit.toString());
+      
+      const response = await axiosSecure.get(`/vendors/bills?${params.toString()}`);
+      
+      if (response.data.success) {
+        return response.data.bills || [];
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch vendor bills');
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 2,
+  });
+};
+
+// Hook to fetch a single vendor bill by ID
+export const useVendorBill = (billId) => {
+  const axiosSecure = useSecureAxios();
+  
+  return useQuery({
+    queryKey: vendorKeys.billDetail(billId),
+    queryFn: async () => {
+      if (!billId) return null;
+      
+      const response = await axiosSecure.get(`/vendors/bills/${billId}`);
+      
+      if (response.data.success) {
+        return response.data.bill;
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch vendor bill');
+      }
+    },
+    enabled: !!billId,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+// Hook to fetch all bills for a specific vendor
+export const useVendorBillsByVendor = (vendorId, options = {}) => {
+  const axiosSecure = useSecureAxios();
+  const { limit = 100 } = options;
+  
+  return useQuery({
+    queryKey: vendorKeys.vendorBills(vendorId),
+    queryFn: async () => {
+      if (!vendorId) return [];
+      
+      const params = new URLSearchParams();
+      if (limit) params.append('limit', limit.toString());
+      
+      const response = await axiosSecure.get(`/vendors/${vendorId}/bills?${params.toString()}`);
+      
+      if (response.data.success) {
+        return response.data.bills || [];
+      } else {
+        throw new Error(response.data.message || 'Failed to fetch vendor bills');
+      }
+    },
+    enabled: !!vendorId,
+    staleTime: 2 * 60 * 1000,
+    retry: 2,
+  });
+};
+
+// Mutation to create a vendor bill
+export const useCreateVendorBill = () => {
+  const axiosSecure = useSecureAxios();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (billData) => {
+      const response = await axiosSecure.post('/vendors/bills', billData);
+      
+      if (response.data.success) {
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to create vendor bill');
+      }
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate vendor queries to refresh data
+      queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: vendorKeys.bills() });
+      queryClient.invalidateQueries({ queryKey: vendorKeys.billsList() });
+      
+      if (variables.vendorId) {
+        queryClient.invalidateQueries({ queryKey: vendorKeys.detail(variables.vendorId) });
+        queryClient.invalidateQueries({ queryKey: vendorKeys.vendorBills(variables.vendorId) });
+        queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(variables.vendorId), 'financials'] });
+        queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(variables.vendorId), 'activities'] });
+      }
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Bill generated successfully',
+        text: 'Vendor bill has been created successfully.',
+        confirmButtonColor: '#7c3aed',
+        timer: 2000
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || 'Failed to generate bill. Please try again.';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+        confirmButtonColor: '#dc2626'
+      });
+    },
+  });
+};
+
+// Mutation to update a vendor bill
+export const useUpdateVendorBill = () => {
+  const axiosSecure = useSecureAxios();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ billId, updateData }) => {
+      const response = await axiosSecure.patch(`/vendors/bills/${billId}`, updateData);
+      
+      if (response.data.success) {
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to update vendor bill');
+      }
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: vendorKeys.bills() });
+      queryClient.invalidateQueries({ queryKey: vendorKeys.billDetail(variables.billId) });
+      queryClient.invalidateQueries({ queryKey: vendorKeys.billsList() });
+      
+      // Update the specific bill in cache
+      if (data.bill) {
+        queryClient.setQueryData(
+          vendorKeys.billDetail(variables.billId),
+          data.bill
+        );
+      }
+      
+      // If bill has vendorId, invalidate vendor-specific queries
+      if (data.bill?.vendorId) {
+        queryClient.invalidateQueries({ queryKey: vendorKeys.vendorBills(data.bill.vendorId) });
+        queryClient.invalidateQueries({ queryKey: vendorKeys.detail(data.bill.vendorId) });
+      }
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Bill updated successfully',
+        text: 'Vendor bill has been updated successfully.',
+        confirmButtonColor: '#7c3aed',
+        timer: 2000
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || 'Failed to update bill. Please try again.';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+        confirmButtonColor: '#dc2626'
+      });
+    },
+  });
+};
+
+// Mutation to delete a vendor bill (soft delete)
+export const useDeleteVendorBill = () => {
+  const axiosSecure = useSecureAxios();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (billId) => {
+      const response = await axiosSecure.delete(`/vendors/bills/${billId}`);
+      
+      if (response.data.success) {
+        return response.data;
+      } else {
+        throw new Error(response.data.message || 'Failed to delete vendor bill');
+      }
+    },
+    onSuccess: (data, billId) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: vendorKeys.bills() });
+      queryClient.invalidateQueries({ queryKey: vendorKeys.billsList() });
+      
+      // Remove the bill from cache
+      queryClient.removeQueries({ queryKey: vendorKeys.billDetail(billId) });
+      
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Bill deleted successfully',
+        text: 'Vendor bill has been deleted successfully.',
+        confirmButtonColor: '#7c3aed',
+        timer: 2000
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || 'Failed to delete bill. Please try again.';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
         text: message,
         confirmButtonColor: '#dc2626'
       });

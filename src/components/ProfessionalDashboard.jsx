@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Users, 
@@ -42,12 +42,82 @@ import {
   ShoppingCart
 } from 'lucide-react';
 import { useCategoriesSummary } from '../hooks/DashboardQueries';
+import { useTransactionCategories } from '../hooks/useTransactionQueries';
+import { getAllSubCategories } from '../utils/categoryUtils';
 
 const ProfessionalDashboard = () => {
   const [dateRange, setDateRange] = useState({});
   
   // Fetch categories summary data
   const { data: summaryData, isLoading: isSummaryLoading, error: summaryError } = useCategoriesSummary(dateRange);
+  
+  // Fetch categories for ID to name mapping
+  const { data: apiCategories = [] } = useTransactionCategories();
+  
+  // Create ID to name mapping for categories and subcategories
+  const categoryNameMap = useMemo(() => {
+    const map = {};
+    
+    // Build map from local subcategories (from categoryUtils)
+    try {
+      const localSubCategories = getAllSubCategories();
+      localSubCategories.forEach(sub => {
+        if (sub.id) map[sub.id] = sub.name;
+      });
+    } catch (e) {
+      console.warn('Error loading local subcategories:', e);
+    }
+    
+    // Build map from API categories
+    try {
+      if (Array.isArray(apiCategories)) {
+        apiCategories.forEach(category => {
+          if (!category) return;
+          
+          // Handle string categories (fallback case)
+          if (typeof category === 'string') {
+            map[category] = category;
+            return;
+          }
+          
+          // Map category ID to name
+          const categoryId = category._id || category.id || category.value || category.slug;
+          const categoryName = category.name || category.label || category.title || category.categoryName;
+          if (categoryId && categoryName) {
+            map[categoryId] = categoryName;
+          }
+          
+          // Map subcategory IDs to names
+          const subCategories = category.subCategories || category.subcategories || [];
+          subCategories.forEach(sub => {
+            if (!sub) return;
+            const subId = sub._id || sub.id || sub.value || sub.slug;
+            const subName = sub.name || sub.label || sub.title || sub.categoryName;
+            if (subId && subName) {
+              map[subId] = subName;
+            }
+          });
+        });
+      }
+    } catch (e) {
+      console.warn('Error processing API categories:', e);
+    }
+    
+    return map;
+  }, [apiCategories]);
+  
+  // Function to resolve category name from ID
+  const getCategoryName = (categoryNameOrId) => {
+    if (!categoryNameOrId) return 'N/A';
+    
+    // First check if it's in the mapping (for MongoDB IDs or other IDs)
+    if (categoryNameMap[categoryNameOrId]) {
+      return categoryNameMap[categoryNameOrId];
+    }
+    
+    // If it's already a readable name (not found in map), return as is
+    return categoryNameOrId;
+  };
   
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('bn-BD', {
@@ -601,7 +671,7 @@ const ProfessionalDashboard = () => {
                     >
                       <td className="py-3 px-4">
                         <span className="font-medium text-gray-900 dark:text-white">
-                          {category.categoryName || 'N/A'}
+                          {getCategoryName(category.categoryName)}
                         </span>
                       </td>
                       <td className="text-right py-3 px-4">

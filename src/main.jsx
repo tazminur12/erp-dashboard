@@ -57,6 +57,7 @@ const VendorList = React.lazy(() => import('./pages/Vendors/VendorList'));
 const AddVendor = React.lazy(() => import('./pages/Vendors/AddVendor'));
 const EditVendor = React.lazy(() => import('./pages/Vendors/EditVendor'));
 const VendorDetails = React.lazy(() => import('./pages/Vendors/VendorDetails'));
+const VendorBillGenerate = React.lazy(() => import('./pages/Vendors/VendorBillGenerate'));
 
 // Hajj & Umrah pages
 const HajjUmrahDashboard = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajjUmrahDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -374,6 +375,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <EditVendor />
+          </Suspense>
+        )
+      },
+      {
+        path: "bill",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VendorBillGenerate />
           </Suspense>
         )
       },

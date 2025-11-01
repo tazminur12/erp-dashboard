@@ -117,7 +117,7 @@ export const navigation = [
     children: [
       { name: 'Vendor Dashboard', href: '/vendors/dashboard', icon: LayoutDashboard },
       { name: 'Vendor List', href: '/vendors', icon: List },
-      { name: 'Add Vendor', href: '/vendors/add', icon: Plus }
+      { name: 'Vendor Bill Genarate', href: '/vendors/bill', icon: Plus }
     ]
   },
   {
