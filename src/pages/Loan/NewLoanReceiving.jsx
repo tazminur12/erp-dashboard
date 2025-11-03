@@ -4,11 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   ArrowLeft,
   User,
-  DollarSign,
-  Calendar,
   FileText,
-  Percent,
-  Clock,
   Save,
   X,
   Loader2,
@@ -25,16 +21,19 @@ import {
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import { useCreateLoanReceiving } from '../../hooks/useLoanQueries';
+import { useCreateReceivingLoan } from '../../hooks/useLoanQueries';
 
 const NewLoanReceiving = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
   const navigate = useNavigate();
-  const createLoanReceivingMutation = useCreateLoanReceiving();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createReceivingLoan = useCreateReceivingLoan();
 
   const [formData, setFormData] = useState({
     // Personal Profile Information
+    firstName: '',
+    lastName: '',
     fullName: '',
     fatherName: '',
     motherName: '',
@@ -60,14 +59,6 @@ const NewLoanReceiving = () => {
     businessRegistration: '',
     businessExperience: '',
     
-    // Loan Details
-    loanType: '', // Text field now
-    amount: '',
-    source: '',
-    purpose: '',
-    interestRate: '',
-    duration: '',
-    appliedDate: new Date().toISOString().split('T')[0],
     
     // Contact Information
     contactPerson: '',
@@ -94,10 +85,16 @@ const NewLoanReceiving = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const nextState = { ...prev, [name]: value };
+      // Auto-generate fullName from firstName + lastName
+      if (name === 'firstName' || name === 'lastName') {
+        const nextFirst = name === 'firstName' ? value : nextState.firstName;
+        const nextLast = name === 'lastName' ? value : nextState.lastName;
+        nextState.fullName = `${(nextFirst || '').trim()} ${(nextLast || '').trim()}`.trim();
+      }
+      return nextState;
+    });
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -192,88 +189,26 @@ const NewLoanReceiving = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Personal Information Validation
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+    // Required: First and Last Name only
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
     }
 
-    if (!formData.fatherName.trim()) {
-      newErrors.fatherName = 'Father\'s name is required';
-    }
-
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = 'Please select gender';
-    }
-
-    if (!formData.nidNumber.trim()) {
-      newErrors.nidNumber = 'National ID number is required';
-    } else if (!/^\d{10}$|^\d{13}$|^\d{17}$/.test(formData.nidNumber.replace(/\s/g, ''))) {
+    // Optional field validations (format-only when provided)
+    if (formData.nidNumber && !/^\d{10}$|^\d{13}$|^\d{17}$/.test(formData.nidNumber.replace(/\s/g, ''))) {
       newErrors.nidNumber = 'Please enter a valid NID number';
     }
 
-    if (!formData.profilePhoto) {
-      newErrors.profilePhoto = 'Profile photo is required';
-    }
-
-    if (!formData.nidFrontImage) {
-      newErrors.nidFrontImage = 'NID front image is required';
-    }
-
-    if (!formData.nidBackImage) {
-      newErrors.nidBackImage = 'NID back image is required';
-    }
-
-    // Address Validation
-    if (!formData.presentAddress.trim()) {
-      newErrors.presentAddress = 'Present address is required';
-    }
-
-    if (!formData.district.trim()) {
-      newErrors.district = 'District is required';
-    }
-
-    if (!formData.upazila.trim()) {
-      newErrors.upazila = 'Upazila is required';
-    }
-
     // Contact Information Validation
-    if (!formData.contactPhone.trim()) {
-      newErrors.contactPhone = 'Phone number is required';
-    } else if (!/^01[3-9]\d{8}$/.test(formData.contactPhone)) {
+    if (formData.contactPhone && !/^01[3-9]\d{8}$/.test(formData.contactPhone)) {
       newErrors.contactPhone = 'Please enter a valid phone number';
     }
 
     if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
       newErrors.contactEmail = 'Please enter a valid email address';
-    }
-
-    // Loan Details Validation
-    if (!formData.loanType.trim()) {
-      newErrors.loanType = 'Loan type is required';
-    }
-
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      newErrors.amount = 'Please enter a valid amount';
-    }
-
-    if (!formData.source.trim()) {
-      newErrors.source = 'Loan source is required';
-    }
-
-    if (!formData.purpose.trim()) {
-      newErrors.purpose = 'Loan purpose is required';
-    }
-
-    if (!formData.interestRate || parseFloat(formData.interestRate) <= 0) {
-      newErrors.interestRate = 'Please enter a valid interest rate';
-    }
-
-    if (!formData.duration || parseInt(formData.duration) <= 0) {
-      newErrors.duration = 'Please enter a valid duration';
     }
 
     setErrors(newErrors);
@@ -297,78 +232,74 @@ const NewLoanReceiving = () => {
 
     const loanData = {
       ...formData,
-      amount: parseFloat(formData.amount),
-      interestRate: parseFloat(formData.interestRate),
-      duration: parseInt(formData.duration),
+      loanDirection: 'receiving',
       status: 'Pending',
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch'
     };
 
-    createLoanReceivingMutation.mutate(loanData, {
-      onSuccess: () => {
-        Swal.fire({
-          title: 'Success!',
-          text: 'Loan application has been submitted successfully.',
-          icon: 'success',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F9FAFB'
-        });
+    try {
+      setIsSubmitting(true);
+      const result = await createReceivingLoan.mutateAsync(loanData);
 
-        // Reset form
-        setFormData({
-          fullName: '',
-          fatherName: '',
-          motherName: '',
-          dateOfBirth: '',
-          gender: '',
-          maritalStatus: '',
-          nidNumber: '',
-          nidFrontImage: '',
-          nidBackImage: '',
-          profilePhoto: '',
-          presentAddress: '',
-          permanentAddress: '',
-          district: '',
-          upazila: '',
-          postCode: '',
-          businessName: '',
-          businessType: '',
-          businessAddress: '',
-          businessRegistration: '',
-          businessExperience: '',
-          loanType: '',
-          amount: '',
-          source: '',
-          purpose: '',
-          interestRate: '',
-          duration: '',
-          appliedDate: new Date().toISOString().split('T')[0],
-          contactPerson: '',
-          contactPhone: '',
-          contactEmail: '',
-          emergencyContact: '',
-          emergencyPhone: '',
-          notes: ''
-        });
-        setImagePreview({
-          profilePhoto: null,
-          nidFrontImage: null,
-          nidBackImage: null
-        });
-      },
-      onError: (error) => {
-        Swal.fire({
-          title: 'Error!',
-          text: error.message || 'There was a problem submitting the loan application.',
-          icon: 'error',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#EF4444',
-          background: isDark ? '#1F2937' : '#FEF2F2'
-        });
-      }
-    });
+      await Swal.fire({
+        title: 'Success!',
+        text: result?.message || 'Loan application has been submitted successfully.',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+      navigate('/loan/list');
+
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        fullName: '',
+        fatherName: '',
+        motherName: '',
+        dateOfBirth: '',
+        gender: '',
+        maritalStatus: '',
+        nidNumber: '',
+        nidFrontImage: '',
+        nidBackImage: '',
+        profilePhoto: '',
+        presentAddress: '',
+        permanentAddress: '',
+        district: '',
+        upazila: '',
+        postCode: '',
+        businessName: '',
+        businessType: '',
+        businessAddress: '',
+        businessRegistration: '',
+        businessExperience: '',
+        contactPerson: '',
+        contactPhone: '',
+        contactEmail: '',
+        emergencyContact: '',
+        emergencyPhone: '',
+        notes: ''
+      });
+      setImagePreview({
+        profilePhoto: null,
+        nidFrontImage: null,
+        nidBackImage: null
+      });
+    } catch (error) {
+      Swal.fire({
+        title: 'Error!',
+        text: (error?.response?.data?.message) || error.message || 'There was a problem submitting the loan application.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -426,7 +357,7 @@ const NewLoanReceiving = () => {
               {/* Profile Photo Upload */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Profile Photo *
+                  Profile Photo
                 </label>
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden">
@@ -473,33 +404,78 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Full Name *
+                  First Name *
                 </label>
                 <input
                   type="text"
-                  name="fullName"
-                  value={formData.fullName}
+                  name="firstName"
+                  value={formData.firstName}
                   onChange={handleInputChange}
-                  placeholder="Enter your full name"
+                  placeholder="Enter first name"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.fullName
+                    errors.firstName
                       ? 'border-red-500 focus:ring-red-500'
                       : isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'border-gray-300'
                   }`}
                 />
-                {errors.fullName && (
+                {errors.firstName && (
                   <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.fullName}
+                    {errors.firstName}
                   </p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Father's Name *
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  placeholder="Enter last name"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    errors.lastName
+                      ? 'border-red-500 focus:ring-red-500'
+                      : isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
+                  }`}
+                />
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.lastName}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  readOnly
+                  placeholder="Enter your full name"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Father's Name
                 </label>
                 <input
                   type="text"
@@ -543,7 +519,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Date of Birth *
+                  Date of Birth
                 </label>
                 <input
                   type="date"
@@ -568,7 +544,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Gender *
+                  Gender
                 </label>
                 <select
                   name="gender"
@@ -627,7 +603,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  National ID Number *
+                  National ID Number
                 </label>
                 <input
                   type="text"
@@ -654,7 +630,7 @@ const NewLoanReceiving = () => {
               {/* NID Image Uploads */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  NID Front Image *
+                  NID Front Image
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center">
                   {imagePreview.nidFrontImage ? (
@@ -707,7 +683,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  NID Back Image *
+                  NID Back Image
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center">
                   {imagePreview.nidBackImage ? (
@@ -768,7 +744,7 @@ const NewLoanReceiving = () => {
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Present Address *
+                  Present Address
                 </label>
                 <textarea
                   name="presentAddress"
@@ -794,7 +770,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  District *
+                  District
                 </label>
                 <input
                   type="text"
@@ -820,7 +796,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Upazila *
+                  Upazila
                 </label>
                 <input
                   type="text"
@@ -854,7 +830,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Phone Number *
+                  Phone Number
                 </label>
                 <input
                   type="tel"
@@ -904,204 +880,7 @@ const NewLoanReceiving = () => {
                 )}
               </div>
 
-              {/* Loan Type Selection */}
-              <div className="lg:col-span-2 mt-6">
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-green-600" />
-                  Loan Details
-                </h4>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Loan Type *
-                </label>
-                <input
-                  type="text"
-                  name="loanType"
-                  value={formData.loanType}
-                  onChange={handleInputChange}
-                  placeholder="Enter loan type (e.g., Personal, Educational, Business)"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.loanType
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.loanType && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.loanType}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Loan Amount *
-                </label>
-                <input
-                  type="number"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleInputChange}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.amount
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.amount && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.amount}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Loan Source *
-                </label>
-                <select
-                  name="source"
-                  value={formData.source}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.source
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Source</option>
-                  <option value="Bank">Bank</option>
-                  <option value="NGO">NGO</option>
-                  <option value="Personal">Personal</option>
-                  <option value="Government">Government</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.source && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.source}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Loan Purpose *
-                </label>
-                <select
-                  name="purpose"
-                  value={formData.purpose}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.purpose
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Purpose</option>
-                  <option value="Business">Business</option>
-                  <option value="Education">Education</option>
-                  <option value="Home Purchase">Home Purchase</option>
-                  <option value="Medical">Medical</option>
-                  <option value="Vehicle Purchase">Vehicle Purchase</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.purpose && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.purpose}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Interest Rate (%) *
-                </label>
-                <input
-                  type="number"
-                  name="interestRate"
-                  value={formData.interestRate}
-                  onChange={handleInputChange}
-                  placeholder="0.00"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.interestRate
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.interestRate && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.interestRate}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Duration (Months) *
-                </label>
-                <input
-                  type="number"
-                  name="duration"
-                  value={formData.duration}
-                  onChange={handleInputChange}
-                  placeholder="0"
-                  min="1"
-                  max="360"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.duration
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.duration && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.duration}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Application Date *
-                </label>
-                <input
-                  type="date"
-                  name="appliedDate"
-                  value={formData.appliedDate}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'border-gray-300'
-                  }`}
-                />
-              </div>
+              {/* Loan Details removed as requested */}
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -1134,10 +913,10 @@ const NewLoanReceiving = () => {
               </button>
               <button
                 type="submit"
-                disabled={createLoanReceivingMutation.isPending}
+                disabled={isSubmitting}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                {createLoanReceivingMutation.isPending ? (
+                {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Submitting...

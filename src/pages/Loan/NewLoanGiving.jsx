@@ -4,43 +4,34 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   ArrowLeft,
   User,
-  DollarSign,
-  Calendar,
   FileText,
-  Percent,
-  Clock,
   Save,
   X,
   Loader2,
-  CheckCircle,
   AlertCircle,
   TrendingDown,
   Camera,
   Upload,
-  CreditCard,
   MapPin,
-  Building,
   Phone,
-  Mail,
-  Shield,
   FileCheck
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useNavigate } from 'react-router-dom';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import { useCreateLoanGiving } from '../../hooks/useLoanQueries';
-import { useAccountQueries } from '../../hooks/useAccountQueries';
+import { useCreateGivingLoan } from '../../hooks/useLoanQueries';
 
 const NewLoanGiving = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
   const navigate = useNavigate();
-  const createLoanGivingMutation = useCreateLoanGiving();
-  const accountQueries = useAccountQueries();
-  const { data: bankAccounts = [], isLoading: accountsLoading } = accountQueries.useBankAccounts();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createGivingLoan = useCreateGivingLoan();
 
   const [formData, setFormData] = useState({
     // Personal Profile Information
+    firstName: '',
+    lastName: '',
     fullName: '',
     fatherName: '',
     motherName: '',
@@ -59,22 +50,6 @@ const NewLoanGiving = () => {
     upazila: '',
     postCode: '',
     
-    // Business Information
-    businessName: '',
-    businessType: '',
-    businessAddress: '',
-    businessRegistration: '',
-    businessExperience: '',
-    
-    // Loan Details
-    loanType: '', // Text field now
-    amount: '',
-    source: '',
-    purpose: '',
-    interestRate: '',
-    duration: '',
-    givenDate: new Date().toISOString().split('T')[0],
-    
     // Contact Information
     contactPerson: '',
     contactPhone: '',
@@ -85,8 +60,7 @@ const NewLoanGiving = () => {
     // Additional Information
     notes: '',
     
-    // Bank Account for Transaction
-    targetAccountId: ''
+  
   });
 
   const [errors, setErrors] = useState({});
@@ -103,10 +77,16 @@ const NewLoanGiving = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => {
+      const nextState = { ...prev, [name]: value };
+      // Auto-generate fullName from first and last name
+      if (name === 'firstName' || name === 'lastName') {
+        const nextFirst = name === 'firstName' ? value : nextState.firstName;
+        const nextLast = name === 'lastName' ? value : nextState.lastName;
+        nextState.fullName = `${(nextFirst || '').trim()} ${(nextLast || '').trim()}`.trim();
+      }
+      return nextState;
+    });
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -212,110 +192,26 @@ const NewLoanGiving = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Personal Information Validation
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Full name is required';
+    // Required: only first and last name
+    if (!formData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+    if (!formData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
     }
 
-    if (!formData.fatherName.trim()) {
-      newErrors.fatherName = 'Father\'s name is required';
+    // Optional validations (format-only when provided)
+    if (formData.nidNumber && !/^\d{10}$|^\d{13}$|^\d{17}$/.test(formData.nidNumber.replace(/\s/g, ''))) {
+      newErrors.nidNumber = 'Please enter a valid NID number';
     }
-
-    if (!formData.motherName.trim()) {
-      newErrors.motherName = 'Mother\'s name is required';
-    }
-
-    if (!formData.dateOfBirth) {
-      newErrors.dateOfBirth = 'Date of birth is required';
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = 'Please select gender';
-    }
-
-    if (!formData.nidNumber.trim()) {
-      newErrors.nidNumber = 'NID number is required';
-    }
-
-    // Address Validation
-    if (!formData.presentAddress.trim()) {
-      newErrors.presentAddress = 'Present address is required';
-    }
-
-    if (!formData.permanentAddress.trim()) {
-      newErrors.permanentAddress = 'Permanent address is required';
-    }
-
-    if (!formData.district.trim()) {
-      newErrors.district = 'Please select district';
-    }
-
-    if (!formData.upazila.trim()) {
-      newErrors.upazila = 'Please enter upazila';
-    }
-
-    // Business Information Validation
-    if (!formData.businessName.trim()) {
-      newErrors.businessName = 'Business name is required';
-    }
-
-    if (!formData.businessType.trim()) {
-      newErrors.businessType = 'Business type is required';
-    }
-
-    // Loan Details Validation
-    if (!formData.loanType.trim()) {
-      newErrors.loanType = 'Loan type is required';
-    }
-
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
-      newErrors.amount = 'Please enter a valid amount';
-    }
-
-    if (!formData.source.trim()) {
-      newErrors.source = 'Loan source is required';
-    }
-
-    if (!formData.purpose.trim()) {
-      newErrors.purpose = 'Loan purpose is required';
-    }
-
-    if (!formData.interestRate || parseFloat(formData.interestRate) <= 0) {
-      newErrors.interestRate = 'Please enter a valid interest rate';
-    }
-
-    if (!formData.duration || parseInt(formData.duration) <= 0) {
-      newErrors.duration = 'Please enter a valid duration';
-    }
-
-    // Contact Information Validation
-    if (!formData.contactPerson.trim()) {
-      newErrors.contactPerson = 'Contact person name is required';
-    }
-
-    if (!formData.contactPhone.trim()) {
-      newErrors.contactPhone = 'Phone number is required';
-    } else if (!/^01[3-9]\d{8}$/.test(formData.contactPhone)) {
+    if (formData.contactPhone && !/^01[3-9]\d{8}$/.test(formData.contactPhone)) {
       newErrors.contactPhone = 'Please enter a valid phone number';
     }
-
     if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
       newErrors.contactEmail = 'Please enter a valid email address';
     }
-
-    if (!formData.emergencyContact.trim()) {
-      newErrors.emergencyContact = 'Emergency contact name is required';
-    }
-
-    if (!formData.emergencyPhone.trim()) {
-      newErrors.emergencyPhone = 'Emergency phone number is required';
-    } else if (!/^01[3-9]\d{8}$/.test(formData.emergencyPhone)) {
+    if (formData.emergencyPhone && !/^01[3-9]\d{8}$/.test(formData.emergencyPhone)) {
       newErrors.emergencyPhone = 'Please enter a valid emergency phone number';
-    }
-
-    // Bank Account Validation
-    if (!formData.targetAccountId) {
-      newErrors.targetAccountId = 'Please select a bank account';
     }
 
     setErrors(newErrors);
@@ -339,80 +235,69 @@ const NewLoanGiving = () => {
 
     const loanData = {
       ...formData,
-      amount: parseFloat(formData.amount),
-      interestRate: parseFloat(formData.interestRate),
-      duration: parseInt(formData.duration),
+      loanDirection: 'giving',
       status: 'Active',
-      remainingAmount: parseFloat(formData.amount),
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch'
     };
 
-    createLoanGivingMutation.mutate(loanData, {
-      onSuccess: () => {
-        Swal.fire({
-          title: 'Success!',
-          text: 'Loan has been successfully given.',
-          icon: 'success',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#10B981',
-          background: isDark ? '#1F2937' : '#F9FAFB'
-        });
+    try {
+      setIsSubmitting(true);
+      const result = await createGivingLoan.mutateAsync(loanData);
 
-        // Reset form
-        setFormData({
-          fullName: '',
-          fatherName: '',
-          motherName: '',
-          dateOfBirth: '',
-          gender: '',
-          maritalStatus: '',
-          nidNumber: '',
-          nidFrontImage: '',
-          nidBackImage: '',
-          profilePhoto: '',
-          presentAddress: '',
-          permanentAddress: '',
-          district: '',
-          upazila: '',
-          postCode: '',
-          businessName: '',
-          businessType: '',
-          businessAddress: '',
-          businessRegistration: '',
-          businessExperience: '',
-          loanType: '',
-          amount: '',
-          source: '',
-          purpose: '',
-          interestRate: '',
-          duration: '',
-          givenDate: new Date().toISOString().split('T')[0],
-          contactPerson: '',
-          contactPhone: '',
-          contactEmail: '',
-          emergencyContact: '',
-          emergencyPhone: '',
-          notes: '',
-          targetAccountId: ''
-        });
-        setImagePreview({
-          profilePhoto: null,
-          nidFrontImage: null,
-          nidBackImage: null
-        });
-      },
-      onError: (error) => {
-        Swal.fire({
-          title: 'Error!',
-          text: error.message || 'There was a problem giving the loan.',
-          icon: 'error',
-          confirmButtonText: 'OK',
-          confirmButtonColor: '#EF4444',
-          background: isDark ? '#1F2937' : '#FEF2F2'
-        });
-      }
-    });
+      await Swal.fire({
+        title: 'Success!',
+        text: result?.message || 'Loan has been successfully given.',
+        icon: 'success',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+      navigate('/loan/list');
+
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        fullName: '',
+        fatherName: '',
+        motherName: '',
+        dateOfBirth: '',
+        gender: '',
+        maritalStatus: '',
+        nidNumber: '',
+        nidFrontImage: '',
+        nidBackImage: '',
+        profilePhoto: '',
+        presentAddress: '',
+        permanentAddress: '',
+        district: '',
+        upazila: '',
+        postCode: '',
+        contactPerson: '',
+        contactPhone: '',
+        contactEmail: '',
+        emergencyContact: '',
+        emergencyPhone: '',
+        notes: ''
+      });
+      setImagePreview({
+        profilePhoto: null,
+        nidFrontImage: null,
+        nidBackImage: null
+      });
+    } catch (error) {
+      Swal.fire({
+        title: 'Error!',
+        text: (error?.response?.data?.message) || error.message || 'There was a problem giving the loan.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -470,7 +355,7 @@ const NewLoanGiving = () => {
               {/* Profile Photo Upload */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Profile Photo *
+                  Profile Photo
                 </label>
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden">
@@ -521,33 +406,78 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Full Name *
+                  First Name *
                 </label>
                 <input
                   type="text"
-                  name="fullName"
-                  value={formData.fullName}
+                  name="firstName"
+                  value={formData.firstName}
                   onChange={handleInputChange}
-                  placeholder="Enter full name"
+                  placeholder="Enter first name"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.fullName
+                    errors.firstName
                       ? 'border-red-500 focus:ring-red-500'
                       : isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'border-gray-300'
                   }`}
                 />
-                {errors.fullName && (
+                {errors.firstName && (
                   <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.fullName}
+                    {errors.firstName}
                   </p>
                 )}
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Father's Name *
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  placeholder="Enter last name"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    errors.lastName
+                      ? 'border-red-500 focus:ring-red-500'
+                      : isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                        : 'border-gray-300'
+                  }`}
+                />
+                {errors.lastName && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.lastName}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  readOnly
+                  placeholder="Enter full name"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
+                  }`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Father's Name
                 </label>
                 <input
                   type="text"
@@ -573,7 +503,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Mother's Name *
+                  Mother's Name
                 </label>
                 <input
                   type="text"
@@ -599,7 +529,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Date of Birth *
+                  Date of Birth
                 </label>
                 <input
                   type="date"
@@ -624,7 +554,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Gender *
+                  Gender
                 </label>
                 <select
                   name="gender"
@@ -675,7 +605,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  NID Number *
+                  NID Number
                 </label>
                 <input
                   type="text"
@@ -702,7 +632,7 @@ const NewLoanGiving = () => {
               {/* NID Images Upload */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                  NID Images *
+                  NID Images
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* NID Front */}
@@ -815,7 +745,7 @@ const NewLoanGiving = () => {
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Present Address *
+                  Present Address
                 </label>
                 <textarea
                   name="presentAddress"
@@ -841,7 +771,7 @@ const NewLoanGiving = () => {
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Permanent Address *
+                  Permanent Address
                 </label>
                 <textarea
                   name="permanentAddress"
@@ -867,7 +797,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  District *
+                  District
                 </label>
                 <select
                   name="district"
@@ -901,7 +831,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Upazila *
+                  Upazila
                 </label>
                 <input
                   type="text"
@@ -943,356 +873,11 @@ const NewLoanGiving = () => {
                 />
               </div>
 
-              {/* Business Information */}
-              <div className="lg:col-span-2 mt-6">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Building className="w-5 h-5 text-green-600" />
-                  Business Information
-                </h3>
-              </div>
+              {/* Business Information removed as requested */}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Business Name *
-                </label>
-                <input
-                  type="text"
-                  name="businessName"
-                  value={formData.businessName}
-                  onChange={handleInputChange}
-                  placeholder="Enter business name"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.businessName
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.businessName && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.businessName}
-                  </p>
-                )}
-              </div>
+              {/* Loan Details removed as requested */}
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Business Type *
-                </label>
-                <select
-                  name="businessType"
-                  value={formData.businessType}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.businessType
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Type</option>
-                  <option value="Business">Business</option>
-                  <option value="Industry">Industry</option>
-                  <option value="Agriculture">Agriculture</option>
-                  <option value="Service">Service</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.businessType && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.businessType}
-                  </p>
-                )}
-              </div>
-
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Business Address
-                </label>
-                <input
-                  type="text"
-                  name="businessAddress"
-                  value={formData.businessAddress}
-                  onChange={handleInputChange}
-                  placeholder="Enter business address"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'border-gray-300'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Business Registration Number
-                </label>
-                <input
-                  type="text"
-                  name="businessRegistration"
-                  value={formData.businessRegistration}
-                  onChange={handleInputChange}
-                  placeholder="Enter registration number"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'border-gray-300'
-                  }`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Business Experience (Years)
-                </label>
-                <input
-                  type="number"
-                  name="businessExperience"
-                  value={formData.businessExperience}
-                  onChange={handleInputChange}
-                  placeholder="Enter years of experience"
-                  min="0"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'border-gray-300'
-                  }`}
-                />
-              </div>
-
-              {/* Loan Details */}
-              <div className="lg:col-span-2 mt-6">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <DollarSign className="w-5 h-5 text-green-600" />
-                  Loan Details
-                </h3>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Loan Type *
-                </label>
-                <input
-                  type="text"
-                  name="loanType"
-                  value={formData.loanType}
-                  onChange={handleInputChange}
-                  placeholder="Enter loan type (e.g., Personal, Business, Agriculture)"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.loanType
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.loanType && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.loanType}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Amount Given *
-                </label>
-                <input
-                  type="number"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleInputChange}
-                  placeholder="0.00"
-                  min="0"
-                  step="0.01"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.amount
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.amount && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.amount}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Source *
-                </label>
-                <select
-                  name="source"
-                  value={formData.source}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.source
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Source</option>
-                  <option value="Bank">Bank</option>
-                  <option value="NGO">NGO</option>
-                  <option value="Personal">Personal</option>
-                  <option value="Government">Government</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.source && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.source}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Purpose *
-                </label>
-                <select
-                  name="purpose"
-                  value={formData.purpose}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.purpose
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select Purpose</option>
-                  <option value="Business">Business</option>
-                  <option value="Education">Education</option>
-                  <option value="House Purchase">House Purchase</option>
-                  <option value="Medical">Medical</option>
-                  <option value="Vehicle Purchase">Vehicle Purchase</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.purpose && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.purpose}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Interest Rate (%) *
-                </label>
-                <input
-                  type="number"
-                  name="interestRate"
-                  value={formData.interestRate}
-                  onChange={handleInputChange}
-                  placeholder="0.00"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.interestRate
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.interestRate && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.interestRate}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Duration (Months) *
-                </label>
-                <input
-                  type="number"
-                  name="duration"
-                  value={formData.duration}
-                  onChange={handleInputChange}
-                  placeholder="0"
-                  min="1"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.duration
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.duration && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.duration}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Given Date *
-                </label>
-                <input
-                  type="date"
-                  name="givenDate"
-                  value={formData.givenDate}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white' 
-                      : 'border-gray-300'
-                  }`}
-                />
-              </div>
-
-              {/* Bank Account Selection */}
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Select Bank Account for Transaction *
-                </label>
-                <select
-                  name="targetAccountId"
-                  value={formData.targetAccountId}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.targetAccountId
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                  }`}
-                  disabled={accountsLoading}
-                >
-                  <option value="">Select Bank Account</option>
-                  {bankAccounts.map((account) => (
-                    <option key={account._id || account.id} value={account._id || account.id}>
-                      {account.bankName || account.accountName} - {account.accountNumber} (Balance: ৳{(account.balance || account.currentBalance || account.initialBalance || 0).toLocaleString()})
-                    </option>
-                  ))}
-                </select>
-                {errors.targetAccountId && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.targetAccountId}
-                  </p>
-                )}
-              </div>
+              {/* Bank Account Selection removed as requested */}
 
               {/* Contact Information */}
               <div className="lg:col-span-2 mt-6">
@@ -1304,7 +889,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Contact Person Name *
+                  Contact Person Name
                 </label>
                 <input
                   type="text"
@@ -1330,7 +915,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Phone Number *
+                  Phone Number
                 </label>
                 <input
                   type="tel"
@@ -1382,7 +967,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Emergency Contact Name *
+                  Emergency Contact Name
                 </label>
                 <input
                   type="text"
@@ -1408,7 +993,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Emergency Phone Number *
+                  Emergency Phone Number
                 </label>
                 <input
                   type="tel"
@@ -1463,10 +1048,10 @@ const NewLoanGiving = () => {
                 <div className="flex flex-col sm:flex-row gap-4">
                   <button
                     type="submit"
-                    disabled={createLoanGivingMutation.isPending}
+                    disabled={isSubmitting}
                     className="flex-1 bg-green-600 text-white py-4 px-8 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 font-semibold text-lg shadow-lg"
                   >
-                    {createLoanGivingMutation.isPending ? (
+                    {isSubmitting ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
                         Giving Loan...

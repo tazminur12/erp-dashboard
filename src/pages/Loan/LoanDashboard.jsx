@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
@@ -21,6 +21,7 @@ import {
   Activity
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useLoanAnalytics } from '../../hooks/useLoanQueries';
 
 const LoanDashboard = () => {
   const { isDark } = useTheme();
@@ -28,84 +29,49 @@ const LoanDashboard = () => {
   const axiosSecure = useAxiosSecure();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalGiving: 0,
-    totalReceiving: 0,
-    activeLoans: 0,
-    overdueLoans: 0,
-    completedLoans: 0,
-    totalInterest: 0,
-    monthlyGiving: 0,
-    monthlyReceiving: 0
-  });
-
-  // Mock data for demonstration
-  const mockStats = {
-    totalGiving: 250000,
-    totalReceiving: 150000,
-    activeLoans: 8,
-    overdueLoans: 2,
-    completedLoans: 12,
-    totalInterest: 45000,
-    monthlyGiving: 50000,
-    monthlyReceiving: 30000
+  // Helper to safely extract values from distribution arrays
+  const getFromDistribution = (arr, key, field = 'count') => {
+    if (!Array.isArray(arr)) return 0;
+    const found = arr.find((i) => {
+      const id = i?._id;
+      if (typeof id === 'string') return id.toLowerCase() === String(key).toLowerCase();
+      return id === key;
+    });
+    return found?.[field] || 0;
   };
 
-  const recentLoans = [
-    {
-      id: 1,
-      type: 'giving',
-      borrowerName: 'John Doe',
-      amount: 50000,
-      status: 'active',
-      date: '2024-01-15',
-      businessName: 'ABC Trading'
-    },
-    {
-      id: 2,
-      type: 'receiving',
-      lenderName: 'XYZ Bank',
-      amount: 100000,
-      status: 'active',
-      date: '2024-02-01',
-      businessName: 'My Business'
-    },
-    {
-      id: 3,
-      type: 'giving',
-      borrowerName: 'Jane Smith',
-      amount: 25000,
-      status: 'completed',
-      date: '2024-01-10',
-      businessName: 'Smith Enterprises'
-    }
-  ];
+  // Recent Loans card removed
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const { data: analytics, isLoading } = useLoanAnalytics({ period: 30 });
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        setStats(mockStats);
-        setLoading(false);
-      }, 1000);
-      
-      // Uncomment when API is ready
-      // const response = await axiosSecure.get('/loans/dashboard');
-      // if (response.data.success) {
-      //   setStats(response.data.data);
-      // }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      setStats(mockStats); // Fallback to mock data
-      setLoading(false);
+  const stats = useMemo(() => {
+    if (!analytics) {
+      return {
+        totalGiving: 0,
+        totalReceiving: 0,
+        activeLoans: 0,
+        overdueLoans: 0,
+        completedLoans: 0,
+        totalInterest: 0,
+        monthlyGiving: 0,
+        monthlyReceiving: 0
+      };
     }
-  };
+    const a = analytics;
+    const directionDistribution = a.directionDistribution || [];
+    const statusDistribution = a.statusDistribution || [];
+
+    return {
+      totalGiving: getFromDistribution(directionDistribution, 'giving', 'amount'),
+      totalReceiving: getFromDistribution(directionDistribution, 'receiving', 'amount'),
+      activeLoans: getFromDistribution(statusDistribution, 'Active', 'count'),
+      completedLoans: getFromDistribution(statusDistribution, 'Completed', 'count'),
+      overdueLoans: a?.overdue?.overdueCount || 0,
+      totalInterest: 0,
+      monthlyGiving: 0,
+      monthlyReceiving: 0
+    };
+  }, [analytics]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-BD', {
@@ -157,7 +123,7 @@ const LoanDashboard = () => {
     navigate('/loan/list');
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className={`min-h-screen p-4 lg:p-8 transition-colors duration-300 ${
         isDark 
@@ -301,8 +267,8 @@ const LoanDashboard = () => {
           />
         </div>
 
-        {/* Charts and Recent Loans */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8">
           {/* Loan Type Distribution */}
           <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border transition-colors duration-300 p-6 ${
             isDark ? 'border-gray-700' : 'border-gray-100'
@@ -359,76 +325,7 @@ const LoanDashboard = () => {
             </div>
           </div>
 
-          {/* Recent Loans */}
-          <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border transition-colors duration-300 p-6 ${
-            isDark ? 'border-gray-700' : 'border-gray-100'
-          }`}>
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Clock className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                <h3 className={`text-xl font-semibold ${
-                  isDark ? 'text-white' : 'text-gray-900'
-                }`}>
-                  Recent Loans
-                </h3>
-              </div>
-              <button
-                onClick={handleViewAllLoans}
-                className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-200"
-              >
-                View All
-              </button>
-            </div>
-            <div className="space-y-4">
-              {recentLoans.map((loan) => (
-                <div
-                  key={loan.id}
-                  className={`p-4 rounded-xl border transition-colors duration-200 hover:shadow-md cursor-pointer ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
-                      : 'bg-gray-50 border-gray-200 hover:bg-white'
-                  }`}
-                  onClick={() => handleViewLoan(loan)}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {loan.type === 'giving' ? (
-                        <TrendingDown className="w-4 h-4 text-blue-600" />
-                      ) : (
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                      )}
-                      <span className={`text-sm font-medium ${
-                        isDark ? 'text-white' : 'text-gray-900'
-                      }`}>
-                        {loan.type === 'giving' ? loan.borrowerName : loan.lenderName}
-                      </span>
-                    </div>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(loan.status)}`}>
-                      {getStatusIcon(loan.status)}
-                      {loan.status.charAt(0).toUpperCase() + loan.status.slice(1)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`text-sm ${
-                      isDark ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
-                      {loan.businessName}
-                    </span>
-                    <span className={`text-sm font-semibold ${
-                      isDark ? 'text-white' : 'text-gray-900'
-                    }`}>
-                      {formatCurrency(loan.amount)}
-                    </span>
-                  </div>
-                  <div className={`text-xs mt-1 ${
-                    isDark ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    {formatDate(loan.date)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          
         </div>
 
         {/* Loan Status Overview */}

@@ -197,10 +197,7 @@ export const navigation = [
     name: 'Short Term Loans',
     icon: Calculator,
     children: [
-      { name : 'Loan Dashboard', href: '/loan', icon: LayoutDashboard },
       { name: 'Loan List', href: '/loan/list', icon: List },
-      { name: 'New Loan Receiving', href: '/loan/new-receiving', icon: TrendingUp },
-      { name: 'New Loan Giving', href: '/loan/new-giving', icon: TrendingDown }
     ]
   },
   {

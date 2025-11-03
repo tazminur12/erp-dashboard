@@ -26,17 +26,13 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { useLoans, useApproveLoan, useRejectLoan } from '../../hooks/useLoanQueries';
-import { useAccountQueries } from '../../hooks/useAccountQueries';
+import { useLoans } from '../../hooks/useLoanQueries';
 
 const LoanList = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
   const navigate = useNavigate();
-  const approveLoanMutation = useApproveLoan();
-  const rejectLoanMutation = useRejectLoan();
-  const accountQueries = useAccountQueries();
-  const { data: bankAccounts = [] } = accountQueries.useBankAccounts();
+  
 
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,142 +105,7 @@ const LoanList = () => {
     navigate(`/loan/new-${type}`);
   };
 
-  const handleApproveLoan = async (loan) => {
-    // First, ask for bank account selection
-    const accountOptions = bankAccounts.map(acc => 
-      `${acc.bankName || acc.accountName} - ${acc.accountNumber} (Balance: ৳${(acc.balance || acc.currentBalance || 0).toLocaleString()})`
-    ).join('\n');
-    
-    const { value: targetAccountId } = await Swal.fire({
-      title: 'Select Bank Account for Transaction',
-      text: 'Please select which bank account will receive this loan amount:',
-      input: 'select',
-      inputOptions: bankAccounts.reduce((options, acc) => {
-        options[acc._id || acc.id] = `${acc.bankName || acc.accountName} - ${acc.accountNumber} (৳${(acc.balance || acc.currentBalance || 0).toLocaleString()})`;
-        return options;
-      }, {}),
-      showCancelButton: true,
-      confirmButtonText: 'Approve Loan',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#10B981',
-      cancelButtonColor: '#6B7280',
-      background: isDark ? '#1F2937' : '#FFFFFF',
-      inputPlaceholder: 'Select account'
-    });
-
-    if (!targetAccountId) {
-      return; // User cancelled
-    }
-
-    const result = await Swal.fire({
-      title: 'আপনি কি নিশ্চিত?',
-      text: `এই loan application (${loan.fullName}) approve করবেন?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'হ্যাঁ, Approve করুন',
-      cancelButtonText: 'না',
-      confirmButtonColor: '#10B981',
-      cancelButtonColor: '#EF4444',
-      background: isDark ? '#1F2937' : '#FFFFFF'
-    });
-
-    if (result.isConfirmed) {
-      approveLoanMutation.mutate(
-        {
-          loanId: loan.loanId || loan._id,
-          targetAccountId,
-          approvedBy: userProfile?.email || 'unknown_user',
-          notes: 'Approved from Loan List'
-        },
-        {
-          onSuccess: () => {
-            Swal.fire({
-              title: 'সফল!',
-              text: 'Loan application approve করা হয়েছে এবং transaction create করা হয়েছে।',
-              icon: 'success',
-              confirmButtonText: 'ঠিক আছে',
-              confirmButtonColor: '#10B981',
-              background: isDark ? '#1F2937' : '#FFFFFF'
-            });
-          },
-          onError: (error) => {
-            Swal.fire({
-              title: 'ত্রুটি!',
-              text: error.message || 'Loan approve করতে সমস্যা হয়েছে।',
-              icon: 'error',
-              confirmButtonText: 'ঠিক আছে',
-              confirmButtonColor: '#EF4444',
-              background: isDark ? '#1F2937' : '#FFFFFF'
-            });
-          }
-        }
-      );
-    }
-  };
-
-  const handleRejectLoan = async (loan) => {
-    const { value: rejectionReason } = await Swal.fire({
-      title: 'Rejection Reason',
-      text: 'Please provide a reason for rejection:',
-      input: 'textarea',
-      inputPlaceholder: 'Enter rejection reason...',
-      showCancelButton: true,
-      confirmButtonText: 'Reject Loan',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: '#EF4444',
-      cancelButtonColor: '#6B7280',
-      background: isDark ? '#1F2937' : '#FFFFFF'
-    });
-
-    if (!rejectionReason) {
-      return; // User cancelled
-    }
-
-    const result = await Swal.fire({
-      title: 'আপনি কি নিশ্চিত?',
-      text: `এই loan application (${loan.fullName}) reject করবেন?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'হ্যাঁ, Reject করুন',
-      cancelButtonText: 'না',
-      confirmButtonColor: '#EF4444',
-      cancelButtonColor: '#6B7280',
-      background: isDark ? '#1F2937' : '#FFFFFF'
-    });
-
-    if (result.isConfirmed) {
-      rejectLoanMutation.mutate(
-        {
-          loanId: loan.loanId || loan._id,
-          rejectionReason: rejectionReason.trim(),
-          rejectedBy: userProfile?.email || 'unknown_user',
-          notes: 'Rejected from Loan List'
-        },
-        {
-          onSuccess: () => {
-            Swal.fire({
-              title: 'সফল!',
-              text: 'Loan application reject করা হয়েছে।',
-              icon: 'success',
-              confirmButtonText: 'ঠিক আছে',
-              confirmButtonColor: '#10B981',
-              background: isDark ? '#1F2937' : '#FFFFFF'
-            });
-          },
-          onError: (error) => {
-            Swal.fire({
-              title: 'ত্রুটি!',
-              text: error.message || 'Loan reject করতে সমস্যা হয়েছে।',
-              icon: 'error',
-              confirmButtonText: 'ঠিক আছে',
-              confirmButtonColor: '#EF4444',
-              background: isDark ? '#1F2937' : '#FFFFFF'
-            });
-          }
-        }
-      );
-    }
-  };
+  
 
   if (loading) {
     return (
@@ -423,15 +284,6 @@ const LoanList = () => {
                       Amount
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Interest Rate
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Duration
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Status
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -464,9 +316,13 @@ const LoanList = () => {
                             <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            <button
+                              type="button"
+                              onClick={() => handleViewLoan(loan)}
+                              className="text-left text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline focus:outline-none"
+                            >
                               {(loan.loanDirection || loan.type) === 'giving' ? loan.fullName : loan.fullName}
-                            </div>
+                            </button>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {loan.businessName}
                             </div>
@@ -479,27 +335,14 @@ const LoanList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {formatCurrency(loan.amount)}
+                          {formatCurrency((loan.totalAmount ?? loan.amount ?? 0))}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Remaining: {formatCurrency(loan.remainingAmount)}
+                          Remaining: {formatCurrency((loan.totalDue ?? (typeof loan.remainingAmount === 'number' ? loan.remainingAmount : Math.max(0, (loan.totalAmount ?? loan.amount ?? 0) - (loan.paidAmount ?? 0)))))}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {loan.interestRate}%
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {loan.duration} months
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-gray-900 dark:text-white">
-                          {formatDate((loan.loanDirection || loan.type) === 'giving' ? loan.givenDate : (loan.appliedDate || loan.receivedDate))}
-                        </span>
-                      </td>
+                      
+                      
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(loan.status)}`}>
                           {getStatusIcon(loan.status)}
@@ -515,27 +358,7 @@ const LoanList = () => {
                             <Eye className="w-4 h-4" />
                             View
                           </button>
-                          {/* Approve/Reject buttons for pending loan applications */}
-                          {(loan.loanDirection || loan.type) === 'receiving' && loan.status === 'Pending' && (
-                            <>
-                              <button
-                                onClick={() => handleApproveLoan(loan)}
-                                className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 transition-colors duration-200 flex items-center gap-1"
-                                title="Approve Loan"
-                              >
-                                <ThumbsUp className="w-4 h-4" />
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleRejectLoan(loan)}
-                                className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200 flex items-center gap-1"
-                                title="Reject Loan"
-                              >
-                                <ThumbsDown className="w-4 h-4" />
-                                Reject
-                              </button>
-                            </>
-                          )}
+                          {/* Approve/Reject removed as requested */}
                         </div>
                       </td>
                     </tr>

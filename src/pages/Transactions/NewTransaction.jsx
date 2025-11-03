@@ -54,6 +54,7 @@ import { useEmployeeSearch } from '../../hooks/useHRQueries';
 import { useCategoryQueries } from '../../hooks/useCategoryQueries';
 import { useHajiList } from '../../hooks/UseHajiQueries';
 import { useUmrahList } from '../../hooks/UseUmrahQuries';
+import { useLoans } from '../../hooks/useLoanQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import Swal from 'sweetalert2';
 
@@ -229,11 +230,27 @@ const NewTransaction = () => {
       employeeId: '',
       position: '',
       department: ''
+    },
+    // Selected Loan info (when picking from Loans tab)
+    loanInfo: {
+      id: '',
+      name: '',
+      direction: '' // 'giving' | 'receiving'
     }
   });
 
   // Invoice query hook (after formData is initialized)
   const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useTransactionInvoices(formData.customerId);
+
+  // Loans for selected customer (to show loan IDs under customer selection)
+  const { data: customerLoansData, isLoading: customerLoansLoading } = useLoans(
+    formData.customerId ? { customerId: formData.customerId } : {},
+    1,
+    100
+  );
+  const customerLoans = (customerLoansData && (customerLoansData.loans || customerLoansData.data || [])) || [];
+
+  // Loans search list for the "Loans" selector tab - moved below where selectedSearchType/searchTerm are declared
 
   // Demo invoices fallback when API has no data
   const demoInvoices = [
@@ -294,6 +311,14 @@ const NewTransaction = () => {
     selectedSearchType === 'vendor' && !!searchTerm?.trim()
   );
   const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
+
+  // Loans search list for the "Loans" selector tab
+  const { data: loansSearchData, isLoading: loansSearchLoading } = useLoans(
+    selectedSearchType === 'loans' && searchTerm ? { search: searchTerm } : {},
+    1,
+    50
+  );
+  const loansSearch = (loansSearchData && (loansSearchData.loans || loansSearchData.data || [])) || [];
   
   // Payment methods
   const paymentMethods = [
@@ -593,6 +618,21 @@ const NewTransaction = () => {
       agentDueInfo: null
     }));
     setSearchLoading(false);
+  };
+
+  const handleLoanSelect = (loan) => {
+    setFormData(prev => ({
+      ...prev,
+      // Treat loan as a selectable party
+      customerType: 'loan',
+      customerId: (loan._id || loan.id || loan.loanId) ? String(loan._id || loan.id || loan.loanId) : '',
+      customerName: loan.customerName || loan.borrowerName || loan.fullName || loan.businessName || loan.tradeName || loan.ownerName || loan.name || 'Unknown',
+      loanInfo: {
+        id: loan._id || loan.id || loan.loanId,
+        name: loan.customerName || loan.borrowerName || loan.fullName || loan.businessName || loan.tradeName || loan.ownerName || loan.name || 'Unknown',
+        direction: loan.loanDirection || loan.direction || ''
+      }
+    }));
   };
 
   const handleInvoiceSelect = (invoice) => {
@@ -1031,6 +1071,7 @@ const NewTransaction = () => {
       if (customerType === 'agent') return 'agent';
       if (customerType === 'haji') return 'haji';
       if (customerType === 'umrah') return 'umrah';
+      if (customerType === 'loan') return 'loan';
       return 'customer';
     };
 
@@ -1075,7 +1116,9 @@ const NewTransaction = () => {
       // For agents, use selectedOption slug
       ((formData.customerType === 'agent' && formData.selectedOption) ? formData.selectedOption :
       // For haji/umrah customers, enforce slug
-      (formData.customerType === 'haji' ? 'hajj' : (formData.customerType === 'umrah' ? 'umrah' : formData.category)));
+      (formData.customerType === 'haji' ? 'hajj' : (formData.customerType === 'umrah' ? 'umrah' :
+      // For loans, map by transaction type
+      (formData.customerType === 'loan' ? (isDebit ? 'loan-giving' : 'loan-repayment') : formData.category))));
 
     const unifiedTransactionData = {
       transactionType: formData.transactionType,
@@ -1323,6 +1366,11 @@ const NewTransaction = () => {
         employeeId: '',
         position: '',
         department: ''
+      },
+      loanInfo: {
+        id: '',
+        name: '',
+        direction: ''
       }
     });
     setCurrentStep(1);
@@ -2010,7 +2058,7 @@ const NewTransaction = () => {
                 <div className="max-w-4xl mx-auto">
                   {/* Type Selector */}
                   <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
-                    {['customer','vendor','agent','haji','umrah'].map((type) => (
+                    {['customer','vendor','agent','haji','umrah','loans'].map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -2024,7 +2072,8 @@ const NewTransaction = () => {
                         {type === 'customer' ? 'Customer' : 
                          type === 'vendor' ? 'Vendor' : 
                          type === 'agent' ? 'Agent' :
-                         type === 'haji' ? 'Haji' : 'Umrah'}
+                         type === 'haji' ? 'Haji' :
+                         type === 'umrah' ? 'Umrah' : 'Loans'}
                       </button>
                     ))}
                   </div>
@@ -2045,7 +2094,9 @@ const NewTransaction = () => {
                           ? 'এজেন্ট খুঁজুন... (নাম/ফোন)'
                           : selectedSearchType === 'haji'
                           ? 'হাজি খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
-                          : 'উমরাহ খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
+                          : selectedSearchType === 'umrah'
+                          ? 'উমরাহ খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
+                          : 'লোন খুঁজুন... (আইডি/নাম)'
                       }
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -2063,14 +2114,16 @@ const NewTransaction = () => {
                      (selectedSearchType === 'vendor' && (vendorLoading || searchLoading)) ||
                      (selectedSearchType === 'customer' && (customersLoading || searchLoading)) ||
                      (selectedSearchType === 'haji' && (hajiLoading || searchLoading)) ||
-                     (selectedSearchType === 'umrah' && (umrahLoading || searchLoading)) ? (
+                     (selectedSearchType === 'umrah' && (umrahLoading || searchLoading)) ||
+                     (selectedSearchType === 'loans' && (loansSearchLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
                         <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
                           {selectedSearchType === 'customer' ? 'কাস্টমার লোড হচ্ছে...' : 
                            selectedSearchType === 'vendor' ? 'ভেন্ডর লোড হচ্ছে...' : 
                            selectedSearchType === 'agent' ? 'এজেন্ট লোড হচ্ছে...' :
-                           selectedSearchType === 'haji' ? 'হাজি লোড হচ্ছে...' : 'উমরাহ লোড হচ্ছে...'}
+                           selectedSearchType === 'haji' ? 'হাজি লোড হচ্ছে...' :
+                           selectedSearchType === 'umrah' ? 'উমরাহ লোড হচ্ছে...' : 'লোন লোড হচ্ছে...'}
                         </span>
                       </div>
                     ) : selectedSearchType === 'haji' ? (
@@ -2291,6 +2344,45 @@ const NewTransaction = () => {
                         ))) : (
                           <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন ভেন্ডর পাওয়া যায়নি</div>
                         )
+                        ) : selectedSearchType === 'loans' ? (
+                      loansSearch.length > 0 ? (
+                        loansSearch.map((loan) => (
+                          <button
+                            key={`loan-${loan._id || loan.id || loan.loanId}`}
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleLoanSelect(loan); }}
+                            className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 text-left hover:scale-[1.01] ${
+                              (formData.loanInfo?.id && (formData.loanInfo.id === (loan._id || loan.id || loan.loanId)))
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                : (isDark ? 'border-gray-600 bg-gray-800 hover:border-blue-300' : 'border-gray-200 bg-white hover:border-blue-300')
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="text-left min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                      {loan.customerName || loan.borrowerName || loan.fullName || loan.businessName || loan.tradeName || loan.ownerName || loan.name || 'Unknown'}
+                                    </h3>
+                                    <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full ${
+                                      (loan.loanDirection || loan.direction) === 'giving'
+                                        ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                                        : 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400'
+                                    }`}>
+                                      {(loan.loanDirection || loan.direction) === 'giving' ? 'Giving' : 'Receiving'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন লোন পাওয়া যায়নি</div>
+                      )
                     ) : filteredCustomers.length > 0 ? (
                       filteredCustomers.map((customer) => (
                       <button
@@ -2360,6 +2452,35 @@ const NewTransaction = () => {
                       {errors.customerId}
                     </p>
                   )}
+
+                {/* Selected customer's Loan IDs */}
+                {formData.customerId && (
+                  <div className="mt-4">
+                    <h3 className={`text-sm sm:text-base font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'} mb-2`}>
+                      নির্বাচিত কাস্টমারের লোন আইডি
+                    </h3>
+                    {customerLoansLoading ? (
+                      <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>লোড হচ্ছে...</span>
+                      </div>
+                    ) : customerLoans.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {customerLoans.map((loan) => (
+                          <span
+                            key={loan._id || loan.id || loan.loanId}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                          >
+                            <Receipt className="w-3 h-3" />
+                            {loan.loanId || loan.id || loan._id}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">কোনো লোন পাওয়া যায়নি</p>
+                    )}
+                  </div>
+                )}
                 </div>
               )}
             </div>

@@ -101,12 +101,13 @@ const VisaTracking = React.lazy(() => import('./pages/VisaProcessing').then(modu
 const VisaPayment = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaPayment })).catch(() => ({ default: () => <div>Component not found</div> })));
 const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaDocuments })).catch(() => ({ default: () => <div>Component not found</div> })));
 
-// Loan pages
-const LoanDashboard = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
-const LoanList = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanList })).catch(() => ({ default: () => <div>Component not found</div> })));
-const LoanDetails = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.LoanDetails })).catch(() => ({ default: () => <div>Component not found</div> })));
-const NewLoanReceiving = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.NewLoanReceiving })).catch(() => ({ default: () => <div>Component not found</div> })));
-const NewLoanGiving = React.lazy(() => import('./pages/Loan').then(module => ({ default: module.NewLoanGiving })).catch(() => ({ default: () => <div>Component not found</div> })));
+// Loan pages (direct file imports to surface real errors and avoid masking with catch)
+const LoanDashboard = React.lazy(() => import('./pages/Loan/LoanDashboard'));
+const LoanList = React.lazy(() => import('./pages/Loan/LoanList'));
+const LoanDetails = React.lazy(() => import('./pages/Loan/LoanDetails'));
+const NewLoanReceiving = React.lazy(() => import('./pages/Loan/NewLoanReceiving'));
+const NewLoanGiving = React.lazy(() => import('./pages/Loan/NewLoanGiving'));
+const EditLoan = React.lazy(() => import('./pages/Loan/EditLoan'));
 
 // Miraj Industries pages - Cattle Management System
 const CattleDashboard = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.CattleDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -759,6 +760,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <LoanDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditLoan />
           </Suspense>
         )
       },
