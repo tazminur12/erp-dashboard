@@ -1,4 +1,3 @@
-export { default as LoanDashboard } from './LoanDashboard';
 export { default as LoanList } from './LoanList';
 export { default as LoanDetails } from './LoanDetails';
 export { default as NewLoanReceiving } from './NewLoanReceiving';

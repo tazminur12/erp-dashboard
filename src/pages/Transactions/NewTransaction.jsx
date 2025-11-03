@@ -2453,8 +2453,8 @@ const NewTransaction = () => {
                     </p>
                   )}
 
-                {/* Selected customer's Loan IDs */}
-                {formData.customerId && (
+                {/* Selected customer's Loan IDs (hidden as per requirement) */}
+                {false && formData.customerId && (
                   <div className="mt-4">
                     <h3 className={`text-sm sm:text-base font-semibold ${isDark ? 'text-gray-100' : 'text-gray-800'} mb-2`}>
                       নির্বাচিত কাস্টমারের লোন আইডি

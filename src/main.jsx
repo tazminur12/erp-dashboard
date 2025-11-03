@@ -102,7 +102,6 @@ const VisaPayment = React.lazy(() => import('./pages/VisaProcessing').then(modul
 const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaDocuments })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 // Loan pages (direct file imports to surface real errors and avoid masking with catch)
-const LoanDashboard = React.lazy(() => import('./pages/Loan/LoanDashboard'));
 const LoanList = React.lazy(() => import('./pages/Loan/LoanList'));
 const LoanDetails = React.lazy(() => import('./pages/Loan/LoanDetails'));
 const NewLoanReceiving = React.lazy(() => import('./pages/Loan/NewLoanReceiving'));
@@ -170,6 +169,7 @@ const EditEmployee = React.lazy(() => import('./pages/OfficeManagement/HR Managm
 
 // Operating Expenses pages
 const OperatingExpenses = React.lazy(() => import('./pages/OfficeManagement/OperatingExpenses'));
+const AddExpense = React.lazy(() => import('./pages/OfficeManagement/AddExpense'));
 const LegalComplianceCosts = React.lazy(() => import('./pages/OfficeManagement/LegalComplianceCosts'));
 const MarketingBrandingExpenses = React.lazy(() => import('./pages/OfficeManagement/MarketingBrandingExpenses'));
 const ITSoftwareExpenses = React.lazy(() => import('./pages/OfficeManagement/ITSoftwareExpenses'));
@@ -743,7 +743,7 @@ const router = createBrowserRouter([
         index: true,
         element: (
           <Suspense fallback={<LoadingSpinner />}>
-            <LoanDashboard />
+            <LoanList />
           </Suspense>
         )
       },
@@ -1205,6 +1205,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <OperatingExpenses />
+          </Suspense>
+        )
+      },
+      {
+        path: "operating-expenses/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddExpense />
           </Suspense>
         )
       },

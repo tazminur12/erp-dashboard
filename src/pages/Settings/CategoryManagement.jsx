@@ -44,6 +44,10 @@ const CategoryManagement = () => {
     subCategories: [],
   });
 
+  // Subcategory editing state
+  const [editingSub, setEditingSub] = useState(null); // { categoryId, id }
+  const [subForm, setSubForm] = useState({ name: "", icon: "", description: "" });
+
   // Add new
   const handleAddCategory = () => {
     setFormData({
@@ -241,6 +245,67 @@ const CategoryManagement = () => {
     }
   };
 
+  // Enter subcategory edit mode
+  const handleEditSubCategory = (categoryId, sub) => {
+    setEditingSub({ categoryId, id: sub.id });
+    setSubForm({ name: sub.name || "", icon: sub.icon || "", description: sub.description || "" });
+  };
+
+  // Cancel subcategory edit
+  const handleCancelEditSub = () => {
+    setEditingSub(null);
+    setSubForm({ name: "", icon: "", description: "" });
+  };
+
+  // Save subcategory edit (batch patch changed fields)
+  const handleSaveSubCategory = async (categoryId, originalSub) => {
+    const changes = [];
+    if ((subForm.name || "") !== (originalSub.name || "")) {
+      changes.push({ field: "name", value: subForm.name });
+    }
+    if ((subForm.icon || "") !== (originalSub.icon || "")) {
+      changes.push({ field: "icon", value: subForm.icon });
+    }
+    if ((subForm.description || "") !== (originalSub.description || "")) {
+      changes.push({ field: "description", value: subForm.description });
+    }
+
+    if (changes.length === 0) {
+      handleCancelEditSub();
+      return;
+    }
+
+    try {
+      for (const change of changes) {
+        // eslint-disable-next-line no-await-in-loop
+        await updateSubCategoryMutation.mutateAsync({
+          categoryId,
+          subCategoryId: originalSub.id,
+          field: change.field,
+          value: change.value,
+        });
+      }
+
+      Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "success",
+        title: "সাব-ক্যাটাগরি আপডেট হয়েছে",
+        showConfirmButton: false,
+        timer: 1200,
+      });
+
+      handleCancelEditSub();
+    } catch (err) {
+      console.error("Save subcategory failed:", err);
+      Swal.fire({
+        icon: "error",
+        title: "আপডেট ব্যর্থ",
+        text: "সাব-ক্যাটাগরি সংরক্ষণে সমস্যা হয়েছে",
+      });
+    }
+  };
+
   return (
     <div className="p-4 max-w-6xl mx-auto py-6">
       <div className="mb-4">
@@ -427,50 +492,73 @@ const CategoryManagement = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-lg">{sub.icon}</span>
                             <div>
-                              <input
-                                type="text"
-                                value={sub.name}
-                                onChange={(e) =>
-                                  updateSubCategory(
-                                    category.id,
-                                    sub.id,
-                                    "name",
-                                    e.target.value
-                                  )
-                                }
-                                className="font-medium text-sm text-gray-900 dark:text-white bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5"
-                              />
-                              <input
-                                type="text"
-                                value={sub.description}
-                                onChange={(e) =>
-                                  updateSubCategory(
-                                    category.id,
-                                    sub.id,
-                                    "description",
-                                    e.target.value
-                                  )
-                                }
-                                className="block text-xs text-gray-600 dark:text-gray-400 bg-transparent border-none focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5 mt-0.5 w-full"
-                                placeholder="বর্ণনা দিন"
-                              />
+                              {editingSub?.id === sub.id && editingSub?.categoryId === category.id ? (
+                                <>
+                                  <input
+                                    type="text"
+                                    value={subForm.name}
+                                    onChange={(e) => setSubForm({ ...subForm, name: e.target.value })}
+                                    className="font-medium text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={subForm.description}
+                                    onChange={(e) => setSubForm({ ...subForm, description: e.target.value })}
+                                    className="block text-xs text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 py-0.5 mt-1 w-full"
+                                    placeholder="বর্ণনা দিন"
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <div className="font-medium text-sm text-gray-900 dark:text-white">{sub.name}</div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{sub.description}</div>
+                                </>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
-                            <input
-                              type="text"
-                              value={sub.icon}
-                              onChange={(e) =>
-                                updateSubCategory(
-                                  category.id,
-                                  sub.id,
-                                  "icon",
-                                  e.target.value
-                                )
-                              }
-                              className="w-12 text-center bg-transparent border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white"
-                              placeholder="আইকন"
-                            />
+                            {editingSub?.id === sub.id && editingSub?.categoryId === category.id ? (
+                              <>
+                                <input
+                                  type="text"
+                                  value={subForm.icon}
+                                  onChange={(e) => setSubForm({ ...subForm, icon: e.target.value })}
+                                  className="w-12 text-center bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white"
+                                  placeholder="আইকন"
+                                />
+                                <button
+                                  onClick={() => handleSaveSubCategory(category.id, sub)}
+                                  className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded-md text-xs ml-1"
+                                  title="সংরক্ষণ করুন"
+                                >
+                                  <Save className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={handleCancelEditSub}
+                                  className="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded-md text-xs ml-1"
+                                  title="বাতিল"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <input
+                                  type="text"
+                                  value={sub.icon}
+                                  readOnly
+                                  className="w-12 text-center bg-transparent border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 text-xs focus:outline-none dark:bg-gray-600 dark:text-white"
+                                  placeholder="আইকন"
+                                />
+                                <button
+                                  onClick={() => handleEditSubCategory(category.id, sub)}
+                                  className="text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-200 p-1 rounded-md ml-1 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"
+                                  title="সম্পাদনা করুন"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              </>
+                            )}
                             <button
                               onClick={() =>
                                 handleDeleteSubCategory(category.id, sub.id)
