@@ -131,6 +131,7 @@ const AddUmrahHaji = () => {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [customerAutoFilled, setCustomerAutoFilled] = useState(false);
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   
   // Check for URL parameters
   const urlParams = new URLSearchParams(location.search);
@@ -268,6 +269,7 @@ const AddUmrahHaji = () => {
       serviceStatus: umrahData.serviceStatus || '',
       isActive: umrahData.status ? umrahData.status === 'active' : true
     }));
+    setNameManuallyEdited(false);
   }, [editMode, umrahData]);
 
   // Load packages from backend
@@ -359,6 +361,7 @@ const AddUmrahHaji = () => {
     }));
     
     setCustomerAutoFilled(true);
+    setNameManuallyEdited(false);
     
     Swal.fire({
       title: 'Customer Selected!',
@@ -372,6 +375,7 @@ const AddUmrahHaji = () => {
   const handleClearCustomer = useCallback(() => {
     setSelectedCustomer(null);
     setCustomerAutoFilled(false);
+    setNameManuallyEdited(false);
     // Reset form to initial state
     setFormData(prev => ({
       ...prev,
@@ -412,11 +416,35 @@ const AddUmrahHaji = () => {
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     const nextValue = type === 'checkbox' ? checked : value;
+
+    if (name === 'name') {
+      setNameManuallyEdited(true);
+      setFormData(prev => ({
+        ...prev,
+        name: nextValue
+      }));
+      return;
+    }
+
+    if (name === 'firstName' || name === 'lastName') {
+      setFormData(prev => {
+        const updated = { ...prev, [name]: nextValue };
+        const composedFirst = (name === 'firstName' ? nextValue : updated.firstName || '').trim();
+        const composedLast = (name === 'lastName' ? nextValue : updated.lastName || '').trim();
+        const composedFull = `${composedFirst} ${composedLast}`.trim();
+        if (!nameManuallyEdited || !prev.name?.trim()) {
+          updated.name = composedFull;
+        }
+        return updated;
+      });
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: nextValue
     }));
-  }, []);
+  }, [nameManuallyEdited]);
 
   const handleFileUpload = useCallback((fieldName) => (e) => {
     const file = e.target.files[0];
