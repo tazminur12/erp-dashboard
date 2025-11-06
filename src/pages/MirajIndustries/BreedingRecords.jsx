@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import useCattleQueries from '../../hooks/useCattleQueries';
+import useBreedingQueries from '../../hooks/useBreedingQueries';
 import { 
   Plus, 
   Search, 
@@ -22,11 +24,8 @@ import {
 } from 'lucide-react';
 
 const BreedingRecords = () => {
-  const [breedingRecords, setBreedingRecords] = useState([]);
-  const [calvingRecords, setCalvingRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [cattleList, setCattleList] = useState([]);
-  const [bullList, setBullList] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterDate, setFilterDate] = useState('');
@@ -34,10 +33,13 @@ const BreedingRecords = () => {
   const [showAddCalvingModal, setShowAddCalvingModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const [showEditBreedingModal, setShowEditBreedingModal] = useState(false);
+  const [showEditCalvingModal, setShowEditCalvingModal] = useState(false);
+  const [editingBreeding, setEditingBreeding] = useState(null);
+  const [editingCalving, setEditingCalving] = useState(null);
 
   const [newBreeding, setNewBreeding] = useState({
     cowId: '',
-    bullId: '',
     breedingDate: new Date().toISOString().split('T')[0],
     method: 'natural',
     success: 'pending',
@@ -93,207 +95,219 @@ const BreedingRecords = () => {
     pregnancyRate: 0
   });
 
+  // Load cattle from backend
+  const { useCattle } = useCattleQueries();
+  const { data: cattleData = [] } = useCattle();
+  
+  // Load breeding and calving queries
+  const { 
+    useBreedings, 
+    useCreateBreeding, 
+    useUpdateBreeding, 
+    useDeleteBreeding,
+    useCalvings,
+    useCreateCalving,
+    useUpdateCalving,
+    useDeleteCalving
+  } = useBreedingQueries();
+
+  // Build query params - always fetch both, filtering happens client-side when needed
+  const breedingParams = useMemo(() => {
+    const params = {};
+    if (searchTerm) params.q = searchTerm;
+    if (filterDate) {
+      params.from = filterDate;
+      params.to = filterDate;
+    }
+    return params;
+  }, [searchTerm, filterDate]);
+
+  const calvingParams = useMemo(() => {
+    const params = {};
+    if (searchTerm) params.q = searchTerm;
+    if (filterDate) {
+      params.from = filterDate;
+      params.to = filterDate;
+    }
+    return params;
+  }, [searchTerm, filterDate]);
+
+  const { data: breedingRecords = [], isLoading: loadingBreedings } = useBreedings(breedingParams);
+  const { data: calvingRecords = [], isLoading: loadingCalvings } = useCalvings(calvingParams);
+
+  const createBreedingMutation = useCreateBreeding();
+  const updateBreedingMutation = useUpdateBreeding();
+  const deleteBreedingMutation = useDeleteBreeding();
+  const createCalvingMutation = useCreateCalving();
+  const updateCalvingMutation = useUpdateCalving();
+  const deleteCalvingMutation = useDeleteCalving();
+
   useEffect(() => {
-    loadData();
-  }, []);
+    setCattleList(Array.isArray(cattleData) ? cattleData : []);
+  }, [cattleData]);
 
   useEffect(() => {
     filterRecords();
     calculateStats();
   }, [breedingRecords, calvingRecords, searchTerm, filterType, filterDate]);
 
-  const loadData = () => {
-    // Mock cattle data (cows)
-    const mockCattle = [
-      { id: 'COW001', name: 'রাণী', breed: 'হলস্টেইন ফ্রিজিয়ান', gender: 'female', age: 4 },
-      { id: 'COW002', name: 'মালতি', breed: 'সাহিওয়াল', gender: 'female', age: 3 },
-      { id: 'COW003', name: 'সোনালী', breed: 'জার্সি', gender: 'female', age: 5 },
-      { id: 'COW004', name: 'কমলা', breed: 'রেড সিন্ধি', gender: 'female', age: 2 },
-      { id: 'COW005', name: 'রাজকুমারী', breed: 'গির', gender: 'female', age: 6 }
-    ];
-    setCattleList(mockCattle);
-
-    // Mock bull data
-    const mockBulls = [
-      { id: 'BULL001', name: 'রাজা', breed: 'হলস্টেইন ফ্রিজিয়ান', age: 5 },
-      { id: 'BULL002', name: 'শাহজাদা', breed: 'সাহিওয়াল', age: 4 },
-      { id: 'BULL003', name: 'বীর', breed: 'জার্সি', age: 6 }
-    ];
-    setBullList(mockBulls);
-
-    // Mock breeding records
-    const mockBreedingRecords = [
-      {
-        id: 'BREED001',
-        cowId: 'COW001',
-        cowName: 'রাণী',
-        bullId: 'BULL001',
-        bullName: 'রাজা',
-        breedingDate: '2023-08-15',
-        method: 'natural',
-        success: 'confirmed_pregnant',
-        notes: 'প্রথম প্রজনন, সফল',
-        expectedCalvingDate: '2024-05-15'
-      },
-      {
-        id: 'BREED002',
-        cowId: 'COW003',
-        cowName: 'সোনালী',
-        bullId: 'BULL002',
-        bullName: 'শাহজাদা',
-        breedingDate: '2023-09-20',
-        method: 'artificial',
-        success: 'successful',
-        notes: 'কৃত্রিম প্রজনন পদ্ধতি',
-        expectedCalvingDate: '2024-06-20'
-      },
-      {
-        id: 'BREED003',
-        cowId: 'COW004',
-        cowName: 'কমলা',
-        bullId: 'BULL003',
-        bullName: 'বীর',
-        breedingDate: '2023-10-10',
-        method: 'natural',
-        success: 'pending',
-        notes: 'প্রজনন অপেক্ষমান',
-        expectedCalvingDate: ''
-      }
-    ];
-    setBreedingRecords(mockBreedingRecords);
-
-    // Mock calving records
-    const mockCalvingRecords = [
-      {
-        id: 'CALV001',
-        cowId: 'COW002',
-        cowName: 'মালতি',
-        calvingDate: '2024-01-10',
-        calfGender: 'female',
-        calfWeight: 35,
-        calfHealth: 'healthy',
-        calvingType: 'স্বাভাবিক',
-        complications: '',
-        notes: 'সুস্থ বাচ্চা জন্মগ্রহণ',
-        calfId: 'CALF001'
-      },
-      {
-        id: 'CALV002',
-        cowId: 'COW005',
-        cowName: 'রাজকুমারী',
-        calvingDate: '2023-12-25',
-        calfGender: 'male',
-        calfWeight: 40,
-        calfHealth: 'weak',
-        calvingType: 'অস্ত্রোপচার',
-        complications: 'জটিল প্রসব',
-        notes: 'অস্ত্রোপচারের মাধ্যমে বাচ্চা জন্ম',
-        calfId: 'CALF002'
-      }
-    ];
-    setCalvingRecords(mockCalvingRecords);
-  };
 
   const filterRecords = () => {
     let allRecords = [];
     
+    // Filter by type (backend already filters by search and date)
     if (filterType === 'all' || filterType === 'breeding') {
-      allRecords = [...allRecords, ...breedingRecords.map(record => ({ ...record, type: 'breeding' }))];
+      allRecords = [...allRecords, ...(breedingRecords || []).map(record => ({ ...record, type: 'breeding' }))];
     }
     
     if (filterType === 'all' || filterType === 'calving') {
-      allRecords = [...allRecords, ...calvingRecords.map(record => ({ ...record, type: 'calving' }))];
+      allRecords = [...allRecords, ...(calvingRecords || []).map(record => ({ ...record, type: 'calving' }))];
     }
 
-    let filtered = allRecords.filter(record => 
-      record.cowName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.cowId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (record.bullName && record.bullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (record.calfId && record.calfId.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-
-    if (filterDate) {
-      filtered = filtered.filter(record => record.breedingDate === filterDate || record.calvingDate === filterDate);
-    }
-
-    // Sort by date (newest first)
-    filtered.sort((a, b) => {
+    // Backend already handles search and date filtering, so we just need to combine and sort
+    // Sort by date (newest first) - backend already sorts, but ensure consistency
+    allRecords.sort((a, b) => {
       const dateA = new Date(a.breedingDate || a.calvingDate);
       const dateB = new Date(b.breedingDate || b.calvingDate);
       return dateB - dateA;
     });
 
-    setFilteredRecords(filtered);
+    setFilteredRecords(allRecords);
   };
 
   const calculateStats = () => {
     const today = new Date();
     const nextMonth = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    const successfulBreedings = breedingRecords.filter(record => 
+    const successfulBreedings = (breedingRecords || []).filter(record => 
       record.success === 'successful' || record.success === 'confirmed_pregnant'
     ).length;
 
-    const upcomingCalvings = breedingRecords.filter(record => 
+    const upcomingCalvings = (breedingRecords || []).filter(record => 
       record.expectedCalvingDate && 
       new Date(record.expectedCalvingDate) <= nextMonth &&
       record.success === 'confirmed_pregnant'
     ).length;
 
-    const healthyCalves = calvingRecords.filter(record => 
+    const healthyCalves = (calvingRecords || []).filter(record => 
       record.calfHealth === 'healthy'
     ).length;
 
-    const pregnancyRate = breedingRecords.length > 0 
+    const pregnancyRate = (breedingRecords || []).length > 0 
       ? (successfulBreedings / breedingRecords.length) * 100 
       : 0;
 
     setStats({
-      totalBreedings: breedingRecords.length,
+      totalBreedings: (breedingRecords || []).length,
       successfulBreedings,
-      totalCalvings: calvingRecords.length,
+      totalCalvings: (calvingRecords || []).length,
       upcomingCalvings,
       healthyCalves,
       pregnancyRate
     });
   };
 
-  const handleAddBreeding = () => {
-    const breeding = {
-      ...newBreeding,
-      id: `BREED${String(breedingRecords.length + 1).padStart(3, '0')}`,
-      cowName: cattleList.find(cow => cow.id === newBreeding.cowId)?.name || '',
-      bullName: bullList.find(bull => bull.id === newBreeding.bullId)?.name || ''
-    };
-    
-    // Calculate expected calving date (approximately 280 days)
-    if (newBreeding.breedingDate) {
-      const breedingDate = new Date(newBreeding.breedingDate);
-      const expectedCalving = new Date(breedingDate.getTime() + 280 * 24 * 60 * 60 * 1000);
-      breeding.expectedCalvingDate = expectedCalving.toISOString().split('T')[0];
+  const handleAddBreeding = async () => {
+    try {
+      await createBreedingMutation.mutateAsync({
+        cowId: newBreeding.cowId,
+        breedingDate: newBreeding.breedingDate,
+        method: newBreeding.method,
+        success: newBreeding.success,
+        notes: newBreeding.notes || '',
+        expectedCalvingDate: newBreeding.expectedCalvingDate || ''
+      });
+      setShowAddBreedingModal(false);
+      resetBreedingForm();
+    } catch (error) {
+      alert(error.message || 'প্রজনন রেকর্ড যোগ করতে সমস্যা হয়েছে');
     }
-    
-    setBreedingRecords([breeding, ...breedingRecords]);
-    setShowAddBreedingModal(false);
-    resetBreedingForm();
   };
 
-  const handleAddCalving = () => {
-    const calving = {
-      ...newCalving,
-      id: `CALV${String(calvingRecords.length + 1).padStart(3, '0')}`,
-      cowName: cattleList.find(cow => cow.id === newCalving.cowId)?.name || '',
-      calfId: `CALF${String(calvingRecords.length + 1).padStart(3, '0')}`
-    };
-    setCalvingRecords([calving, ...calvingRecords]);
-    setShowAddCalvingModal(false);
-    resetCalvingForm();
+  const handleUpdateBreeding = async () => {
+    if (!editingBreeding) return;
+    try {
+      await updateBreedingMutation.mutateAsync({
+        id: editingBreeding.id,
+        data: {
+          breedingDate: editingBreeding.breedingDate,
+          method: editingBreeding.method,
+          success: editingBreeding.success,
+          notes: editingBreeding.notes || '',
+          expectedCalvingDate: editingBreeding.expectedCalvingDate || ''
+        }
+      });
+      setShowEditBreedingModal(false);
+      setEditingBreeding(null);
+    } catch (error) {
+      alert(error.message || 'প্রজনন রেকর্ড আপডেট করতে সমস্যা হয়েছে');
+    }
+  };
+
+  const handleDeleteBreeding = async (id) => {
+    if (!window.confirm('আপনি কি এই প্রজনন রেকর্ড মুছে ফেলতে চান?')) return;
+    try {
+      await deleteBreedingMutation.mutateAsync(id);
+    } catch (error) {
+      alert(error.message || 'প্রজনন রেকর্ড মুছতে সমস্যা হয়েছে');
+    }
+  };
+
+  const handleAddCalving = async () => {
+    try {
+      await createCalvingMutation.mutateAsync({
+        cowId: newCalving.cowId,
+        calvingDate: newCalving.calvingDate,
+        calfGender: newCalving.calfGender,
+        calfWeight: Number(newCalving.calfWeight) || 0,
+        calfHealth: newCalving.calfHealth,
+        calvingType: newCalving.calvingType,
+        complications: newCalving.complications || '',
+        notes: newCalving.notes || '',
+        calfId: newCalving.calfId || ''
+      });
+      setShowAddCalvingModal(false);
+      resetCalvingForm();
+    } catch (error) {
+      alert(error.message || 'বাচ্চা প্রসব রেকর্ড যোগ করতে সমস্যা হয়েছে');
+    }
+  };
+
+  const handleUpdateCalving = async () => {
+    if (!editingCalving) return;
+    try {
+      await updateCalvingMutation.mutateAsync({
+        id: editingCalving.id,
+        data: {
+          calvingDate: editingCalving.calvingDate,
+          calfGender: editingCalving.calfGender,
+          calfWeight: Number(editingCalving.calfWeight) || 0,
+          calfHealth: editingCalving.calfHealth,
+          calvingType: editingCalving.calvingType,
+          complications: editingCalving.complications || '',
+          notes: editingCalving.notes || '',
+          calfId: editingCalving.calfId || ''
+        }
+      });
+      setShowEditCalvingModal(false);
+      setEditingCalving(null);
+    } catch (error) {
+      alert(error.message || 'বাচ্চা প্রসব রেকর্ড আপডেট করতে সমস্যা হয়েছে');
+    }
+  };
+
+  const handleDeleteCalving = async (id) => {
+    if (!window.confirm('আপনি কি এই বাচ্চা প্রসব রেকর্ড মুছে ফেলতে চান?')) return;
+    try {
+      await deleteCalvingMutation.mutateAsync(id);
+    } catch (error) {
+      alert(error.message || 'বাচ্চা প্রসব রেকর্ড মুছতে সমস্যা হয়েছে');
+    }
   };
 
   const resetBreedingForm = () => {
     setNewBreeding({
       cowId: '',
-      bullId: '',
       breedingDate: new Date().toISOString().split('T')[0],
       method: 'natural',
       success: 'pending',
@@ -336,6 +350,16 @@ const BreedingRecords = () => {
     const healthObj = calfHealthOptions.find(opt => opt.value === health);
     return healthObj ? healthObj.color : 'text-gray-600 bg-gray-100';
   };
+
+  const isLoading = loadingBreedings || loadingCalvings;
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">লোড হচ্ছে...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -508,7 +532,6 @@ const BreedingRecords = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{record.cowName}</div>
-                    <div className="text-sm text-gray-500">{record.cowId}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -522,7 +545,7 @@ const BreedingRecords = () => {
                     <div className="text-sm text-gray-900">
                       {record.type === 'breeding' && (
                         <>
-                          <div>ষাঁড়: {record.bullName}</div>
+                          {record.bullName && <div>ষাঁড়: {record.bullName}</div>}
                           <div className="text-gray-500">
                             পদ্ধতি: {breedingMethodOptions.find(opt => opt.value === record.method)?.label}
                           </div>
@@ -559,15 +582,43 @@ const BreedingRecords = () => {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => {
-                        setSelectedRecord(record);
-                        setShowViewModal(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          setSelectedRecord(record);
+                          setShowViewModal(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (record.type === 'breeding') {
+                            setEditingBreeding(record);
+                            setShowEditBreedingModal(true);
+                          } else {
+                            setEditingCalving(record);
+                            setShowEditCalvingModal(true);
+                          }
+                        }}
+                        className="text-green-600 hover:text-green-900"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (record.type === 'breeding') {
+                            handleDeleteBreeding(record.id);
+                          } else {
+                            handleDeleteCalving(record.id);
+                          }
+                        }}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -579,7 +630,7 @@ const BreedingRecords = () => {
       {/* Add Breeding Modal */}
       {showAddBreedingModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">প্রজনন রেকর্ড যোগ করুন</h2>
               <button onClick={() => setShowAddBreedingModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -597,23 +648,8 @@ const BreedingRecords = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">গরু নির্বাচন করুন</option>
-                  {cattleList.map(cattle => (
-                    <option key={cattle.id} value={cattle.id}>{cattle.name} ({cattle.id})</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">ষাঁড় নির্বাচন করুন</label>
-                <select
-                  required
-                  value={newBreeding.bullId}
-                  onChange={(e) => setNewBreeding({...newBreeding, bullId: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">ষাঁড় নির্বাচন করুন</option>
-                  {bullList.map(bull => (
-                    <option key={bull.id} value={bull.id}>{bull.name} ({bull.id})</option>
+                  {cattleList.filter(c => c.gender === 'female').map(cattle => (
+                    <option key={cattle._id || cattle.id} value={cattle._id || cattle.id}>{cattle.name}</option>
                   ))}
                 </select>
               </div>
@@ -661,7 +697,7 @@ const BreedingRecords = () => {
                 <textarea
                   value={newBreeding.notes}
                   onChange={(e) => setNewBreeding({...newBreeding, notes: e.target.value})}
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="অতিরিক্ত তথ্য"
                 />
@@ -677,9 +713,10 @@ const BreedingRecords = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700"
+                  disabled={createBreedingMutation.isPending}
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50"
                 >
-                  সংরক্ষণ করুন
+                  {createBreedingMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
               </div>
             </form>
@@ -690,7 +727,7 @@ const BreedingRecords = () => {
       {/* Add Calving Modal */}
       {showAddCalvingModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">বাচ্চা প্রসব রেকর্ড</h2>
               <button onClick={() => setShowAddCalvingModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -708,8 +745,8 @@ const BreedingRecords = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">গরু নির্বাচন করুন</option>
-                  {cattleList.map(cattle => (
-                    <option key={cattle.id} value={cattle.id}>{cattle.name} ({cattle.id})</option>
+                  {cattleList.filter(c => c.gender === 'female').map(cattle => (
+                    <option key={cattle._id || cattle.id} value={cattle._id || cattle.id}>{cattle.name}</option>
                   ))}
                 </select>
               </div>
@@ -736,7 +773,7 @@ const BreedingRecords = () => {
                   >
                     <option value="">লিঙ্গ নির্বাচন করুন</option>
                     <option value="male">ষাঁড়</option>
-                    <option value="female">মহিষা</option>
+                    <option value="female">গাভী</option>
                   </select>
                 </div>
                 
@@ -799,7 +836,7 @@ const BreedingRecords = () => {
                 <textarea
                   value={newCalving.notes}
                   onChange={(e) => setNewCalving({...newCalving, notes: e.target.value})}
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="অতিরিক্ত তথ্য"
                 />
@@ -815,9 +852,257 @@ const BreedingRecords = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  disabled={createCalvingMutation.isPending}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
                 >
-                  সংরক্ষণ করুন
+                  {createCalvingMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Breeding Modal */}
+      {showEditBreedingModal && editingBreeding && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">প্রজনন রেকর্ড সম্পাদনা করুন</h2>
+              <button onClick={() => { setShowEditBreedingModal(false); setEditingBreeding(null); }} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={(e) => { e.preventDefault(); handleUpdateBreeding(); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">গরু</label>
+                <input
+                  type="text"
+                  value={editingBreeding.cowName || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">প্রজননের তারিখ</label>
+                <input
+                  type="date"
+                  required
+                  value={editingBreeding.breedingDate || ''}
+                  onChange={(e) => setEditingBreeding({...editingBreeding, breedingDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">প্রজননের পদ্ধতি</label>
+                <select
+                  required
+                  value={editingBreeding.method || 'natural'}
+                  onChange={(e) => setEditingBreeding({...editingBreeding, method: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {breedingMethodOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">সফলতা</label>
+                <select
+                  value={editingBreeding.success || 'pending'}
+                  onChange={(e) => setEditingBreeding({...editingBreeding, success: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  {successStatusOptions.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">প্রত্যাশিত প্রসব তারিখ</label>
+                <input
+                  type="date"
+                  value={editingBreeding.expectedCalvingDate || ''}
+                  onChange={(e) => setEditingBreeding({...editingBreeding, expectedCalvingDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">নোট</label>
+                <textarea
+                  value={editingBreeding.notes || ''}
+                  onChange={(e) => setEditingBreeding({...editingBreeding, notes: e.target.value})}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="অতিরিক্ত তথ্য"
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditBreedingModal(false); setEditingBreeding(null); }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateBreedingMutation.isPending}
+                  className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 disabled:opacity-50"
+                >
+                  {updateBreedingMutation.isPending ? 'আপডেট হচ্ছে...' : 'আপডেট করুন'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Calving Modal */}
+      {showEditCalvingModal && editingCalving && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">বাচ্চা প্রসব রেকর্ড সম্পাদনা করুন</h2>
+              <button onClick={() => { setShowEditCalvingModal(false); setEditingCalving(null); }} className="text-gray-500 hover:text-gray-700">
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={(e) => { e.preventDefault(); handleUpdateCalving(); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">গরু</label>
+                <input
+                  type="text"
+                  value={editingCalving.cowName || ''}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">প্রসবের তারিখ</label>
+                <input
+                  type="date"
+                  required
+                  value={editingCalving.calvingDate || ''}
+                  onChange={(e) => setEditingCalving({...editingCalving, calvingDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">বাচ্চার লিঙ্গ</label>
+                  <select
+                    required
+                    value={editingCalving.calfGender || ''}
+                    onChange={(e) => setEditingCalving({...editingCalving, calfGender: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">লিঙ্গ নির্বাচন করুন</option>
+                    <option value="male">ষাঁড়</option>
+                    <option value="female">গাভী</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">বাচ্চার ওজন (কেজি)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={editingCalving.calfWeight || ''}
+                    onChange={(e) => setEditingCalving({...editingCalving, calfWeight: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="ওজন"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">বাচ্চার স্বাস্থ্য</label>
+                  <select
+                    value={editingCalving.calfHealth || 'healthy'}
+                    onChange={(e) => setEditingCalving({...editingCalving, calfHealth: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {calfHealthOptions.map(option => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">প্রসবের ধরন</label>
+                  <select
+                    required
+                    value={editingCalving.calvingType || ''}
+                    onChange={(e) => setEditingCalving({...editingCalving, calvingType: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">ধরন নির্বাচন করুন</option>
+                    {calvingTypeOptions.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">বাচ্চার ID</label>
+                <input
+                  type="text"
+                  value={editingCalving.calfId || ''}
+                  onChange={(e) => setEditingCalving({...editingCalving, calfId: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="বাচ্চার ID"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">জটিলতা (যদি থাকে)</label>
+                <textarea
+                  value={editingCalving.complications || ''}
+                  onChange={(e) => setEditingCalving({...editingCalving, complications: e.target.value})}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="জটিলতা বা সমস্যার বিবরণ"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">নোট</label>
+                <textarea
+                  value={editingCalving.notes || ''}
+                  onChange={(e) => setEditingCalving({...editingCalving, notes: e.target.value})}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="অতিরিক্ত তথ্য"
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditCalvingModal(false); setEditingCalving(null); }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateCalvingMutation.isPending}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {updateCalvingMutation.isPending ? 'আপডেট হচ্ছে...' : 'আপডেট করুন'}
                 </button>
               </div>
             </form>
@@ -828,7 +1113,7 @@ const BreedingRecords = () => {
       {/* View Record Modal */}
       {showViewModal && selectedRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">রেকর্ড বিস্তারিত</h2>
               <button onClick={() => setShowViewModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -840,7 +1125,7 @@ const BreedingRecords = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">গরু:</p>
-                  <p className="font-medium">{selectedRecord.cowName} ({selectedRecord.cowId})</p>
+                  <p className="font-medium">{selectedRecord.cowName}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">তারিখ:</p>

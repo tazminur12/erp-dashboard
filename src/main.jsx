@@ -117,6 +117,8 @@ const HealthRecords = React.lazy(() => import('./pages/MirajIndustries').then(mo
 const BreedingRecords = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.BreedingRecords })).catch(() => ({ default: () => <div>Component not found</div> })));
 const FinancialReport = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.FinancialReport })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EmployeeManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.EmployeeManagement })).catch(() => ({ default: () => <div>Component not found</div> })));
+const CattleDetails = React.lazy(() => import('./pages/MirajIndustries/CattleDetails'));
+const EmployeeDetails = React.lazy(() => import('./pages/MirajIndustries/EmployeeDetails'));
 
 
 // Account pages
@@ -851,6 +853,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <EmployeeManagement />
+          </Suspense>
+        )
+      },
+      {
+        path: "employee/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EmployeeDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "cattle/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CattleDetails />
           </Suspense>
         )
       }

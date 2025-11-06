@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   Search, 
@@ -22,6 +22,8 @@ import {
   FileText,
   Activity
 } from 'lucide-react';
+import useCattleQueries from '../../hooks/useCattleQueries';
+import useHealthQueries from '../../hooks/useHealthQueries';
 
 const HealthRecords = () => {
   const [healthRecords, setHealthRecords] = useState([]);
@@ -37,6 +39,34 @@ const HealthRecords = () => {
   const [showAddVetVisitModal, setShowAddVetVisitModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+  const { useCattle } = useCattleQueries();
+  const { data: cattleData = [] } = useCattle();
+  const { useHealthRecords, useCreateHealthRecord } = useHealthQueries();
+  const { data: healthData = [] } = useHealthRecords({ cattleId: undefined, from: undefined, to: undefined, status: undefined, q: searchTerm || undefined });
+  const createHealthRecord = useCreateHealthRecord();
+
+  // Normalize backend cattle into local select options
+  const normalizedCattle = useMemo(() => {
+    return (cattleData || []).map((c) => ({
+      value: String(c._id || c.id || ''), // backend identifier (not displayed)
+      name: c.name || c.cattleName || c.tagId || String(c.id || c._id || ''),
+      displayId: c.tagId || c.cattleId || c.code || c.earTag || '', // human-friendly id
+    }));
+  }, [cattleData]);
+
+  useEffect(() => {
+    if (normalizedCattle.length) {
+      setCattleList(normalizedCattle);
+    }
+  }, [normalizedCattle]);
+
+  // Load health records from backend and merge into UI lists
+  useEffect(() => {
+    if (Array.isArray(healthData)) {
+      setHealthRecords(healthData);
+    }
+  }, [healthData]);
+  
 
   const [newHealthRecord, setNewHealthRecord] = useState({
     cattleId: '',
@@ -130,109 +160,9 @@ const HealthRecords = () => {
   });
 
   useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
     filterRecords();
     calculateStats();
   }, [healthRecords, vaccinations, vetVisits, searchTerm, filterType, filterDate]);
-
-  const loadData = () => {
-    // Mock cattle data
-    const mockCattle = [
-      { id: 'COW001', name: 'রাণী', breed: 'হলস্টেইন ফ্রিজিয়ান' },
-      { id: 'COW002', name: 'মালতি', breed: 'সাহিওয়াল' },
-      { id: 'COW003', name: 'সোনালী', breed: 'জার্সি' },
-      { id: 'COW004', name: 'কমলা', breed: 'রেড সিন্ধি' },
-      { id: 'COW005', name: 'রাজকুমারী', breed: 'গির' }
-    ];
-    setCattleList(mockCattle);
-
-    // Mock health records
-    const mockHealthRecords = [
-      {
-        id: 'HEALTH001',
-        cattleId: 'COW002',
-        cattleName: 'মালতি',
-        date: '2024-01-15',
-        condition: 'জ্বর',
-        symptoms: 'উচ্চ তাপমাত্রা, খাবারে অনীহা',
-        treatment: 'এন্টিবায়োটিক ও জ্বরের ওষুধ',
-        medication: 'Paracetamol, Amoxicillin',
-        dosage: 'Paracetamol 500mg 2 বার, Amoxicillin 250mg 3 বার',
-        duration: '৫ দিন',
-        vetName: 'ডা. করিম উদ্দিন',
-        notes: 'নিয়মিত তাপমাত্রা পরীক্ষা করুন',
-        status: 'under_treatment'
-      },
-      {
-        id: 'HEALTH002',
-        cattleId: 'COW001',
-        cattleName: 'রাণী',
-        date: '2024-01-12',
-        condition: 'খোঁচা বা আঘাত',
-        symptoms: 'পায়ে সামান্য খোঁচা',
-        treatment: 'ক্ষত পরিষ্কার ও ব্যান্ডেজ',
-        medication: 'Antiseptic spray',
-        dosage: 'দিনে ২ বার স্প্রে',
-        duration: '৩ দিন',
-        vetName: 'ডা. রহিম উদ্দিন',
-        notes: 'ক্ষত শুকানোর জন্য শুকনো পরিবেশ প্রয়োজন',
-        status: 'recovered'
-      }
-    ];
-    setHealthRecords(mockHealthRecords);
-
-    // Mock vaccination records
-    const mockVaccinations = [
-      {
-        id: 'VACC001',
-        cattleId: 'COW001',
-        cattleName: 'রাণী',
-        vaccineName: 'FMD (Foot and Mouth Disease)',
-        date: '2024-01-10',
-        nextDueDate: '2024-07-10',
-        batchNumber: 'FMD2024001',
-        vetName: 'ডা. করিম উদ্দিন',
-        notes: 'প্রথম ডোজ সম্পন্ন',
-        status: 'completed'
-      },
-      {
-        id: 'VACC002',
-        cattleId: 'COW003',
-        cattleName: 'সোনালী',
-        vaccineName: 'Anthrax',
-        date: '2024-01-08',
-        nextDueDate: '2024-07-08',
-        batchNumber: 'ANT2024001',
-        vetName: 'ডা. রহিম উদ্দিন',
-        notes: 'সফলভাবে সম্পন্ন',
-        status: 'completed'
-      }
-    ];
-    setVaccinations(mockVaccinations);
-
-    // Mock vet visit records
-    const mockVetVisits = [
-      {
-        id: 'VISIT001',
-        cattleId: 'COW002',
-        cattleName: 'মালতি',
-        date: '2024-01-15',
-        visitType: 'জরুরী চিকিৎসা',
-        vetName: 'ডা. করিম উদ্দিন',
-        clinic: 'আগ্রো ভেটেরিনারি ক্লিনিক',
-        purpose: 'জ্বরের চিকিৎসা',
-        diagnosis: 'ব্যাকটেরিয়াল ইনফেকশন',
-        treatment: 'এন্টিবায়োটিক থেরাপি',
-        followUpDate: '2024-01-20',
-        cost: 2500,
-        notes: 'নিয়মিত ওষুধ খাওয়াতে হবে'
-      }
-    ];
-    setVetVisits(mockVetVisits);
-  };
 
   const filterRecords = () => {
     let allRecords = [];
@@ -298,15 +228,26 @@ const HealthRecords = () => {
     });
   };
 
-  const handleAddHealthRecord = () => {
-    const record = {
-      ...newHealthRecord,
-      id: `HEALTH${String(healthRecords.length + 1).padStart(3, '0')}`,
-      cattleName: cattleList.find(cow => cow.id === newHealthRecord.cattleId)?.name || ''
-    };
-    setHealthRecords([record, ...healthRecords]);
-    setShowAddHealthModal(false);
-    resetHealthForm();
+  const handleAddHealthRecord = async () => {
+    try {
+      await createHealthRecord.mutateAsync({
+        cattleId: newHealthRecord.cattleId,
+        date: newHealthRecord.date,
+        condition: newHealthRecord.condition,
+        symptoms: newHealthRecord.symptoms,
+        treatment: newHealthRecord.treatment,
+        medication: newHealthRecord.medication,
+        dosage: newHealthRecord.dosage,
+        duration: newHealthRecord.duration,
+        vetName: newHealthRecord.vetName,
+        notes: newHealthRecord.notes,
+        status: newHealthRecord.status || 'under_treatment',
+      });
+      setShowAddHealthModal(false);
+      resetHealthForm();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const handleAddVaccination = () => {
@@ -572,8 +513,8 @@ const HealthRecords = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{record.cattleName}</div>
-                    <div className="text-sm text-gray-500">{record.cattleId}</div>
+                  <div className="text-sm font-medium text-gray-900">{record.cattleName}</div>
+                  <div className="text-sm text-gray-500">{record.cattleDisplayId || record.cattleId || ''}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -646,9 +587,9 @@ const HealthRecords = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">গরু নির্বাচন করুন</option>
-                    {cattleList.map(cattle => (
-                      <option key={cattle.id} value={cattle.id}>{cattle.name} ({cattle.id})</option>
-                    ))}
+                  {cattleList.map(cattle => (
+                    <option key={cattle.value} value={cattle.value}>{cattle.name || ''}</option>
+                  ))}
                   </select>
                 </div>
                 
@@ -814,7 +755,7 @@ const HealthRecords = () => {
                 >
                   <option value="">গরু নির্বাচন করুন</option>
                   {cattleList.map(cattle => (
-                    <option key={cattle.id} value={cattle.id}>{cattle.name} ({cattle.id})</option>
+                    <option key={cattle.value} value={cattle.value}>{cattle.name || ''}</option>
                   ))}
                 </select>
               </div>
@@ -934,9 +875,9 @@ const HealthRecords = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">গরু নির্বাচন করুন</option>
-                    {cattleList.map(cattle => (
-                      <option key={cattle.id} value={cattle.id}>{cattle.name} ({cattle.id})</option>
-                    ))}
+                  {cattleList.map(cattle => (
+                    <option key={cattle.value} value={cattle.value}>{cattle.name || ''}</option>
+                  ))}
                   </select>
                 </div>
                 

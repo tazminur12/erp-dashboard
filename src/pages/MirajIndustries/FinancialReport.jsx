@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import useFinanceQueries from '../../hooks/useFinanceQueries';
 import { 
   Plus, 
   Search, 
@@ -30,10 +31,6 @@ import {
 } from 'lucide-react';
 
 const FinancialReport = () => {
-  const [expenses, setExpenses] = useState([]);
-  const [incomes, setIncomes] = useState([]);
-  const [filteredExpenses, setFilteredExpenses] = useState([]);
-  const [filteredIncomes, setFilteredIncomes] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterDate, setFilterDate] = useState('');
@@ -41,6 +38,37 @@ const FinancialReport = () => {
   const [showAddIncomeModal, setShowAddIncomeModal] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
+
+  // Load queries
+  const {
+    useExpenses,
+    useIncomes,
+    useFinanceStats,
+    useCreateExpense,
+    useCreateIncome
+  } = useFinanceQueries();
+
+  // Build query params
+  const expenseParams = useMemo(() => {
+    const params = {};
+    if (searchTerm) params.search = searchTerm;
+    if (filterDate) params.date = filterDate;
+    return params;
+  }, [searchTerm, filterDate]);
+
+  const incomeParams = useMemo(() => {
+    const params = {};
+    if (searchTerm) params.search = searchTerm;
+    if (filterDate) params.date = filterDate;
+    return params;
+  }, [searchTerm, filterDate]);
+
+  const { data: expenses = [], isLoading: loadingExpenses } = useExpenses(expenseParams);
+  const { data: incomes = [], isLoading: loadingIncomes } = useIncomes(incomeParams);
+  const { data: stats = {}, isLoading: loadingStats } = useFinanceStats();
+
+  const createExpenseMutation = useCreateExpense();
+  const createIncomeMutation = useCreateIncome();
 
   const [newExpense, setNewExpense] = useState({
     category: '',
@@ -90,203 +118,55 @@ const FinancialReport = () => {
     { value: 'mobile_banking', label: 'মোবাইল ব্যাংকিং' }
   ];
 
-  const [stats, setStats] = useState({
-    totalExpenses: 0,
-    totalIncome: 0,
-    netProfit: 0,
-    monthlyExpenses: 0,
-    monthlyIncome: 0,
-    feedExpenses: 0,
-    veterinaryExpenses: 0,
-    milkIncome: 0,
-    cattleIncome: 0
-  });
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    filterRecords();
-    calculateStats();
-  }, [expenses, incomes, searchTerm, filterType, filterDate]);
-
-  const loadData = () => {
-    // Mock expense data
-    const mockExpenses = [
-      {
-        id: 'EXP001',
-        category: 'feed',
-        description: 'প্রিমিয়াম গরুর খাদ্য',
-        amount: 15000,
-        date: '2024-01-15',
-        paymentMethod: 'cash',
-        vendor: 'আগ্রো ফিড লিমিটেড',
-        notes: 'মাসিক খাদ্য সরবরাহ'
-      },
-      {
-        id: 'EXP002',
-        category: 'veterinary',
-        description: 'গরুর চিকিৎসা',
-        amount: 2500,
-        date: '2024-01-14',
-        paymentMethod: 'bank_transfer',
-        vendor: 'আগ্রো ভেটেরিনারি ক্লিনিক',
-        notes: 'জ্বরের চিকিৎসা'
-      },
-      {
-        id: 'EXP003',
-        category: 'salary',
-        description: 'খামার কর্মচারীর বেতন',
-        amount: 8000,
-        date: '2024-01-01',
-        paymentMethod: 'cash',
-        vendor: 'খামার কর্মচারী',
-        notes: 'মাসিক বেতন'
-      },
-      {
-        id: 'EXP004',
-        category: 'utilities',
-        description: 'বিদ্যুৎ বিল',
-        amount: 3500,
-        date: '2024-01-10',
-        paymentMethod: 'mobile_banking',
-        vendor: 'বিদ্যুৎ বিভাগ',
-        notes: 'মাসিক বিদ্যুৎ বিল'
-      }
-    ];
-    setExpenses(mockExpenses);
-
-    // Mock income data
-    const mockIncomes = [
-      {
-        id: 'INC001',
-        source: 'milk_sale',
-        description: 'দুধ বিক্রয়',
-        amount: 45000,
-        date: '2024-01-15',
-        paymentMethod: 'cash',
-        customer: 'স্থানীয় ক্রেতা',
-        notes: 'মাসিক দুধ বিক্রয়'
-      },
-      {
-        id: 'INC002',
-        source: 'cattle_sale',
-        description: 'গরু বিক্রয়',
-        amount: 85000,
-        date: '2024-01-10',
-        paymentMethod: 'bank_transfer',
-        customer: 'আবুল খালেদ',
-        notes: 'একটি গরু বিক্রয়'
-      },
-      {
-        id: 'INC003',
-        source: 'calf_sale',
-        description: 'বাচ্চা বিক্রয়',
-        amount: 25000,
-        date: '2024-01-05',
-        paymentMethod: 'cash',
-        customer: 'করিম উদ্দিন',
-        notes: 'একটি বাচ্চা বিক্রয়'
-      }
-    ];
-    setIncomes(mockIncomes);
-  };
-
-  const filterRecords = () => {
-    let allRecords = [];
-    
+  // Filter records client-side by type (backend already filters by search and date)
+  const filteredExpenses = useMemo(() => {
     if (filterType === 'all' || filterType === 'expense') {
-      allRecords = [...allRecords, ...expenses.map(expense => ({ ...expense, type: 'expense' }))];
+      return (expenses || []).map(expense => ({ ...expense, type: 'expense' }));
     }
-    
+    return [];
+  }, [expenses, filterType]);
+
+  const filteredIncomes = useMemo(() => {
     if (filterType === 'all' || filterType === 'income') {
-      allRecords = [...allRecords, ...incomes.map(income => ({ ...income, type: 'income' }))];
+      return (incomes || []).map(income => ({ ...income, type: 'income' }));
     }
+    return [];
+  }, [incomes, filterType]);
 
-    let filtered = allRecords.filter(record => 
-      record.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.customer?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (filterDate) {
-      filtered = filtered.filter(record => record.date === filterDate);
-    }
-
-    // Sort by date (newest first)
-    filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    if (filterType === 'expense') {
-      setFilteredExpenses(filtered.filter(record => record.type === 'expense'));
-    } else if (filterType === 'income') {
-      setFilteredIncomes(filtered.filter(record => record.type === 'income'));
-    } else {
-      setFilteredExpenses(filtered.filter(record => record.type === 'expense'));
-      setFilteredIncomes(filtered.filter(record => record.type === 'income'));
+  const handleAddExpense = async () => {
+    try {
+      await createExpenseMutation.mutateAsync({
+        category: newExpense.category,
+        description: newExpense.description,
+        amount: Number(newExpense.amount),
+        date: newExpense.date,
+        paymentMethod: newExpense.paymentMethod,
+        vendor: newExpense.vendor || '',
+        notes: newExpense.notes || ''
+      });
+      setShowAddExpenseModal(false);
+      resetExpenseForm();
+    } catch (error) {
+      alert(error.message || 'খরচ যোগ করতে সমস্যা হয়েছে');
     }
   };
 
-  const calculateStats = () => {
-    const thisMonth = new Date().toISOString().slice(0, 7);
-    
-    const monthlyExpenses = expenses
-      .filter(expense => expense.date.startsWith(thisMonth))
-      .reduce((sum, expense) => sum + expense.amount, 0);
-
-    const monthlyIncome = incomes
-      .filter(income => income.date.startsWith(thisMonth))
-      .reduce((sum, income) => sum + income.amount, 0);
-
-    const feedExpenses = expenses
-      .filter(expense => expense.category === 'feed')
-      .reduce((sum, expense) => sum + expense.amount, 0);
-
-    const veterinaryExpenses = expenses
-      .filter(expense => expense.category === 'veterinary')
-      .reduce((sum, expense) => sum + expense.amount, 0);
-
-    const milkIncome = incomes
-      .filter(income => income.source === 'milk_sale')
-      .reduce((sum, income) => sum + income.amount, 0);
-
-    const cattleIncome = incomes
-      .filter(income => income.source === 'cattle_sale' || income.source === 'calf_sale')
-      .reduce((sum, income) => sum + income.amount, 0);
-
-    setStats({
-      totalExpenses: expenses.reduce((sum, expense) => sum + expense.amount, 0),
-      totalIncome: incomes.reduce((sum, income) => sum + income.amount, 0),
-      netProfit: incomes.reduce((sum, income) => sum + income.amount, 0) - expenses.reduce((sum, expense) => sum + expense.amount, 0),
-      monthlyExpenses,
-      monthlyIncome,
-      feedExpenses,
-      veterinaryExpenses,
-      milkIncome,
-      cattleIncome
-    });
-  };
-
-  const handleAddExpense = () => {
-    const expense = {
-      ...newExpense,
-      id: `EXP${String(expenses.length + 1).padStart(3, '0')}`,
-      amount: parseFloat(newExpense.amount)
-    };
-    setExpenses([expense, ...expenses]);
-    setShowAddExpenseModal(false);
-    resetExpenseForm();
-  };
-
-  const handleAddIncome = () => {
-    const income = {
-      ...newIncome,
-      id: `INC${String(incomes.length + 1).padStart(3, '0')}`,
-      amount: parseFloat(newIncome.amount)
-    };
-    setIncomes([income, ...incomes]);
-    setShowAddIncomeModal(false);
-    resetIncomeForm();
+  const handleAddIncome = async () => {
+    try {
+      await createIncomeMutation.mutateAsync({
+        source: newIncome.source,
+        description: newIncome.description,
+        amount: Number(newIncome.amount),
+        date: newIncome.date,
+        paymentMethod: newIncome.paymentMethod,
+        customer: newIncome.customer || '',
+        notes: newIncome.notes || ''
+      });
+      setShowAddIncomeModal(false);
+      resetIncomeForm();
+    } catch (error) {
+      alert(error.message || 'আয় যোগ করতে সমস্যা হয়েছে');
+    }
   };
 
   const resetExpenseForm = () => {
@@ -331,6 +211,16 @@ const FinancialReport = () => {
     alert('রিপোর্ট তৈরি করা হচ্ছে...');
   };
 
+  const isLoading = loadingExpenses || loadingIncomes || loadingStats;
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">লোড হচ্ছে...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -370,7 +260,7 @@ const FinancialReport = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">মোট আয়</p>
-              <p className="text-2xl font-bold text-green-600">৳{stats.totalIncome.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600">৳{(stats.totalIncome || 0).toLocaleString()}</p>
             </div>
             <div className="bg-green-100 p-3 rounded-full">
               <TrendingUp className="w-6 h-6 text-green-600" />
@@ -378,7 +268,7 @@ const FinancialReport = () => {
           </div>
           <div className="mt-4 flex items-center text-sm text-green-600">
             <DollarSign className="w-4 h-4 mr-1" />
-            <span>এই মাসে: ৳{stats.monthlyIncome.toLocaleString()}</span>
+            <span>এই মাসে: ৳{(stats.monthlyIncome || 0).toLocaleString()}</span>
           </div>
         </div>
 
@@ -386,7 +276,7 @@ const FinancialReport = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">মোট খরচ</p>
-              <p className="text-2xl font-bold text-red-600">৳{stats.totalExpenses.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-red-600">৳{(stats.totalExpenses || 0).toLocaleString()}</p>
             </div>
             <div className="bg-red-100 p-3 rounded-full">
               <TrendingDown className="w-6 h-6 text-red-600" />
@@ -394,7 +284,7 @@ const FinancialReport = () => {
           </div>
           <div className="mt-4 flex items-center text-sm text-red-600">
             <DollarSign className="w-4 h-4 mr-1" />
-            <span>এই মাসে: ৳{stats.monthlyExpenses.toLocaleString()}</span>
+            <span>এই মাসে: ৳{(stats.monthlyExpenses || 0).toLocaleString()}</span>
           </div>
         </div>
 
@@ -402,21 +292,21 @@ const FinancialReport = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">নিট লাভ</p>
-              <p className={`text-2xl font-bold ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ৳{stats.netProfit.toLocaleString()}
+              <p className={`text-2xl font-bold ${(stats.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                ৳{(stats.netProfit || 0).toLocaleString()}
               </p>
             </div>
-            <div className={`p-3 rounded-full ${stats.netProfit >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-              {stats.netProfit >= 0 ? (
+            <div className={`p-3 rounded-full ${(stats.netProfit || 0) >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
+              {(stats.netProfit || 0) >= 0 ? (
                 <CheckCircle className="w-6 h-6 text-green-600" />
               ) : (
                 <AlertTriangle className="w-6 h-6 text-red-600" />
               )}
             </div>
           </div>
-          <div className={`mt-4 flex items-center text-sm ${stats.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+          <div className={`mt-4 flex items-center text-sm ${(stats.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
             <BarChart3 className="w-4 h-4 mr-1" />
-            <span>{stats.netProfit >= 0 ? 'লাভ' : 'ক্ষতি'}</span>
+            <span>{(stats.netProfit || 0) >= 0 ? 'লাভ' : 'ক্ষতি'}</span>
           </div>
         </div>
 
@@ -424,7 +314,7 @@ const FinancialReport = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">দুধ বিক্রয়</p>
-              <p className="text-2xl font-bold text-blue-600">৳{stats.milkIncome.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-blue-600">৳{(stats.milkIncome || 0).toLocaleString()}</p>
             </div>
             <div className="bg-blue-100 p-3 rounded-full">
               <Milk className="w-6 h-6 text-blue-600" />
@@ -443,11 +333,11 @@ const FinancialReport = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">খরচের বিভাগ</h3>
           <div className="space-y-3">
             {expenseCategories.map(category => {
-              const categoryExpenses = expenses
+              const categoryExpenses = (expenses || [])
                 .filter(expense => expense.category === category.value)
-                .reduce((sum, expense) => sum + expense.amount, 0);
+                .reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0);
               
-              const percentage = stats.totalExpenses > 0 ? (categoryExpenses / stats.totalExpenses) * 100 : 0;
+              const percentage = (stats.totalExpenses || 0) > 0 ? (categoryExpenses / stats.totalExpenses) * 100 : 0;
               
               return (
                 <div key={category.value} className="flex items-center justify-between">
@@ -471,11 +361,11 @@ const FinancialReport = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">আয়ের উৎস</h3>
           <div className="space-y-3">
             {incomeSources.map(source => {
-              const sourceIncome = incomes
+              const sourceIncome = (incomes || [])
                 .filter(income => income.source === source.value)
-                .reduce((sum, income) => sum + income.amount, 0);
+                .reduce((sum, income) => sum + (Number(income.amount) || 0), 0);
               
-              const percentage = stats.totalIncome > 0 ? (sourceIncome / stats.totalIncome) * 100 : 0;
+              const percentage = (stats.totalIncome || 0) > 0 ? (sourceIncome / stats.totalIncome) * 100 : 0;
               
               return (
                 <div key={source.value} className="flex items-center justify-between">
@@ -596,7 +486,7 @@ const FinancialReport = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-red-600">-৳{expense.amount.toLocaleString()}</span>
+                      <span className="text-sm font-semibold text-red-600">-৳{Number(expense.amount || 0).toLocaleString()}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900">{getPaymentMethodLabel(expense.paymentMethod)}</span>
@@ -651,7 +541,7 @@ const FinancialReport = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-semibold text-green-600">+৳{income.amount.toLocaleString()}</span>
+                      <span className="text-sm font-semibold text-green-600">+৳{Number(income.amount || 0).toLocaleString()}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900">{getPaymentMethodLabel(income.paymentMethod)}</span>
@@ -678,7 +568,7 @@ const FinancialReport = () => {
       {/* Add Expense Modal */}
       {showAddExpenseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">খরচ যোগ করুন</h2>
               <button onClick={() => setShowAddExpenseModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -771,7 +661,7 @@ const FinancialReport = () => {
                 <textarea
                   value={newExpense.notes}
                   onChange={(e) => setNewExpense({...newExpense, notes: e.target.value})}
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="অতিরিক্ত তথ্য"
                 />
@@ -787,9 +677,10 @@ const FinancialReport = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  disabled={createExpenseMutation.isPending}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
-                  সংরক্ষণ করুন
+                  {createExpenseMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
               </div>
             </form>
@@ -800,7 +691,7 @@ const FinancialReport = () => {
       {/* Add Income Modal */}
       {showAddIncomeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">আয় যোগ করুন</h2>
               <button onClick={() => setShowAddIncomeModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -893,7 +784,7 @@ const FinancialReport = () => {
                 <textarea
                   value={newIncome.notes}
                   onChange={(e) => setNewIncome({...newIncome, notes: e.target.value})}
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="অতিরিক্ত তথ্য"
                 />
@@ -909,9 +800,10 @@ const FinancialReport = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  disabled={createIncomeMutation.isPending}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
-                  সংরক্ষণ করুন
+                  {createIncomeMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
               </div>
             </form>
@@ -922,7 +814,7 @@ const FinancialReport = () => {
       {/* View Record Modal */}
       {showViewModal && selectedRecord && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">রেকর্ড বিস্তারিত</h2>
               <button onClick={() => setShowViewModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -965,7 +857,7 @@ const FinancialReport = () => {
                 <div>
                   <p className="text-sm text-gray-600">পরিমাণ:</p>
                   <p className={`font-bold ${selectedRecord.type === 'expense' ? 'text-red-600' : 'text-green-600'}`}>
-                    {selectedRecord.type === 'expense' ? '-' : '+'}৳{selectedRecord.amount.toLocaleString()}
+                    {selectedRecord.type === 'expense' ? '-' : '+'}৳{Number(selectedRecord.amount || 0).toLocaleString()}
                   </p>
                 </div>
                 <div>

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import useEmployeeQueries from '../../hooks/useEmployeeQueries';
 import { 
   Plus, 
   Search, 
@@ -27,16 +29,37 @@ import {
 } from 'lucide-react';
 
 const EmployeeManagement = () => {
-  const [employees, setEmployees] = useState([]);
-  const [filteredEmployees, setFilteredEmployees] = useState([]);
-  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDate, setFilterDate] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [showViewModal, setShowViewModal] = useState(false);
+
+  // Load queries
+  const {
+    useEmployees,
+    useEmployeeStats,
+    useCreateEmployee,
+    useDeleteEmployee,
+    useAttendance,
+    useCreateAttendance
+  } = useEmployeeQueries();
+
+  const { data: employees = [], isLoading: loadingEmployees } = useEmployees({
+    search: searchTerm,
+    status: filterStatus
+  });
+
+  const { data: stats = {}, isLoading: loadingStats } = useEmployeeStats();
+
+  const { data: attendanceRecords = [], isLoading: loadingAttendance } = useAttendance({
+    limit: 20
+  });
+
+  const createEmployeeMutation = useCreateEmployee();
+  const deleteEmployeeMutation = useDeleteEmployee();
+  const createAttendanceMutation = useCreateAttendance();
 
   const [newEmployee, setNewEmployee] = useState({
     name: '',
@@ -86,196 +109,55 @@ const EmployeeManagement = () => {
     { value: 'leave', label: 'ছুটি', color: 'text-purple-600 bg-purple-100' }
   ];
 
-  const [stats, setStats] = useState({
-    totalEmployees: 0,
-    activeEmployees: 0,
-    totalSalary: 0,
-    monthlyAttendance: 0,
-    presentToday: 0,
-    absentToday: 0
-  });
+  // Filter employees client-side if needed (backend already filters)
+  const filteredEmployees = useMemo(() => {
+    return employees || [];
+  }, [employees]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    filterEmployees();
-    calculateStats();
-  }, [employees, attendanceRecords, searchTerm, filterStatus, filterDate]);
-
-  const loadData = () => {
-    // Mock employee data
-    const mockEmployees = [
-      {
-        id: 'EMP001',
-        name: 'আবুল কালাম',
-        position: 'খামার ম্যানেজার',
-        phone: '01712345678',
-        email: 'abul.kalam@example.com',
-        address: 'ঢাকা, বাংলাদেশ',
-        joinDate: '2023-01-15',
-        salary: 25000,
-        workHours: '8',
-        status: 'active',
-        notes: 'অভিজ্ঞ খামার ম্যানেজার'
-      },
-      {
-        id: 'EMP002',
-        name: 'করিম উদ্দিন',
-        position: 'গরু যত্নকারী',
-        phone: '01787654321',
-        email: 'karim.uddin@example.com',
-        address: 'গাজীপুর, বাংলাদেশ',
-        joinDate: '2023-03-20',
-        salary: 15000,
-        workHours: '8',
-        status: 'active',
-        notes: 'গরুর যত্নে অভিজ্ঞ'
-      },
-      {
-        id: 'EMP003',
-        name: 'রহিম উদ্দিন',
-        position: 'দুধ সংগ্রহকারী',
-        phone: '01755555555',
-        email: 'rahim.uddin@example.com',
-        address: 'নারায়ণগঞ্জ, বাংলাদেশ',
-        joinDate: '2023-02-10',
-        salary: 12000,
-        workHours: '6',
-        status: 'active',
-        notes: 'দুধ সংগ্রহে দক্ষ'
-      },
-      {
-        id: 'EMP004',
-        name: 'মালেক উদ্দিন',
-        position: 'সিকিউরিটি গার্ড',
-        phone: '01766666666',
-        email: 'malek.uddin@example.com',
-        address: 'টাঙ্গাইল, বাংলাদেশ',
-        joinDate: '2023-04-05',
-        salary: 10000,
-        workHours: '12',
-        status: 'on_leave',
-        notes: 'নাইট শিফ্টে কাজ করেন'
-      }
-    ];
-    setEmployees(mockEmployees);
-
-    // Mock attendance data
-    const mockAttendance = [
-      {
-        id: 'ATT001',
-        employeeId: 'EMP001',
-        employeeName: 'আবুল কালাম',
-        date: '2024-01-15',
-        checkIn: '08:00',
-        checkOut: '17:00',
-        status: 'present',
-        notes: 'নিয়মিত উপস্থিত'
-      },
-      {
-        id: 'ATT002',
-        employeeId: 'EMP002',
-        employeeName: 'করিম উদ্দিন',
-        date: '2024-01-15',
-        checkIn: '08:30',
-        checkOut: '16:30',
-        status: 'present',
-        notes: 'নিয়মিত উপস্থিত'
-      },
-      {
-        id: 'ATT003',
-        employeeId: 'EMP003',
-        employeeName: 'রহিম উদ্দিন',
-        date: '2024-01-15',
-        checkIn: '09:00',
-        checkOut: '15:00',
-        status: 'late',
-        notes: 'এক ঘণ্টা দেরিতে এসেছেন'
-      },
-      {
-        id: 'ATT004',
-        employeeId: 'EMP004',
-        employeeName: 'মালেক উদ্দিন',
-        date: '2024-01-15',
-        checkIn: '',
-        checkOut: '',
-        status: 'leave',
-        notes: 'ছুটিতে'
-      }
-    ];
-    setAttendanceRecords(mockAttendance);
-  };
-
-  const filterEmployees = () => {
-    let filtered = employees.filter(employee => 
-      employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.phone.includes(searchTerm)
-    );
-
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter(employee => employee.status === filterStatus);
+  const handleAddEmployee = async () => {
+    try {
+      await createEmployeeMutation.mutateAsync({
+        name: newEmployee.name,
+        position: newEmployee.position,
+        phone: newEmployee.phone,
+        email: newEmployee.email || '',
+        address: newEmployee.address || '',
+        joinDate: newEmployee.joinDate,
+        salary: Number(newEmployee.salary),
+        workHours: Number(newEmployee.workHours),
+        status: newEmployee.status,
+        notes: newEmployee.notes || ''
+      });
+      setShowAddModal(false);
+      resetForm();
+    } catch (error) {
+      alert(error.message || 'কর্মচারী যোগ করতে সমস্যা হয়েছে');
     }
-
-    setFilteredEmployees(filtered);
   };
 
-  const calculateStats = () => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    const activeEmployees = employees.filter(emp => emp.status === 'active').length;
-    
-    const totalSalary = employees
-      .filter(emp => emp.status === 'active')
-      .reduce((sum, emp) => sum + emp.salary, 0);
-
-    const todayAttendance = attendanceRecords.filter(att => att.date === today);
-    const presentToday = todayAttendance.filter(att => att.status === 'present').length;
-    const absentToday = todayAttendance.filter(att => att.status === 'absent').length;
-
-    const thisMonth = new Date().toISOString().slice(0, 7);
-    const monthlyAttendance = attendanceRecords
-      .filter(att => att.date.startsWith(thisMonth) && att.status === 'present').length;
-
-    setStats({
-      totalEmployees: employees.length,
-      activeEmployees,
-      totalSalary,
-      monthlyAttendance,
-      presentToday,
-      absentToday
-    });
+  const handleAddAttendance = async () => {
+    try {
+      await createAttendanceMutation.mutateAsync({
+        employeeId: newAttendance.employeeId,
+        date: newAttendance.date,
+        checkIn: newAttendance.checkIn || '',
+        checkOut: newAttendance.checkOut || '',
+        status: newAttendance.status,
+        notes: newAttendance.notes || ''
+      });
+      setShowAttendanceModal(false);
+      resetAttendanceForm();
+    } catch (error) {
+      alert(error.message || 'উপস্থিতি রেকর্ড যোগ করতে সমস্যা হয়েছে');
+    }
   };
 
-  const handleAddEmployee = () => {
-    const employee = {
-      ...newEmployee,
-      id: `EMP${String(employees.length + 1).padStart(3, '0')}`,
-      salary: parseFloat(newEmployee.salary),
-      workHours: parseFloat(newEmployee.workHours)
-    };
-    setEmployees([...employees, employee]);
-    setShowAddModal(false);
-    resetForm();
-  };
-
-  const handleAddAttendance = () => {
-    const attendance = {
-      ...newAttendance,
-      id: `ATT${String(attendanceRecords.length + 1).padStart(3, '0')}`,
-      employeeName: employees.find(emp => emp.id === newAttendance.employeeId)?.name || ''
-    };
-    setAttendanceRecords([attendance, ...attendanceRecords]);
-    setShowAttendanceModal(false);
-    resetAttendanceForm();
-  };
-
-  const handleDeleteEmployee = (id) => {
-    if (window.confirm('আপনি কি এই কর্মচারীকে মুছে ফেলতে চান?')) {
-      setEmployees(employees.filter(emp => emp.id !== id));
-      setAttendanceRecords(attendanceRecords.filter(att => att.employeeId !== id));
+  const handleDeleteEmployee = async (id) => {
+    if (!window.confirm('আপনি কি এই কর্মচারীকে মুছে ফেলতে চান?')) return;
+    try {
+      await deleteEmployeeMutation.mutateAsync(id);
+    } catch (error) {
+      alert(error.message || 'কর্মচারী মুছতে সমস্যা হয়েছে');
     }
   };
 
@@ -320,6 +202,16 @@ const EmployeeManagement = () => {
     alert('রিপোর্ট তৈরি করা হচ্ছে...');
   };
 
+  const isLoading = loadingEmployees || loadingStats || loadingAttendance;
+
+  if (isLoading) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">লোড হচ্ছে...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -359,7 +251,7 @@ const EmployeeManagement = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">মোট কর্মচারী</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.totalEmployees}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalEmployees || 0}</p>
             </div>
             <div className="bg-blue-100 p-3 rounded-full">
               <Users className="w-6 h-6 text-blue-600" />
@@ -367,7 +259,7 @@ const EmployeeManagement = () => {
           </div>
           <div className="mt-4 flex items-center text-sm text-blue-600">
             <User className="w-4 h-4 mr-1" />
-            <span>{stats.activeEmployees} সক্রিয়</span>
+            <span>{stats.activeEmployees || 0} সক্রিয়</span>
           </div>
         </div>
 
@@ -375,7 +267,7 @@ const EmployeeManagement = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">মাসিক বেতন</p>
-              <p className="text-2xl font-bold text-gray-900">৳{stats.totalSalary.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">৳{(stats.totalSalary || 0).toLocaleString()}</p>
             </div>
             <div className="bg-green-100 p-3 rounded-full">
               <DollarSign className="w-6 h-6 text-green-600" />
@@ -391,7 +283,7 @@ const EmployeeManagement = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">আজ উপস্থিত</p>
-              <p className="text-2xl font-bold text-green-600">{stats.presentToday}</p>
+              <p className="text-2xl font-bold text-green-600">{stats.presentToday || 0}</p>
             </div>
             <div className="bg-green-100 p-3 rounded-full">
               <CheckCircle className="w-6 h-6 text-green-600" />
@@ -399,7 +291,7 @@ const EmployeeManagement = () => {
           </div>
           <div className="mt-4 flex items-center text-sm text-green-600">
             <Clock className="w-4 h-4 mr-1" />
-            <span>{stats.absentToday} অনুপস্থিত</span>
+            <span>{stats.absentToday || 0} অনুপস্থিত</span>
           </div>
         </div>
 
@@ -407,7 +299,7 @@ const EmployeeManagement = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">মাসিক উপস্থিতি</p>
-              <p className="text-2xl font-bold text-gray-900">{stats.monthlyAttendance}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.monthlyAttendance || 0}</p>
             </div>
             <div className="bg-purple-100 p-3 rounded-full">
               <TrendingUp className="w-6 h-6 text-purple-600" />
@@ -543,10 +435,7 @@ const EmployeeManagement = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => {
-                          setSelectedEmployee(employee);
-                          setShowViewModal(true);
-                        }}
+                        onClick={() => navigate(`/miraj-industries/employee/${employee.id}`)}
                         className="text-blue-600 hover:text-blue-900"
                       >
                         <Eye className="w-4 h-4" />
@@ -632,7 +521,7 @@ const EmployeeManagement = () => {
       {/* Add Employee Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">নতুন কর্মচারী যোগ করুন</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -757,7 +646,7 @@ const EmployeeManagement = () => {
                 <textarea
                   value={newEmployee.notes}
                   onChange={(e) => setNewEmployee({...newEmployee, notes: e.target.value})}
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="অতিরিক্ত তথ্য"
                 />
@@ -773,9 +662,10 @@ const EmployeeManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={createEmployeeMutation.isPending}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  সংরক্ষণ করুন
+                  {createEmployeeMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
               </div>
             </form>
@@ -786,7 +676,7 @@ const EmployeeManagement = () => {
       {/* Add Attendance Modal */}
       {showAttendanceModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">উপস্থিতি রেকর্ড</h2>
               <button onClick={() => setShowAttendanceModal(false)} className="text-gray-500 hover:text-gray-700">
@@ -864,7 +754,7 @@ const EmployeeManagement = () => {
                 <textarea
                   value={newAttendance.notes}
                   onChange={(e) => setNewAttendance({...newAttendance, notes: e.target.value})}
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="অতিরিক্ত তথ্য"
                 />
@@ -880,9 +770,10 @@ const EmployeeManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  disabled={createAttendanceMutation.isPending}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
                 >
-                  সংরক্ষণ করুন
+                  {createAttendanceMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
                 </button>
               </div>
             </form>
@@ -890,85 +781,6 @@ const EmployeeManagement = () => {
         </div>
       )}
 
-      {/* View Employee Modal */}
-      {showViewModal && selectedEmployee && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">কর্মচারী বিস্তারিত</h2>
-              <button onClick={() => setShowViewModal(false)} className="text-gray-500 hover:text-gray-700">
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="flex items-center gap-6">
-                <div className="flex-shrink-0">
-                  <div className="h-24 w-24 rounded-full bg-gray-300 flex items-center justify-center">
-                    <Camera className="w-12 h-12 text-gray-500" />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-gray-900">{selectedEmployee.name}</h3>
-                  <p className="text-gray-600">{selectedEmployee.position}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${getStatusClass(selectedEmployee.status)}`}>
-                      {statusOptions.find(opt => opt.value === selectedEmployee.status)?.label}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">যোগাযোগের তথ্য</h4>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-700">{selectedEmployee.phone}</span>
-                    </div>
-                    {selectedEmployee.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-700">{selectedEmployee.email}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="text-gray-700">{selectedEmployee.address}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">কাজের তথ্য</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">বেতন:</span>
-                      <span className="font-medium">৳{selectedEmployee.salary.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">কাজের সময়:</span>
-                      <span className="font-medium">{selectedEmployee.workHours} ঘণ্টা/দিন</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">যোগদান তারিখ:</span>
-                      <span className="font-medium">{new Date(selectedEmployee.joinDate).toLocaleDateString('bn-BD')}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {selectedEmployee.notes && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">নোট</h4>
-                  <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedEmployee.notes}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

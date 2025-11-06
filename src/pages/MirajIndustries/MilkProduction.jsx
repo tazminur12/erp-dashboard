@@ -17,12 +17,20 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import useCattleQueries from '../../hooks/useCattleQueries.js';
+import useMilkQueries from '../../hooks/useMilkQueries.js';
 
 const MilkProduction = () => {
   const navigate = useNavigate();
   const [milkRecords, setMilkRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [cattleList, setCattleList] = useState([]);
+  const { useCattle } = useCattleQueries();
+  const { data: serverCattle = [], isLoading: cattleLoading, error: cattleError } = useCattle();
+  const { useMilkRecords, useCreateMilkRecord, useDeleteMilkRecord } = useMilkQueries();
+  const { data: serverMilk = [], isLoading: milkLoading, error: milkError } = useMilkRecords();
+  const createMilkMutation = useCreateMilkRecord();
+  const deleteMilkMutation = useDeleteMilkRecord();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -61,6 +69,14 @@ const MilkProduction = () => {
   }, []);
 
   useEffect(() => {
+    setCattleList(serverCattle);
+  }, [serverCattle]);
+
+  useEffect(() => {
+    setMilkRecords(serverMilk);
+  }, [serverMilk]);
+
+  useEffect(() => {
     filterRecords();
   }, [milkRecords, searchTerm, filterDate]);
 
@@ -69,56 +85,7 @@ const MilkProduction = () => {
   }, [milkRecords]);
 
   const loadData = () => {
-    // Mock cattle data
-    const mockCattle = [
-      { id: 'COW001', name: 'রাণী', breed: 'হলস্টেইন ফ্রিজিয়ান' },
-      { id: 'COW002', name: 'মালতি', breed: 'সাহিওয়াল' },
-      { id: 'COW003', name: 'সোনালী', breed: 'জার্সি' },
-      { id: 'COW004', name: 'কমলা', breed: 'রেড সিন্ধি' },
-      { id: 'COW005', name: 'রাজকুমারী', breed: 'গির' }
-    ];
-    setCattleList(mockCattle);
-
-    // Mock milk production data
-    const mockRecords = [
-      {
-        id: 'MILK001',
-        cattleId: 'COW001',
-        cattleName: 'রাণী',
-        date: '2024-01-15',
-        morningQuantity: 12.5,
-        afternoonQuantity: 11.0,
-        eveningQuantity: 10.5,
-        totalQuantity: 34.0,
-        quality: 'excellent',
-        notes: 'উৎকৃষ্ট মানের দুধ'
-      },
-      {
-        id: 'MILK002',
-        cattleId: 'COW002',
-        cattleName: 'মালতি',
-        date: '2024-01-15',
-        morningQuantity: 8.5,
-        afternoonQuantity: 7.5,
-        eveningQuantity: 8.0,
-        totalQuantity: 24.0,
-        quality: 'good',
-        notes: 'সাধারণ মানের দুধ'
-      },
-      {
-        id: 'MILK003',
-        cattleId: 'COW003',
-        cattleName: 'সোনালী',
-        date: '2024-01-14',
-        morningQuantity: 10.0,
-        afternoonQuantity: 9.5,
-        eveningQuantity: 9.0,
-        totalQuantity: 28.5,
-        quality: 'good',
-        notes: 'ভাল মানের দুধ'
-      }
-    ];
-    setMilkRecords(mockRecords);
+    // Data loads via react-query hooks
   };
 
   const filterRecords = () => {
@@ -164,22 +131,33 @@ const MilkProduction = () => {
     });
   };
 
-  const handleAddRecord = () => {
-    const record = {
-      ...newRecord,
-      id: `MILK${String(milkRecords.length + 1).padStart(3, '0')}`,
-      cattleName: cattleList.find(cow => cow.id === newRecord.cattleId)?.name || '',
-      totalQuantity: (parseFloat(newRecord.morningQuantity) + parseFloat(newRecord.afternoonQuantity) + parseFloat(newRecord.eveningQuantity)).toFixed(1)
+  const handleAddRecord = async () => {
+    const payload = {
+      cattleId: newRecord.cattleId,
+      date: newRecord.date,
+      morningQuantity: Number(newRecord.morningQuantity || 0),
+      afternoonQuantity: Number(newRecord.afternoonQuantity || 0),
+      eveningQuantity: Number(newRecord.eveningQuantity || 0),
+      quality: newRecord.quality,
+      notes: newRecord.notes || ''
     };
-    
-    setMilkRecords([record, ...milkRecords]);
-    setShowAddModal(false);
-    resetForm();
+    try {
+      await createMilkMutation.mutateAsync(payload);
+      setShowAddModal(false);
+      resetForm();
+    } catch (e) {
+      alert('সংরক্ষণ ব্যর্থ: ' + (e?.message || ''));
+    }
   };
 
-  const handleDeleteRecord = (id) => {
+  const handleDeleteRecord = async (id) => {
+    if (!id) return;
     if (window.confirm('আপনি কি এই রেকর্ডটি মুছে ফেলতে চান?')) {
-      setMilkRecords(milkRecords.filter(record => record.id !== id));
+      try {
+        await deleteMilkMutation.mutateAsync(id);
+      } catch (e) {
+        alert('মুছতে ব্যর্থ: ' + (e?.message || ''));
+      }
     }
   };
 
@@ -443,11 +421,14 @@ const MilkProduction = () => {
                     onChange={(e) => setNewRecord({...newRecord, cattleId: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">গরু নির্বাচন করুন</option>
-                    {cattleList.map(cattle => (
-                      <option key={cattle.id} value={cattle.id}>{cattle.name} ({cattle.id})</option>
+                    <option value="" disabled>{cattleLoading ? 'লোড হচ্ছে...' : 'গরু নির্বাচন করুন'}</option>
+                    {!cattleLoading && cattleList.map(cattle => (
+                      <option key={cattle.id} value={cattle.id}>{cattle.name} {cattle.tagNumber ? `(${cattle.tagNumber})` : ''}</option>
                     ))}
                   </select>
+                  {cattleError && (
+                    <p className="text-xs text-red-600 mt-1">গরুর তালিকা লোড করতে সমস্যা হয়েছে</p>
+                  )}
                 </div>
                 
                 <div>
@@ -561,7 +542,7 @@ const MilkProduction = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">তারিখ:</p>
-                  <p className="font-medium">{new Date(selectedRecord.date).toLocaleDateString('bn-BD')}</p>
+                  <p className="font-medium">{new Date(selectedRecord.date).toLocaleDateString('en-US')}</p>
                 </div>
               </div>
               

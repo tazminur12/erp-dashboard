@@ -21,9 +21,16 @@ import {
   Upload
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
+import useCattleQueries from '../../hooks/useCattleQueries.js';
 
 const CattleManagement = () => {
   const navigate = useNavigate();
+  const { useCattle, useCreateCattle, useUpdateCattle, useDeleteCattle } = useCattleQueries();
+  const { data: serverCattle = [], isLoading: loading, error } = useCattle();
+  const createCattleMutation = useCreateCattle();
+  const updateCattleMutation = useUpdateCattle();
+  const deleteCattleMutation = useDeleteCattle();
   const [cattleList, setCattleList] = useState([]);
   const [filteredCattle, setFilteredCattle] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +39,8 @@ const CattleManagement = () => {
   const [selectedCattle, setSelectedCattle] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const [newCattle, setNewCattle] = useState({
     id: '',
@@ -42,6 +51,7 @@ const CattleManagement = () => {
     purchaseDate: '',
     healthStatus: 'healthy',
     image: null,
+    imagePublicId: '',
     gender: 'female',
     color: '',
     tagNumber: '',
@@ -69,67 +79,14 @@ const CattleManagement = () => {
   ];
 
   useEffect(() => {
-    loadCattleData();
-  }, []);
+    setCattleList(serverCattle);
+  }, [serverCattle]);
 
   useEffect(() => {
     filterCattle();
   }, [cattleList, searchTerm, filterStatus]);
 
-  const loadCattleData = () => {
-    // Mock data - replace with actual API calls
-    const mockData = [
-      {
-        id: 'COW001',
-        name: 'রাণী',
-        breed: 'হলস্টেইন ফ্রিজিয়ান',
-        age: 4,
-        weight: 450,
-        purchaseDate: '2023-01-15',
-        healthStatus: 'healthy',
-        image: null,
-        gender: 'female',
-        color: 'কালো-সাদা',
-        tagNumber: 'TAG001',
-        purchasePrice: 85000,
-        vendor: 'আবুল খালেদ',
-        notes: 'উৎকৃষ্ট দুধ উৎপাদনকারী'
-      },
-      {
-        id: 'COW002',
-        name: 'মালতি',
-        breed: 'সাহিওয়াল',
-        age: 3,
-        weight: 380,
-        purchaseDate: '2023-03-20',
-        healthStatus: 'sick',
-        image: null,
-        gender: 'female',
-        color: 'লাল',
-        tagNumber: 'TAG002',
-        purchasePrice: 65000,
-        vendor: 'করিম উদ্দিন',
-        notes: 'হালকা অসুস্থ, চিকিৎসাধীন'
-      },
-      {
-        id: 'COW003',
-        name: 'সোনালী',
-        breed: 'জার্সি',
-        age: 5,
-        weight: 420,
-        purchaseDate: '2022-11-10',
-        healthStatus: 'under_treatment',
-        image: null,
-        gender: 'female',
-        color: 'বাদামী',
-        tagNumber: 'TAG003',
-        purchasePrice: 72000,
-        vendor: 'রহিম উদ্দিন',
-        notes: 'প্রজননের জন্য প্রস্তুত'
-      }
-    ];
-    setCattleList(mockData);
-  };
+  const loadCattleData = () => {};
 
   const filterCattle = () => {
     let filtered = cattleList.filter(cattle => 
@@ -146,30 +103,52 @@ const CattleManagement = () => {
     setFilteredCattle(filtered);
   };
 
-  const handleAddCattle = () => {
-    const cattle = {
-      ...newCattle,
-      id: `COW${String(cattleList.length + 1).padStart(3, '0')}`,
-      tagNumber: `TAG${String(cattleList.length + 1).padStart(3, '0')}`
+  const handleAddCattle = async () => {
+    const payload = {
+      name: newCattle.name,
+      breed: newCattle.breed,
+      age: Number(newCattle.age || 0),
+      weight: Number(newCattle.weight || 0),
+      purchaseDate: newCattle.purchaseDate || '',
+      healthStatus: newCattle.healthStatus || 'healthy',
+      image: newCattle.image || null,
+      imagePublicId: newCattle.imagePublicId || '',
+      gender: newCattle.gender || 'female',
+      color: newCattle.color || '',
+      tagNumber: newCattle.tagNumber || `TAG${String((serverCattle?.length || 0) + 1).padStart(3, '0')}`,
+      purchasePrice: Number(newCattle.purchasePrice || 0),
+      vendor: newCattle.vendor || '',
+      notes: newCattle.notes || ''
     };
-    
-    setCattleList([...cattleList, cattle]);
-    setShowAddModal(false);
-    resetForm();
+    try {
+      await createCattleMutation.mutateAsync(payload);
+      setShowAddModal(false);
+      resetForm();
+    } catch (e) {
+      alert('সংরক্ষণ ব্যর্থ: ' + (e?.message || ''));
+    }
   };
 
-  const handleEditCattle = () => {
-    const updatedList = cattleList.map(cattle => 
-      cattle.id === selectedCattle.id ? selectedCattle : cattle
-    );
-    setCattleList(updatedList);
-    setShowEditModal(false);
-    setSelectedCattle(null);
+  const handleEditCattle = async () => {
+    if (!selectedCattle?.id) return;
+    const { id, ...data } = selectedCattle;
+    try {
+      await updateCattleMutation.mutateAsync({ id, data });
+      setShowEditModal(false);
+      setSelectedCattle(null);
+    } catch (e) {
+      alert('আপডেট ব্যর্থ: ' + (e?.message || ''));
+    }
   };
 
-  const handleDeleteCattle = (id) => {
+  const handleDeleteCattle = async (id) => {
+    if (!id) return;
     if (window.confirm('আপনি কি এই গরুটি মুছে ফেলতে চান?')) {
-      setCattleList(cattleList.filter(cattle => cattle.id !== id));
+      try {
+        await deleteCattleMutation.mutateAsync(id);
+      } catch (e) {
+        alert('মুছতে ব্যর্থ: ' + (e?.message || ''));
+      }
     }
   };
 
@@ -183,6 +162,7 @@ const CattleManagement = () => {
       purchaseDate: '',
       healthStatus: 'healthy',
       image: null,
+      imagePublicId: '',
       gender: 'female',
       color: '',
       tagNumber: '',
@@ -190,6 +170,47 @@ const CattleManagement = () => {
       vendor: '',
       notes: ''
     });
+  };
+
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    setUploadError('');
+    if (!validateCloudinaryConfig()) {
+      setUploadError('Cloudinary configuration missing.');
+      return;
+    }
+    try {
+      setUploadingImage(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      if (CLOUDINARY_CONFIG.UPLOAD_PRESET) {
+        formData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      }
+      if (CLOUDINARY_CONFIG.FOLDER) {
+        formData.append('folder', CLOUDINARY_CONFIG.FOLDER);
+      }
+      // Optional client hints
+      formData.append('context', 'alt=Cattle image');
+
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+      const result = await response.json();
+      setNewCattle((prev) => ({
+        ...prev,
+        image: result.secure_url,
+        imagePublicId: result.public_id
+      }));
+    } catch (err) {
+      setUploadError('ছবি আপলোড করা যায়নি। আবার চেষ্টা করুন।');
+      console.error(err);
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const getHealthStatusIcon = (status) => {
@@ -337,10 +358,7 @@ const CattleManagement = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => {
-                          setSelectedCattle(cattle);
-                          setShowViewModal(true);
-                        }}
+                        onClick={() => navigate(`/miraj-industries/cattle/${cattle.id}`)}
                         className="text-blue-600 hover:text-blue-900"
                       >
                         <Eye className="w-4 h-4" />
@@ -396,24 +414,25 @@ const CattleManagement = () => {
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">জাত</label>
-                  <select
-                    required
+                  <input
+                    type="text"
                     value={newCattle.breed}
-                    onChange={(e) => setNewCattle({...newCattle, breed: e.target.value})}
+                    onChange={(e) => setNewCattle({ ...newCattle, breed: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">জাত নির্বাচন করুন</option>
+                    placeholder="গরুর জাত লিখুন"
+                    list="breed-suggestions"
+                  />
+                  <datalist id="breed-suggestions">
                     {breedOptions.map(breed => (
-                      <option key={breed} value={breed}>{breed}</option>
+                      <option key={breed} value={breed} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">বয়স (বছর)</label>
                   <input
                     type="number"
-                    required
                     value={newCattle.age}
                     onChange={(e) => setNewCattle({...newCattle, age: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -425,7 +444,6 @@ const CattleManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">ওজন (কেজি)</label>
                   <input
                     type="number"
-                    required
                     value={newCattle.weight}
                     onChange={(e) => setNewCattle({...newCattle, weight: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -437,7 +455,6 @@ const CattleManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">ক্রয় তারিখ</label>
                   <input
                     type="date"
-                    required
                     value={newCattle.purchaseDate}
                     onChange={(e) => setNewCattle({...newCattle, purchaseDate: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -464,7 +481,7 @@ const CattleManagement = () => {
                     onChange={(e) => setNewCattle({...newCattle, gender: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="female">মহিষা</option>
+                    <option value="female">গাভী</option>
                     <option value="male">ষাঁড়</option>
                   </select>
                 </div>
@@ -508,9 +525,20 @@ const CattleManagement = () => {
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => setNewCattle({...newCattle, image: e.target.files[0]})}
+                  onChange={(e) => handleImageUpload(e.target.files && e.target.files[0])}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
+                {uploadingImage && (
+                  <p className="text-sm text-gray-500 mt-1">ছবি আপলোড হচ্ছে...</p>
+                )}
+                {uploadError && (
+                  <p className="text-sm text-red-600 mt-1">{uploadError}</p>
+                )}
+                {newCattle.image && !uploadingImage && (
+                  <div className="mt-3">
+                    <img src={newCattle.image} alt="নতুন গরুর ছবি" className="h-24 w-24 rounded object-cover border" />
+                  </div>
+                )}
               </div>
               
               <div>

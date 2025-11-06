@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   Search, 
@@ -21,12 +21,10 @@ import {
   Store,
   BarChart3
 } from 'lucide-react';
+import useFeedQueries from '../../hooks/useFeedQueries';
 
 const FeedManagement = () => {
-  const [feedTypes, setFeedTypes] = useState([]);
-  const [feedStock, setFeedStock] = useState([]);
-  const [feedUsage, setFeedUsage] = useState([]);
-  const [filteredUsage, setFilteredUsage] = useState([]);
+  // Using query data directly (no local mirrors)
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDate, setFilterDate] = useState('');
   const [showAddFeedModal, setShowAddFeedModal] = useState(false);
@@ -61,152 +59,119 @@ const FeedManagement = () => {
     notes: ''
   });
 
-  const feedTypeOptions = [
-    'ঘাস (Grass)',
-    'দানাদার খাদ্য (Grain Feed)',
-    'সম্পূরক খাবার (Supplement)',
-    'খড় (Straw)',
-    'মিনারেল মিক্স (Mineral Mix)',
-    'প্রোটিন মিক্স (Protein Mix)',
-    'ভিটামিন সাপ্লিমেন্ট',
-    'অন্যান্য'
-  ];
+  
 
   const unitOptions = ['kg', 'gm', 'liter', 'bag', 'ton'];
 
-  const [stats, setStats] = useState({
-    totalStockValue: 0,
-    lowStockItems: 0,
-    monthlyFeedCost: 0,
-    averageDailyUsage: 0,
-    totalFeedTypes: 0,
-    stockAlert: false
-  });
+  // Stats derived from query data
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const {
+    useFeedTypes,
+    useCreateFeedType,
+    useFeedStocks,
+    useCreateFeedStock,
+    useFeedUsages,
+    useCreateFeedUsage,
+    useDeleteFeedUsage,
+  } = useFeedQueries();
 
-  useEffect(() => {
-    filterUsage();
-    calculateStats();
-  }, [feedUsage, feedStock, searchTerm, filterDate]);
+  const { data: types = [] } = useFeedTypes();
+  const { data: stocks = [] } = useFeedStocks();
+  const { data: usages = [] } = useFeedUsages({ q: searchTerm || undefined, date: filterDate || undefined });
 
-  const loadData = () => {
-    // Mock feed types
-    const mockFeedTypes = [
-      { id: 'FEED001', name: 'প্রিমিয়াম গরুর খাদ্য', type: 'দানাদার খাদ্য', unit: 'kg', costPerUnit: 45, supplier: 'আগ্রো ফিড লিমিটেড', description: 'উচ্চমানের প্রোটিন সমৃদ্ধ খাদ্য' },
-      { id: 'FEED002', name: 'সবুজ ঘাস', type: 'ঘাস', unit: 'kg', costPerUnit: 8, supplier: 'স্থানীয় সরবরাহকারী', description: 'তাজা সবুজ ঘাস' },
-      { id: 'FEED003', name: 'খড়', type: 'খড়', unit: 'kg', costPerUnit: 5, supplier: 'স্থানীয় সরবরাহকারী', description: 'শুকনো খড়' },
-      { id: 'FEED004', name: 'মিনারেল মিক্স', type: 'মিনারেল মিক্স', unit: 'kg', costPerUnit: 120, supplier: 'ভেটেরিনারি সাপ্লাই', description: 'প্রয়োজনীয় খনিজ পদার্থ' }
-    ];
-    setFeedTypes(mockFeedTypes);
+  const createFeedType = useCreateFeedType();
+  const createFeedStock = useCreateFeedStock();
+  const createFeedUsage = useCreateFeedUsage();
+  const deleteFeedUsage = useDeleteFeedUsage();
 
-    // Mock stock data
-    const mockStock = [
-      { id: 'STOCK001', feedTypeId: 'FEED001', feedName: 'প্রিমিয়াম গরুর খাদ্য', currentStock: 250, minStock: 100, purchaseDate: '2024-01-10', expiryDate: '2024-06-10', supplier: 'আগ্রো ফিড লিমিটেড', cost: 11250 },
-      { id: 'STOCK002', feedTypeId: 'FEED002', feedName: 'সবুজ ঘাস', currentStock: 80, minStock: 150, purchaseDate: '2024-01-14', expiryDate: '2024-01-21', supplier: 'স্থানীয় সরবরাহকারী', cost: 640 },
-      { id: 'STOCK003', feedTypeId: 'FEED003', feedName: 'খড়', currentStock: 200, minStock: 100, purchaseDate: '2024-01-12', expiryDate: '2024-12-12', supplier: 'স্থানীয় সরবরাহকারী', cost: 1000 },
-      { id: 'STOCK004', feedTypeId: 'FEED004', feedName: 'মিনারেল মিক্স', currentStock: 15, minStock: 20, purchaseDate: '2024-01-08', expiryDate: '2024-07-08', supplier: 'ভেটেরিনারি সাপ্লাই', cost: 1800 }
-    ];
-    setFeedStock(mockStock);
-
-    // Mock usage data
-    const mockUsage = [
-      { id: 'USAGE001', feedTypeId: 'FEED001', feedName: 'প্রিমিয়াম গরুর খাদ্য', date: '2024-01-15', quantity: 25, cattleId: 'COW001', purpose: 'দৈনিক খাদ্য', notes: 'সকালের খাদ্য' },
-      { id: 'USAGE002', feedTypeId: 'FEED002', feedName: 'সবুজ ঘাস', date: '2024-01-15', quantity: 40, cattleId: 'ALL', purpose: 'দৈনিক খাদ্য', notes: 'সব গরুর জন্য' },
-      { id: 'USAGE003', feedTypeId: 'FEED003', feedName: 'খড়', date: '2024-01-14', quantity: 30, cattleId: 'ALL', purpose: 'দৈনিক খাদ্য', notes: 'রাতের খাদ্য' },
-      { id: 'USAGE004', feedTypeId: 'FEED004', feedName: 'মিনারেল মিক্স', date: '2024-01-13', quantity: 2, cattleId: 'COW002', purpose: 'সম্পূরক', notes: 'অসুস্থ গরুর জন্য' }
-    ];
-    setFeedUsage(mockUsage);
-  };
-
-  const filterUsage = () => {
-    let filtered = feedUsage.filter(usage => 
-      usage.feedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usage.cattleId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      usage.purpose.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (filterDate) {
-      filtered = filtered.filter(usage => usage.date === filterDate);
-    }
-
-    setFilteredUsage(filtered);
-  };
-
-  const calculateStats = () => {
-    const totalStockValue = feedStock.reduce((sum, stock) => {
-      const feedType = feedTypes.find(feed => feed.id === stock.feedTypeId);
-      return sum + (stock.currentStock * (feedType?.costPerUnit || 0));
+  const stats = useMemo(() => {
+    const totalStockValue = (stocks || []).reduce((sum, stock) => {
+      const feedType = (types || []).find(feed => feed.id === stock.feedTypeId);
+      return sum + (Number(stock.currentStock || 0) * Number(feedType?.costPerUnit || 0));
     }, 0);
 
-    const lowStockItems = feedStock.filter(stock => stock.currentStock <= stock.minStock).length;
+    const lowStockItems = (stocks || []).filter(stock => Number(stock.currentStock || 0) <= Number(stock.minStock || 0)).length;
 
     const thisMonth = new Date().toISOString().slice(0, 7);
-    const monthlyFeedCost = feedUsage
-      .filter(usage => usage.date.startsWith(thisMonth))
+    const monthlyFeedCost = (usages || [])
+      .filter(usage => String(usage.date || '').startsWith(thisMonth))
       .reduce((sum, usage) => {
-        const feedType = feedTypes.find(feed => feed.id === usage.feedTypeId);
-        return sum + (usage.quantity * (feedType?.costPerUnit || 0));
+        const feedType = (types || []).find(feed => feed.id === usage.feedTypeId);
+        return sum + (Number(usage.quantity || 0) * Number(feedType?.costPerUnit || 0));
       }, 0);
 
-    const averageDailyUsage = feedUsage.length > 0 
-      ? feedUsage.reduce((sum, usage) => sum + usage.quantity, 0) / feedUsage.length 
+    const averageDailyUsage = (usages || []).length > 0 
+      ? (usages || []).reduce((sum, usage) => sum + Number(usage.quantity || 0), 0) / (usages || []).length 
       : 0;
 
-    setStats({
+    return {
       totalStockValue,
       lowStockItems,
       monthlyFeedCost,
       averageDailyUsage,
-      totalFeedTypes: feedTypes.length,
+      totalFeedTypes: (types || []).length,
       stockAlert: lowStockItems > 0
-    });
+    };
+  }, [types, stocks, usages]);
+
+  const handleAddFeed = async () => {
+    try {
+      await createFeedType.mutateAsync({
+        name: newFeed.name,
+        type: newFeed.type,
+        unit: newFeed.unit || 'kg',
+        costPerUnit: Number(newFeed.costPerUnit || 0),
+        supplier: newFeed.supplier || '',
+        description: newFeed.description || ''
+      });
+      setShowAddFeedModal(false);
+      resetFeedForm();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAddFeed = () => {
-    const feed = {
-      ...newFeed,
-      id: `FEED${String(feedTypes.length + 1).padStart(3, '0')}`
-    };
-    setFeedTypes([...feedTypes, feed]);
-    setShowAddFeedModal(false);
-    resetFeedForm();
+  const handleAddStock = async () => {
+    try {
+      await createFeedStock.mutateAsync({
+        feedTypeId: newStock.feedTypeId,
+        quantity: Number(newStock.quantity || 0),
+        purchaseDate: newStock.purchaseDate,
+        expiryDate: newStock.expiryDate || '',
+        supplier: newStock.supplier || '',
+        cost: Number(newStock.cost || 0),
+        notes: newStock.notes || ''
+      });
+      setShowAddStockModal(false);
+      resetStockForm();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAddStock = () => {
-    const stock = {
-      ...newStock,
-      id: `STOCK${String(feedStock.length + 1).padStart(3, '0')}`,
-      feedName: feedTypes.find(feed => feed.id === newStock.feedTypeId)?.name || '',
-      currentStock: parseFloat(newStock.quantity),
-      minStock: parseFloat(newStock.quantity) * 0.3 // 30% of purchase as minimum stock
-    };
-    setFeedStock([...feedStock, stock]);
-    setShowAddStockModal(false);
-    resetStockForm();
+  const handleAddUsage = async () => {
+    try {
+      await createFeedUsage.mutateAsync({
+        feedTypeId: newUsage.feedTypeId,
+        date: newUsage.date,
+        quantity: Number(newUsage.quantity || 0),
+        cattleId: newUsage.cattleId || '',
+        purpose: newUsage.purpose || '',
+        notes: newUsage.notes || ''
+      });
+      setShowAddUsageModal(false);
+      resetUsageForm();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleAddUsage = () => {
-    const usage = {
-      ...newUsage,
-      id: `USAGE${String(feedUsage.length + 1).padStart(3, '0')}`,
-      feedName: feedTypes.find(feed => feed.id === newUsage.feedTypeId)?.name || ''
-    };
-    setFeedUsage([usage, ...feedUsage]);
-    
-    // Update stock
-    const updatedStock = feedStock.map(stock => {
-      if (stock.feedTypeId === newUsage.feedTypeId) {
-        return { ...stock, currentStock: stock.currentStock - parseFloat(newUsage.quantity) };
-      }
-      return stock;
-    });
-    setFeedStock(updatedStock);
-    
-    setShowAddUsageModal(false);
-    resetUsageForm();
+  const handleDeleteRecord = async (id) => {
+    try {
+      await deleteFeedUsage.mutateAsync(id);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const resetFeedForm = () => {
@@ -388,7 +353,7 @@ const FeedManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {feedStock.map((stock) => {
+              {(stocks || []).map((stock) => {
                 const stockStatus = getStockStatus(stock.currentStock, stock.minStock);
                 const StatusIcon = stockStatus.icon;
                 
@@ -478,7 +443,7 @@ const FeedManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsage.map((usage) => (
+              {(usages || []).map((usage) => (
                 <tr key={usage.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -542,17 +507,14 @@ const FeedManagement = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">খাদ্যের ধরন</label>
-                <select
+                <input
+                  type="text"
                   required
                   value={newFeed.type}
                   onChange={(e) => setNewFeed({...newFeed, type: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">ধরন নির্বাচন করুন</option>
-                  {feedTypeOptions.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
+                  placeholder="খাদ্যের ধরন লিখুন"
+                />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -645,7 +607,7 @@ const FeedManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">খাদ্য নির্বাচন করুন</option>
-                  {feedTypes.map(feed => (
+                  {(types || []).map(feed => (
                     <option key={feed.id} value={feed.id}>{feed.name}</option>
                   ))}
                 </select>
@@ -764,7 +726,7 @@ const FeedManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">খাদ্য নির্বাচন করুন</option>
-                  {feedTypes.map(feed => (
+                  {(types || []).map(feed => (
                     <option key={feed.id} value={feed.id}>{feed.name}</option>
                   ))}
                 </select>
