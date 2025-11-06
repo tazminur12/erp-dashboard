@@ -135,11 +135,9 @@ const BudgetPlanning = React.lazy(() => import('./pages/Account/BudgetPlanning')
 const TaxManagement = React.lazy(() => import('./pages/Account/TaxManagement'));
 
 // Personal pages
-const PersonalIncome = React.lazy(() => import('./pages/Personal/Income'));
-const AddIncome = React.lazy(() => import('./pages/Personal/AddIncome'));
 const PersonalExpense = React.lazy(() => import('./pages/Personal/Expense'));
-const PersonalSavings = React.lazy(() => import('./pages/Personal/Savings'));
-const PersonalLoans = React.lazy(() => import('./pages/Personal/Loans'));
+const ExpenseCategoriesPage = React.lazy(() => import('./pages/Personal/ExpenseCategories'));
+const PersonalExpenseDetails = React.lazy(() => import('./pages/Personal/ExpenseDetails'));
 
 // Fly Oval Limited pages
 const FlyOvalDashboard = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.FlyOvalDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -169,15 +167,8 @@ const EditEmployee = React.lazy(() => import('./pages/OfficeManagement/HR Managm
 
 // Operating Expenses pages
 const OperatingExpenses = React.lazy(() => import('./pages/OfficeManagement/OperatingExpenses'));
-const AddExpense = React.lazy(() => import('./pages/OfficeManagement/AddExpense'));
-const LegalComplianceCosts = React.lazy(() => import('./pages/OfficeManagement/LegalComplianceCosts'));
-const MarketingBrandingExpenses = React.lazy(() => import('./pages/OfficeManagement/MarketingBrandingExpenses'));
-const ITSoftwareExpenses = React.lazy(() => import('./pages/OfficeManagement/ITSoftwareExpenses'));
-const FinancialBankCharges = React.lazy(() => import('./pages/OfficeManagement/FinancialBankCharges'));
-const AssetPurchases = React.lazy(() => import('./pages/OfficeManagement/AssetPurchases'));
-const MiscellaneousOperationalCosts = React.lazy(() => import('./pages/OfficeManagement/MiscellaneousOperationalCosts'));
-const TaxRegulatoryPayments = React.lazy(() => import('./pages/OfficeManagement/TaxRegulatoryPayments'));
-const RefundsReimbursements = React.lazy(() => import('./pages/OfficeManagement/RefundsReimbursements'));
+const AddCategory = React.lazy(() => import('./pages/OfficeManagement/AddCategory'));
+const OperatingExpenseDetails = React.lazy(() => import('./pages/OfficeManagement/OperatingExpenseDetails'));
 
 // Money Exchange pages
 const NewExchange = React.lazy(() => import('./pages/MoneyExchange/NewExchange'));
@@ -988,22 +979,6 @@ const router = createBrowserRouter([
     ),
     children: [
       {
-        path: "income",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <PersonalIncome />
-          </Suspense>
-        )
-      },
-          {
-            path: "income/add",
-            element: (
-              <Suspense fallback={<LoadingSpinner />}>
-                <AddIncome />
-              </Suspense>
-            )
-          },
-      {
         path: "expense",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1012,21 +987,22 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: "savings",
+        path: "expense-categories",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
-            <PersonalSavings />
+            <ExpenseCategoriesPage />
           </Suspense>
         )
       },
       {
-        path: "loans",
+        path: "expense-categories/:id",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
-            <PersonalLoans />
+            <PersonalExpenseDetails />
           </Suspense>
         )
-      }
+      },
+      
     ]
   },
   {
@@ -1209,77 +1185,22 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "operating-expenses/:categoryId",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <OperatingExpenseDetails />
+          </Suspense>
+        )
+      },
+      {
         path: "operating-expenses/add",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
-            <AddExpense />
+            <AddCategory />
           </Suspense>
         )
       },
-      {
-        path: "operating-expenses/legal-compliance",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <LegalComplianceCosts />
-          </Suspense>
-        )
-      },
-      {
-        path: "operating-expenses/marketing-branding",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <MarketingBrandingExpenses />
-          </Suspense>
-        )
-      },
-      {
-        path: "operating-expenses/it-software",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <ITSoftwareExpenses />
-          </Suspense>
-        )
-      },
-      {
-        path: "operating-expenses/financial-bank",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <FinancialBankCharges />
-          </Suspense>
-        )
-      },
-      {
-        path: "operating-expenses/asset-purchases",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <AssetPurchases />
-          </Suspense>
-        )
-      },
-      {
-        path: "operating-expenses/miscellaneous",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <MiscellaneousOperationalCosts />
-          </Suspense>
-        )
-      },
-      {
-        path: "operating-expenses/tax-regulatory",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <TaxRegulatoryPayments />
-          </Suspense>
-        )
-      },
-      {
-        path: "operating-expenses/refunds",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <RefundsReimbursements />
-          </Suspense>
-        )
-      }
+      
     ]
   },
   {

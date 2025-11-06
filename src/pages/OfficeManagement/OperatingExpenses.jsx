@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { 
   Scale, 
   Megaphone, 
@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { useOpExCategories } from '../../hooks';
 
 const OperatingExpenses = () => {
   const { isDark } = useTheme();
@@ -29,130 +30,24 @@ const OperatingExpenses = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
-  // Expense categories with their details
-  const expenseCategories = [
-    {
-      id: 'legal-compliance',
-      name: 'Legal and Compliance Costs',
-      banglaName: 'আইনি ও নিয়ন্ত্রণ খরচ',
-      icon: Scale,
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-      iconColor: 'text-blue-600 dark:text-blue-400',
-      description: 'RJSC, Trade License, VAT, Legal fees',
-      totalAmount: 125000,
-      lastUpdated: '2024-01-15',
-      itemCount: 12,
-      subcategories: [
-        'RJSC Registration',
-        'RJSC Renewals', 
-        'Trade Licenses',
-        'Trade Licenses Renewals',
-        'Civil Aviation Reg',
-        'Civil Aviation Reg Renewals',
-        'DPDT registration',
-        'Patent applications',
-        'CAAB challans',
-        'VAT registrations',
-        'Other permits',
-        'Payment Gateway',
-        'Legal',
-        'Notary',
-        'Consultancy fees'
-      ]
-    },
-    {
-      id: 'marketing-branding',
-      name: 'Marketing and Branding Expenses',
-      banglaName: 'বিপণন ও ব্র্যান্ডিং খরচ',
-      icon: Megaphone,
-      color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-      iconColor: 'text-purple-600 dark:text-purple-400',
-      description: 'Digital marketing, advertising, branding',
-      totalAmount: 85000,
-      lastUpdated: '2024-01-12',
-      itemCount: 8
-    },
-    {
-      id: 'it-software',
-      name: 'IT and Software Expenses',
-      banglaName: 'আইটি ও সফটওয়্যার খরচ',
-      icon: Laptop,
-      color: 'from-green-500 to-green-600',
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
-      iconColor: 'text-green-600 dark:text-green-400',
-      description: 'Software licenses, hardware, IT services',
-      totalAmount: 95000,
-      lastUpdated: '2024-01-14',
-      itemCount: 15
-    },
-    {
-      id: 'financial-bank',
-      name: 'Financial and Bank Charges',
-      banglaName: 'আর্থিক ও ব্যাংক চার্জ',
-      icon: CreditCard,
-      color: 'from-orange-500 to-orange-600',
-      bgColor: 'bg-orange-50 dark:bg-orange-900/20',
-      iconColor: 'text-orange-600 dark:text-orange-400',
-      description: 'Bank fees, transaction charges, interest',
-      totalAmount: 45000,
-      lastUpdated: '2024-01-16',
-      itemCount: 6
-    },
-    {
-      id: 'asset-purchases',
-      name: 'Asset Purchases',
-      banglaName: 'সম্পদ ক্রয়',
-      icon: Package,
-      color: 'from-indigo-500 to-indigo-600',
-      bgColor: 'bg-indigo-50 dark:bg-indigo-900/20',
-      iconColor: 'text-indigo-600 dark:text-indigo-400',
-      description: 'Office equipment, furniture, machinery',
-      totalAmount: 180000,
-      lastUpdated: '2024-01-10',
-      itemCount: 9
-    },
-    {
-      id: 'miscellaneous',
-      name: 'Miscellaneous Operational Costs',
-      banglaName: 'বিবিধ পরিচালন খরচ',
-      icon: Receipt,
-      color: 'from-pink-500 to-pink-600',
-      bgColor: 'bg-pink-50 dark:bg-pink-900/20',
-      iconColor: 'text-pink-600 dark:text-pink-400',
-      description: 'General office expenses, utilities',
-      totalAmount: 65000,
-      lastUpdated: '2024-01-13',
-      itemCount: 11
-    },
-    {
-      id: 'tax-regulatory',
-      name: 'Tax and Regulatory Payments',
-      banglaName: 'কর ও নিয়ন্ত্রণ পেমেন্ট',
-      icon: FileText,
-      color: 'from-red-500 to-red-600',
-      bgColor: 'bg-red-50 dark:bg-red-900/20',
-      iconColor: 'text-red-600 dark:text-red-400',
-      description: 'Income tax, VAT, regulatory fees',
-      totalAmount: 150000,
-      lastUpdated: '2024-01-11',
-      itemCount: 7
-    },
-    {
-      id: 'refunds-reimbursements',
-      name: 'Refunds and Reimbursements',
-      banglaName: 'প্রত্যর্পণ ও ক্ষতিপূরণ',
-      icon: RotateCcw,
-      color: 'from-teal-500 to-teal-600',
-      bgColor: 'bg-teal-50 dark:bg-teal-900/20',
-      iconColor: 'text-teal-600 dark:text-teal-400',
-      description: 'Customer refunds, employee reimbursements',
-      totalAmount: 35000,
-      lastUpdated: '2024-01-09',
-      itemCount: 5
-    }
-  ];
+  // Icon registry for persistence
+  const ICONS = { Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText };
+
+  const { data: apiCategories = [], isLoading } = useOpExCategories();
+
+  // Map API categories to include icon component for rendering
+  const expenseCategories = useMemo(() => {
+    return (apiCategories || []).map((c) => ({
+      ...c,
+      icon: (ICONS[c.iconKey] || FileText),
+      color: c.color || 'from-blue-500 to-blue-600',
+      bgColor: c.bgColor || 'bg-blue-50 dark:bg-blue-900/20',
+      iconColor: c.iconColor || 'text-blue-600 dark:text-blue-400',
+      totalAmount: typeof c.totalAmount === 'number' ? c.totalAmount : Number(c.totalAmount || 0),
+      itemCount: typeof c.itemCount === 'number' ? c.itemCount : Number(c.itemCount || 0),
+      lastUpdated: c.lastUpdated || new Date().toISOString(),
+    }));
+  }, [apiCategories]);
 
   // Filter categories based on search term
   const filteredCategories = expenseCategories.filter(category =>
@@ -162,13 +57,13 @@ const OperatingExpenses = () => {
   );
 
   // Calculate total expenses
-  const totalExpenses = expenseCategories.reduce((sum, category) => sum + category.totalAmount, 0);
+  const totalExpenses = expenseCategories.reduce((sum, category) => sum + (Number(category.totalAmount) || 0), 0);
 
   const handleCategoryClick = (categoryId) => {
     navigate(`/office-management/operating-expenses/${categoryId}`);
   };
 
-  const handleAddExpense = () => {
+  const handleAddCategory = () => {
     navigate('/office-management/operating-expenses/add');
   };
 
@@ -197,15 +92,15 @@ const OperatingExpenses = () => {
             </div>
             
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <button
-                onClick={handleAddExpense}
-                className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 text-sm sm:text-base"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Expense</span>
-                <span className="sm:hidden">Add</span>
-              </button>
-              
+            <button
+              onClick={handleAddCategory}
+              className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 text-sm sm:text-base"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">Add Category</span>
+              <span className="sm:hidden">Category</span>
+            </button>
+
               <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200 text-sm sm:text-base">
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Export</span>
@@ -321,7 +216,12 @@ const OperatingExpenses = () => {
 
         {/* Expense Categories Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-          {filteredCategories.map((category) => (
+          {isLoading && (
+            <div className={`p-6 rounded-xl shadow-lg border-2 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Loading categories...</p>
+            </div>
+          )}
+          {!isLoading && filteredCategories.map((category) => (
             <div
               key={category.id}
               onClick={() => handleCategoryClick(category.id)}
@@ -370,7 +270,7 @@ const OperatingExpenses = () => {
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                   <span>Last Updated</span>
-                  <span>{new Date(category.lastUpdated).toLocaleDateString()}</span>
+                  <span>{category.lastUpdated ? new Date(category.lastUpdated).toLocaleDateString() : '-'}</span>
                 </div>
               </div>
             </div>
@@ -378,7 +278,7 @@ const OperatingExpenses = () => {
         </div>
 
         {/* No Results */}
-        {filteredCategories.length === 0 && (
+        {!isLoading && filteredCategories.length === 0 && (
           <div className={`text-center py-8 sm:py-12 rounded-xl border transition-colors duration-300 ${
             isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
           }`}>

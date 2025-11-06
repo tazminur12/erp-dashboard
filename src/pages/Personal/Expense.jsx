@@ -1,517 +1,196 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  TrendingDown, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  DollarSign, 
-  Calendar,
-  Filter,
-  Search,
-  Download,
-  PieChart,
-  BarChart3,
-  Target,
-  Wallet,
-  CreditCard,
-  ShoppingCart,
-  Home,
-  Car,
-  Utensils,
-  Heart,
-  Book,
-  Gamepad2,
-  RefreshCw,
-  AlertTriangle
-} from 'lucide-react';
-import DataTable from '../../components/common/DataTable';
-import SmallStat from '../../components/common/SmallStat';
+import React from 'react';
+import Swal from 'sweetalert2';
+import { DollarSign, Utensils, Car, ShoppingCart, Gamepad2, Heart, Book, Home, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import usePersonalCategoryQueries from '../../hooks/usePersonalCategoryQueries';
 import { useTheme } from '../../contexts/ThemeContext';
 
+const iconMap = {
+  Utensils,
+  Car,
+  ShoppingCart,
+  Gamepad2,
+  Heart,
+  Book,
+  Home,
+  DollarSign
+};
+
+const colorPalette = {
+  sky: { from: '#E0F2FE', to: '#BAE6FD', border: '#93C5FD', iconFrom: '#E0F2FE', iconTo: '#BAE6FD', icon: '#0369A1' },
+  blue: { from: '#DBEAFE', to: '#BFDBFE', border: '#93C5FD', iconFrom: '#DBEAFE', iconTo: '#BFDBFE', icon: '#1D4ED8' },
+  red: { from: '#FEE2E2', to: '#FECACA', border: '#FCA5A5', iconFrom: '#FEE2E2', iconTo: '#FECACA', icon: '#B91C1C' },
+  green: { from: '#DCFCE7', to: '#BBF7D0', border: '#86EFAC', iconFrom: '#DCFCE7', iconTo: '#BBF7D0', icon: '#166534' },
+  yellow: { from: '#FEF9C3', to: '#FEF08A', border: '#FDE047', iconFrom: '#FEF9C3', iconTo: '#FEF08A', icon: '#854D0E' },
+  purple: { from: '#E9D5FF', to: '#DDD6FE', border: '#C4B5FD', iconFrom: '#E9D5FF', iconTo: '#DDD6FE', icon: '#6D28D9' },
+  pink: { from: '#FCE7F3', to: '#FBCFE8', border: '#F9A8D4', iconFrom: '#FCE7F3', iconTo: '#FBCFE8', icon: '#9D174D' },
+  orange: { from: '#FFEDD5', to: '#FED7AA', border: '#FDBA74', iconFrom: '#FFEDD5', iconTo: '#FED7AA', icon: '#9A3412' }
+};
+
+const colorPaletteDark = {
+  sky: { from: '#0B1E34', to: '#0F2F46', border: '#38BDF8', iconFrom: '#0EA5E9', iconTo: '#38BDF8', icon: '#E0F2FE' },
+  blue: { from: '#0B1E3A', to: '#0F2F6A', border: '#60A5FA', iconFrom: '#1D4ED8', iconTo: '#3B82F6', icon: '#DBEAFE' },
+  red: { from: '#3F0A0A', to: '#7F1D1D', border: '#F87171', iconFrom: '#DC2626', iconTo: '#EF4444', icon: '#FEE2E2' },
+  green: { from: '#062C1A', to: '#064E3B', border: '#4ADE80', iconFrom: '#16A34A', iconTo: '#22C55E', icon: '#DCFCE7' },
+  yellow: { from: '#422006', to: '#854D0E', border: '#FACC15', iconFrom: '#D97706', iconTo: '#F59E0B', icon: '#FEF9C3' },
+  purple: { from: '#2E1065', to: '#4C1D95', border: '#C4B5FD', iconFrom: '#7C3AED', iconTo: '#8B5CF6', icon: '#E9D5FF' },
+  pink: { from: '#500724', to: '#831843', border: '#F472B6', iconFrom: '#BE185D', iconTo: '#DB2777', icon: '#FCE7F3' },
+  orange: { from: '#451A03', to: '#7C2D12', border: '#FB923C', iconFrom: '#C2410C', iconTo: '#EA580C', icon: '#FFEDD5' }
+};
+
 const PersonalExpense = () => {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedExpense, setSelectedExpense] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const { usePersonalCategories, useDeletePersonalCategory } = usePersonalCategoryQueries();
+  const { data: categories = [], isLoading } = usePersonalCategories();
+  const deleteCategory = useDeletePersonalCategory();
 
-  // Mock data - replace with actual API calls
-  const [expenseData, setExpenseData] = useState([
-    {
-      id: 1,
-      category: 'Food & Dining',
-      subcategory: 'Restaurant',
-      amount: 2500,
-      description: 'Dinner at restaurant',
-      date: '2024-01-15',
-      paymentMethod: 'Credit Card',
-      status: 'Paid',
-      tags: ['dining', 'social']
-    },
-    {
-      id: 2,
-      category: 'Transportation',
-      subcategory: 'Fuel',
-      amount: 3000,
-      description: 'Car fuel',
-      date: '2024-01-16',
-      paymentMethod: 'Cash',
-      status: 'Paid',
-      tags: ['transport', 'car']
-    },
-    {
-      id: 3,
-      category: 'Shopping',
-      subcategory: 'Clothing',
-      amount: 4500,
-      description: 'New shirt and pants',
-      date: '2024-01-18',
-      paymentMethod: 'Debit Card',
-      status: 'Paid',
-      tags: ['clothing', 'personal']
-    },
-    {
-      id: 4,
-      category: 'Entertainment',
-      subcategory: 'Movies',
-      amount: 800,
-      description: 'Cinema tickets',
-      date: '2024-01-20',
-      paymentMethod: 'Credit Card',
-      status: 'Paid',
-      tags: ['entertainment', 'movies']
-    },
-    {
-      id: 5,
-      category: 'Healthcare',
-      subcategory: 'Medicine',
-      amount: 1200,
-      description: 'Prescription medicine',
-      date: '2024-01-22',
-      paymentMethod: 'Cash',
-      status: 'Paid',
-      tags: ['health', 'medicine']
-    }
-  ]);
+  const totals = React.useMemo(() => {
+    const grand = (categories || []).reduce((sum, c) => sum + Number(c.totalAmount || 0), 0);
+    const byName = {};
+    for (const c of categories) byName[c.name] = Number(c.totalAmount || 0);
+    return { grand, byName };
+  }, [categories]);
 
-  const [formData, setFormData] = useState({
-    category: '',
-    subcategory: '',
-    amount: '',
-    description: '',
-    date: '',
-    paymentMethod: '',
-    tags: '',
-    status: 'Paid'
-  });
-
-  // Expense categories with icons
-  const expenseCategories = {
-    'Food & Dining': { icon: Utensils, color: 'orange' },
-    'Transportation': { icon: Car, color: 'blue' },
-    'Shopping': { icon: ShoppingCart, color: 'purple' },
-    'Entertainment': { icon: Gamepad2, color: 'pink' },
-    'Healthcare': { icon: Heart, color: 'red' },
-    'Education': { icon: Book, color: 'green' },
-    'Utilities': { icon: Home, color: 'yellow' },
-    'Others': { icon: DollarSign, color: 'gray' }
-  };
-
-  // Calculate statistics
-  const totalExpenses = expenseData.reduce((sum, item) => sum + item.amount, 0);
-  const thisMonthExpenses = expenseData.filter(item => {
-    const itemDate = new Date(item.date);
-    const currentDate = new Date();
-    return itemDate.getMonth() === currentDate.getMonth() && itemDate.getFullYear() === currentDate.getFullYear();
-  }).reduce((sum, item) => sum + item.amount, 0);
-
-  const categoryExpenses = expenseData.reduce((acc, item) => {
-    acc[item.category] = (acc[item.category] || 0) + item.amount;
-    return acc;
-  }, {});
-
-  const topCategory = Object.keys(categoryExpenses).reduce((a, b) => 
-    categoryExpenses[a] > categoryExpenses[b] ? a : b, 'None'
-  );
-
-  // Table columns configuration
-  const columns = [
-    {
-      key: 'category',
-      header: 'Category',
-      sortable: true,
-      render: (value, item) => {
-        const categoryInfo = expenseCategories[value] || { icon: DollarSign, color: 'gray' };
-        const Icon = categoryInfo.icon;
-        return (
-          <div className="flex items-center space-x-2">
-            <div className={`w-8 h-8 bg-${categoryInfo.color}-100 dark:bg-${categoryInfo.color}-900/20 rounded-lg flex items-center justify-center`}>
-              <Icon className={`w-4 h-4 text-${categoryInfo.color}-600 dark:text-${categoryInfo.color}-400`} />
-            </div>
-            <div>
-              <span className="font-medium text-gray-900 dark:text-white">{value}</span>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{item.subcategory}</p>
-            </div>
-          </div>
-        );
-      }
-    },
-    {
-      key: 'amount',
-      header: 'Amount',
-      sortable: true,
-      render: (value) => (
-        <span className="font-semibold text-red-600 dark:text-red-400">
-          ৳{value.toLocaleString()}
-        </span>
-      )
-    },
-    {
-      key: 'description',
-      header: 'Description',
-      sortable: true,
-      render: (value) => (
-        <span className="text-gray-900 dark:text-white">{value}</span>
-      )
-    },
-    {
-      key: 'date',
-      header: 'Date',
-      sortable: true,
-      render: (value) => (
-        <div className="flex items-center space-x-2">
-          <Calendar className="w-4 h-4 text-gray-400" />
-          <span>{new Date(value).toLocaleDateString()}</span>
-        </div>
-      )
-    },
-    {
-      key: 'paymentMethod',
-      header: 'Payment Method',
-      sortable: true,
-      render: (value) => (
-        <div className="flex items-center space-x-2">
-          {value === 'Credit Card' || value === 'Debit Card' ? (
-            <CreditCard className="w-4 h-4 text-gray-400" />
-          ) : (
-            <Wallet className="w-4 h-4 text-gray-400" />
-          )}
-          <span>{value}</span>
-        </div>
-      )
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      render: (value) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          value === 'Paid' 
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-            : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-        }`}>
-          {value}
-        </span>
-      )
-    }
-  ];
-
-  const handleAddExpense = () => {
-    setSelectedExpense(null);
-    setFormData({
-      category: '',
-      subcategory: '',
-      amount: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      paymentMethod: 'Cash',
-      tags: '',
-      status: 'Paid'
+  const onDelete = async (name) => {
+    const res = await Swal.fire({
+      title: `Delete ${name}?`,
+      text: 'This action cannot be undone.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Delete'
     });
-    setShowAddModal(true);
-  };
-
-  const handleEditExpense = (expense) => {
-    setSelectedExpense(expense);
-    setFormData({
-      category: expense.category,
-      subcategory: expense.subcategory,
-      amount: expense.amount.toString(),
-      description: expense.description,
-      date: expense.date,
-      paymentMethod: expense.paymentMethod,
-      tags: expense.tags.join(', '),
-      status: expense.status
-    });
-    setShowEditModal(true);
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      if (selectedExpense) {
-        // Update existing expense
-        setExpenseData(prev => prev.map(item => 
-          item.id === selectedExpense.id 
-            ? { 
-                ...item, 
-                ...formData, 
-                amount: parseFloat(formData.amount),
-                tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-              }
-            : item
-        ));
-        setShowEditModal(false);
-      } else {
-        // Add new expense
-        const newExpense = {
-          id: Date.now(),
-          ...formData,
-          amount: parseFloat(formData.amount),
-          tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-        };
-        setExpenseData(prev => [...prev, newExpense]);
-        setShowAddModal(false);
-      }
-      
-      setLoading(false);
-      setFormData({
-        category: '',
-        subcategory: '',
-        amount: '',
-        description: '',
-        date: new Date().toISOString().split('T')[0],
-        paymentMethod: 'Cash',
-        tags: '',
-        status: 'Paid'
-      });
-    }, 1000);
-  };
-
-  const handleDeleteExpense = (expense) => {
-    if (window.confirm('Are you sure you want to delete this expense record?')) {
-      setExpenseData(prev => prev.filter(item => item.id !== expense.id));
+    if (!res.isConfirmed) return;
+    try {
+      await deleteCategory.mutateAsync({ name });
+      await Swal.fire({ icon: 'success', title: 'Deleted', timer: 900, showConfirmButton: false });
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Failed to delete category';
+      await Swal.fire({ icon: 'error', title: 'Error', text: message, confirmButtonColor: '#ef4444' });
     }
   };
 
   return (
     <div className="space-y-6 p-3 sm:p-4 lg:p-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
-            <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Personal Expenses
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Track and manage your personal expenses by category
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
-            <Download className="w-4 h-4" />
-            <span>Export</span>
-          </button>
-          <button 
-            onClick={handleAddExpense}
-            className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          <button
+            onClick={() => navigate(-1)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
           >
-            <Plus className="w-4 h-4" />
-            <span>Add Expense</span>
+            <ArrowLeft className="w-4 h-4" />
           </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Personal Expenses</h1>
+            <p className="text-gray-600 dark:text-gray-400">Track expenses by colorful categories</p>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/personal/expense-categories')}
+          className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Manage Categories</span>
+        </button>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="rounded-xl p-5 border" style={{ background: `linear-gradient(135deg, ${(isDark ? colorPaletteDark.sky : colorPalette.sky).from}, ${(isDark ? colorPaletteDark.sky : colorPalette.sky).to})`, borderColor: (isDark ? colorPaletteDark.sky : colorPalette.sky).border }}>
+          <p className="text-sm text-gray-700/90 dark:text-gray-200">Total Amount</p>
+          <p className="mt-1 text-3xl font-black text-gray-900 dark:text-white">৳{Number(totals.grand || 0).toLocaleString()}</p>
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <SmallStat
-          label="Total Expenses"
-          value={`৳${totalExpenses.toLocaleString()}`}
-          icon={DollarSign}
-          color="red"
-        />
-        <SmallStat
-          label="This Month"
-          value={`৳${thisMonthExpenses.toLocaleString()}`}
-          icon={Calendar}
-          color="blue"
-        />
-        <SmallStat
-          label="Top Category"
-          value={topCategory}
-          icon={PieChart}
-          color="purple"
-        />
-        <SmallStat
-          label="Avg. Daily"
-          value={`৳${Math.round(thisMonthExpenses / 30).toLocaleString()}`}
-          icon={Target}
-          color="yellow"
-        />
-      </div>
-
-      {/* Data Table */}
-      <DataTable
-        data={expenseData}
-        columns={columns}
-        searchable={true}
-        exportable={true}
-        actions={true}
-        onEdit={handleEditExpense}
-        onDelete={handleDeleteExpense}
-      />
-
-      {/* Add/Edit Modal */}
-      {(showAddModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {selectedExpense ? 'Edit Expense' : 'Add Expense'}
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setShowEditModal(false);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  ×
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Category <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    required
-                  >
-                    <option value="">Select Category</option>
-                    {Object.keys(expenseCategories).map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Subcategory
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.subcategory}
-                    onChange={(e) => setFormData({ ...formData, subcategory: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    placeholder="e.g., Restaurant, Fuel, Clothing"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Amount <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    placeholder="0"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    placeholder="Brief description of the expense"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Date <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Payment Method
-                  </label>
-                  <select
-                    value={formData.paymentMethod}
-                    onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                  >
-                    <option value="Cash">Cash</option>
-                    <option value="Credit Card">Credit Card</option>
-                    <option value="Debit Card">Debit Card</option>
-                    <option value="Digital Wallet">Digital Wallet</option>
-                    <option value="Bank Transfer">Bank Transfer</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tags
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.tags}
-                    onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                    placeholder="Separate tags with commas (e.g., dining, social)"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setShowEditModal(false);
-                    }}
-                    className="px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center space-x-2"
-                  >
-                    {loading && <RefreshCw className="w-4 h-4 animate-spin" />}
-                    <span>{selectedExpense ? 'Update' : 'Add'} Expense</span>
-                  </button>
-                </div>
-              </form>
-            </div>
+      {/* Categories */}
+      {!isLoading && categories.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-xl border border-gray-100 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">Categories</h3>
+            <button
+              onClick={() => navigate('/personal/expense-categories')}
+              className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Manage
+            </button>
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {categories.map((c) => {
+              const name = c.name;
+              const colorKey = c.color && c.color !== 'gray' ? c.color : 'sky';
+              const pal = (isDark ? colorPaletteDark : colorPalette)[colorKey] || (isDark ? colorPaletteDark.sky : colorPalette.sky);
+              const Icon = iconMap[c.icon] || DollarSign;
+              const totalForCategory = Number(c.totalAmount || 0);
+              const percent = totals.grand > 0 ? Math.min(100, Math.round((totalForCategory / totals.grand) * 100)) : 0;
+
+              return (
+                <div
+                  key={name}
+                  className="rounded-2xl p-5 border-2 transition-all duration-200 hover:shadow-2xl hover:scale-[1.01]"
+                  style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, borderColor: pal.border }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center ring-2 shadow-lg"
+                      style={{ background: `linear-gradient(135deg, ${pal.iconFrom}, ${pal.iconTo})`, boxShadow: '0 10px 20px rgba(0,0,0,0.06)', borderColor: pal.border }}
+                    >
+                      <Icon className="w-6 h-6" style={{ color: pal.icon }} />
+                    </div>
+                    <button
+                      onClick={() => onDelete(name)}
+                      className="text-red-600 hover:text-red-700"
+                      title="Delete category"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-base font-bold text-gray-900 dark:text-white">{name}</h4>
+                      <button
+                        onClick={() => c.id && navigate(`/personal/expense-categories/${c.id}`)}
+                        className="text-xs px-2.5 py-1 rounded-full border text-gray-800 bg-white/70 hover:bg-white"
+                        style={{ borderColor: pal.border }}
+                        title="View details"
+                      >
+                        View
+                      </button>
+                    </div>
+
+                    {c.description && (
+                      <p className="text-xs text-gray-700/90 dark:text-gray-300 mt-1 line-clamp-1">{c.description}</p>
+                    )}
+
+                    {c.lastUpdated && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Updated: {new Date(c.lastUpdated).toLocaleDateString()}</p>
+                    )}
+
+                    <div className="mt-3">
+                      <p className="text-xs text-gray-700/90 dark:text-gray-300">Total</p>
+                      <p className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">৳{totalForCategory.toLocaleString()}</p>
+                      <div className="mt-2 h-2 rounded-full overflow-hidden" style={{ background: '#FFFFFF80' }}>
+                        <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: `linear-gradient(90deg, ${pal.border}, ${pal.icon})` }} />
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-gray-700/80">{percent}% of total</span>
+                        <span className="text-xs text-gray-700/80">৳{Number(totals.grand || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!isLoading && categories.length === 0 && (
+        <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
+          <p className="text-sm text-amber-800 dark:text-amber-200">No personal expense categories found. Create categories to start tracking expenses.</p>
+          <button onClick={() => navigate('/personal/expense-categories')} className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700">Manage Categories</button>
         </div>
       )}
     </div>
@@ -519,3 +198,5 @@ const PersonalExpense = () => {
 };
 
 export default PersonalExpense;
+
+

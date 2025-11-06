@@ -248,11 +248,7 @@ export const navigation = [
     name: 'Personal',
     icon: User,
     children: [
-      { name: 'Personal Income', href: '/personal/income', icon: TrendingUp },
-      { name: 'Add Personal Income', href: '/personal/income/add', icon: Plus },
-      { name: 'Personal Expense', href: '/personal/expense', icon: TrendingDown },
-      { name: 'Personal Savings', href: '/personal/savings', icon: PiggyBank },
-      { name: 'Personal Loans', href: '/personal/loans', icon: Calculator }
+      { name: 'Personal Expense', href: '/personal/expense', icon: TrendingDown }
     ]
   },
   {

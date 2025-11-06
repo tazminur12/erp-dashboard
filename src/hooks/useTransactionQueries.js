@@ -18,6 +18,84 @@ export const transactionKeys = {
   vendors: () => [...transactionKeys.all, 'vendors'],
 };
 
+// ==================== PERSONAL EXPENSE via /api/transactions/personal-expense ====================
+const normalizePersonalExpenseTxV2 = (doc) => ({
+  id: String(doc._id || doc.id || ''),
+  date: doc.date || new Date().toISOString().slice(0, 10),
+  amount: Number(doc.amount || 0),
+  categoryId: String(doc.categoryId || ''),
+  categoryName: String(doc.categoryName || ''),
+  description: String(doc.description || ''),
+  tags: Array.isArray(doc.tags) ? doc.tags : [],
+  createdAt: doc.createdAt || null,
+});
+
+const personalExpenseV2Keys = {
+  all: ['personal-expense-transactions-v2'],
+  list: (filters) => [...personalExpenseV2Keys.all, { filters }],
+};
+
+export const usePersonalExpenseTransactionsV2 = (filters = {}) => {
+  const axiosSecure = useAxiosSecure();
+  return useQuery({
+    queryKey: personalExpenseV2Keys.list(filters),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.from) params.append('from', String(filters.from));
+      if (filters.to) params.append('to', String(filters.to));
+      if (filters.categoryId) params.append('categoryId', String(filters.categoryId));
+      const qs = params.toString();
+      const url = qs ? `/api/transactions/personal-expense?${qs}` : '/api/transactions/personal-expense';
+      const { data } = await axiosSecure.get(url);
+      const list = Array.isArray(data) ? data : [];
+      return list.map(normalizePersonalExpenseTxV2);
+    },
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+  });
+};
+
+export const useCreatePersonalExpenseTransactionV2 = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ date, amount, categoryId, description = '', tags = [] }) => {
+      const payload = {
+        // Ensure yyyy-mm-dd format to match backend (which slices internally as well)
+        date: (date ? String(date) : new Date().toISOString().slice(0, 10)).slice(0, 10),
+        amount: Number(amount || 0),
+        categoryId: String(categoryId || ''),
+        description: String(description || ''),
+        tags: Array.isArray(tags) ? tags.map((t) => String(t)).filter(Boolean) : [],
+      };
+      const { data } = await axiosSecure.post('/api/transactions/personal-expense', payload);
+      return normalizePersonalExpenseTxV2(data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: personalExpenseV2Keys.all });
+      queryClient.invalidateQueries({ queryKey: ['personal-expense-categories'] });
+    },
+  });
+};
+
+export const useDeletePersonalExpenseTransactionV2 = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id }) => {
+      if (!id) throw new Error('Transaction id is required');
+      await axiosSecure.delete(`/api/transactions/personal-expense/${id}`);
+      return { id };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: personalExpenseV2Keys.all });
+      queryClient.invalidateQueries({ queryKey: ['personal-expense-categories'] });
+    },
+  });
+};
+
+// (removed personal expense transaction client APIs as requested)
+
 // Hook to fetch transactions with filters and pagination
 export const useTransactions = (filters = {}, page = 1, limit = 10) => {
   const axiosSecure = useAxiosSecure();
@@ -30,6 +108,10 @@ export const useTransactions = (filters = {}, page = 1, limit = 10) => {
         page: page.toString(),
         limit: limit.toString()
       });
+
+      // New: special branch support (personal-expense) and general filters
+      if (filters.scope) params.append('scope', String(filters.scope));
+      if (filters.categoryId) params.append('categoryId', String(filters.categoryId));
 
       if (filters.partyType) params.append('partyType', String(filters.partyType));
       if (filters.partyId) params.append('partyId', String(filters.partyId));
@@ -61,8 +143,8 @@ export const useTransactions = (filters = {}, page = 1, limit = 10) => {
         }
       }
       // Direct date values
-      if (filters.dateFrom) params.append('fromDate', filters.dateFrom);
-      if (filters.dateTo) params.append('toDate', filters.dateTo);
+      if (filters.dateFrom) params.append('fromDate', String(filters.dateFrom).slice(0, 10));
+      if (filters.dateTo) params.append('toDate', String(filters.dateTo).slice(0, 10));
 
       // Text search
       if (filters.search) params.append('q', String(filters.search));

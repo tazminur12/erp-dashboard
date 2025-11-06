@@ -33,6 +33,7 @@ import {
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import usePersonalCategoryQueries from '../../hooks/usePersonalCategoryQueries';
 import { 
   useCreateTransaction,
   useCompleteTransaction,
@@ -44,7 +45,8 @@ import {
   useSearchAgents,
   useSearchVendors,
   useTransactionStats,
-  useBankAccountTransfer
+    useBankAccountTransfer,
+    useCreatePersonalExpenseTransactionV2
 } from '../../hooks/useTransactionQueries';
 import { transactionKeys } from '../../hooks/useTransactionQueries';
 import { useQueryClient } from '@tanstack/react-query';
@@ -68,6 +70,7 @@ const NewTransaction = () => {
   const createTransactionMutation = useCreateTransaction();
   const completeTransactionMutation = useCompleteTransaction();
   const bankAccountTransferMutation = useBankAccountTransfer();
+  const createPersonalExpenseTxV2 = useCreatePersonalExpenseTransactionV2();
   const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
   const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
   
@@ -108,6 +111,9 @@ const NewTransaction = () => {
   const effectiveCustomers = customers && customers.length > 0 ? customers : demoCustomers;
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useTransactionCategories();
   const { data: transactionsData } = useTransactions({}, 1, 1000); // Fetch all transactions for balance calculation
+  // Personal expense categories
+  const { usePersonalCategories } = usePersonalCategoryQueries();
+  const { data: personalExpenseCategories = [], isLoading: personalCatsLoading } = usePersonalCategories();
   
   // Haji and Umrah queries
   const { data: hajiData, isLoading: hajiLoading, error: hajiError } = useHajiList({ page: 1, limit: 1000 });
@@ -799,8 +805,11 @@ const NewTransaction = () => {
             }
             break;
           case 3:
-            if (!formData.customerId) {
-              newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
+            // For personal expense flow, customer selection is not required
+            if (selectedSearchType !== 'personal') {
+              if (!formData.customerId) {
+                newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
+              }
             }
             break;
           case 4:
@@ -1016,6 +1025,107 @@ const NewTransaction = () => {
           
           // Reset form after successful submission
           resetForm();
+        }
+      });
+
+      return;
+    }
+
+    // Personal Expense (debit-only) short-circuit
+    if (formData.transactionType === 'debit' && selectedSearchType === 'personal') {
+      const amountNum = parseFloat(formData?.paymentDetails?.amount || '0');
+      if (!(amountNum > 0)) {
+        setErrors(prev => ({ ...prev, amount: 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে' }));
+        return;
+      }
+
+      // Ensure a source account is selected so bank balance can be updated
+      if (!formData?.sourceAccount?.id) {
+        setErrors(prev => ({ ...prev, sourceAccount: 'সোর্স একাউন্ট নির্বাচন করুন' }));
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'সোর্স একাউন্ট নির্বাচন করুন',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2'
+        });
+        return;
+      }
+
+      // Resolve selected personal category id by name
+      const selectedPersonalCat = (personalExpenseCategories || []).find(c => String(c.name) === String(formData.category));
+      const categoryId = selectedPersonalCat?.id ? String(selectedPersonalCat.id) : '';
+      if (!categoryId) {
+        setErrors(prev => ({ ...prev, category: 'ব্যক্তিগত ব্যয়ের জন্য ক্যাটাগরি নির্বাচন করুন' }));
+        return;
+      }
+
+      const payload = {
+        date: formData.date,
+        amount: amountNum,
+        categoryId,
+        description: formData.notes || '',
+        tags: [],
+      };
+
+      createPersonalExpenseTxV2.mutate(payload, {
+        onSuccess: () => {
+          // Also create a bank account transaction to update balance
+          const description = `Personal Expense - ${formData.category || 'N/A'}`;
+          const reference = formData.paymentDetails?.reference || `PE-${Date.now()}`;
+          createBankAccountTransactionMutation.mutate(
+            {
+              id: formData.sourceAccount.id,
+              transactionType: 'debit',
+              amount: amountNum,
+              // Include category so Transactions list shows selected personal category
+              category: formData.category || undefined,
+              // Also embed under paymentDetails for broader compatibility with list renderers
+              paymentDetails: { ...(formData.paymentDetails || {}), category: formData.category || undefined },
+              description,
+              reference,
+              createdBy: userProfile?.email || 'unknown_user',
+              branchId: userProfile?.branchId || 'main_branch',
+              notes: formData.notes || ''
+            },
+            {
+              onSuccess: () => {
+                Swal.fire({
+                  title: 'সফল!',
+                  text: 'পার্সোনাল ব্যয় এবং ব্যাংক ব্যালেন্স আপডেট হয়েছে',
+                  icon: 'success',
+                  confirmButtonText: 'ঠিক আছে',
+                  confirmButtonColor: '#10B981',
+                  background: isDark ? '#1F2937' : '#F9FAFB'
+                });
+                resetForm();
+              },
+              onError: (error) => {
+                const message = error?.response?.data?.error || error?.message || 'ব্যাংক ব্যালেন্স আপডেট করতে সমস্যা হয়েছে।';
+                Swal.fire({
+                  title: 'সতর্কতা!',
+                  text: `ব্যয় সংরক্ষিত হয়েছে, কিন্তু ব্যাংক আপডেট হয়নি: ${message}`,
+                  icon: 'warning',
+                  confirmButtonText: 'ঠিক আছে',
+                  confirmButtonColor: '#F59E0B',
+                  background: isDark ? '#1F2937' : '#FEF2F2'
+                });
+                resetForm();
+              }
+            }
+          );
+        },
+        onError: (error) => {
+          const message = error?.response?.data?.message || error?.message || 'ট্রানজেকশন সংরক্ষণ করতে সমস্যা হয়েছে।';
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: message,
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+            background: isDark ? '#1F2937' : '#FEF2F2'
+          });
         }
       });
 
@@ -2058,7 +2168,7 @@ const NewTransaction = () => {
                 <div className="max-w-4xl mx-auto">
                   {/* Type Selector */}
                   <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
-                    {['customer','vendor','agent','haji','umrah','loans'].map((type) => (
+                    {['customer','vendor','agent','haji','umrah','loans','personal'].map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -2073,7 +2183,11 @@ const NewTransaction = () => {
                          type === 'vendor' ? 'Vendor' : 
                          type === 'agent' ? 'Agent' :
                          type === 'haji' ? 'Haji' :
-                         type === 'umrah' ? 'Umrah' : 'Loans'}
+                         type === 'umrah' ? 'Umrah' :
+                         type === 'loans' ? 'Loans' : 
+                         type === 'personal' ? 'Personal Expense' :
+                         'কোন ডেটা নেই'
+                         }
                       </button>
                     ))}
                   </div>
@@ -2435,13 +2549,50 @@ const NewTransaction = () => {
                         </div>
                       </button>
                       ))
+                      ) : selectedSearchType === 'personal' ? (
+                      // Personal Expense Categories
+                      <div className="max-w-4xl mx-auto w-full">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">Personal Expense Categories</h3>
+                          {personalCatsLoading && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>
+                          )}
+                        </div>
+                        {personalCatsLoading ? (
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                            <span className="ml-2 text-gray-600 dark:text-gray-400">লোড হচ্ছে...</span>
+                          </div>
+                        ) : personalExpenseCategories.length === 0 ? (
+                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোনো পার্সোনাল ক্যাটাগরি নেই</div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2">
+                            {personalExpenseCategories.map((cat) => (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, category: prev.category === cat.name ? '' : cat.name }))}
+                                className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                                  formData.category === cat.name
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-blue-400'
+                                }`}
+                                title={cat.name}
+                              >
+                                {cat.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                         {selectedSearchType === 'customer' ? (searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই') : 
                          selectedSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 
                          selectedSearchType === 'agent' ? 'কোন এজেন্ট পাওয়া যায়নি' :
                          selectedSearchType === 'haji' ? (searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই') :
-                         (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই')}
+                         selectedSearchType === 'umrah' ? (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই') :
+                         'কোন ডেটা নেই'}
                       </div>
                     )}
                   </div>
@@ -4497,7 +4648,7 @@ const NewTransaction = () => {
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center mt-6">
                     <button
                       onClick={handleSubmit}
-                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending}
+                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending || createPersonalExpenseTxV2.isPending}
                       className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
                       {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending) ? (
@@ -4755,7 +4906,7 @@ const NewTransaction = () => {
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                     <button
                       onClick={handleSubmit}
-                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending}
+                      disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending || createPersonalExpenseTxV2.isPending}
                       className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
                       {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || bankAccountTransferMutation.isPending) ? (
@@ -5371,7 +5522,7 @@ const NewTransaction = () => {
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
                   <button
                     onClick={handleSubmit}
-                    disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending}
+                    disabled={createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending || createPersonalExpenseTxV2.isPending}
                     className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-blue-400 disabled:to-purple-400 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                   >
                     {(createTransactionMutation.isPending || createBankAccountTransactionMutation.isPending) ? (

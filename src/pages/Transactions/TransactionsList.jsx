@@ -158,15 +158,39 @@ const TransactionsList = () => {
   const formatDate = (dateString) => formatDateShared(dateString);
 
   // Data access helpers with fallbacks for varying backend shapes
-  const getCustomerName = (t) => (
-    t.customerName ||
-    t.customer?.name ||
-    t.partyName ||
-    t.party?.name ||
-    t.customer?.fullName ||
-    t.customer?.customerName ||
-    'N/A'
-  );
+  // Detect personal expense bank-account transactions created from the debit flow
+  const isPersonalExpenseTxn = (t) => {
+    try {
+      const desc = (t.description || t.details || '').toString();
+      if (/^Personal\s+Expense/i.test(desc)) return true;
+      if (Array.isArray(t.tags) && t.tags.some(tag => String(tag).toLowerCase().includes('personal'))) return true;
+      if ((t.category === 'Bank Transaction' || !t.category) && t.paymentDetails?.category) return true;
+    } catch (e) { /* ignore */ }
+    return false;
+  };
+
+  const getCustomerName = (t) => {
+    if (isPersonalExpenseTxn(t)) {
+      const desc = (t.description || t.details || '').toString();
+      const match = desc.match(/Personal\s+Expense\s*-\s*(.+)/i);
+      const fromDescription = match?.[1]?.trim();
+      return t.paymentDetails?.category || fromDescription || 'Personal Expense';
+    }
+    return (
+      t.customerName ||
+      t.customer?.name ||
+      t.partyName ||
+      t.party?.name ||
+      t.customer?.fullName ||
+      t.customer?.customerName ||
+      'N/A'
+    );
+  };
+
+  const getCustomerPhone = (t) => {
+    if (isPersonalExpenseTxn(t)) return '';
+    return t.customerPhone || t.customer?.phone || t.party?.phone || '';
+  };
 
   const subCategoryIndex = useMemo(() => {
     // Build a quick ID->name map for all known subcategories
@@ -197,6 +221,14 @@ const TransactionsList = () => {
   }, [apiCategories]);
 
   const getCategory = (t) => {
+    // If this is a personal expense entry created via bank-account transaction,
+    // prefer showing the selected personal category.
+    if (isPersonalExpenseTxn(t)) {
+      const desc = (t.description || t.details || '').toString();
+      const match = desc.match(/Personal\s+Expense\s*-\s*(.+)/i);
+      const fromDescription = match?.[1]?.trim();
+      return fromDescription || t.paymentDetails?.category || 'Personal Expense';
+    }
     // Support multiple shapes
     if (t.category && typeof t.category === 'object') {
       return t.category.name || t.category.label || t.category.title || t.category.categoryName || 'N/A';
@@ -939,9 +971,11 @@ const TransactionsList = () => {
                           <div className="text-sm font-semibold text-gray-900 dark:text-white">
                           {getCustomerName(transaction)}
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {transaction.customerPhone}
-                          </div>
+                          {!!getCustomerPhone(transaction) && (
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {getCustomerPhone(transaction)}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
