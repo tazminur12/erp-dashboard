@@ -59,6 +59,7 @@ import { useUmrahList } from '../../hooks/UseUmrahQuries';
 import { useLoans } from '../../hooks/useLoanQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import Swal from 'sweetalert2';
+import { useFarmExpenses, useFarmIncomes } from '../../hooks/useFinanceQueries';
 
 const NewTransaction = () => {
   const { isDark } = useTheme();
@@ -123,6 +124,9 @@ const NewTransaction = () => {
   const accountQueries = useAccountQueries();
   const createBankAccountTransactionMutation = accountQueries.useCreateBankAccountTransaction();
   const transferBetweenAccountsMutation = accountQueries.useTransferBetweenAccounts();
+  // Settings categories (CategoryManagement) for Miraj tab
+  const categoryQueries = useCategoryQueries();
+  const { data: settingsCategories = [], isLoading: settingsCategoriesLoading } = (categoryQueries && categoryQueries.useCategories) ? categoryQueries.useCategories() : { data: [], isLoading: false };
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -325,6 +329,10 @@ const NewTransaction = () => {
     50
   );
   const loansSearch = (loansSearchData && (loansSearchData.loans || loansSearchData.data || [])) || [];
+  
+  // Miraj Industries finance lists (positioned after selectedSearchType/searchTerm declarations)
+  const { data: mirajExpenses = [], isLoading: mirajExpensesLoading } = useFarmExpenses({ search: selectedSearchType === 'miraj' ? (searchTerm || '') : '' });
+  const { data: mirajIncomes = [], isLoading: mirajIncomesLoading } = useFarmIncomes({ search: selectedSearchType === 'miraj' ? (searchTerm || '') : '' });
   
   // Payment methods
   const paymentMethods = [
@@ -805,8 +813,8 @@ const NewTransaction = () => {
             }
             break;
           case 3:
-            // For personal expense flow, customer selection is not required
-            if (selectedSearchType !== 'personal') {
+            // For personal expense or Miraj Industries flow, customer selection is not required
+            if (selectedSearchType !== 'personal' && selectedSearchType !== 'miraj') {
               if (!formData.customerId) {
                 newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
               }
@@ -2168,7 +2176,7 @@ const NewTransaction = () => {
                 <div className="max-w-4xl mx-auto">
                   {/* Type Selector */}
                   <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
-                    {['customer','vendor','agent','haji','umrah','loans','personal'].map((type) => (
+                    {['customer','vendor','agent','haji','umrah','loans','personal','miraj'].map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -2186,6 +2194,7 @@ const NewTransaction = () => {
                          type === 'umrah' ? 'Umrah' :
                          type === 'loans' ? 'Loans' : 
                          type === 'personal' ? 'Personal Expense' :
+                         type === 'miraj' ? 'Miraj Industries' :
                          'কোন ডেটা নেই'
                          }
                       </button>
@@ -2210,7 +2219,9 @@ const NewTransaction = () => {
                           ? 'হাজি খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
                           : selectedSearchType === 'umrah'
                           ? 'উমরাহ খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
-                          : 'লোন খুঁজুন... (আইডি/নাম)'
+                          : selectedSearchType === 'loans'
+                          ? 'লোন খুঁজুন... (আইডি/নাম)'
+                          : 'Miraj Industries – ক্যাটাগরি/অপশন খুঁজুন'
                       }
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -2496,6 +2507,65 @@ const NewTransaction = () => {
                         ))
                       ) : (
                         <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন লোন পাওয়া যায়নি</div>
+                      )
+                    ) : selectedSearchType === 'miraj' ? (
+                      // Miraj Industries: show incomes for credit, expenses for debit
+                      (
+                        formData.transactionType === 'credit' ? mirajIncomes : mirajExpenses
+                      ).length > 0 ? (
+                        (
+                          formData.transactionType === 'credit' ? mirajIncomes : mirajExpenses
+                        )
+                          .map((item) => (
+                            <button
+                              key={`miraj-${item.id}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCustomerSelect({
+                                  id: item.id,
+                                  name: formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense'),
+                                  customerType: formData.transactionType === 'credit' ? 'miraj-income' : 'miraj-expense'
+                                });
+                              }}
+                              className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
+                                formData.customerId === item.id
+                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                  : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                  <div className={`w-8 h-8 sm:w-10 sm:h-10 ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'} rounded-full flex items-center justify-center flex-shrink-0`}>
+                                    <Receipt className={`w-4 h-4 ${formData.transactionType === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                                  </div>
+                                  <div className="text-left min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                        {formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense')}
+                                      </h3>
+                                      <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
+                                        {formData.transactionType === 'credit' ? 'Income' : 'Expense'}
+                                      </span>
+                                    </div>
+                                    {item.description && (
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{item.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                {typeof item.amount !== 'undefined' && (
+                                  <div className="text-right">
+                                    <p className={`text-sm font-semibold ${formData.transactionType === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                      {formData.transactionType === 'credit' ? '+' : '-'}৳{Number(item.amount || 0).toLocaleString()}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন ডেটা নেই</div>
                       )
                     ) : filteredCustomers.length > 0 ? (
                       filteredCustomers.map((customer) => (

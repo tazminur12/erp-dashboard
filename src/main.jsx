@@ -117,6 +117,10 @@ const HealthRecords = React.lazy(() => import('./pages/MirajIndustries').then(mo
 const BreedingRecords = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.BreedingRecords })).catch(() => ({ default: () => <div>Component not found</div> })));
 const FinancialReport = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.FinancialReport })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EmployeeManagement = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.EmployeeManagement })).catch(() => ({ default: () => <div>Component not found</div> })));
+const ExpenseDetailsMI = React.lazy(() => import('./pages/MirajIndustries/ExpenseDetails'));
+const IncomeDetailsMI = React.lazy(() => import('./pages/MirajIndustries/IncomeDetails'));
+const ExpenseEditMI = React.lazy(() => import('./pages/MirajIndustries/ExpenseEdit'));
+const IncomeEditMI = React.lazy(() => import('./pages/MirajIndustries/IncomeEdit'));
 const CattleDetails = React.lazy(() => import('./pages/MirajIndustries/CattleDetails'));
 const EmployeeDetails = React.lazy(() => import('./pages/MirajIndustries/EmployeeDetails'));
 
@@ -845,6 +849,38 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <FinancialReport />
+          </Suspense>
+        )
+      },
+      {
+        path: "expense/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ExpenseDetailsMI />
+          </Suspense>
+        )
+      },
+      {
+        path: "expense/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ExpenseEditMI />
+          </Suspense>
+        )
+      },
+      {
+        path: "income/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <IncomeDetailsMI />
+          </Suspense>
+        )
+      },
+      {
+        path: "income/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <IncomeEditMI />
           </Suspense>
         )
       },

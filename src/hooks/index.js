@@ -15,6 +15,7 @@ export * from './UseAgentPacakageQueries';
 export * from './DashboardQueries';
 export * from './useLoanQueries';
 export * from './useOperatingExpensenQuries';
+export * from './useFinanceQueries';
 // Re-export for convenience
 export { default as Axios } from './Axios';
 export { default as UseAxiosSecure } from './UseAxiosSecure';
