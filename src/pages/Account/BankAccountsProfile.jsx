@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -21,11 +21,16 @@ import {
   Globe,
   Download,
   Share2,
-  MoreVertical
+  MoreVertical,
+  Hash,
+  Loader2
 } from 'lucide-react';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import SmallStat from '../../components/common/SmallStat';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import Swal from 'sweetalert2';
 
 // Transaction History Component
 const TransactionHistory = ({ accountId }) => {
@@ -222,7 +227,8 @@ const BankAccountsProfile = () => {
     useBankAccount, 
     useDeleteBankAccount, 
     useAdjustBankAccountBalance,
-    useCreateBankAccountTransaction
+    useCreateBankAccountTransaction,
+    useBankAccountTransactions
   } = useAccountQueries();
   
   const { data: bankAccount, isLoading, error } = useBankAccount(id);
@@ -232,6 +238,7 @@ const BankAccountsProfile = () => {
 
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [balanceData, setBalanceData] = useState({
     amount: '',
     note: '',
@@ -248,6 +255,55 @@ const BankAccountsProfile = () => {
     createdBy: 'SYSTEM',
     branchId: 'BRANCH001'
   });
+  const statementRef = useRef(null);
+  const { data: statementTransactionsData } = useBankAccountTransactions(id, { page: 1, limit: 50 });
+  const transactions = statementTransactionsData?.transactions ?? [];
+
+  const totals = useMemo(() => {
+    const deposits = transactions
+      .filter(tx => tx.transactionType === 'credit')
+      .reduce((sum, tx) => sum + (tx.paymentDetails?.amount || tx.amount || 0), 0);
+    const withdrawals = transactions
+      .filter(tx => tx.transactionType === 'debit')
+      .reduce((sum, tx) => sum + (tx.paymentDetails?.amount || tx.amount || 0), 0);
+
+    const closingBalance = bankAccount?.currentBalance ?? 0;
+    const openingBalance = bankAccount?.initialBalance ?? (closingBalance - deposits + withdrawals);
+
+    const sortedDates = transactions
+      .map(tx => new Date(tx.date))
+      .filter(date => !Number.isNaN(date.getTime()))
+      .sort((a, b) => a - b);
+
+    const periodStart = sortedDates[0] || (bankAccount?.createdAt ? new Date(bankAccount.createdAt) : null);
+    const periodEnd = sortedDates[sortedDates.length - 1] || (bankAccount?.updatedAt ? new Date(bankAccount.updatedAt) : new Date());
+
+    return {
+      deposits,
+      withdrawals,
+      openingBalance,
+      closingBalance,
+      periodStart,
+      periodEnd
+    };
+  }, [transactions, bankAccount]);
+
+  const formatCurrency = (value) => {
+    if (!bankAccount?.currency) {
+      return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return `${bankAccount.currency} ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '';
+    const date = value instanceof Date ? value : new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
 
   const handleEditAccount = () => {
     navigate(`/account/edit-bank-account/${id}`);
@@ -286,6 +342,62 @@ const BankAccountsProfile = () => {
       branchId: 'BRANCH001'
     });
     setIsTransactionModalOpen(true);
+  };
+
+  const handleDownloadStatement = async () => {
+    if (!statementRef.current || isGeneratingPdf) {
+      return;
+    }
+
+    try {
+      setIsGeneratingPdf(true);
+      const canvas = await html2canvas(statementRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#FFFFFF'
+      });
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+
+      let heightLeft = pdfHeight;
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - pdfHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const fileName = `bank-statement-${bankAccount?.accountNumber || id || 'account'}.pdf`;
+      pdf.save(fileName);
+
+      Swal.fire({
+        title: 'সফল!',
+        text: 'ব্যাংক স্টেটমেন্ট সফলভাবে ডাউনলোড হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981'
+      });
+    } catch (error) {
+      console.error('Statement generation failed:', error);
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'স্টেটমেন্ট তৈরি করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444'
+      });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const handleBalanceSubmit = async (e) => {
@@ -361,6 +473,151 @@ const BankAccountsProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <div
+        ref={statementRef}
+        style={{
+          position: 'absolute',
+          top: '-9999px',
+          left: '-9999px',
+          width: '794px',
+          padding: '32px',
+          backgroundColor: '#FFFFFF',
+          color: '#111827',
+          fontFamily: 'Inter, Arial, sans-serif',
+          boxShadow: '0 20px 45px rgba(15, 23, 42, 0.15)'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {bankAccount?.logo ? (
+              <img src={bankAccount.logo} alt="Bank Logo" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
+            ) : (
+              <div style={{ width: '72px', height: '72px', borderRadius: '16px', background: '#E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
+                {bankAccount?.bankName?.[0] || 'B'}
+              </div>
+            )}
+            <div>
+              <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{bankAccount?.bankName || 'Bank Name'}</h1>
+              <p style={{ color: '#6B7280' }}>{bankAccount?.branchName || 'Branch Name'}</p>
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <span style={{ display: 'inline-block', padding: '6px 18px', borderRadius: '999px', background: '#13288F', color: '#FFFFFF', fontWeight: 600, fontSize: '14px' }}>
+              Bank Statement
+            </span>
+            <p style={{ marginTop: '8px', fontSize: '14px', color: '#6B7280' }}>
+              Generated on {formatDate(new Date())}
+            </p>
+          </div>
+        </div>
+
+        <hr style={{ margin: '24px 0', borderColor: '#E5E7EB' }} />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '24px' }}>
+          <div style={{ padding: '16px', borderRadius: '12px', background: '#F9FAFB' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Account Holder</h2>
+            <p style={{ fontWeight: 600 }}>{bankAccount?.accountHolder || 'N/A'}</p>
+            <p style={{ color: '#6B7280', marginTop: '8px' }}>
+              Title: {bankAccount?.accountTitle || 'N/A'}
+              <br />
+              Created By: {bankAccount?.createdBy || 'N/A'}
+            </p>
+          </div>
+
+          <div style={{ padding: '16px', borderRadius: '12px', background: '#F9FAFB' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Account Details</h2>
+            <p style={{ fontWeight: 600 }}>Account Number: {bankAccount?.accountNumber || 'N/A'}</p>
+            <p style={{ marginTop: '6px' }}>Routing Number: {bankAccount?.routingNumber || 'N/A'}</p>
+            <p style={{ marginTop: '6px' }}>Branch ID: {bankAccount?.branchId || 'N/A'}</p>
+            <p style={{ marginTop: '6px', color: '#6B7280' }}>
+              Statement Period:{' '}
+              {totals.periodStart && totals.periodEnd
+                ? `${formatDate(totals.periodStart)} - ${formatDate(totals.periodEnd)}`
+                : 'N/A'}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '24px', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#FFFFFF' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Account Summary</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px' }}>
+            <div>
+              <p style={{ fontSize: '13px', color: '#6B7280' }}>Opening Balance</p>
+              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px' }}>{formatCurrency(totals.openingBalance)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '13px', color: '#6B7280' }}>Deposits</p>
+              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px', color: '#059669' }}>{formatCurrency(totals.deposits)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '13px', color: '#6B7280' }}>Withdrawals</p>
+              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px', color: '#DC2626' }}>{formatCurrency(totals.withdrawals)}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: '13px', color: '#6B7280' }}>Closing Balance</p>
+              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px' }}>{formatCurrency(totals.closingBalance)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '24px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Transaction Details</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', border: '1px solid #E5E7EB' }}>
+            <thead style={{ background: '#13288F', color: '#FFFFFF' }}>
+              <tr>
+                <th style={{ padding: '10px', textAlign: 'left' }}>Date</th>
+                <th style={{ padding: '10px', textAlign: 'left' }}>Description</th>
+                <th style={{ padding: '10px', textAlign: 'right' }}>Withdrawals</th>
+                <th style={{ padding: '10px', textAlign: 'right' }}>Deposits</th>
+                <th style={{ padding: '10px', textAlign: 'right' }}>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.length > 0 ? (
+                transactions.map((transaction) => {
+                  const amount = transaction.paymentDetails?.amount || transaction.amount || 0;
+                  const isCredit = transaction.transactionType === 'credit';
+                  const balance = transaction.paymentDetails?.balanceAfter ?? transaction.balanceAfter ?? null;
+
+                  return (
+                    <tr key={transaction._id} style={{ borderBottom: '1px solid #E5E7EB', background: '#FFFFFF' }}>
+                      <td style={{ padding: '10px' }}>{formatDate(transaction.date) || '—'}</td>
+                      <td style={{ padding: '10px' }}>{transaction.description || transaction.notes || '—'}</td>
+                      <td style={{ padding: '10px', textAlign: 'right', color: !isCredit ? '#DC2626' : '#111827' }}>
+                        {!isCredit ? formatCurrency(amount) : '—'}
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right', color: isCredit ? '#059669' : '#111827' }}>
+                        {isCredit ? formatCurrency(amount) : '—'}
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right' }}>
+                        {balance !== null ? formatCurrency(balance) : formatCurrency(totals.closingBalance)}
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={5} style={{ padding: '16px', textAlign: 'center', color: '#6B7280' }}>No transactions recorded.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ fontSize: '13px', color: '#6B7280' }}>Prepared by</p>
+            <p style={{ fontWeight: 600, marginTop: '6px' }}>{bankAccount?.branchName || 'Branch Manager'}</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '13px', color: '#6B7280' }}>Authorized Signature</p>
+            <div style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '999px', border: '1px dashed #9CA3AF', color: '#1F2937', fontWeight: 600, display: 'inline-block' }}>
+              {bankAccount?.bankName || 'Finance Department'}
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
@@ -440,6 +697,16 @@ const BankAccountsProfile = () => {
                       <p className="font-medium text-gray-900 dark:text-white">{bankAccount.accountNumber}</p>
                     </div>
                   </div>
+
+                  {bankAccount.routingNumber && (
+                    <div className="flex items-center space-x-3">
+                      <Hash className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Routing Number</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{bankAccount.routingNumber}</p>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex items-center space-x-3">
                     <Shield className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -566,11 +833,21 @@ const BankAccountsProfile = () => {
                   New Transaction
                 </button>
                 <button
-                  onClick={() => window.print()}
-                  className="w-full flex items-center justify-center px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-lg transition-colors duration-200"
+                  onClick={handleDownloadStatement}
+                  disabled={isGeneratingPdf}
+                  className="w-full flex items-center justify-center px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors duration-200"
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Print Statement
+                  {isGeneratingPdf ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Preparing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download Statement
+                    </>
+                  )}
                 </button>
               </div>
             </div>

@@ -25,11 +25,13 @@ import {
   List,
   Loader
 } from 'lucide-react';
-import { useCustomers } from '../../../hooks/useCustomerQueries';
+// useCustomerQueries hook removed - functionality disabled
 
 const HajjUmrahDashboard = () => {
-  // Fetch real customer data
-  const { data: customers = [], isLoading, error } = useCustomers();
+  // Customer data removed - using empty array
+  const customers = [];
+  const isLoading = false;
+  const error = null;
   
   // Calculate real statistics from customer data
   const calculateStats = () => {

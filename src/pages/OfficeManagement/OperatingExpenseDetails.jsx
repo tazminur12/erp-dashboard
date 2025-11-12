@@ -1,8 +1,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ArrowLeft, Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText, Calendar, BarChart3, Pencil, X, Check, Trash2 } from 'lucide-react';
-import { useOpExCategory, useCreateOpExSubcategory, useUpdateOpExCategory, useUpdateOpExSubcategory, useDeleteOpExSubcategory } from '../../hooks';
+import { ArrowLeft, Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText, Calendar, BarChart3, Pencil, X, Check } from 'lucide-react';
+import { useOpExCategory, useUpdateOpExCategory } from '../../hooks';
 
 const ICONS = { Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText };
 
@@ -12,13 +12,9 @@ export default function OperatingExpenseDetails() {
   const { isDark } = useTheme();
   const { categoryId } = useParams();
   const navigate = useNavigate();
-  const [newSubcategory, setNewSubcategory] = useState('');
   const [feedback, setFeedback] = useState('');
   const { data: categoryData, isLoading } = useOpExCategory(categoryId);
-  const addSubcategory = useCreateOpExSubcategory();
   const updateCategory = useUpdateOpExCategory();
-  const updateSubcategory = useUpdateOpExSubcategory();
-  const deleteSubcategory = useDeleteOpExSubcategory();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -30,7 +26,6 @@ export default function OperatingExpenseDetails() {
     bgColor: '',
     iconColor: ''
   });
-  const [editingSubs, setEditingSubs] = useState({}); // { subIdOrIndex: { name: '' } }
   const category = useMemo(() => {
     if (!categoryData) return null;
     return {
@@ -59,44 +54,6 @@ export default function OperatingExpenseDetails() {
   const totalAmount = category?.totalAmount || 0;
   const itemCount = category?.itemCount || 0;
   const lastUpdated = category?.lastUpdated ? new Date(category.lastUpdated).toLocaleDateString() : '-';
-  const subcategories = Array.isArray(category?.subcategories) ? category.subcategories : [];
-
-  const handleAddSubcategory = () => {
-    const value = newSubcategory.trim();
-    if (!value) {
-      setFeedback('Please enter a subcategory name.');
-      return;
-    }
-    if (!category) {
-      setFeedback('Category not found.');
-      return;
-    }
-    // Basic duplicate check (client-side) against name field if objects
-    const exists = (Array.isArray(category.subcategories) ? category.subcategories : []).some((s) => {
-      const name = typeof s === 'string' ? s : (s?.name || '');
-      return String(name).trim().toLowerCase() === value.toLowerCase();
-    });
-    if (exists) {
-      setFeedback('This subcategory already exists.');
-      return;
-    }
-    addSubcategory.mutate(
-      {
-        categoryId,
-        subcategory: { name: value }
-      },
-      {
-        onSuccess: () => {
-          setNewSubcategory('');
-          setFeedback('Subcategory added.');
-          setTimeout(() => setFeedback(''), 2000);
-        },
-        onError: (err) => {
-          setFeedback(err?.response?.data?.message || 'Failed to add subcategory.');
-        }
-      }
-    );
-  };
 
   const handleSaveCategory = () => {
     if (!categoryId) return;
@@ -124,61 +81,6 @@ export default function OperatingExpenseDetails() {
     });
   };
 
-  const startEditSub = (sub, idx) => {
-    const subId = typeof sub === 'object' && (sub.id || sub._id) ? String(sub.id || sub._id) : String(idx);
-    const currentName = typeof sub === 'string' ? sub : (sub?.name || '');
-    setEditingSubs((prev) => ({ ...prev, [subId]: { name: currentName } }));
-  };
-
-  const cancelEditSub = (sub, idx) => {
-    const subId = typeof sub === 'object' && (sub.id || sub._id) ? String(sub.id || sub._id) : String(idx);
-    setEditingSubs((prev) => {
-      const next = { ...prev };
-      delete next[subId];
-      return next;
-    });
-  };
-
-  const saveEditSub = (sub, idx) => {
-    const subIdVal = (typeof sub === 'object' && (sub.id || sub._id)) ? String(sub.id || sub._id) : null;
-    const key = subIdVal || String(idx);
-    const name = editingSubs[key]?.name?.trim();
-    if (!name) return;
-    if (!categoryId || !subIdVal) {
-      // If no subId from server, cannot save rename via API safely
-      setFeedback('Cannot rename this subcategory.');
-      setTimeout(() => setFeedback(''), 2000);
-      return;
-    }
-    updateSubcategory.mutate({ categoryId, subcategoryId: subIdVal, updates: { name } }, {
-      onSuccess: () => {
-        cancelEditSub(sub, idx);
-        setFeedback('Subcategory updated.');
-        setTimeout(() => setFeedback(''), 2000);
-      },
-      onError: (err) => {
-        setFeedback(err?.response?.data?.message || 'Failed to update subcategory.');
-      }
-    });
-  };
-
-  const deleteSub = (sub, idx) => {
-    const subIdVal = (typeof sub === 'object' && (sub.id || sub._id)) ? String(sub.id || sub._id) : null;
-    if (!categoryId || !subIdVal) {
-      setFeedback('Cannot delete this subcategory.');
-      setTimeout(() => setFeedback(''), 2000);
-      return;
-    }
-    deleteSubcategory.mutate({ categoryId, subcategoryId: subIdVal }, {
-      onSuccess: () => {
-        setFeedback('Subcategory deleted.');
-        setTimeout(() => setFeedback(''), 2000);
-      },
-      onError: (err) => {
-        setFeedback(err?.response?.data?.message || 'Failed to delete subcategory.');
-      }
-    });
-  };
 
   return (
     <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -319,97 +221,11 @@ export default function OperatingExpenseDetails() {
               </div>
             </div>
           </div>
-
-          <div className="mt-6">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-2 mb-3">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Add Subcategory</label>
-                <input
-                  type="text"
-                  value={newSubcategory}
-                  onChange={(e) => setNewSubcategory(e.target.value)}
-                  placeholder="Enter subcategory name"
-                  className={`w-full px-3 py-2 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`}
-                />
-              </div>
-              <button
-                onClick={handleAddSubcategory}
-                className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium"
-              >
-                Add
-              </button>
+          {feedback && (
+            <div className="mt-4">
+              <p className={`text-sm ${feedback.includes('successfully') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{feedback}</p>
             </div>
-            {feedback && (
-              <p className={`text-sm mb-3 ${feedback.includes('added') ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{feedback}</p>
-            )}
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Subcategories</h2>
-            {isLoading ? (
-              <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-900/30' : 'border-gray-200 bg-gray-50'}`}>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
-              </div>
-            ) : subcategories.length === 0 ? (
-              <div className={`p-4 rounded-lg border ${isDark ? 'border-gray-700 bg-gray-900/30' : 'border-gray-200 bg-gray-50'}`}>
-                <p className="text-sm text-gray-600 dark:text-gray-400">No subcategories added.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {subcategories.map((sub, idx) => {
-                  const label = typeof sub === 'string' ? sub : (sub?.name || '');
-                  const iconKey = (typeof sub === 'object' && sub?.iconKey) ? sub.iconKey : 'FileText';
-                  const SubIcon = ICONS[iconKey] || FileText;
-                  const subIdKey = (typeof sub === 'object' && (sub.id || sub._id)) ? String(sub.id || sub._id) : String(idx);
-                  const isSubEditing = !!editingSubs[subIdKey];
-                  return (
-                    <div
-                      key={subIdKey}
-                      className={`p-4 rounded-xl shadow-lg border-2 transition-colors duration-300 ${
-                        isDark ? 'bg-gray-800 border-gray-700 hover:border-gray-600' : 'bg-white border-gray-100 hover:border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                          <SubIcon className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-                        </div>
-                        {isEditing && !isSubEditing && (
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => startEditSub(sub, idx)} className={`inline-flex items-center gap-1 px-2 py-1 rounded border text-xs ${isDark ? 'border-gray-700 hover:bg-gray-800 text-white' : 'border-gray-200 hover:bg-gray-100'}`}>
-                              <Pencil className="w-3 h-3" /> Edit
-                            </button>
-                            <button onClick={() => deleteSub(sub, idx)} className="inline-flex items-center gap-1 px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs">
-                              <Trash2 className="w-3 h-3" /> Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {!isSubEditing && (
-                        <div>
-                          <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-1">{label}</h3>
-                          {/* Optionally show more info if available on subcategory, e.g., counts or description */}
-                        </div>
-                      )}
-
-                      {isSubEditing && (
-                        <div className="flex items-center gap-2">
-                          <input
-                            value={editingSubs[subIdKey]?.name || ''}
-                            onChange={(e) => setEditingSubs((prev) => ({ ...prev, [subIdKey]: { name: e.target.value } }))}
-                            className={`flex-1 px-3 py-2 rounded-lg border text-sm ${isDark ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`}
-                          />
-                          <button onClick={() => saveEditSub(sub, idx)} className="inline-flex items-center gap-1 px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs">
-                            <Check className="w-3 h-3" /> Save
-                          </button>
-                          <button onClick={() => cancelEditSub(sub, idx)} className={`inline-flex items-center gap-1 px-3 py-2 rounded border text-xs ${isDark ? 'border-gray-700 hover:bg-gray-800 text-white' : 'border-gray-200 hover:bg-gray-100'}`}>
-                            <X className="w-3 h-3" /> Cancel
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { useCreateInvoice } from '../../hooks/useSalesInvoiceQueries';
 import Swal from 'sweetalert2';
 
 const formatBDT = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BDT' }).format(n || 0);
 
 const Generate = () => {
   const axiosSecure = useAxiosSecure();
+  const createInvoice = useCreateInvoice();
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     customer: '',
@@ -335,45 +337,81 @@ const Generate = () => {
 
     if (result.isConfirmed) {
       try {
-        // Show loading
-        Swal.fire({
-          title: 'Creating Invoice...',
-          text: 'Please wait while we create your invoice',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
+        // Prepare invoice payload
+        const invoicePayload = {
+          date: form.date,
+          customerId: form.customerId,
+          serviceId: form.serviceId,
+          bookingId: form.bookingId || '',
+          vendorId: form.vendorId || null,
+          // Billing fields
+          bill: isAirTicket ? computedBill : Number(form.bill) || 0,
+          commission: Number(form.commission) || 0,
+          discount: Number(form.discount) || 0,
+          paid: Number(form.paid) || 0,
+          dueCommitmentDate: form.dueCommitmentDate || null,
+          // Air Ticket fields
+          baseFare: isAirTicket ? Number(form.baseFare) || 0 : undefined,
+          tax: isAirTicket ? Number(form.tax) || 0 : undefined,
+          sellerDetails: form.sellerDetails || '',
+          gdsPnr: form.gdsPnr || '',
+          airlinePnr: form.airlinePnr || '',
+          ticketNo: form.ticketNo || '',
+          passengerType: form.passengerType || 'adult',
+          airlineName: form.airlineName || '',
+          // Flight Details
+          flightType: isAirTicket ? form.flightType : undefined,
+          origin: form.origin || '',
+          destination: form.destination || '',
+          flightDate: form.flightDate || null,
+          originOutbound: form.originOutbound || '',
+          destinationOutbound: form.destinationOutbound || '',
+          outboundFlightDate: form.outboundFlightDate || null,
+          originInbound: form.originInbound || '',
+          destinationInbound: form.destinationInbound || '',
+          inboundFlightDate: form.inboundFlightDate || null,
+          // Multi City segments
+          originSegment1: form.originSegment1 || '',
+          destinationSegment1: form.destinationSegment1 || '',
+          flightDateSegment1: form.flightDateSegment1 || null,
+          originSegment2: form.originSegment2 || '',
+          destinationSegment2: form.destinationSegment2 || '',
+          flightDateSegment2: form.flightDateSegment2 || null,
+          // Customer Fare
+          customerBaseFare: Number(form.customerBaseFare) || 0,
+          customerTax: Number(form.customerTax) || 0,
+          customerCommission: Number(form.customerCommission) || 0,
+          ait: Number(form.ait) || 0,
+          serviceCharge: Number(form.serviceCharge) || 0,
+          // Vendor Fare
+          vendorBaseFare: Number(form.vendorBaseFare) || 0,
+          vendorTax: Number(form.vendorTax) || 0,
+          vendorCommission: Number(form.vendorCommission) || 0,
+          vendorAit: Number(form.vendorAit) || 0,
+          vendorServiceCharge: Number(form.vendorServiceCharge) || 0,
+        };
 
-        // TODO: Replace with actual API call
-        // const response = await axiosSecure.post('/invoices', form);
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Create invoice using mutation
+        await createInvoice.mutateAsync(invoicePayload);
 
-        // Success message
-        Swal.fire({
+        // Show print option after successful creation
+        const printResult = await Swal.fire({
           icon: 'success',
-          title: 'Success!',
-          text: 'Invoice created successfully!',
+          title: 'সফল!',
+          text: 'ইনভয়েস সফলভাবে তৈরি হয়েছে! প্রিন্ট করতে চান?',
           confirmButtonColor: '#059669',
           showCancelButton: true,
-          cancelButtonText: 'Close',
-          confirmButtonText: 'Print Invoice'
-        }).then((result) => {
-          if (result.isConfirmed) {
-            window.print();
-          }
+          cancelButtonText: 'বন্ধ',
+          confirmButtonText: 'প্রিন্ট করুন'
         });
 
+        if (printResult.isConfirmed) {
+          window.print();
+        }
+
       } catch (error) {
-        // Error message
-        Swal.fire({
-          icon: 'error',
-          title: 'Error!',
-          text: 'Failed to create invoice. Please try again.',
-          confirmButtonColor: '#dc2626'
-        });
+        // Error handling is done in the mutation's onError
+        console.error('Failed to create invoice:', error);
       }
     }
   };

@@ -1,14 +1,16 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, MoreVertical, Receipt, Upload, Loader2 } from 'lucide-react';
+import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, Receipt, Upload, Loader2, Trash2, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import ExcelUploader from '../../components/common/ExcelUploader';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import Swal from 'sweetalert2';
 import { 
   useVendors, 
   useCustomerTypes, 
-  useCreateVendorOrder 
+  useCreateVendorOrder,
+  useDeleteVendor
 } from '../../hooks/useVendorQueries';
 
 
@@ -20,6 +22,7 @@ const VendorList = () => {
   const { data: vendors = [], isLoading: loading, error: vendorsError } = useVendors();
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCustomerTypes();
   const createOrderMutation = useCreateVendorOrder();
+  const deleteVendorMutation = useDeleteVendor();
   
   // Local state
   const [query, setQuery] = useState('');
@@ -151,6 +154,28 @@ const VendorList = () => {
     }
   };
 
+  const handleDeleteVendor = async (vendor) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Vendor "${vendor.tradeName || vendor.vendorId}" will be removed permanently.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete',
+      cancelButtonText: 'Cancel'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const idToDelete = vendor._id || vendor.id || vendor.vendorId;
+      await deleteVendorMutation.mutateAsync(idToDelete);
+    } catch (error) {
+      console.error('Failed to delete vendor:', error);
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -263,9 +288,33 @@ const VendorList = () => {
                     <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-500" /> {v.passport}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex justify-end">
-                      <button className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    <div className="flex justify-end gap-2">
+                      <Link
+                        to={`/vendors/${v._id || v.vendorId}`}
+                        className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                        title="View details"
+                      >
+                        <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteVendor(v)}
+                        disabled={
+                          (() => {
+                            const currentId = v._id || v.id || v.vendorId;
+                            return deleteVendorMutation.isPending && deleteVendorMutation.variables === currentId;
+                          })()
+                        }
+                        className="inline-flex items-center justify-center h-9 px-3 rounded-md border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                        title="Delete vendor"
+                      >
+                        {(() => {
+                          const currentId = v._id || v.id || v.vendorId;
+                          return deleteVendorMutation.isPending && deleteVendorMutation.variables === currentId;
+                        })() ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
                       </button>
                     </div>
                   </td>

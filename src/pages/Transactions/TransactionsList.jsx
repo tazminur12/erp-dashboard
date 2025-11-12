@@ -30,6 +30,7 @@ import {
 } from '../../hooks/useTransactionQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import { getAllSubCategories } from '../../utils/categoryUtils';
+import useCategoryQueries from '../../hooks/useCategoryQueries';
 import Swal from 'sweetalert2';
 import { formatDate as formatDateShared } from '../../lib/format';
 
@@ -79,6 +80,11 @@ const TransactionsList = () => {
 
   // Categories from API for ID->name mapping
   const { data: apiCategories = [] } = useTransactionCategories();
+  
+  // Get categories with subcategories from category queries
+  const categoryQueries = useCategoryQueries();
+  const categoriesQueryResult = categoryQueries?.useCategories ? categoryQueries.useCategories() : null;
+  const categoriesWithSubs = categoriesQueryResult?.data || [];
 
   // Extract data from query result
   const transactions = transactionsData?.transactions || [];
@@ -148,7 +154,7 @@ const TransactionsList = () => {
   };
 
   const formatAmount = (amount) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0
@@ -176,20 +182,55 @@ const TransactionsList = () => {
       const fromDescription = match?.[1]?.trim();
       return t.paymentDetails?.category || fromDescription || 'Personal Expense';
     }
-    return (
+    
+    // Handle money-exchange transactions - show currency info if available
+    if (t.partyType === 'money-exchange' || t.partyType === 'money_exchange') {
+      const moneyExchangeInfo = t.moneyExchangeInfo || {};
+      const currencyName = moneyExchangeInfo.currencyName || t.party?.currencyName;
+      const fullName = moneyExchangeInfo.fullName || t.party?.fullName || t.partyName;
+      const type = moneyExchangeInfo.type || '';
+      const currencyCode = moneyExchangeInfo.currencyCode || '';
+      
+      // Format: "Buy/Sell - USD (US Dollar)" or just the name
+      if (type && currencyName) {
+        return `${type === 'Buy' ? 'ক্রয়' : type === 'Sell' ? 'বিক্রয়' : type} - ${currencyCode ? `${currencyCode} (${currencyName})` : currencyName}`;
+      }
+      if (currencyName) {
+        return currencyName;
+      }
+      if (fullName && fullName !== 'Money Exchange' && fullName !== 'Unknown') {
+        return fullName;
+      }
+    }
+    
+    // Try multiple fields and check for "Unknown" or empty values
+    const name = 
       t.customerName ||
       t.customer?.name ||
       t.partyName ||
       t.party?.name ||
       t.customer?.fullName ||
       t.customer?.customerName ||
-      'N/A'
-    );
+      t.party?.fullName ||
+      t.party?.currencyName ||
+      '';
+    
+    // If name is "Unknown", "unknown", empty, or just whitespace, return "N/A"
+    if (!name || name.trim() === '' || name.toLowerCase() === 'unknown') {
+      return 'N/A';
+    }
+    
+    return name;
   };
 
   const getCustomerPhone = (t) => {
     if (isPersonalExpenseTxn(t)) return '';
-    return t.customerPhone || t.customer?.phone || t.party?.phone || '';
+    // Handle money-exchange transactions
+    if (t.partyType === 'money-exchange' || t.partyType === 'money_exchange') {
+      const moneyExchangeInfo = t.moneyExchangeInfo || {};
+      return moneyExchangeInfo.mobileNumber || t.party?.mobileNumber || t.partyPhone || '';
+    }
+    return t.customerPhone || t.customer?.phone || t.party?.phone || t.party?.mobileNumber || '';
   };
 
   const subCategoryIndex = useMemo(() => {
@@ -197,7 +238,11 @@ const TransactionsList = () => {
     const map = {};
     try {
       const subs = getAllSubCategories();
-      subs.forEach(s => { map[s.id] = s.name; });
+      subs.forEach(s => { 
+        if (s.id && s.name) {
+          map[s.id] = s.name;
+        }
+      });
     } catch (e) { /* ignore */ }
     return map;
   }, []);
@@ -205,6 +250,7 @@ const TransactionsList = () => {
   const apiCategoryIndex = useMemo(() => {
     const map = {};
     try {
+      // First, add categories from useTransactionCategories
       (apiCategories || []).forEach((c) => {
         if (!c) return;
         if (typeof c === 'string') {
@@ -216,9 +262,31 @@ const TransactionsList = () => {
         if (id && name) map[id] = name;
         if (name) map[name] = name; // allow direct name passthrough
       });
-    } catch (e) { /* ignore */ }
+      
+      // Then, add categories with subcategories from useCategoryQueries
+      (categoriesWithSubs || []).forEach((cat) => {
+        if (!cat) return;
+        const catId = cat.id || cat._id;
+        const catName = cat.name;
+        if (catId && catName) {
+          map[catId] = catName;
+        }
+        
+        // Add subcategories
+        const subs = cat.subCategories || cat.subcategories || [];
+        subs.forEach((sub) => {
+          const subId = sub.id || sub._id;
+          const subName = sub.name;
+          if (subId && subName) {
+            map[subId] = subName;
+          }
+        });
+      });
+    } catch (e) { 
+      console.error('Error building category index:', e);
+    }
     return map;
-  }, [apiCategories]);
+  }, [apiCategories, categoriesWithSubs]);
 
   const getCategory = (t) => {
     // If this is a personal expense entry created via bank-account transaction,
@@ -229,19 +297,40 @@ const TransactionsList = () => {
       const fromDescription = match?.[1]?.trim();
       return fromDescription || t.paymentDetails?.category || 'Personal Expense';
     }
-    // Support multiple shapes
+    
+    // Support multiple shapes - check if category is an object first
     if (t.category && typeof t.category === 'object') {
-      return t.category.name || t.category.label || t.category.title || t.category.categoryName || 'N/A';
+      const name = t.category.name || t.category.label || t.category.title || t.category.categoryName;
+      if (name) return name;
     }
     if (t.serviceCategory && typeof t.serviceCategory === 'object') {
-      return t.serviceCategory.name || t.serviceCategory.label || t.serviceCategory.title || 'N/A';
+      const name = t.serviceCategory.name || t.serviceCategory.label || t.serviceCategory.title;
+      if (name) return name;
     }
 
+    // Get raw category value (could be ID or name)
     const raw = t.category || t.categoryId || t.serviceCategory || t.paymentDetails?.category || '';
-    // If looks like an ID and present in our map, show readable name
-    if (raw && subCategoryIndex[raw]) return subCategoryIndex[raw];
-    if (raw && apiCategoryIndex[raw]) return apiCategoryIndex[raw];
-    return raw || 'N/A';
+    
+    if (!raw) return 'N/A';
+    
+    // If it's already a readable name (not an ID), return it
+    if (typeof raw === 'string' && !raw.match(/^[0-9a-f]{24}$/i) && raw.length < 30) {
+      // Check if it looks like a name (not a MongoDB ObjectId)
+      return raw;
+    }
+    
+    // Try to find in subcategory index first
+    if (subCategoryIndex[raw]) {
+      return subCategoryIndex[raw];
+    }
+    
+    // Try to find in API category index
+    if (apiCategoryIndex[raw]) {
+      return apiCategoryIndex[raw];
+    }
+    
+    // If we can't find a name, return "N/A" instead of showing the ID
+    return 'N/A';
   };
 
   // Event handlers
@@ -307,7 +396,24 @@ const TransactionsList = () => {
     });
 
     if (result.isConfirmed) {
-      deleteTransactionMutation.mutate(transaction.transactionId);
+      const transactionId = transaction?._id || transaction?.transactionId;
+
+      if (!transactionId) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'লেনদেন শনাক্ত করা যায়নি। পরে আবার চেষ্টা করুন।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+          background: isDark ? '#1F2937' : '#FEF2F2'
+        });
+        return;
+      }
+
+      deleteTransactionMutation.mutate({
+        transactionId,
+        deletedBy: userProfile?.email || userProfile?.name || 'unknown_user'
+      });
     }
   };
 

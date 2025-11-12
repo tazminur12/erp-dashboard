@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useCreateExchange } from '../../hooks/useMoneyExchangeQueries';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { useExchange, useUpdateExchange } from '../../hooks/useMoneyExchangeQueries';
 
 const CURRENCIES = [
   { code: 'USD', nameBn: 'মার্কিন ডলার' },
@@ -33,18 +35,6 @@ const formatBDT = (value) =>
     Number.isFinite(value) ? value : 0
   );
 
-const initialForm = {
-  date: new Date().toISOString().split('T')[0],
-  fullName: '',
-  mobileNumber: '',
-  nid: '',
-  type: 'Buy',
-  currencyCode: 'USD',
-  currencyName: 'মার্কিন ডলার',
-  exchangeRate: '',
-  quantity: '',
-};
-
 const validate = (v) => {
   const e = {};
   if (!v.date) e.date = 'তারিখ নির্বাচন করুন';
@@ -69,10 +59,41 @@ const Pill = ({ color = 'gray', children }) => {
   return <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${map[color]}`}>{children}</span>;
 };
 
-const NewExchange = () => {
-  const [form, setForm] = useState(initialForm);
+const EditExchange = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { data: exchangeData, isLoading, error } = useExchange(id);
+  const updateExchange = useUpdateExchange();
+
+  const [form, setForm] = useState({
+    date: '',
+    fullName: '',
+    mobileNumber: '',
+    nid: '',
+    type: 'Buy',
+    currencyCode: 'USD',
+    currencyName: 'মার্কিন ডলার',
+    exchangeRate: '',
+    quantity: '',
+  });
   const [errors, setErrors] = useState({});
-  const createExchange = useCreateExchange();
+
+  // Populate form when exchange data is loaded
+  useEffect(() => {
+    if (exchangeData) {
+      setForm({
+        date: exchangeData.date || '',
+        fullName: exchangeData.fullName || '',
+        mobileNumber: exchangeData.mobileNumber || '',
+        nid: exchangeData.nid || '',
+        type: exchangeData.type || 'Buy',
+        currencyCode: exchangeData.currencyCode || 'USD',
+        currencyName: exchangeData.currencyName || 'মার্কিন ডলার',
+        exchangeRate: exchangeData.exchangeRate ? String(exchangeData.exchangeRate) : '',
+        quantity: exchangeData.quantity ? String(exchangeData.quantity) : '',
+      });
+    }
+  }, [exchangeData]);
 
   useEffect(() => {
     const c = CURRENCIES.find((x) => x.code === form.currencyCode);
@@ -99,33 +120,77 @@ const NewExchange = () => {
     if (Object.keys(v).filter((k) => v[k]).length) return;
 
     try {
-      await createExchange.mutateAsync({
-        ...form,
-        amount_bdt: amount,
+      await updateExchange.mutateAsync({
+        id,
+        updates: {
+          ...form,
+          exchangeRate: Number(form.exchangeRate),
+          quantity: Number(form.quantity),
+        },
       });
-      setForm({ ...initialForm });
+      navigate('/money-exchange/list');
     } catch (error) {
       // Error is handled by the mutation's onError callback
-      console.error('Failed to create exchange:', error);
+      console.error('Failed to update exchange:', error);
     }
   };
 
-  const disabled = createExchange.isPending;
+  const disabled = updateExchange.isPending || isLoading;
+
+  if (isLoading) {
+    return (
+      <main className="p-4 md:p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">লোড হচ্ছে...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (error || !exchangeData) {
+    return (
+      <main className="p-4 md:p-6">
+        <div className="bg-white rounded-lg border border-red-200 p-6">
+          <div className="text-center">
+            <p className="text-red-600 mb-4">লেনদেন লোড করতে ব্যর্থ হয়েছে</p>
+            <button
+              onClick={() => navigate('/money-exchange/list')}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            >
+              তালিকায় ফিরে যান
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="p-4 md:p-6 space-y-6">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">নতুন মুদ্রা লেনদেন</h1>
-          <p className="text-sm text-gray-600">প্রফেশনাল ফর্ম দিয়ে দ্রুত লেনদেন এন্ট্রি করুন</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/money-exchange/list')}
+            className="p-2 rounded-md border bg-white hover:bg-gray-50 text-gray-700"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">মুদ্রা লেনদেন সম্পাদনা</h1>
+            <p className="text-sm text-gray-600">লেনদেনের তথ্য আপডেট করুন</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setForm(initialForm)}
+            onClick={() => navigate('/money-exchange/list')}
             className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50 text-gray-700"
+            disabled={disabled}
           >
-            Reset
+            বাতিল
           </button>
           <button
             type="submit"
@@ -133,7 +198,7 @@ const NewExchange = () => {
             className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-70"
             disabled={disabled}
           >
-            {createExchange.isPending ? 'Saving…' : 'Save'}
+            {updateExchange.isPending ? 'আপডেট হচ্ছে…' : 'আপডেট করুন'}
           </button>
         </div>
       </header>
@@ -320,18 +385,18 @@ const NewExchange = () => {
               <div className="flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setForm(initialForm)}
+                  onClick={() => navigate('/money-exchange/list')}
                   className="px-4 py-2 rounded-md border bg-white hover:bg-gray-50 text-gray-700"
                   disabled={disabled}
                 >
-                  Clear
+                  বাতিল
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-70"
                   disabled={disabled}
                 >
-                  {createExchange.isPending ? 'Saving…' : 'Save Transaction'}
+                  {updateExchange.isPending ? 'আপডেট হচ্ছে…' : 'আপডেট করুন'}
                 </button>
               </div>
             </form>
@@ -386,9 +451,9 @@ const NewExchange = () => {
           </div>
         </aside>
       </section>
-
     </main>
   );
 };
 
-export default NewExchange;
+export default EditExchange;
+

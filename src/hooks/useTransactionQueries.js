@@ -2,6 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import useAxiosSecure from './UseAxiosSecure';
 import Swal from 'sweetalert2';
 import { vendorKeys } from './useVendorQueries';
+import { opExKeys } from './useOperatingExpensenQuries';
+import { exchangeKeys } from './useMoneyExchangeQueries';
+import { loanKeys } from './useLoanQueries';
+import { airCustomerKeys } from './useAirCustomersQueries';
 
 // Query keys
 export const transactionKeys = {
@@ -356,6 +360,11 @@ export const useTransactionCategories = () => {
 };
 
 // Mutation to create a new transaction
+// Backend handles airCustomer auto-detection:
+// 1. For partyType='customer': First searches regular customers collection, then airCustomers collection
+// 2. If found in airCustomers: Sets party._isAirCustomer = true and updates airCustomers collection
+// 3. For airCustomers: Debit transactions also update totalAmount field (in addition to totalDue)
+// 4. Haji/Umrah transactions sync to linked customer profiles (both regular and airCustomers)
 export const useCreateTransaction = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -369,6 +378,24 @@ export const useCreateTransaction = () => {
       const finalFromAccountId = transactionData.fromAccountId || transactionData.debitAccount?.id;
       const finalToAccountId = transactionData.toAccountId || transactionData.creditAccount?.id;
       const finalServiceCategory = transactionData.serviceCategory || transactionData.category;
+      
+      // Extract subCategory (optional)
+      const finalSubCategory = typeof transactionData.subCategory !== 'undefined' 
+        ? String(transactionData.subCategory || '').trim() || undefined 
+        : undefined;
+      
+      // Extract operatingExpenseCategoryId from object or direct value
+      const finalOperatingExpenseCategoryId = transactionData.operatingExpenseCategoryId 
+        || transactionData.operatingExpenseCategory?.id 
+        || null;
+      
+      // Determine final party type - handle customerType mapping to partyType
+      // Backend handles: customerType (e.g., 'money-exchange') maps to partyType
+      let finalPartyType = transactionData.partyType || transactionData.customerType || 'customer';
+      // Normalize money-exchange variants
+      if (finalPartyType === 'money-exchange' || finalPartyType === 'money_exchange') {
+        finalPartyType = 'money-exchange'; // Backend accepts both but normalize to hyphenated
+      }
 
       // Validate required fields based on backend API
       if (!transactionData.transactionType || !finalAmount || !finalPartyId) {
@@ -394,10 +421,10 @@ export const useCreateTransaction = () => {
       }
 
       // Validate account fields based on transaction type
+      // Backend requires targetAccountId for all credit/debit transactions
+      // (Backend handles missing party gracefully for money-exchange, but still requires account)
       if (transactionData.transactionType === 'credit' || transactionData.transactionType === 'debit') {
-        const isAgent = transactionData.partyType === 'agent' || transactionData.customerType === 'agent';
-        // For agent credit/debit, allow missing targetAccountId (input-based flow)
-        if (!finalTargetAccountId && !isAgent) {
+        if (!finalTargetAccountId) {
           throw new Error('Target account ID is required for credit/debit transactions');
         }
       }
@@ -411,13 +438,32 @@ export const useCreateTransaction = () => {
         }
       }
 
+      // Prepare moneyExchangeInfo if provided (for money exchange transactions)
+      let moneyExchangeInfo = null;
+      const isMoneyExchange = finalPartyType === 'money-exchange' || finalPartyType === 'money_exchange';
+      if (isMoneyExchange && transactionData.moneyExchangeInfo) {
+        moneyExchangeInfo = {
+          id: transactionData.moneyExchangeInfo.id || null,
+          fullName: transactionData.moneyExchangeInfo.fullName || transactionData.moneyExchangeInfo.currencyName || null,
+          mobileNumber: transactionData.moneyExchangeInfo.mobileNumber || null,
+          type: transactionData.moneyExchangeInfo.type || null,
+          currencyCode: transactionData.moneyExchangeInfo.currencyCode || null,
+          currencyName: transactionData.moneyExchangeInfo.currencyName || null,
+          exchangeRate: transactionData.moneyExchangeInfo.exchangeRate || null,
+          quantity: transactionData.moneyExchangeInfo.quantity || null,
+          amount_bdt: transactionData.moneyExchangeInfo.amount_bdt || transactionData.moneyExchangeInfo.amount || null
+        };
+      }
+
       // Build the payload for backend API (matching backend structure)
       const payload = {
         transactionType: transactionData.transactionType,
         amount: amount,
         partyId: finalPartyId,
-        partyType: transactionData.partyType || 'customer', // customer, agent, vendor
+        partyType: finalPartyType,
+        customerType: transactionData.customerType || null, // Backend uses this to auto-detect party type
         serviceCategory: finalServiceCategory || '',
+        subCategory: finalSubCategory || null,
         paymentMethod: transactionData.paymentMethod || 'cash',
         // For credit/debit, always pass the selected target account if provided,
         // regardless of party type. Only transfers use toAccountId.
@@ -431,6 +477,10 @@ export const useCreateTransaction = () => {
         notes: transactionData.notes || '',
         reference: transactionData.reference || transactionData.paymentDetails?.reference || '',
         employeeReference: transactionData.employeeReference || null,
+        // Operating expense category ID (for updating category totals on backend)
+        // Support both direct ID and object with id property
+        operatingExpenseCategoryId: finalOperatingExpenseCategoryId,
+        operatingExpenseCategory: transactionData.operatingExpenseCategory || null,
         // Forward meta if provided (e.g., { selectedOption: 'umrah' })
         meta: transactionData.meta || null,
         // Include nested objects for backend compatibility
@@ -438,13 +488,39 @@ export const useCreateTransaction = () => {
         creditAccount: transactionData.creditAccount || (transactionData.transactionType === 'credit' ? { id: finalTargetAccountId } : null),
         paymentDetails: transactionData.paymentDetails || { amount: amount },
         customerBankAccount: transactionData.customerBankAccount || null,
-        customerId: finalPartyId
+        customerId: finalPartyId,
+        // Money exchange information (for money-exchange party type)
+        moneyExchangeInfo: moneyExchangeInfo
       };
 
       // Remove null or undefined fields to keep payload clean
+      // But preserve empty strings for certain fields that backend expects
       Object.keys(payload).forEach(key => {
-        if (payload[key] === null || payload[key] === undefined || payload[key] === '') {
+        // Keep empty strings for notes, reference, serviceCategory
+        if (key === 'notes' || key === 'reference' || key === 'serviceCategory') {
+          if (payload[key] === null || payload[key] === undefined) {
+            payload[key] = '';
+          }
+        } 
+        // Keep moneyExchangeInfo if it exists (even with null values) as backend uses it for virtual parties
+        else if (key === 'moneyExchangeInfo') {
+          // Only remove if it's completely null or undefined
+          if (payload[key] === null || payload[key] === undefined) {
+            delete payload[key];
+          }
+          // Keep it even if some properties are null - backend can use partial data
+        }
+        // Remove null/undefined/empty string for other fields
+        else if (payload[key] === null || payload[key] === undefined || payload[key] === '') {
           delete payload[key];
+        }
+        // Remove completely empty objects (but not moneyExchangeInfo which we handle above)
+        else if (key !== 'moneyExchangeInfo' && typeof payload[key] === 'object' && payload[key] !== null) {
+          // Check if object has any non-null, non-undefined values
+          const hasValues = Object.values(payload[key]).some(val => val !== null && val !== undefined && val !== '');
+          if (!hasValues && Object.keys(payload[key]).length > 0) {
+            delete payload[key];
+          }
         }
       });
 
@@ -463,13 +539,67 @@ export const useCreateTransaction = () => {
       // Invalidate bank accounts to refresh balances
       queryClient.invalidateQueries({ queryKey: transactionKeys.accounts() });
       
-      // If this transaction is linked to a vendor, refresh vendor caches as well
-      const partyType = variables?.partyType || data?.transaction?.partyType;
+      // Get party type and ID from variables or response
+      const partyType = variables?.partyType || variables?.customerType || data?.transaction?.partyType;
       const partyId = variables?.partyId || variables?.customerId || data?.transaction?.partyId || data?.transaction?.customerId;
+      
+      // Handle different party types for cache invalidation
       if (partyType === 'vendor' && partyId) {
         queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
         queryClient.invalidateQueries({ queryKey: vendorKeys.detail(partyId) });
         queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(partyId), 'financials'] });
+      }
+      
+      // Handle money-exchange party type
+      if ((partyType === 'money-exchange' || partyType === 'money_exchange') && partyId) {
+        queryClient.invalidateQueries({ queryKey: exchangeKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: exchangeKeys.detail(partyId) });
+      }
+      
+      // Handle loan party type
+      if (partyType === 'loan' && partyId) {
+        queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: loanKeys.detail(partyId) });
+      }
+      
+      // Handle customer party type
+      // Backend logic: First searches regular customers collection, then airCustomers collection
+      // If airCustomer found, sets party._isAirCustomer = true and updates airCustomers collection
+      // For airCustomers: debit transactions also update totalAmount field
+      if (partyType === 'customer' && partyId) {
+        // Invalidate both regular customers and airCustomers queries
+        // Backend auto-detects which collection to use based on where party is found
+        queryClient.invalidateQueries({ queryKey: transactionKeys.customers() });
+        queryClient.invalidateQueries({ queryKey: airCustomerKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: airCustomerKeys.detail(partyId) });
+      }
+      
+      // Handle agent party type
+      if (partyType === 'agent' && partyId) {
+        queryClient.invalidateQueries({ queryKey: transactionKeys.agents() });
+      }
+      
+      // Handle haji and umrah party types (these may also sync to customer profiles)
+      // Backend logic: Haji/Umrah transactions sync to linked customer profiles (via customerId)
+      // Updates both regular customers and airCustomers if linked customer exists
+      if ((partyType === 'haji' || partyType === 'umrah') && partyId) {
+        // Invalidate customer queries as backend syncs to linked customer profiles
+        queryClient.invalidateQueries({ queryKey: transactionKeys.customers() });
+        queryClient.invalidateQueries({ queryKey: airCustomerKeys.lists() });
+        // Invalidate haji/umrah queries
+        queryClient.invalidateQueries({ queryKey: ['haji'] });
+        queryClient.invalidateQueries({ queryKey: ['umrah'] });
+      }
+      
+      // If this transaction is linked to an operating expense category, refresh category cache
+      // Backend updates category totals for debit transactions with operatingExpenseCategoryId
+      const operatingExpenseCategoryId = variables?.operatingExpenseCategoryId 
+        || variables?.operatingExpenseCategory?.id 
+        || data?.transaction?.operatingExpenseCategoryId;
+      const transactionType = variables?.transactionType || data?.transaction?.transactionType;
+      if (operatingExpenseCategoryId && transactionType === 'debit') {
+        queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
+        queryClient.invalidateQueries({ queryKey: opExKeys.category(operatingExpenseCategoryId) });
       }
       
       // Add the new transaction to the cache if needed
@@ -625,7 +755,13 @@ export const useUpdateTransaction = () => {
   });
 };
 
-// Mutation to delete a transaction with balance reversal
+// ✅ DELETE: Delete transaction and reverse all related operations
+// This mutation deletes a transaction and automatically reverses:
+// - Bank account balance changes (credit/debit/transfer)
+// - Party due/paid amounts (agents, vendors, customers, haji, umrah, loans)
+// - Operating expense category totals
+// - Money exchange record links
+// - Farm income/expense records
 export const useDeleteTransaction = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -637,14 +773,17 @@ export const useDeleteTransaction = () => {
         throw new Error('Transaction ID is required');
       }
 
-      // Validate deletion reason
-      if (!reason || reason.trim() === '') {
-        throw new Error('Deletion reason is required');
-      }
+      // Note: Backend performs comprehensive reversals automatically:
+      // - Reverses bank account balances (credit/debit/transfer)
+      // - Reverses party due/paid amounts for all party types
+      // - Reverses operating expense category updates
+      // - Unlinks money exchange records
+      // - Reverses farm income/expense updates
+      // - Deletes transaction in atomic MongoDB transaction
 
-      const response = await axiosSecure.delete(`/transactions/${transactionId}`, {
+      const response = await axiosSecure.delete(`/api/transactions/${transactionId}`, {
         data: {
-          reason: reason.trim(),
+          reason: reason?.trim() || null,
           deletedBy: deletedBy || null
         }
       });
@@ -659,21 +798,46 @@ export const useDeleteTransaction = () => {
       // Invalidate and refetch transaction list
       queryClient.invalidateQueries({ queryKey: transactionKeys.lists() });
       
-      // Invalidate bank accounts to refresh balances
+      // Invalidate bank accounts to refresh balances (reversed by backend)
       queryClient.invalidateQueries({ queryKey: transactionKeys.accounts() });
       
       // Remove the specific transaction from cache
       queryClient.removeQueries({ queryKey: transactionKeys.detail(transactionId) });
       
-      // Show success message with balance reversal info
-      const balanceReversed = data.data?.balanceReversed;
-      const message = balanceReversed 
-        ? 'লেনদেন সফলভাবে মুছে ফেলা হয়েছে এবং অ্যাকাউন্ট ব্যালেন্স পুনরুদ্ধার করা হয়েছে।'
-        : 'লেনদেন সফলভাবে মুছে ফেলা হয়েছে।';
+      // Invalidate party-related queries (all party types get reversed by backend)
+      // Agents
+      queryClient.invalidateQueries({ queryKey: transactionKeys.agents() });
       
+      // Vendors
+      queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: vendorKeys.details() });
+      
+      // Customers (airCustomers and regular customers)
+      // Backend logic: First searches regular customers, then airCustomers collection
+      // If airCustomer found, updates airCustomers collection with _isAirCustomer flag
+      queryClient.invalidateQueries({ queryKey: transactionKeys.customers() });
+      queryClient.invalidateQueries({ queryKey: airCustomerKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: airCustomerKeys.details() });
+      
+      // Haji and Umrah
+      queryClient.invalidateQueries({ queryKey: ['haji'] });
+      queryClient.invalidateQueries({ queryKey: ['umrah'] });
+      
+      // Loans
+      queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.details() });
+      
+      // Money Exchange
+      queryClient.invalidateQueries({ queryKey: exchangeKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: exchangeKeys.details() });
+      
+      // Operating Expense Categories (reversed by backend for debit transactions)
+      queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
+      
+      // Show success message
       Swal.fire({
         title: 'মুছে ফেলা হয়েছে!',
-        text: message,
+        text: 'লেনদেন সফলভাবে মুছে ফেলা হয়েছে এবং সব সম্পর্কিত অপারেশন (ব্যালেন্স, দেয়া-নেয়া, ক্যাটাগরি) পুনরুদ্ধার করা হয়েছে।',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',

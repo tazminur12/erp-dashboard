@@ -60,6 +60,9 @@ import { useLoans } from '../../hooks/useLoanQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import Swal from 'sweetalert2';
 import { useFarmExpenses, useFarmIncomes } from '../../hooks/useFinanceQueries';
+import { useOpExCategories } from '../../hooks/useOperatingExpensenQuries';
+import { useExchanges } from '../../hooks/useMoneyExchangeQueries';
+import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 
 const NewTransaction = () => {
   const { isDark } = useTheme();
@@ -74,6 +77,15 @@ const NewTransaction = () => {
   const createPersonalExpenseTxV2 = useCreatePersonalExpenseTransactionV2();
   const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
   const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
+  
+  // Air Customers queries
+  const airCustomersQueries = useAirCustomersQueries();
+  const { data: airCustomersData, isLoading: airCustomersLoading } = airCustomersQueries.useAirCustomers({ 
+    page: 1, 
+    limit: 1000,
+    isActive: 'true'
+  });
+  const airCustomers = airCustomersData?.customers || [];
   
 
   
@@ -148,6 +160,7 @@ const NewTransaction = () => {
     
     // Step 3: Category (for credit/debit)
     category: '',
+    operatingExpenseCategoryId: '',
     // Slug for backend detection (e.g., 'hajj', 'umrah')
     serviceCategory: '',
     
@@ -246,7 +259,9 @@ const NewTransaction = () => {
       id: '',
       name: '',
       direction: '' // 'giving' | 'receiving'
-    }
+    },
+    // Selected money exchange info (when picking from Money Exchange tab)
+    moneyExchangeInfo: null
   });
 
   // Invoice query hook (after formData is initialized)
@@ -300,7 +315,7 @@ const NewTransaction = () => {
   const isUsingDemoInvoices = shouldShowDemoInvoices;
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSearchType, setSelectedSearchType] = useState('customer');
+  const [selectedSearchType, setSelectedSearchType] = useState('airCustomer');
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   const [debitAccountSearchTerm, setDebitAccountSearchTerm] = useState('');
   const [creditAccountSearchTerm, setCreditAccountSearchTerm] = useState('');
@@ -333,6 +348,23 @@ const NewTransaction = () => {
   // Miraj Industries finance lists (positioned after selectedSearchType/searchTerm declarations)
   const { data: mirajExpenses = [], isLoading: mirajExpensesLoading } = useFarmExpenses({ search: selectedSearchType === 'miraj' ? (searchTerm || '') : '' });
   const { data: mirajIncomes = [], isLoading: mirajIncomesLoading } = useFarmIncomes({ search: selectedSearchType === 'miraj' ? (searchTerm || '') : '' });
+  // Office expenses categories
+  const { data: opExCategories = [], isLoading: opExLoading } = useOpExCategories();
+  // Money exchange listings
+  const exchangeTypeFilter = formData.transactionType === 'credit'
+    ? 'Sell'
+    : formData.transactionType === 'debit'
+    ? 'Buy'
+    : undefined;
+  const {
+    data: moneyExchangeResponse,
+    isLoading: moneyExchangeLoading
+  } = useExchanges({
+    limit: 200,
+    ...(exchangeTypeFilter ? { type: exchangeTypeFilter } : {}),
+    ...(selectedSearchType === 'moneyExchange' && searchTerm ? { search: searchTerm } : {})
+  });
+  const moneyExchangeList = moneyExchangeResponse?.data || [];
   
   // Payment methods
   const paymentMethods = [
@@ -578,10 +610,16 @@ const NewTransaction = () => {
   };
 
   const handleCustomerSelect = (customer) => {
-    const resolvedType = customer.customerType || customer.type || customer._type || 'customer';
+    // If selectedSearchType is 'airCustomer', set type to 'airCustomer'
+    // Otherwise, use the customer's type or default to 'customer'
+    const resolvedType = selectedSearchType === 'airCustomer' 
+      ? 'airCustomer' 
+      : (customer.customerType || customer.type || customer._type || 'customer');
     const autoCategory = resolvedType === 'haji' ? 'হাজ্জ প্যাকেজ' : (resolvedType === 'umrah' ? 'ওমরাহ প্যাকেজ' : undefined);
     const autoSelectedOption = resolvedType === 'haji' ? 'hajj' : (resolvedType === 'umrah' ? 'umrah' : undefined);
     const autoServiceCategory = resolvedType === 'haji' ? 'hajj' : (resolvedType === 'umrah' ? 'umrah' : undefined);
+    const exchangeInfo = resolvedType === 'money-exchange' ? (customer.moneyExchangeInfo || {}) : null;
+    const exchangeAmount = exchangeInfo && (exchangeInfo.amount_bdt ?? exchangeInfo.amount);
 
     setFormData(prev => ({
       ...prev,
@@ -590,6 +628,21 @@ const NewTransaction = () => {
       customerPhone: customer.mobile || customer.phone,
       customerEmail: customer.email,
       customerType: resolvedType,
+      // Store operating expense category ID for office expenses
+      operatingExpenseCategoryId: resolvedType === 'office' ? String(customer.id || customer.customerId) : undefined,
+      moneyExchangeInfo: resolvedType === 'money-exchange'
+        ? (customer.moneyExchangeInfo || null)
+        : null,
+      paymentMethod: resolvedType === 'money-exchange' ? 'cash' : prev.paymentMethod,
+      paymentDetails: {
+        ...prev.paymentDetails,
+        ...(resolvedType === 'money-exchange' && exchangeAmount != null
+          ? { amount: String(exchangeAmount) }
+          : {}),
+        ...(resolvedType === 'money-exchange' && exchangeInfo?.id
+          ? { reference: exchangeInfo.id }
+          : {})
+      },
       // Autofill fields for proper Umrah/Hajj backend mapping
       ...(autoCategory ? { category: autoCategory } : {}),
       ...(autoSelectedOption ? { selectedOption: autoSelectedOption } : {}),
@@ -1190,6 +1243,8 @@ const NewTransaction = () => {
       if (customerType === 'haji') return 'haji';
       if (customerType === 'umrah') return 'umrah';
       if (customerType === 'loan') return 'loan';
+      if (customerType === 'airCustomer') return 'customer';
+      if (customerType === 'money-exchange' || customerType === 'moneyExchange') return 'money-exchange';
       return 'customer';
     };
 
@@ -1238,6 +1293,31 @@ const NewTransaction = () => {
       // For loans, map by transaction type
       (formData.customerType === 'loan' ? (isDebit ? 'loan-giving' : 'loan-repayment') : formData.category))));
 
+    // Prepare moneyExchangeInfo if this is a money-exchange transaction
+    let moneyExchangeInfo = null;
+    if ((formData.customerType === 'money-exchange' || formData.customerType === 'moneyExchange') && formData.moneyExchangeInfo) {
+      const exchange = formData.moneyExchangeInfo;
+      moneyExchangeInfo = {
+        id: exchange.id || exchange._id || formData.customerId || null,
+        fullName: exchange.fullName || exchange.currencyName || formData.customerName || null,
+        mobileNumber: exchange.mobileNumber || exchange.mobile || formData.customerPhone || null,
+        type: exchange.type || null,
+        currencyCode: exchange.currencyCode || null,
+        currencyName: exchange.currencyName || null,
+        exchangeRate: exchange.exchangeRate || null,
+        quantity: exchange.quantity || null,
+        amount_bdt: exchange.amount_bdt || exchange.amount || amount || null
+      };
+    }
+
+    // Determine operating expense category (support both ID and object)
+    const operatingExpenseCategoryId = (formData.customerType === 'office' && isDebit && formData.operatingExpenseCategoryId) 
+      ? String(formData.operatingExpenseCategoryId) 
+      : undefined;
+    const operatingExpenseCategory = (formData.customerType === 'office' && isDebit && formData.operatingExpenseCategory) 
+      ? formData.operatingExpenseCategory 
+      : undefined;
+
     const unifiedTransactionData = {
       transactionType: formData.transactionType,
       // Add partyType and partyId for backend API compatibility
@@ -1245,6 +1325,8 @@ const NewTransaction = () => {
       partyId: formData.customerId ? String(formData.customerId) : undefined,
       // Keep customerId for backward compatibility
       customerId: formData.customerId ? String(formData.customerId) : undefined,
+      // Add customerType for backend auto-detection
+      customerType: formData.customerType || undefined,
       // Add targetAccountId for backend API (for credit/debit transactions)
       targetAccountId: selectedAccount?.id || null,
       // Only set debitAccount for debit transactions
@@ -1254,12 +1336,12 @@ const NewTransaction = () => {
         bankName: formData.sourceAccount.bankName,
         accountNumber: formData.sourceAccount.accountNumber
       } : null,
-      // Only set creditAccount for credit transactions
-      creditAccount: isCredit && formData.destinationAccount?.id ? {
-        id: formData.destinationAccount.id,
-        name: formData.destinationAccount.name,
-        bankName: formData.destinationAccount.bankName,
-        accountNumber: formData.destinationAccount.accountNumber
+      // Only set creditAccount for credit transactions (use selectedAccount for consistency)
+      creditAccount: isCredit && selectedAccount?.id ? {
+        id: selectedAccount.id,
+        name: selectedAccount.name || selectedAccount.accountName,
+        bankName: selectedAccount.bankName,
+        accountNumber: selectedAccount.accountNumber
       } : null,
       paymentDetails: {
         amount: amount,
@@ -1272,6 +1354,8 @@ const NewTransaction = () => {
       },
       serviceCategory: resolvedServiceCategory,
       category: formData.category,
+      // subCategory can be extracted from category if it's a subcategory ID
+      // (Currently, subcategories are stored in formData.category, so we'll let backend handle it)
       paymentMethod: formData.paymentMethod,
       customerBankAccount: {
         bankName: formData.customerBankAccount.bankName || null,
@@ -1291,7 +1375,12 @@ const NewTransaction = () => {
       date: new Date().toISOString().split('T')[0],
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch',
-      employeeReference: formData.employeeReference?.id ? formData.employeeReference : null
+      employeeReference: formData.employeeReference?.id ? formData.employeeReference : null,
+      // Include operating expense category (support both ID and object)
+      operatingExpenseCategoryId: operatingExpenseCategoryId,
+      operatingExpenseCategory: operatingExpenseCategory,
+      // Money exchange information (for money-exchange party type)
+      moneyExchangeInfo: moneyExchangeInfo
     };
 
     // Log the data being sent for debugging
@@ -1432,6 +1521,7 @@ const NewTransaction = () => {
         accountNumber: ''
       },
       category: '',
+      operatingExpenseCategoryId: '',
       serviceCategory: '',
       selectedInvoice: null,
       invoiceId: '',
@@ -1489,11 +1579,12 @@ const NewTransaction = () => {
         id: '',
         name: '',
         direction: ''
-      }
+      },
+      moneyExchangeInfo: null
     });
     setCurrentStep(1);
     setSearchTerm('');
-    setSelectedSearchType('customer');
+    setSelectedSearchType('airCustomer');
     setDebitAccountSearchTerm('');
     setCreditAccountSearchTerm('');
   };
@@ -1574,7 +1665,9 @@ const NewTransaction = () => {
     }
   };
 
-  const filteredCustomers = customers.filter(customer =>
+  // Filter customers based on selected type
+  const customersToFilter = selectedSearchType === 'airCustomer' ? airCustomers : customers;
+  const filteredCustomers = customersToFilter.filter(customer =>
     customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.mobile?.includes(searchTerm) ||
     customer.phone?.includes(searchTerm) ||
@@ -2176,7 +2269,7 @@ const NewTransaction = () => {
                 <div className="max-w-4xl mx-auto">
                   {/* Type Selector */}
                   <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
-                    {['customer','vendor','agent','haji','umrah','loans','personal','miraj'].map((type) => (
+                    {['airCustomer','vendor','agent','haji','umrah','loans','personal','miraj','office','moneyExchange'].map((type) => (
                       <button
                         key={type}
                         type="button"
@@ -2187,7 +2280,7 @@ const NewTransaction = () => {
                             : (isDark ? 'text-gray-200 border-gray-600' : 'text-gray-700 border-gray-300 hover:border-blue-400')
                         }`}
                       >
-                        {type === 'customer' ? 'Customer' : 
+                        {type === 'airCustomer' ? 'Air Customer' : 
                          type === 'vendor' ? 'Vendor' : 
                          type === 'agent' ? 'Agent' :
                          type === 'haji' ? 'Haji' :
@@ -2195,6 +2288,8 @@ const NewTransaction = () => {
                          type === 'loans' ? 'Loans' : 
                          type === 'personal' ? 'Personal Expense' :
                          type === 'miraj' ? 'Miraj Industries' :
+                         type === 'office' ? 'Office Expenses' :
+                         type === 'moneyExchange' ? 'Money Exchange' :
                          'কোন ডেটা নেই'
                          }
                       </button>
@@ -2209,8 +2304,8 @@ const NewTransaction = () => {
                     <input
                       type="text"
                       placeholder={
-                        selectedSearchType === 'customer'
-                          ? 'কাস্টমার খুঁজুন... (নাম/ফোন/ইমেইল)'
+                        selectedSearchType === 'airCustomer'
+                          ? 'এয়ার কাস্টমার খুঁজুন... (নাম/ফোন/ইমেইল)'
                           : selectedSearchType === 'vendor'
                           ? 'ভেন্ডর খুঁজুন... (নাম/ফোন)'
                           : selectedSearchType === 'agent'
@@ -2221,6 +2316,10 @@ const NewTransaction = () => {
                           ? 'উমরাহ খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
                           : selectedSearchType === 'loans'
                           ? 'লোন খুঁজুন... (আইডি/নাম)'
+                          : selectedSearchType === 'office'
+                          ? 'Office Expenses – ক্যাটাগরি আইডি/নাম খুঁজুন'
+                          : selectedSearchType === 'moneyExchange'
+                          ? 'মানি এক্সচেঞ্জ আইডি/নাম খুঁজুন'
                           : 'Miraj Industries – ক্যাটাগরি/অপশন খুঁজুন'
                       }
                       value={searchTerm}
@@ -2237,20 +2336,126 @@ const NewTransaction = () => {
                   <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
                     {(selectedSearchType === 'agent' && (agentLoading || searchLoading)) ||
                      (selectedSearchType === 'vendor' && (vendorLoading || searchLoading)) ||
-                     (selectedSearchType === 'customer' && (customersLoading || searchLoading)) ||
+                     (selectedSearchType === 'airCustomer' && (airCustomersLoading || searchLoading)) ||
                      (selectedSearchType === 'haji' && (hajiLoading || searchLoading)) ||
                      (selectedSearchType === 'umrah' && (umrahLoading || searchLoading)) ||
-                     (selectedSearchType === 'loans' && (loansSearchLoading || searchLoading)) ? (
+                     (selectedSearchType === 'loans' && (loansSearchLoading || searchLoading)) ||
+                    (selectedSearchType === 'office' && (opExLoading || searchLoading)) ||
+                    (selectedSearchType === 'moneyExchange' && (moneyExchangeLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
                         <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-                          {selectedSearchType === 'customer' ? 'কাস্টমার লোড হচ্ছে...' : 
+                          {selectedSearchType === 'airCustomer' ? 'এয়ার কাস্টমার লোড হচ্ছে...' : 
                            selectedSearchType === 'vendor' ? 'ভেন্ডর লোড হচ্ছে...' : 
                            selectedSearchType === 'agent' ? 'এজেন্ট লোড হচ্ছে...' :
                            selectedSearchType === 'haji' ? 'হাজি লোড হচ্ছে...' :
-                           selectedSearchType === 'umrah' ? 'উমরাহ লোড হচ্ছে...' : 'লোন লোড হচ্ছে...'}
+                           selectedSearchType === 'umrah' ? 'উমরাহ লোড হচ্ছে...' :
+                           selectedSearchType === 'office' ? 'অফিস খরচ ক্যাটাগরি লোড হচ্ছে...' :
+                           selectedSearchType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ ডেটা লোড হচ্ছে...' :
+                           'লোন লোড হচ্ছে...'}
                         </span>
                       </div>
+                    ) : selectedSearchType === 'office' ? (
+                      // Office Expenses categories list (show names only)
+                      (opExCategories || []).filter(c => {
+                        if (!searchTerm) return true;
+                        const t = searchTerm.toLowerCase();
+                        return c.name.toLowerCase().includes(t);
+                      }).map((cat) => (
+                        <button
+                          key={`office-${cat.id}`}
+                          onClick={() => handleCustomerSelect({
+                            id: cat.id,
+                            name: cat.name,
+                            customerType: 'office'
+                          })}
+                          className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
+                            formData.customerId === cat.id
+                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3 sm:space-x-4">
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              formData.customerId === cat.id
+                                ? 'bg-blue-100 dark:bg-blue-800'
+                                : 'bg-gray-100 dark:bg-gray-700'
+                            }`}>
+                              <FileText className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                formData.customerId === cat.id
+                                  ? 'text-blue-600 dark:text-blue-400'
+                                  : 'text-gray-600 dark:text-gray-400'
+                              }`} />
+                            </div>
+                            <div className="text-left min-w-0 flex-1">
+                              <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                {cat.name || 'Unnamed'}
+                              </h3>
+                              {cat.banglaName && (
+                                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                                  {cat.banglaName}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    ) : selectedSearchType === 'moneyExchange' ? (
+                      moneyExchangeList.length > 0 ? (
+                        moneyExchangeList.map((exchange) => (
+                          <button
+                            key={`money-exchange-${exchange.id}`}
+                            onClick={() => handleCustomerSelect({
+                              id: exchange.id,
+                              name: exchange.fullName || `${exchange.type === 'Sell' ? 'বিক্রয়' : 'ক্রয়'} - ${exchange.currencyName || exchange.currencyCode || 'Currency'}`,
+                              customerType: 'money-exchange',
+                              mobile: exchange.mobileNumber,
+                              moneyExchangeInfo: exchange
+                            })}
+                            className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
+                              formData.customerId === exchange.id
+                                ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                  formData.customerId === exchange.id
+                                    ? 'bg-blue-100 dark:bg-blue-800'
+                                    : 'bg-indigo-100 dark:bg-indigo-900/30'
+                                }`}>
+                                  <ArrowRightLeft className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                    formData.customerId === exchange.id
+                                      ? 'text-blue-600 dark:text-blue-400'
+                                      : 'text-indigo-600 dark:text-indigo-300'
+                                  }`} />
+                                </div>
+                                <div className="text-left min-w-0 flex-1">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                    {exchange.fullName || exchange.currencyName || exchange.currencyCode || 'Money Exchange'}
+                                  </h3>
+                                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                                    {exchange.type === 'Sell' ? 'বিক্রয় (Sell)' : 'ক্রয় (Buy)'} • {exchange.currencyName || exchange.currencyCode || 'N/A'}
+                                  </p>
+                                  {exchange.amount_bdt ? (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      ৳{Number(exchange.amount_bdt || 0).toLocaleString()} • {exchange.quantity} @ {exchange.exchangeRate}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              </div>
+                              {formData.customerId === exchange.id && (
+                                <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                          {exchangeTypeFilter ? 'কোন মানি এক্সচেঞ্জ ডেটা নেই' : 'লেনদেনের ধরন নির্বাচন করুন' }
+                        </div>
+                      )
                     ) : selectedSearchType === 'haji' ? (
                       // Haji Results
                       hajiData?.data?.length > 0 ? (
@@ -2657,11 +2862,12 @@ const NewTransaction = () => {
                       </div>
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                        {selectedSearchType === 'customer' ? (searchTerm ? 'কোন কাস্টমার পাওয়া যায়নি' : 'কোন কাস্টমার নেই') : 
+                        {selectedSearchType === 'airCustomer' ? (searchTerm ? 'কোন এয়ার কাস্টমার পাওয়া যায়নি' : 'কোন এয়ার কাস্টমার নেই') : 
                          selectedSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 
                          selectedSearchType === 'agent' ? 'কোন এজেন্ট পাওয়া যায়নি' :
                          selectedSearchType === 'haji' ? (searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই') :
-                         selectedSearchType === 'umrah' ? (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই') :
+                          selectedSearchType === 'umrah' ? (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই') :
+                          selectedSearchType === 'moneyExchange' ? (exchangeTypeFilter ? 'কোন মানি এক্সচেঞ্জ ডেটা নেই' : 'লেনদেনের ধরন নির্বাচন করুন') :
                          'কোন ডেটা নেই'}
                       </div>
                     )}

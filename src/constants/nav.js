@@ -86,14 +86,14 @@ export const navigation = [
     icon: LayoutDashboard,
     current: true
   },
-  {
-    name: 'Customers',
-    icon: Users,
-    children: [
-      { name: 'Customer List', href: '/customers', icon: List },
-      { name: 'Add Customer', href: '/customers/add', icon: Plus },
-    ]
-  },
+  // {
+  //   name: 'Customers',
+  //   icon: Users,
+  //   children: [
+  //     { name: 'Customer List', href: '/customers', icon: List },
+  //     { name: 'Add Customer', href: '/customers/add', icon: Plus },
+  //   ]
+  // },
   {
     name: 'Transactions',
     icon: CreditCard,
@@ -166,6 +166,8 @@ export const navigation = [
     icon: Plane,
     children: [
       { name: 'Dashboard', href: '/air-ticketing', icon: LayoutDashboard },
+      { name: 'New Passenger', href: '/air-ticketing/new-passenger', icon: Plus },
+      { name: 'Passenger List', href: '/air-ticketing/passengers', icon: Users },
       { name: 'New Ticket Sale', href: '/air-ticketing/new-ticket', icon: Plus },
       { name: 'Manage Booking', href: '/air-ticketing/tickets', icon: List },
       { name: 'Ticket Invoice', href: '/air-ticketing/invoice', icon: FileText },
@@ -275,6 +277,7 @@ export const navigation = [
     name: 'Money Exchange',
     icon: Globe,
     children: [
+      { name: 'Dashboard', href: '/money-exchange/dashboard', icon: LayoutDashboard },
       { name: 'New Exchange', href: '/money-exchange/new', icon: Plus },
       { name: 'List', href: '/money-exchange/list', icon: List }
     ]

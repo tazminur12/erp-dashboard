@@ -1,34 +1,30 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import useSecureAxios from './UseAxiosSecure';
 
+// Valid icon keys matching frontend component
+const VALID_ICON_KEYS = ["FileText", "Scale", "Megaphone", "Laptop", "CreditCard", "Package", "Receipt", "RotateCcw"];
+
 // Query keys for operating expenses
 export const opExKeys = {
   all: ['operating-expenses'],
   categories: () => [...opExKeys.all, 'categories'],
   category: (id) => [...opExKeys.categories(), id],
-  subcategories: (categoryId) => [...opExKeys.category(categoryId), 'subcategories'],
 };
 
-// Normalizer matching backend contract provided in spec
+// Normalizer for operating expense category (matching backend)
 export const normalizeOpExCategory = (doc) => ({
   id: String(doc?._id || doc?.id || ''),
   name: doc?.name || '',
   banglaName: doc?.banglaName || '',
   description: doc?.description || '',
-  iconKey: doc?.iconKey || 'FileText',
+  iconKey: VALID_ICON_KEYS.includes(doc?.iconKey) ? doc.iconKey : 'FileText',
   color: doc?.color || '',
   bgColor: doc?.bgColor || '',
   iconColor: doc?.iconColor || '',
   totalAmount: Number(doc?.totalAmount || 0),
   lastUpdated: doc?.lastUpdated || null,
   itemCount: Number(doc?.itemCount || 0),
-  subcategories: Array.isArray(doc?.subcategories) ? doc.subcategories : [],
 });
-
-const normalizeOpExCategoryList = (raw) => {
-  const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : [];
-  return list.map(normalizeOpExCategory);
-};
 
 // List categories
 export const useOpExCategories = () => {
@@ -37,7 +33,9 @@ export const useOpExCategories = () => {
     queryKey: opExKeys.categories(),
     queryFn: async () => {
       const { data } = await axiosSecure.get('/api/operating-expenses/categories');
-      return normalizeOpExCategoryList(data);
+      // Backend returns array directly
+      const list = Array.isArray(data) ? data : [];
+      return list.map(normalizeOpExCategory);
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -50,6 +48,7 @@ export const useOpExCategory = (id) => {
     queryKey: opExKeys.category(id),
     queryFn: async () => {
       const { data } = await axiosSecure.get(`/api/operating-expenses/categories/${id}`);
+      // Backend returns normalized category directly
       return normalizeOpExCategory(data);
     },
     enabled: !!id,
@@ -63,21 +62,25 @@ export const useCreateOpExCategory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (payload) => {
+      // Validate iconKey
+      const validIconKey = VALID_ICON_KEYS.includes(String(payload?.iconKey || '')) ? String(payload.iconKey) : 'FileText';
+      
       const body = {
         name: String(payload?.name || '').trim(),
-        banglaName: payload?.banglaName || '',
-        description: payload?.description || '',
-        iconKey: payload?.iconKey || 'FileText',
-        color: payload?.color || '',
-        bgColor: payload?.bgColor || '',
-        iconColor: payload?.iconColor || '',
+        banglaName: String(payload?.banglaName || '').trim(),
+        description: String(payload?.description || '').trim(),
+        iconKey: validIconKey,
+        color: String(payload?.color || ''),
+        bgColor: String(payload?.bgColor || ''),
+        iconColor: String(payload?.iconColor || ''),
         totalAmount: Number(payload?.totalAmount || 0),
         lastUpdated: payload?.lastUpdated,
         itemCount: Number(payload?.itemCount || 0),
-        subcategories: Array.isArray(payload?.subcategories) ? payload.subcategories : [],
       };
+      
       const { data } = await axiosSecure.post('/api/operating-expenses/categories', body);
-      return data;
+      // Backend returns normalized category directly (status 201)
+      return normalizeOpExCategory(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
@@ -91,14 +94,48 @@ export const useUpdateOpExCategory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, updates }) => {
-      const { data } = await axiosSecure.put(`/api/operating-expenses/categories/${id}`, updates || {});
-      return data;
+      // Prepare updates object (backend validates and normalizes)
+      const body = { ...updates };
+      
+      // Validate iconKey if provided
+      if (typeof body.iconKey !== 'undefined') {
+        body.iconKey = VALID_ICON_KEYS.includes(String(body.iconKey || '')) ? String(body.iconKey) : 'FileText';
+      }
+      
+      // Trim string fields if provided
+      if (typeof body.name !== 'undefined') {
+        body.name = String(body.name || '').trim();
+      }
+      if (typeof body.banglaName !== 'undefined') {
+        body.banglaName = String(body.banglaName || '').trim();
+      }
+      if (typeof body.description !== 'undefined') {
+        body.description = String(body.description || '').trim();
+      }
+      if (typeof body.color !== 'undefined') {
+        body.color = String(body.color || '');
+      }
+      if (typeof body.bgColor !== 'undefined') {
+        body.bgColor = String(body.bgColor || '');
+      }
+      if (typeof body.iconColor !== 'undefined') {
+        body.iconColor = String(body.iconColor || '');
+      }
+      if (typeof body.totalAmount !== 'undefined') {
+        body.totalAmount = Number(body.totalAmount || 0);
+      }
+      if (typeof body.itemCount !== 'undefined') {
+        body.itemCount = Number(body.itemCount || 0);
+      }
+      
+      const { data } = await axiosSecure.put(`/api/operating-expenses/categories/${id}`, body);
+      // Backend returns normalized category directly
+      return normalizeOpExCategory(data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
-      if (data?.id || data?._id) {
-        const cid = String(data?._id || data?.id);
-        queryClient.invalidateQueries({ queryKey: opExKeys.category(cid) });
+      if (data?.id) {
+        queryClient.invalidateQueries({ queryKey: opExKeys.category(data.id) });
       }
     },
   });
@@ -110,94 +147,14 @@ export const useDeleteOpExCategory = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id) => {
-      await axiosSecure.delete(`/api/operating-expenses/categories/${id}`);
-      return id;
+      const { data } = await axiosSecure.delete(`/api/operating-expenses/categories/${id}`);
+      // Backend returns { success: true }
+      return { id, success: data?.success || true };
     },
-    onSuccess: (id) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
-      queryClient.removeQueries({ queryKey: opExKeys.category(id) });
-    },
-  });
-};
-
-// List subcategories for a category
-export const useOpExSubcategories = (categoryId) => {
-  const axiosSecure = useSecureAxios();
-  return useQuery({
-    queryKey: opExKeys.subcategories(categoryId),
-    queryFn: async () => {
-      const { data } = await axiosSecure.get(`/api/operating-expenses/categories/${categoryId}/subcategories`);
-      return Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
-    },
-    enabled: !!categoryId,
-    staleTime: 5 * 60 * 1000,
-  });
-};
-
-// Create subcategory
-export const useCreateOpExSubcategory = () => {
-  const axiosSecure = useSecureAxios();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ categoryId, subcategory }) => {
-      const body = {
-        name: String(subcategory?.name || '').trim(),
-        banglaName: subcategory?.banglaName || '',
-        description: subcategory?.description || '',
-        iconKey: subcategory?.iconKey || 'FileText',
-      };
-      const { data } = await axiosSecure.post(`/api/operating-expenses/categories/${categoryId}/subcategories`, body);
-      return data;
-    },
-    onSuccess: (data, vars) => {
-      const id = vars?.categoryId;
-      if (id) {
-        queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
-        queryClient.invalidateQueries({ queryKey: opExKeys.category(id) });
-        queryClient.invalidateQueries({ queryKey: opExKeys.subcategories(id) });
-      }
-    },
-  });
-};
-
-// Update subcategory (partial fields)
-export const useUpdateOpExSubcategory = () => {
-  const axiosSecure = useSecureAxios();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ categoryId, subcategoryId, updates }) => {
-      const { data } = await axiosSecure.patch(
-        `/api/operating-expenses/categories/${categoryId}/subcategories/${subcategoryId}`,
-        updates || {}
-      );
-      return data;
-    },
-    onSuccess: (data, vars) => {
-      const id = vars?.categoryId;
-      if (id) {
-        queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
-        queryClient.invalidateQueries({ queryKey: opExKeys.category(id) });
-        queryClient.invalidateQueries({ queryKey: opExKeys.subcategories(id) });
-      }
-    },
-  });
-};
-
-// Delete subcategory
-export const useDeleteOpExSubcategory = () => {
-  const axiosSecure = useSecureAxios();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ categoryId, subcategoryId }) => {
-      await axiosSecure.delete(`/api/operating-expenses/categories/${categoryId}/subcategories/${subcategoryId}`);
-      return { categoryId, subcategoryId };
-    },
-    onSuccess: (_data, vars) => {
-      const id = vars?.categoryId;
-      if (id) {
-        queryClient.invalidateQueries({ queryKey: opExKeys.categories() });
-        queryClient.invalidateQueries({ queryKey: opExKeys.category(id) });
-        queryClient.invalidateQueries({ queryKey: opExKeys.subcategories(id) });
+      if (result?.id) {
+        queryClient.removeQueries({ queryKey: opExKeys.category(result.id) });
       }
     },
   });
@@ -212,10 +169,6 @@ const useOperatingExpensenQuries = () => ({
   useCreateOpExCategory,
   useUpdateOpExCategory,
   useDeleteOpExCategory,
-  useOpExSubcategories,
-  useCreateOpExSubcategory,
-  useUpdateOpExSubcategory,
-  useDeleteOpExSubcategory,
 });
 
 export default useOperatingExpensenQuries;

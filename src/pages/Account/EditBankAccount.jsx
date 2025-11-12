@@ -22,6 +22,7 @@ const EditBankAccount = () => {
     branchName: '',
     accountHolder: '',
     accountTitle: '',
+    routingNumber: '',
     logo: null,
     initialBalance: '',
     currentBalance: '',
@@ -48,6 +49,7 @@ const EditBankAccount = () => {
         branchName: bankAccount.branchName || '',
         accountHolder: bankAccount.accountHolder || '',
         accountTitle: bankAccount.accountTitle || '',
+        routingNumber: bankAccount.routingNumber || '',
         logo: bankAccount.logo || null,
         initialBalance: bankAccount.initialBalance || '',
         currentBalance: bankAccount.currentBalance ?? bankAccount.balance ?? '',
@@ -184,6 +186,10 @@ const EditBankAccount = () => {
 
     if (!formData.accountNumber.trim()) {
       newErrors.accountNumber = 'Account number is required';
+    }
+
+    if (!formData.routingNumber.trim()) {
+      newErrors.routingNumber = 'Routing number is required';
     }
 
     if (!formData.accountCategory.trim()) {
@@ -558,6 +564,25 @@ const handleSubmit = async (e) => {
                   />
                   {errors.accountNumber && (
                     <p className="text-red-500 text-xs mt-1">{errors.accountNumber}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Routing Number *
+                  </label>
+                  <input
+                    type="text"
+                    name="routingNumber"
+                    value={formData.routingNumber}
+                    onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                      errors.routingNumber ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                    placeholder="e.g., 098765432"
+                  />
+                  {errors.routingNumber && (
+                    <p className="text-red-500 text-xs mt-1">{errors.routingNumber}</p>
                   )}
                 </div>
 

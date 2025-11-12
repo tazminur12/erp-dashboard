@@ -18,17 +18,6 @@ import {
 const ICONS = { FileText, Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw };
 const ICON_OPTIONS = Object.keys(ICONS);
 
-const COLOR_OPTIONS = [
-  { color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-50 dark:bg-blue-900/20', iconColor: 'text-blue-600 dark:text-blue-400' },
-  { color: 'from-purple-500 to-purple-600', bgColor: 'bg-purple-50 dark:bg-purple-900/20', iconColor: 'text-purple-600 dark:text-purple-400' },
-  { color: 'from-green-500 to-green-600', bgColor: 'bg-green-50 dark:bg-green-900/20', iconColor: 'text-green-600 dark:text-green-400' },
-  { color: 'from-orange-500 to-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-900/20', iconColor: 'text-orange-600 dark:text-orange-400' },
-  { color: 'from-indigo-500 to-indigo-600', bgColor: 'bg-indigo-50 dark:bg-indigo-900/20', iconColor: 'text-indigo-600 dark:text-indigo-400' },
-  { color: 'from-pink-500 to-pink-600', bgColor: 'bg-pink-50 dark:bg-pink-900/20', iconColor: 'text-pink-600 dark:text-pink-400' },
-  { color: 'from-teal-500 to-teal-600', bgColor: 'bg-teal-50 dark:bg-teal-900/20', iconColor: 'text-teal-600 dark:text-teal-400' },
-  { color: 'from-red-500 to-red-600', bgColor: 'bg-red-50 dark:bg-red-900/20', iconColor: 'text-red-600 dark:text-red-400' },
-];
-
 const AddCategory = () => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
@@ -38,10 +27,8 @@ const AddCategory = () => {
     banglaName: '',
     description: '',
     iconKey: 'FileText',
-    colorIdx: 0,
   });
   const [error, setError] = useState('');
-  const colors = COLOR_OPTIONS[form.colorIdx];
 
   const onChange = (e) => {
     const { name, value } = e.target;
@@ -61,12 +48,11 @@ const AddCategory = () => {
         banglaName: form.banglaName.trim(),
         description: form.description.trim(),
         iconKey: form.iconKey,
-        color: COLOR_OPTIONS[form.colorIdx].color,
-        bgColor: COLOR_OPTIONS[form.colorIdx].bgColor,
-        iconColor: COLOR_OPTIONS[form.colorIdx].iconColor,
+        color: '',
+        bgColor: '',
+        iconColor: '',
         totalAmount: 0,
         itemCount: 0,
-        subcategories: []
       });
       navigate('/office-management/operating-expenses');
     } catch (err) {
@@ -88,8 +74,8 @@ const AddCategory = () => {
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <div className={`w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-r ${colors.color} rounded-lg flex items-center justify-center`}>
-            <IconPreview className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+            <IconPreview className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700 dark:text-gray-200" />
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Add Category</h1>
@@ -137,46 +123,31 @@ const AddCategory = () => {
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Icon</label>
-                <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                  {ICON_OPTIONS.map((k) => {
-                    const Icon = ICONS[k] || FileText;
-                    const selected = form.iconKey === k;
-                    return (
-                      <button
-                        type="button"
-                        key={k}
-                        onClick={() => setForm((p) => ({ ...p, iconKey: k }))}
-                        aria-pressed={selected}
-                        className={`flex items-center justify-center h-12 rounded-lg border transition-all ${
-                          selected
-                            ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900/40 bg-blue-50 dark:bg-blue-900/20'
-                            : isDark
-                              ? 'border-gray-600 hover:bg-gray-700'
-                              : 'border-gray-300 hover:bg-gray-50'
-                        }`}
-                        title={k}
-                      >
-                        <Icon className={`w-5 h-5 ${selected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-200'}`} />
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Color Theme</label>
-                <select
-                  name="colorIdx"
-                  value={form.colorIdx}
-                  onChange={(e) => setForm((p) => ({ ...p, colorIdx: Number(e.target.value) }))}
-                  className={`w-full px-3 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`}
-                >
-                  {COLOR_OPTIONS.map((c, i) => (
-                    <option key={i} value={i}>{c.color.replace('from-', '').replace(' to-', ' → ')}</option>
-                  ))}
-                </select>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Icon</label>
+              <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                {ICON_OPTIONS.map((k) => {
+                  const Icon = ICONS[k] || FileText;
+                  const selected = form.iconKey === k;
+                  return (
+                    <button
+                      type="button"
+                      key={k}
+                      onClick={() => setForm((p) => ({ ...p, iconKey: k }))}
+                      aria-pressed={selected}
+                      className={`flex items-center justify-center h-12 rounded-lg border transition-all ${
+                        selected
+                          ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-900/40 bg-blue-50 dark:bg-blue-900/20'
+                          : isDark
+                            ? 'border-gray-600 hover:bg-gray-700'
+                            : 'border-gray-300 hover:bg-gray-50'
+                      }`}
+                      title={k}
+                    >
+                      <Icon className={`w-5 h-5 ${selected ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-200'}`} />
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

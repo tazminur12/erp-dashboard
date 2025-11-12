@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Save, 
@@ -7,13 +7,24 @@ import {
   Receipt,
   Eye,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Search,
+  User,
+  Building,
+  Plane
 } from 'lucide-react';
 import Modal, { ModalFooter } from '../../components/common/Modal';
+import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { useCreateAirTicket } from '../../hooks/useAirTicketQueries';
 
 const NewTicket = () => {
   const navigate = useNavigate();
+  const axiosSecure = useAxiosSecure();
+  const createTicketMutation = useCreateAirTicket();
   const [formData, setFormData] = useState({
+    customerId: '',
+    customerName: '',
+    customerPhone: '',
     tripType: 'oneway',
     flightType: 'domestic', // International or Domestic
     date: '',
@@ -21,6 +32,7 @@ const NewTicket = () => {
     gdsPnr: '',
     airlinePnr: '',
     airline: '',
+    airlineId: '', // Airline ID for submission
     origin: '',
     destination: '',
     flightDate: '',
@@ -30,6 +42,7 @@ const NewTicket = () => {
       { origin: '', destination: '', date: '' }
     ],
     agent: '', // Agent Name / ID
+    agentId: '', // Agent ID for submission
     purposeType: '',
     // Passenger types
     adultCount: 0,
@@ -78,11 +91,260 @@ const NewTicket = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [touched, setTouched] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
+  
+  // Customer search state
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerResults, setCustomerResults] = useState([]);
+  const [customerLoading, setCustomerLoading] = useState(false);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+
+  // Agent search state
+  const [agentQuery, setAgentQuery] = useState('');
+  const [agentResults, setAgentResults] = useState([]);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [showAgentDropdown, setShowAgentDropdown] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState('');
+
+  // Airline search state
+  const [airlineQuery, setAirlineQuery] = useState('');
+  const [airlineResults, setAirlineResults] = useState([]);
+  const [airlineLoading, setAirlineLoading] = useState(false);
+  const [showAirlineDropdown, setShowAirlineDropdown] = useState(false);
+  const [selectedAirlineId, setSelectedAirlineId] = useState('');
 
   const markTouched = (name) => setTouched(prev => ({ ...prev, [name]: true }));
 
+  // Debounced backend search for air customers by id/name/phone/email
+  useEffect(() => {
+    const q = customerQuery.trim();
+    if (!q || q.length < 2) {
+      setCustomerResults([]);
+      return;
+    }
+
+    let active = true;
+    setCustomerLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        // Query air customers API with search parameter
+        const res = await axiosSecure.get('/api/airCustomers', { 
+          params: { 
+            search: q,
+            page: 1,
+            limit: 20,
+            isActive: 'true'
+          } 
+        });
+        const data = res?.data;
+        
+        // Extract customers list from response
+        // API response structure: { success: true, customers: [...], pagination: {...} }
+        let list = [];
+        if (data?.success && Array.isArray(data.customers)) {
+          list = data.customers;
+        } else if (Array.isArray(data?.customers)) {
+          list = data.customers;
+        } else if (Array.isArray(data)) {
+          list = data;
+        }
+
+        // Fallback: filter locally if backend returned full list without filtering
+        const normalizedQ = q.toLowerCase();
+        const filtered = list.filter((c) => {
+          const id = String(c.id || c.customerId || c._id || '').toLowerCase();
+          const name = String(c.name || '').toLowerCase();
+          const phone = String(c.phone || c.mobile || '');
+          const email = String(c.email || '').toLowerCase();
+          const passportNumber = String(c.passportNumber || '').toLowerCase();
+          return (
+            id.includes(normalizedQ) ||
+            name.includes(normalizedQ) ||
+            phone.includes(q) ||
+            email.includes(normalizedQ) ||
+            passportNumber.includes(normalizedQ)
+          );
+        });
+
+        if (active) setCustomerResults(filtered.slice(0, 10));
+      } catch (err) {
+        // Silent fail; keep results empty
+        if (active) setCustomerResults([]);
+      } finally {
+        if (active) setCustomerLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [customerQuery, axiosSecure]);
+
+  const handleSelectCustomer = (customer) => {
+    const customerId = customer.customerId || customer.id || customer._id || '';
+    const customerName = customer.name || '';
+    const customerPhone = customer.mobile || customer.phone || '';
+    
+    setFormData(prev => ({
+      ...prev,
+      customerId: customerId,
+      customerName: customerName,
+      customerPhone: customerPhone
+    }));
+    setCustomerQuery(customerName || customerId);
+    setShowCustomerDropdown(false);
+  };
+
+  // Debounced backend search for agents by id/name/phone/email
+  useEffect(() => {
+    const q = agentQuery.trim();
+    if (!q || q.length < 2) {
+      setAgentResults([]);
+      return;
+    }
+
+    let active = true;
+    setAgentLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        // Query backend for air agents
+        const res = await axiosSecure.get('/api/air-ticketing/agents', { 
+          params: { q, limit: 20, page: 1 } 
+        });
+        const responseData = res?.data;
+        
+        // Extract agents list from response
+        // API response structure: { success: true, data: [...], pagination: {...} }
+        let list = [];
+        if (responseData?.success && Array.isArray(responseData.data)) {
+          list = responseData.data;
+        } else if (Array.isArray(responseData?.data)) {
+          list = responseData.data;
+        } else if (Array.isArray(responseData)) {
+          list = responseData;
+        }
+
+        // Fallback: filter locally if backend returned full list without filtering
+        const normalizedQ = q.toLowerCase();
+        const filtered = list.filter((a) => {
+          const id = String(a.id || a.agentId || a.idCode || a._id || '').toLowerCase();
+          const name = String(a.name || a.tradeName || a.companyName || a.personalName || '').toLowerCase();
+          const phone = String(a.phone || a.contactNo || a.mobile || '');
+          const email = String(a.email || '').toLowerCase();
+          return (
+            id.includes(normalizedQ) ||
+            name.includes(normalizedQ) ||
+            phone.includes(q) ||
+            email.includes(normalizedQ)
+          );
+        });
+
+        if (active) setAgentResults(filtered.slice(0, 10));
+      } catch (err) {
+        // Silent fail; keep results empty
+        if (active) setAgentResults([]);
+      } finally {
+        if (active) setAgentLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [agentQuery, axiosSecure]);
+
+  const handleSelectAgent = (agent) => {
+    const agentId = agent.id || agent.agentId || agent.idCode || agent._id || '';
+    const agentName = agent.name || agent.tradeName || agent.companyName || agent.personalName || agentId;
+    setFormData(prev => ({
+      ...prev,
+      agent: agentName,
+      agentId: agentId
+    }));
+    setSelectedAgentId(agentId);
+    setAgentQuery(agentName);
+    setShowAgentDropdown(false);
+  };
+
+  // Debounced backend search for airlines by id/name/code
+  useEffect(() => {
+    const q = airlineQuery.trim();
+    if (!q || q.length < 2) {
+      setAirlineResults([]);
+      return;
+    }
+
+    let active = true;
+    setAirlineLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        // Query backend for airlines
+        const res = await axiosSecure.get('/api/air-ticketing/airlines', { 
+          params: { q, limit: 20, page: 1 } 
+        });
+        const responseData = res?.data;
+        
+        // Extract airlines list from response
+        // API response structure: { success: true, data: [...], pagination: {...} }
+        let list = [];
+        if (responseData?.success && Array.isArray(responseData.data)) {
+          list = responseData.data;
+        } else if (Array.isArray(responseData?.data)) {
+          list = responseData.data;
+        } else if (Array.isArray(responseData)) {
+          list = responseData;
+        }
+
+        // Fallback: filter locally if backend returned full list without filtering
+        const normalizedQ = q.toLowerCase();
+        const filtered = list.filter((a) => {
+          const id = String(a.id || a.airlineId || a._id || '').toLowerCase();
+          const name = String(a.name || '').toLowerCase();
+          const code = String(a.code || '').toLowerCase();
+          const country = String(a.country || '').toLowerCase();
+          return (
+            id.includes(normalizedQ) ||
+            name.includes(normalizedQ) ||
+            code.includes(normalizedQ) ||
+            country.includes(normalizedQ)
+          );
+        });
+
+        if (active) setAirlineResults(filtered.slice(0, 10));
+      } catch (err) {
+        // Silent fail; keep results empty
+        if (active) setAirlineResults([]);
+      } finally {
+        if (active) setAirlineLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [airlineQuery, axiosSecure]);
+
+  const handleSelectAirline = (airline) => {
+    const airlineId = airline.id || airline.airlineId || airline._id || '';
+    const airlineName = airline.name || airline.code || airlineId;
+    setFormData(prev => ({
+      ...prev,
+      airline: airlineName,
+      airlineId: airlineId
+    }));
+    setSelectedAirlineId(airlineId);
+    setAirlineQuery(airlineName);
+    setShowAirlineDropdown(false);
+  };
+
   const validate = (values) => {
     const errs = {};
+    if (!values.customerId) errs.customerId = 'Customer is required';
     if (!values.date) errs.date = 'Selling date is required';
     if (!values.bookingId) errs.bookingId = 'Booking ID is required';
     if (!values.airline) errs.airline = 'Airline is required';
@@ -206,6 +468,8 @@ const NewTicket = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
+    
     const errs = validate(formData);
     setValidationErrors(errs);
     if (Object.keys(errs).length > 0) {
@@ -214,17 +478,72 @@ const NewTicket = () => {
     }
 
     try {
-      // Validate form (required fields for booking)
-      // Already validated above
+      // Prepare ticket data for submission
+      const ticketData = {
+        customerId: formData.customerId,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
+        tripType: formData.tripType,
+        flightType: formData.flightType,
+        date: formData.date,
+        bookingId: formData.bookingId,
+        gdsPnr: formData.gdsPnr || '',
+        airlinePnr: formData.airlinePnr || '',
+        airline: formData.airline,
+        airlineId: formData.airlineId || '',
+        status: formData.status || 'pending',
+        origin: formData.origin || '',
+        destination: formData.destination || '',
+        flightDate: formData.flightDate || '',
+        returnDate: formData.returnDate || '',
+        segments: formData.segments || [],
+        agent: formData.agent || '',
+        agentId: formData.agentId || '',
+        purposeType: formData.purposeType || '',
+        adultCount: formData.adultCount || 0,
+        childCount: formData.childCount || 0,
+        infantCount: formData.infantCount || 0,
+        customerDeal: formData.customerDeal || 0,
+        customerPaid: formData.customerPaid || 0,
+        customerDue: formData.customerDue || 0,
+        dueDate: formData.dueDate || '',
+        baseFare: formData.baseFare || 0,
+        taxBD: formData.taxBD || 0,
+        e5: formData.e5 || 0,
+        e7: formData.e7 || 0,
+        g8: formData.g8 || 0,
+        ow: formData.ow || 0,
+        p7: formData.p7 || 0,
+        p8: formData.p8 || 0,
+        ts: formData.ts || 0,
+        ut: formData.ut || 0,
+        yq: formData.yq || 0,
+        taxes: formData.taxes || 0,
+        totalTaxes: formData.totalTaxes || 0,
+        ait: formData.ait || 0,
+        commissionRate: formData.commissionRate || 0,
+        plb: formData.plb || 0,
+        salmaAirServiceCharge: formData.salmaAirServiceCharge || 0,
+        vendorServiceCharge: formData.vendorServiceCharge || 0,
+        vendorAmount: formData.vendorAmount || 0,
+        vendorPaidFh: formData.vendorPaidFh || 0,
+        vendorDue: formData.vendorDue || 0,
+        profit: formData.profit || 0,
+        segmentCount: formData.segmentCount || 1,
+        flownSegment: formData.flownSegment || false,
+      };
 
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Create ticket using mutation
+      await createTicketMutation.mutateAsync(ticketData);
 
       setSuccess('Booking saved successfully!');
       
       // Reset form after success
       setTimeout(() => {
         setFormData({
+          customerId: '',
+          customerName: '',
+          customerPhone: '',
           tripType: 'oneway',
           flightType: 'domestic',
           date: '',
@@ -232,6 +551,7 @@ const NewTicket = () => {
           gdsPnr: '',
           airlinePnr: '',
           airline: '',
+          airlineId: '',
           origin: '',
           destination: '',
           flightDate: '',
@@ -241,6 +561,7 @@ const NewTicket = () => {
             { origin: '', destination: '', date: '' }
           ],
           agent: '',
+          agentId: '',
           purposeType: '',
           adultCount: 0,
           childCount: 0,
@@ -275,11 +596,26 @@ const NewTicket = () => {
           segmentCount: 1,
           flownSegment: false
         });
+        setCustomerQuery('');
+        setCustomerResults([]);
+        setShowCustomerDropdown(false);
+        setAgentQuery('');
+        setAgentResults([]);
+        setShowAgentDropdown(false);
+        setSelectedAgentId('');
+        setAirlineQuery('');
+        setAirlineResults([]);
+        setShowAirlineDropdown(false);
+        setSelectedAirlineId('');
         setSuccess('');
-      }, 3000);
+        setTouched({});
+        setValidationErrors({});
+        // Navigate to ticket list after successful creation
+        navigate('/air-ticketing/tickets');
+      }, 2000);
 
     } catch (error) {
-      setError(error.message);
+      setError(error.message || 'Failed to create ticket');
     } finally {
       setLoading(false);
     }
@@ -393,6 +729,105 @@ const NewTicket = () => {
               Booking Details
             </h2>
             
+            {/* Customer Selection */}
+            <div className="mb-6">
+              <label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Customer * <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  id="customer"
+                  value={customerQuery}
+                  onChange={(e) => {
+                    setCustomerQuery(e.target.value);
+                    setShowCustomerDropdown(true);
+                    if (!e.target.value) {
+                      setFormData(prev => ({
+                        ...prev,
+                        customerId: '',
+                        customerName: '',
+                        customerPhone: ''
+                      }));
+                    }
+                  }}
+                  onFocus={() => {
+                    if (customerResults.length > 0 || customerQuery.length >= 2) {
+                      setShowCustomerDropdown(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // Delay to allow click event on dropdown items
+                    setTimeout(() => {
+                      setShowCustomerDropdown(false);
+                      markTouched('customerId');
+                      setValidationErrors(validate(formData));
+                    }, 200);
+                  }}
+                  placeholder="Search customer by name, ID, phone, or email..."
+                  className={`block w-full pl-10 pr-3 py-3 border ${
+                    touched.customerId && validationErrors.customerId
+                      ? 'border-red-500'
+                      : 'border-gray-300 dark:border-gray-600'
+                  } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+                  required
+                />
+                {touched.customerId && validationErrors.customerId && (
+                  <p className="mt-1 text-xs text-red-600">{validationErrors.customerId}</p>
+                )}
+                {showCustomerDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                    {customerLoading ? (
+                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
+                    ) : customerResults.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                        {customerQuery.length < 2 ? 'Type at least 2 characters to search' : 'No customers found'}
+                      </div>
+                    ) : (
+                      customerResults.map((c) => (
+                        <button
+                          key={String(c.customerId || c.id || c._id)}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSelectCustomer(c)}
+                          className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <User className="w-4 h-4 text-gray-400" />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">{c.name || 'N/A'}</div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  ID: {c.customerId || c.id || c._id}
+                                </div>
+                                {c.passportNumber && (
+                                  <div className="text-xs text-gray-400 dark:text-gray-500">
+                                    Passport: {c.passportNumber}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-300">{c.mobile || c.phone || ''}</div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+              {formData.customerId && (
+                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  Selected: <span className="font-medium text-gray-900 dark:text-white">{formData.customerName}</span>
+                  {formData.customerPhone && (
+                    <span className="ml-2 text-gray-500">({formData.customerPhone})</span>
+                  )}
+                </div>
+              )}
+            </div>
+            
             {/* Top row: Date, Booking ID, Flight Type, Status */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div>
@@ -407,7 +842,7 @@ const NewTicket = () => {
                     id="date"
                     value={formData.date}
                     onChange={(e) => { handleChange(e); if (touched.date) setValidationErrors(validate({ ...formData, date: e.target.value })); }}
-                    onBlur={() => { markTouched('date'); setValidationErrors(validate(formData)); }}
+                    onBlur={() => { markTouched('date'); markTouched('customerId'); setValidationErrors(validate(formData)); }}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     required
                   />
@@ -423,8 +858,8 @@ const NewTicket = () => {
                   name="bookingId"
                   id="bookingId"
                   value={formData.bookingId}
-                  onChange={(e) => { handleChange(e); if (touched.bookingId) setValidationErrors(validate({ ...formData, bookingId: e.target.value })); }}
-                  onBlur={() => { markTouched('bookingId'); setValidationErrors(validate(formData)); }}
+                    onChange={(e) => { handleChange(e); if (touched.bookingId) setValidationErrors(validate({ ...formData, bookingId: e.target.value })); }}
+                    onBlur={() => { markTouched('bookingId'); markTouched('customerId'); setValidationErrors(validate(formData)); }}
                   className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="Booking reference"
                   required
@@ -495,20 +930,98 @@ const NewTicket = () => {
                 />
               </div>
               <div>
-                <label htmlFor="airline" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Airlines *</label>
-                <input
-                  type="text"
-                  name="airline"
-                  id="airline"
-                  value={formData.airline}
-                  onChange={(e) => { handleChange(e); if (touched.airline) setValidationErrors(validate({ ...formData, airline: e.target.value })); }}
-                  onBlur={() => { markTouched('airline'); setValidationErrors(validate(formData)); }}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Airline name"
-                  required
-                />
-                {touched.airline && validationErrors.airline && (
-                  <p className="mt-1 text-xs text-red-600">{validationErrors.airline}</p>
+                <label htmlFor="airline" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Airlines * <span className="text-gray-500">(Search by name, ID, code, or country)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    id="airline"
+                    value={airlineQuery}
+                    onChange={(e) => {
+                      setAirlineQuery(e.target.value);
+                      setShowAirlineDropdown(true);
+                      if (!e.target.value) {
+                        setFormData(prev => ({
+                          ...prev,
+                          airline: '',
+                          airlineId: ''
+                        }));
+                        setSelectedAirlineId('');
+                      }
+                    }}
+                    onFocus={() => {
+                      if (airlineResults.length > 0 || airlineQuery.length >= 2) {
+                        setShowAirlineDropdown(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay to allow click event on dropdown items
+                      setTimeout(() => {
+                        setShowAirlineDropdown(false);
+                        markTouched('airline');
+                        setValidationErrors(validate(formData));
+                      }, 200);
+                    }}
+                    placeholder="Search airline by name, ID, code, or country..."
+                    className={`block w-full pl-10 pr-3 py-3 border ${
+                      touched.airline && validationErrors.airline
+                        ? 'border-red-500'
+                        : 'border-gray-300 dark:border-gray-600'
+                    } rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white`}
+                    required
+                  />
+                  {touched.airline && validationErrors.airline && (
+                    <p className="mt-1 text-xs text-red-600">{validationErrors.airline}</p>
+                  )}
+                  {showAirlineDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {airlineLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
+                      ) : airlineResults.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          {airlineQuery.length < 2 ? 'Type at least 2 characters to search' : 'No airlines found'}
+                        </div>
+                      ) : (
+                        airlineResults.map((a) => (
+                          <button
+                            key={String(a.id || a.airlineId || a._id)}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSelectAirline(a)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Plane className="w-4 h-4 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {a.name || 'N/A'}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    ID: {a.id || a.airlineId || a._id} | Code: {a.code || 'N/A'}
+                                  </div>
+                                  {a.country && (
+                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                      {a.country}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedAirlineId && (
+                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Selected Airline ID: <span className="font-medium text-gray-900 dark:text-white">{selectedAirlineId}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -560,15 +1073,92 @@ const NewTicket = () => {
             {/* Agent and Purpose */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Agent Name / ID</label>
-                <input
-                  type="text"
-                  name="agent"
-                  value={formData.agent}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Agent"
-                />
+                <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Agent Name / ID <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    id="agent"
+                    value={agentQuery}
+                    onChange={(e) => {
+                      setAgentQuery(e.target.value);
+                      setShowAgentDropdown(true);
+                      if (!e.target.value) {
+                        setFormData(prev => ({
+                          ...prev,
+                          agent: '',
+                          agentId: ''
+                        }));
+                        setSelectedAgentId('');
+                      }
+                    }}
+                    onFocus={() => {
+                      if (agentResults.length > 0 || agentQuery.length >= 2) {
+                        setShowAgentDropdown(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay to allow click event on dropdown items
+                      setTimeout(() => {
+                        setShowAgentDropdown(false);
+                      }, 200);
+                    }}
+                    placeholder="Search agent by name, ID, phone, or email..."
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  {showAgentDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {agentLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
+                      ) : agentResults.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          {agentQuery.length < 2 ? 'Type at least 2 characters to search' : 'No agents found'}
+                        </div>
+                      ) : (
+                        agentResults.map((a) => (
+                          <button
+                            key={String(a.id || a.agentId || a.idCode || a._id)}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSelectAgent(a)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Building className="w-4 h-4 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {a.name || a.tradeName || a.companyName || a.personalName || 'N/A'}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    ID: {a.agentId || a.idCode || a.id || a._id}
+                                  </div>
+                                  {a.personalName && a.name && (
+                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                      {a.personalName}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                {a.mobile || a.phone || a.contactNo || ''}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedAgentId && (
+                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Selected Agent ID: <span className="font-medium text-gray-900 dark:text-white">{selectedAgentId}</span>
+                  </div>
+                )}
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Issued By</label>
@@ -1072,10 +1662,10 @@ const NewTicket = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || createTicketMutation.isPending}
                 className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
               >
-                {loading ? (
+                {(loading || createTicketMutation.isPending) ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                     বুক হচ্ছে...
@@ -1095,6 +1685,7 @@ const NewTicket = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="space-y-2">
               <div className="font-semibold text-gray-900 dark:text-white">Booking</div>
+                  <div className="text-gray-700 dark:text-gray-300">Customer: {formData.customerName || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Date: {formData.date || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Booking ID: {formData.bookingId || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Status: {formData.status}</div>

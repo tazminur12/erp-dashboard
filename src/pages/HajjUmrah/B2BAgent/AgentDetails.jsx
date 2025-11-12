@@ -4,13 +4,48 @@ import {
   Users, ArrowLeft, Pencil, UserCheck, Calendar, DollarSign, 
   TrendingUp, MapPin, Phone, Mail, CreditCard, FileText,
   Building, Globe, Award, Target, BarChart3, PieChart, Package,
-  ChevronDown, ChevronUp, Eye, Edit, Trash2, Plus
+  ChevronDown, ChevronUp, Eye, Edit, Trash2, Plus, Wallet, Receipt,
+  PiggyBank, Calculator, FileSpreadsheet, AlertTriangle
 } from 'lucide-react';
 import { useAgent } from '../../../hooks/useAgentQueries';
 import { useAgentPackageList, useDeleteAgentPackage } from '../../../hooks/UseAgentPacakageQueries';
 import { useHajiList } from '../../../hooks/UseHajiQueries';
 import { useUmrahList } from '../../../hooks/UseUmrahQuries';
 import Swal from 'sweetalert2';
+
+const resolveNumber = (...values) => {
+  for (const value of values) {
+    if (value === undefined || value === null) continue;
+    const numericValue = Number(value);
+    if (!Number.isNaN(numericValue)) {
+      return numericValue;
+    }
+  }
+  return 0;
+};
+
+const pickNumberFromObject = (source, keys, fallback = 0) => {
+  if (!source) return fallback;
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(source, key) && source[key] !== undefined && source[key] !== null) {
+      const numericValue = Number(source[key]);
+      if (!Number.isNaN(numericValue)) {
+        return numericValue;
+      }
+    }
+  }
+  return fallback;
+};
+
+const formatCurrency = (amount = 0) => {
+  const numericValue = Number(amount) || 0;
+  return `৳${numericValue.toLocaleString()}`;
+};
+
+const formatCount = (value = 0) => {
+  const numericValue = Number(value) || 0;
+  return numericValue.toLocaleString();
+};
 
 const AgentDetails = () => {
   const { id } = useParams();
@@ -65,6 +100,173 @@ const AgentDetails = () => {
   };
   
   const customerCounts = calculateCustomerCounts();
+
+  const packageSummary = packages.reduce(
+    (acc, pkg) => {
+      const assignedCount = Array.isArray(pkg.assignedCustomers) ? pkg.assignedCustomers.length : 0;
+      const billed = resolveNumber(
+        pkg.financialSummary?.totalBilled,
+        pkg.financialSummary?.billTotal,
+        pkg.financialSummary?.subtotal,
+        pkg.paymentSummary?.totalBilled,
+        pkg.paymentSummary?.billTotal,
+        pkg.totals?.grandTotal,
+        pkg.totals?.subtotal,
+        pkg.totalPriceBdt,
+        pkg.totalPrice
+      );
+      const paid = resolveNumber(
+        pkg.financialSummary?.totalPaid,
+        pkg.financialSummary?.paidAmount,
+        pkg.paymentSummary?.totalPaid,
+        pkg.paymentSummary?.paid,
+        pkg.payments?.totalPaid,
+        pkg.payments?.paid,
+        pkg.totalPaid,
+        pkg.depositReceived,
+        pkg.receivedAmount
+      );
+      let due = resolveNumber(
+        pkg.financialSummary?.totalDue,
+        pkg.financialSummary?.dueAmount,
+        pkg.paymentSummary?.totalDue,
+        pkg.paymentSummary?.due,
+        pkg.totalDue
+      );
+      if (!due && billed) {
+        due = Math.max(billed - paid, 0);
+      }
+
+      const isHajj =
+        pkg.packageType === 'Hajj' ||
+        pkg.packageType === 'হজ্জ' ||
+        pkg.customPackageType === 'Custom Hajj' ||
+        pkg.customPackageType === 'Hajj';
+      const group = isHajj ? 'hajj' : 'umrah';
+
+      acc[group].customers += assignedCount;
+      acc[group].billed += billed;
+      acc[group].paid += paid;
+      acc[group].due += due;
+
+      acc.overall.customers += assignedCount;
+      acc.overall.billed += billed;
+      acc.overall.paid += paid;
+      acc.overall.due += due;
+
+      return acc;
+    },
+    {
+      overall: {
+        customers: customerCounts.totalCustomers,
+        billed: 0,
+        paid: 0,
+        due: 0,
+      },
+      hajj: {
+        customers: customerCounts.hajCustomers,
+        billed: 0,
+        paid: 0,
+        due: 0,
+      },
+      umrah: {
+        customers: customerCounts.umrahCustomers,
+        billed: 0,
+        paid: 0,
+        due: 0,
+      },
+    }
+  );
+
+  const financialSummary = {
+    overall: {
+      customers: pickNumberFromObject(
+        agent,
+        ['totalHaji', 'totalHaj', 'totalCustomers', 'totalCustomer', 'customersCount', 'totalHajiCount'],
+        packageSummary.overall.customers
+      ),
+      billed: pickNumberFromObject(
+        agent,
+        ['totalBilled', 'totalBill', 'totalBillAmount', 'totalRevenue', 'totalInvoice'],
+        packageSummary.overall.billed
+      ),
+      paid: pickNumberFromObject(
+        agent,
+        ['totalPaid', 'totalDeposit', 'totalReceived', 'totalCollection'],
+        packageSummary.overall.paid
+      ),
+      due: pickNumberFromObject(agent, ['totalDue', 'dueAmount', 'outstanding'], packageSummary.overall.due),
+    },
+    hajj: {
+      customers: pickNumberFromObject(
+        agent,
+        ['hajCustomers', 'hajjCustomers', 'totalHajjCustomers', 'totalHajCustomers'],
+        packageSummary.hajj.customers
+      ),
+      billed: pickNumberFromObject(
+        agent,
+        ['hajBill', 'hajjBill', 'totalHajjBill', 'hajTotalBill'],
+        packageSummary.hajj.billed
+      ),
+      paid: pickNumberFromObject(
+        agent,
+        ['hajPaid', 'hajjPaid', 'hajjDeposit', 'hajDeposit', 'totalHajjPaid'],
+        packageSummary.hajj.paid
+      ),
+      due: pickNumberFromObject(agent, ['hajDue', 'hajjDue', 'totalHajjDue'], packageSummary.hajj.due),
+    },
+    umrah: {
+      customers: pickNumberFromObject(
+        agent,
+        ['umrahCustomers', 'totalUmrahCustomers', 'totalUmrahHaji'],
+        packageSummary.umrah.customers
+      ),
+      billed: pickNumberFromObject(
+        agent,
+        ['umrahBill', 'totalUmrahBill'],
+        packageSummary.umrah.billed
+      ),
+      paid: pickNumberFromObject(
+        agent,
+        ['umrahPaid', 'umrahDeposit', 'totalUmrahPaid'],
+        packageSummary.umrah.paid
+      ),
+      due: pickNumberFromObject(agent, ['umrahDue', 'totalUmrahDue'], packageSummary.umrah.due),
+    },
+  };
+
+  const summaryRows = [
+    {
+      id: 'overall',
+      title: 'Summary Sequence',
+      items: [
+        { label: 'Total Haji', value: formatCount(financialSummary.overall.customers), icon: Users },
+        { label: 'Total Billed', value: formatCurrency(financialSummary.overall.billed), icon: DollarSign },
+        { label: 'Total Paid', value: formatCurrency(financialSummary.overall.paid), icon: Wallet },
+        { label: 'Total Dues', value: formatCurrency(financialSummary.overall.due), icon: Receipt },
+      ],
+    },
+    {
+      id: 'hajj',
+      title: 'Hajj Summary',
+      items: [
+        { label: 'Total Haji (Hajj)', value: formatCount(financialSummary.hajj.customers), icon: Building },
+        { label: 'Hajj Bill', value: formatCurrency(financialSummary.hajj.billed), icon: FileText },
+        { label: 'Hajj Paid', value: formatCurrency(financialSummary.hajj.paid), icon: PiggyBank },
+        { label: 'Hajj Dues', value: formatCurrency(financialSummary.hajj.due), icon: Calculator },
+      ],
+    },
+    {
+      id: 'umrah',
+      title: 'Umrah Summary',
+      items: [
+        { label: 'Total Haji (Umrah)', value: formatCount(financialSummary.umrah.customers), icon: Globe },
+        { label: 'Umrah Bill', value: formatCurrency(financialSummary.umrah.billed), icon: FileSpreadsheet },
+        { label: 'Umrah Paid', value: formatCurrency(financialSummary.umrah.paid), icon: CreditCard },
+        { label: 'Umrah Dues', value: formatCurrency(financialSummary.umrah.due), icon: AlertTriangle },
+      ],
+    },
+  ];
 
   // Delete package mutation
   const deletePackageMutation = useDeleteAgentPackage();
@@ -205,100 +407,47 @@ const AgentDetails = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* Customer Statistics Cards - 3x3 Responsive Grid */}
+          {/* Summary Statistics Grid */}
           <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {/* 1 */}
-              <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Total Customers</p>
-                    <p className="text-lg font-semibold">{customerCounts.totalCustomers}</p>
-                  </div>
-                  <UserCheck className="w-6 h-6 opacity-80" />
+            {summaryRows.map((row) => (
+              <div key={row.id} className="space-y-2">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{row.title}</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {row.items.map((item, index) => {
+                    const gradients = [
+                      'from-blue-500 to-blue-600',
+                      'from-emerald-500 to-emerald-600',
+                      'from-purple-500 to-purple-600',
+                      'from-amber-500 to-amber-600',
+                      'from-indigo-500 to-indigo-600',
+                      'from-rose-500 to-rose-600',
+                      'from-cyan-500 to-cyan-600',
+                      'from-lime-500 to-lime-600',
+                      'from-sky-500 to-sky-600',
+                      'from-fuchsia-500 to-fuchsia-600',
+                      'from-orange-500 to-orange-600',
+                      'from-teal-500 to-teal-600',
+                    ];
+                    const gradientClass = gradients[index % gradients.length];
+                    const IconComponent = item.icon;
+                    return (
+                      <div
+                        key={item.label}
+                        className={`bg-gradient-to-r ${gradientClass} rounded-lg p-3 text-white`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs opacity-90">{item.label}</p>
+                            <p className="text-lg font-semibold">{item.value}</p>
+                          </div>
+                          {IconComponent ? <IconComponent className="w-6 h-6 opacity-80" /> : null}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-              {/* 2 */}
-              <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Total Due</p>
-                    <p className="text-lg font-semibold">৳{Number(agent?.totalDue ?? 0).toLocaleString()}</p>
-                  </div>
-                  <DollarSign className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-              {/* 3 */}
-              <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Total Deposit</p>
-                    <p className="text-lg font-semibold">৳{Number(agent?.totalDeposit ?? 0).toLocaleString()}</p>
-                  </div>
-                  <DollarSign className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-              {/* 4 */}
-              <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Haj Customers</p>
-                    <p className="text-lg font-semibold">{customerCounts.hajCustomers}</p>
-                  </div>
-                  <Building className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-              {/* 5 */}
-              <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Umrah Customers</p>
-                    <p className="text-lg font-semibold">{customerCounts.umrahCustomers}</p>
-                  </div>
-                  <Globe className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-              {/* 6 */}
-              <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Haj Due</p>
-                    <p className="text-lg font-semibold">৳{Number(agent?.hajDue ?? 0).toLocaleString()}</p>
-                  </div>
-                  <Building className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-              {/* 7 */}
-              <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Umrah Due</p>
-                    <p className="text-lg font-semibold">৳{Number(agent?.umrahDue ?? 0).toLocaleString()}</p>
-                  </div>
-                  <Globe className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-              {/* 8 */}
-              <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Total Packages</p>
-                    <p className="text-lg font-semibold">{totalPackagesCount}</p>
-                  </div>
-                  <Package className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-              {/* 9 */}
-              <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg p-3 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-90">Active Packages</p>
-                    <p className="text-lg font-semibold">{activePackagesCount}</p>
-                  </div>
-                  <Target className="w-6 h-6 opacity-80" />
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Main Content Grid */}

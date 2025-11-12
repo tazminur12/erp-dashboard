@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Banknote, Building2, CreditCard, TrendingUp, AlertCircle, Edit, Trash2, History, Filter, Search, Eye } from 'lucide-react';
+import { Plus, Banknote, Building2, CreditCard, TrendingUp, AlertCircle, Edit, Trash2, History, Filter, Search, Eye, Copy } from 'lucide-react';
 import DataTable from '../../components/common/DataTable';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import SmallStat from '../../components/common/SmallStat';
@@ -349,6 +349,52 @@ const BankAccounts = () => {
     setIsBalanceModalOpen(true);
   };
 
+  const handleCopyBankInfo = async (bank) => {
+    if (!bank) {
+      return;
+    }
+
+    const info = [
+      `Bank Name: ${bank.bankName || ''}`,
+      `Account Name: ${bank.accountTitle || ''}`,
+      `Account Number: ${bank.accountNumber || ''}`,
+      `Routing Number: ${bank.routingNumber || ''}`,
+      `Branch: ${bank.branchName || bank.branch || ''}`
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(info);
+      const isDark = document.documentElement.classList.contains('dark');
+      Swal.fire({
+        title: 'Copied!',
+        text: 'Bank account details copied to clipboard.',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB',
+        customClass: {
+          title: 'text-green-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      });
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      const isDark = document.documentElement.classList.contains('dark');
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'কপি করা যায়নি। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+        customClass: {
+          title: 'text-red-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      });
+    }
+  };
+
 
   const handleViewTransactions = (bank) => {
     setSelectedBank(bank);
@@ -625,6 +671,13 @@ const BankAccounts = () => {
             onDelete={handleDeleteBank}
             customActions={(bank) => (
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleCopyBankInfo(bank)}
+                  className="text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 transition-colors duration-200"
+                  title="Copy Account Info"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => handleViewProfile(bank)}
                   className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors duration-200"

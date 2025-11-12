@@ -42,11 +42,6 @@ const queryClient = new QueryClient({
 // Lazy loaded components for better performance
 const Dashboard = React.lazy(() => import('./pages/Dashboard/Dashboard'));
 
-// Customer pages
-const CustomerList = React.lazy(() => import('./pages/Customers/CustomerList'));
-const AddCustomer = React.lazy(() => import('./pages/Customers/AddCustomer'));
-const CustomerDetails = React.lazy(() => import('./pages/Customers/CustomerDetails'));
-
 // Transaction pages
 const TransactionsList = React.lazy(() => import ('./pages/Transactions/TransactionsList'))
 const NewTransaction = React.lazy(() => import('./pages/Transactions/NewTransaction'));
@@ -88,7 +83,13 @@ const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module =
 const NewTicket = React.lazy(() => import('./pages/AirTicketing/NewTicket'));
 const TicketList = React.lazy(() => import('./pages/AirTicketing/TicketList'));
 const TicketInvoice = React.lazy(() => import('./pages/AirTicketing/TicketInvoice'));
-const AgentList = React.lazy(() => import('./pages/AirTicketing/AgentList'));
+const PassengerList = React.lazy(() => import('./pages/AirTicketing/PassengerList'));
+const NewPassenger = React.lazy(() => import('./pages/AirTicketing/NewPassenger'));
+const PassengerDetails = React.lazy(() => import('./pages/AirTicketing/PassengerDetails'));
+const AgentList = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AgentList'));
+const AirAgentAdd = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentAdd'));
+const AirAgentDetails = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentDetails'));
+const AirAgentEdit = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentEdit'));
 const TicketCheck = React.lazy(() => import('./pages/AirTicketing/TicketCheck'));
 const OldTicketReissue = React.lazy(() => import('./pages/AirTicketing/OldTicketReissue'));
 const AirlineList = React.lazy(() => import('./pages/AirTicketing/AirlineList'));
@@ -177,8 +178,11 @@ const AddCategory = React.lazy(() => import('./pages/OfficeManagement/AddCategor
 const OperatingExpenseDetails = React.lazy(() => import('./pages/OfficeManagement/OperatingExpenseDetails'));
 
 // Money Exchange pages
+const ExchangeDashboard = React.lazy(() => import('./pages/MoneyExchange/Dashboard'));
 const NewExchange = React.lazy(() => import('./pages/MoneyExchange/NewExchange'));
 const List = React.lazy(() => import('./pages/MoneyExchange/List'));
+const EditExchange = React.lazy(() => import('./pages/MoneyExchange/EditExchange'));
+const ExchangeDetails = React.lazy(() => import('./pages/MoneyExchange/Details'));
 
 // Sales & Invoice pages
 const GenerateInvoice = React.lazy(() => import('./pages/SalesInvoice/Generate'));
@@ -268,40 +272,6 @@ const router = createBrowserRouter([
     ]
   },
   // Individual dashboard routes
-  {
-    path: "/customers",
-    element: (
-      <ThemeProvider>
-        <DashboardLayout />
-      </ThemeProvider>
-    ),
-    children: [
-      {
-        index: true,
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <CustomerList />
-          </Suspense>
-        )
-      },
-      {
-        path: "add",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <AddCustomer />
-          </Suspense>
-        )
-      },
-      {
-        path: "details/:id",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <CustomerDetails />
-          </Suspense>
-        )
-      }
-    ]
-  },
   {
     path: "/transactions",
     element: (
@@ -611,10 +581,27 @@ const router = createBrowserRouter([
     ),
     children: [
       {
+        index: true,
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TicketList />
+          </Suspense>
+        )
+      },
+      {
         path: "new-ticket",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <NewTicket />
+          </Suspense>
+        )
+      },
+      // New Passenger page (preferred)
+      {
+        path: "new-passenger",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <NewPassenger />
           </Suspense>
         )
       },
@@ -627,10 +614,50 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "passengers",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PassengerList />
+          </Suspense>
+        )
+      },
+      {
+        path: "passengers/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PassengerDetails />
+          </Suspense>
+        )
+      },
+      {
         path: "invoice",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <TicketInvoice />
+          </Suspense>
+        )
+      },
+      {
+        path: "agent/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AirAgentAdd />
+          </Suspense>
+        )
+      },
+      {
+        path: "agent/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AirAgentEdit />
+          </Suspense>
+        )
+      },
+      {
+        path: "agent/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AirAgentDetails />
           </Suspense>
         )
       },
@@ -1266,6 +1293,22 @@ const router = createBrowserRouter([
     ),
     children: [
       {
+        index: true,
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ExchangeDashboard />
+          </Suspense>
+        )
+      },
+      {
+        path: "dashboard",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ExchangeDashboard />
+          </Suspense>
+        )
+      },
+      {
         path: "new",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1278,6 +1321,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <List />
+          </Suspense>
+        )
+      },
+      {
+        path: "edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditExchange />
+          </Suspense>
+        )
+      },
+      {
+        path: "details/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ExchangeDetails />
           </Suspense>
         )
       }

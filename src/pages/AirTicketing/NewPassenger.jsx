@@ -8,15 +8,8 @@ import {
   MapPin, 
   Calendar, 
   FileText, 
-  Image as ImageIcon, 
-  ToggleLeft, 
-  ToggleRight,
   Save,
-  Building2,
-  Plane,
-  Home,
   Users,
-  Upload,
   Loader2,
   Search,
   X,
@@ -27,18 +20,17 @@ import Swal from 'sweetalert2';
 import { useTheme } from '../../contexts/ThemeContext';
 import divisionData from '../../jsondata/AllDivision.json';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import { 
-  useServiceTypes, 
-  useServiceStatuses, 
-  useCreateCustomer 
-} from '../../hooks/useCustomerQueries';
+import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 
-const AddCustomer = () => {
+const NewPassenger = () => {
   const { isDark } = useTheme();
+  const { useCreateAirCustomer, useSearchAirCustomers } = useAirCustomersQueries();
   
-  // React Query hooks
-  const { data: serviceTypes = [], isLoading: serviceTypesLoading, error: serviceTypesError } = useServiceTypes();
-  const createCustomerMutation = useCreateCustomer();
+  // Form submission loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Air customer mutations
+  const createAirCustomerMutation = useCreateAirCustomer();
   
   const [formData, setFormData] = useState({
     // কাস্টমার তথ্য
@@ -80,14 +72,8 @@ const AddCustomer = () => {
     isActive: true,
     notes: '',
     referenceBy: '',
-    referenceCustomerId: '', // Reference customer ID for linking
-    // Service linkage
-    serviceType: '',
-    serviceStatus: ''
+    referenceCustomerId: '' // Reference customer ID for linking
   });
-
-  // Service statuses hook - depends on formData.serviceType
-  const { data: serviceStatuses = [], isLoading: serviceStatusesLoading, error: serviceStatusesError } = useServiceStatuses(formData.serviceType);
 
   const [useMobileAsWhatsApp, setUseMobileAsWhatsApp] = useState(false);
 
@@ -95,138 +81,6 @@ const AddCustomer = () => {
   const [imageUploading, setImageUploading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState('');
   const [uploadedImageData, setUploadedImageData] = useState(null);
-
-
-  // Service type management
-  const handleAddServiceType = async () => {
-    const { value: formValues } = await Swal.fire({
-      title: 'Add Service Type',
-      html:
-        '<input id="swal-input1" class="swal2-input" placeholder="Value (e.g., hajj)">' +
-        '<input id="swal-input2" class="swal2-input" placeholder="Label (e.g., Hajj)">',
-      focusConfirm: false,
-      showCancelButton: true,
-      preConfirm: () => {
-        const value = document.getElementById('swal-input1').value?.trim();
-        const label = document.getElementById('swal-input2').value?.trim();
-        if (!value || !label) {
-          Swal.showValidationMessage('Both value and label are required');
-          return false;
-        }
-        return { value, label };
-      }
-    });
-
-    if (!formValues) return;
-
-    try {
-      await axiosSecure.post('/api/services', formValues);
-      const res = await axiosSecure.get('/api/services');
-      const list = res?.data?.services || res?.data || [];
-      setServiceTypes(Array.isArray(list) ? list : []);
-      Swal.fire('Success', 'Service Type added', 'success');
-    } catch (e) {
-      Swal.fire('Error', 'Failed to add service type', 'error');
-    }
-  };
-
-  const handleDeleteServiceType = async () => {
-    if (!formData.serviceType) {
-      Swal.fire('Info', 'Select a Service Type to delete', 'info');
-      return;
-    }
-    const confirm = await Swal.fire({
-      title: 'Confirm',
-      text: 'Delete selected Service Type?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Delete'
-    });
-    if (!confirm.isConfirmed) return;
-
-    try {
-      await axiosSecure.delete(`/api/services/${formData.serviceType}`);
-      const res = await axiosSecure.get('/api/services');
-      const list = res?.data?.services || res?.data || [];
-      setServiceTypes(Array.isArray(list) ? list : []);
-      // reset selections
-      setFormData(prev => ({ ...prev, serviceType: '', serviceStatus: '' }));
-      setServiceStatuses([]);
-      Swal.fire('Deleted', 'Service Type deleted', 'success');
-    } catch (e) {
-      Swal.fire('Error', 'Failed to delete service type', 'error');
-    }
-  };
-
-  // Service status management
-  const handleAddServiceStatus = async () => {
-    if (!formData.serviceType) {
-      Swal.fire('Info', 'Select a Service Type first', 'info');
-      return;
-    }
-    const { value: formValues } = await Swal.fire({
-      title: 'Add Status',
-      html:
-        '<input id="swal-st-value" class="swal2-input" placeholder="Value (e.g., registered)">' +
-        '<input id="swal-st-label" class="swal2-input" placeholder="Label (e.g., Registered)">',
-      focusConfirm: false,
-      showCancelButton: true,
-      preConfirm: () => {
-        const value = document.getElementById('swal-st-value').value?.trim();
-        const label = document.getElementById('swal-st-label').value?.trim();
-        if (!value || !label) {
-          Swal.showValidationMessage('Both value and label are required');
-          return false;
-        }
-        return { value, label };
-      }
-    });
-    if (!formValues) return;
-    try {
-      await axiosSecure.post(`/api/services/${formData.serviceType}/statuses`, formValues);
-      const res = await axiosSecure.get(`/api/services/${formData.serviceType}/statuses`);
-      const apiStatuses = res?.data?.statuses || res?.data || [];
-      setServiceStatuses(Array.isArray(apiStatuses) ? apiStatuses : []);
-      Swal.fire('Success', 'Status added', 'success');
-    } catch (e) {
-      Swal.fire('Error', 'Failed to add status', 'error');
-    }
-  };
-
-  const handleDeleteServiceStatus = async () => {
-    if (!formData.serviceType || !formData.serviceStatus) {
-      Swal.fire('Info', 'Select a Service Type and Status to delete', 'info');
-      return;
-    }
-    const confirm = await Swal.fire({
-      title: 'Confirm',
-      text: 'Delete selected Status?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Delete'
-    });
-    if (!confirm.isConfirmed) return;
-    try {
-      // Try path param delete; if backend expects body, it will still work with fallback
-      await axiosSecure.delete(`/api/services/${formData.serviceType}/statuses/${formData.serviceStatus}`);
-      const res = await axiosSecure.get(`/api/services/${formData.serviceType}/statuses`);
-      const apiStatuses = res?.data?.statuses || res?.data || [];
-      setServiceStatuses(Array.isArray(apiStatuses) ? apiStatuses : []);
-      setFormData(prev => ({ ...prev, serviceStatus: '' }));
-      Swal.fire('Deleted', 'Status deleted', 'success');
-    } catch (e) {
-      try {
-        await axiosSecure.delete(`/api/services/${formData.serviceType}/statuses`, { data: { value: formData.serviceStatus } });
-        const res = await axiosSecure.get(`/api/services/${formData.serviceType}/statuses`);
-        const apiStatuses = res?.data?.statuses || res?.data || [];
-        setServiceStatuses(Array.isArray(apiStatuses) ? apiStatuses : []);
-        setFormData(prev => ({ ...prev, serviceStatus: '' }));
-        Swal.fire('Deleted', 'Status deleted', 'success');
-      } catch (err) {
-        Swal.fire('Error', 'Failed to delete status', 'error');
-      }
-    }
-  };
   
   // Date states for DatePicker
   const [issueDate, setIssueDate] = useState(null);
@@ -240,33 +94,19 @@ const AddCustomer = () => {
   const [districts, setDistricts] = useState([]);
   const [upazilas, setUpazilas] = useState([]);
   
-  // Categories management - Integrated with CategoryManagement
-  const [categories, setCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(false);
-  // Customer type management is now handled by CategoryManagement component
+  // Customer type management is now handled by CategoryManagement component and useCustomerTypes hook
   
   // Reference customer search states
   const [showReferenceSearchModal, setShowReferenceSearchModal] = useState(false);
   const [referenceSearchTerm, setReferenceSearchTerm] = useState('');
-  const [referenceSearchResults, setReferenceSearchResults] = useState([]);
-  const [referenceSearchLoading, setReferenceSearchLoading] = useState(false);
-
-  // Available icons for customer types
-  const availableIcons = [
-    { value: 'Home', label: 'হোম', icon: Home },
-    { value: 'Plane', label: 'প্লেন', icon: Plane },
-    { value: 'Building2', label: 'বিল্ডিং', icon: Building2 },
-    { value: 'Users', label: 'ব্যবহারকারী', icon: Users },
-    { value: 'FileText', label: 'ডকুমেন্ট', icon: FileText }
-  ];
-
-  // Function to get icon component
-  const getIconComponent = (iconName) => {
-    const iconData = availableIcons.find(icon => icon.value === iconName);
-    return iconData ? iconData.icon : Home;
-  };
   
-  // Load division data and customer types on component mount
+  // Use the hook for searching air customers
+  const { data: referenceSearchResults = [], isPending: referenceSearchLoading } = useSearchAirCustomers(
+    referenceSearchTerm,
+    { enabled: showReferenceSearchModal && !!referenceSearchTerm.trim() }
+  );
+  
+  // Load division data on component mount
   useEffect(() => {
     if (divisionData.Bangladesh) {
       setDivisions(divisionData.Bangladesh.map(item => item.Division));
@@ -277,29 +117,8 @@ const AddCustomer = () => {
       // Cloudinary configuration incomplete
     }
     
-    // Load categories from backend
-    loadCategories();
+    // Customer types are now loaded via useCustomerTypes hook
   }, []);
-
-  // Load customer types from backend
-  const loadCategories = async () => {
-    try {
-      setCategoriesLoading(true);
-      const response = await axiosSecure.get('/customer-types');
-
-      if (response.data?.success) {
-        const customerTypes = response.data.customerTypes || [];
-        setCategories(customerTypes);
-      } else {
-        setCategories([]);
-      }
-    } catch (error) {
-      console.error('Error loading customer types:', error);
-      setCategories([]);
-    } finally {
-      setCategoriesLoading(false);
-    }
-  };
 
   // Update districts when division changes
   useEffect(() => {
@@ -320,7 +139,7 @@ const AddCustomer = () => {
   // Update upazilas when district changes
   useEffect(() => {
     if (formData.division && formData.district) {
-      const selectedDivision = divisionData.Bangladesh.find(item => item.Division === formData.division);
+      const selectedDivision = divisionData.Bangladesh.find((item) => item.Division === formData.division);
       if (selectedDivision) {
         const selectedDistrict = selectedDivision.Districts.find(item => item.District === formData.district);
         if (selectedDistrict) {
@@ -344,18 +163,8 @@ const AddCustomer = () => {
     }
   }, [formData.mobile, useMobileAsWhatsApp]);
 
-  // Debounced search for reference customers
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (referenceSearchTerm.trim()) {
-        searchReferenceCustomers(referenceSearchTerm);
-      } else {
-        setReferenceSearchResults([]);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [referenceSearchTerm]);
+  // Note: Reference customer search is now handled by useSearchAirCustomers hook
+  // The search is debounced automatically by React Query
 
   // Handle checkbox change
   const handleWhatsAppCheckboxChange = (e) => {
@@ -556,30 +365,6 @@ const AddCustomer = () => {
     });
   };
 
-  // Search reference customers
-  const searchReferenceCustomers = async (searchTerm) => {
-    if (!searchTerm.trim()) {
-      setReferenceSearchResults([]);
-      return;
-    }
-
-    try {
-      setReferenceSearchLoading(true);
-      const response = await axiosSecure.get(`/customers?search=${searchTerm}`);
-      
-      if (response.data.success) {
-        const customers = response.data.customers || [];
-        setReferenceSearchResults(customers);
-      } else {
-        setReferenceSearchResults([]);
-      }
-    } catch (error) {
-      setReferenceSearchResults([]);
-    } finally {
-      setReferenceSearchLoading(false);
-    }
-  };
-
   // Select reference customer
   const selectReferenceCustomer = (customer) => {
     setFormData(prev => ({
@@ -589,7 +374,6 @@ const AddCustomer = () => {
     }));
     setShowReferenceSearchModal(false);
     setReferenceSearchTerm('');
-    setReferenceSearchResults([]);
   };
 
   // Customer type management is now handled by CategoryManagement component
@@ -715,16 +499,15 @@ const AddCustomer = () => {
     // Prepare customer data
     const customerData = {
       // Basic customer information
-      name: (formData.firstName || '') + (formData.lastName ? ' ' + formData.lastName : ''),
       firstName: formData.firstName || null,
       lastName: formData.lastName || null,
       mobile: formData.mobile,
       email: formData.email || null,
       occupation: formData.occupation || null,
-      address: formData.address,
-      division: formData.division,
-      district: formData.district,
-      upazila: formData.upazila,
+      address: formData.address || null,
+      division: formData.division || null,
+      district: formData.district || null,
+      upazila: formData.upazila || null,
       postCode: formData.postCode || null,
       whatsappNo: formData.whatsappNo || null,
       customerType: formData.customerType || null,
@@ -751,22 +534,16 @@ const AddCustomer = () => {
       spouseName: formData.spouseName || null,
       maritalStatus: formData.maritalStatus || null,
 
-      // Service linkage
-      serviceType: formData.serviceType || null,
-      serviceStatus: formData.serviceStatus || null,
-
       // Additional information
       notes: formData.notes || null,
       referenceBy: formData.referenceBy || null,
-      referenceCustomerId: formData.referenceCustomerId || null,
-      
-      // System fields
-      isActive: true
+      referenceCustomerId: formData.referenceCustomerId || null
     };
     
-    // Use React Query mutation to create customer
-    createCustomerMutation.mutate(customerData, {
-      onSuccess: () => {
+    // Create customer via API using the hook
+    setIsSubmitting(true);
+    createAirCustomerMutation.mutate(customerData, {
+      onSuccess: (data) => {
         // Reset form on success
         setFormData({
           customerType: '',
@@ -801,9 +578,7 @@ const AddCustomer = () => {
           isActive: true,
           notes: '',
           referenceBy: '',
-          referenceCustomerId: '',
-          serviceType: '',
-          serviceStatus: ''
+          referenceCustomerId: ''
         });
         setImagePreview(null);
         setUploadedImageUrl('');
@@ -816,6 +591,12 @@ const AddCustomer = () => {
         setIssueDate(null);
         setExpiryDate(null);
         setDateOfBirth(null);
+      },
+      onError: () => {
+        // Error is already handled by the hook's onError callback
+      },
+      onSettled: () => {
+        setIsSubmitting(false);
       }
     });
   };
@@ -947,12 +728,12 @@ const AddCustomer = () => {
         {/* Header */}
         <div className="mb-4 text-center">
           <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
-            নতুন কাস্টমার যুক্ত করুন
+            নতুন এয়ার প্যাসেঞ্জার যুক্ত করুন
           </h1>
           <p className={`mt-1 text-sm lg:text-base transition-colors duration-300 ${
             isDark ? 'text-gray-300' : 'text-gray-600'
           }`}>
-            আপনার ব্যবসায় নতুন কাস্টমার যোগ করুন
+            এখানে নতুন এয়ার প্যাসেঞ্জার যোগ করুন
           </p>
         </div>
 
@@ -972,52 +753,7 @@ const AddCustomer = () => {
               }`}>কাস্টমার তথ্য</h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {/* কাস্টমারের ধরন */}
-              <div className="space-y-1">
-                <label className={`block text-xs font-semibold transition-colors duration-300 ${
-                  isDark ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  কাস্টমারের ধরন
-                </label>
-                <div className="relative">
-                  <select
-                    name="customerType"
-                    value={formData.customerType}
-                    onChange={handleInputChange}
-                    disabled={serviceTypesLoading}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'bg-white border-gray-300'
-                    } ${serviceTypesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <option value="">
-                      {serviceTypesLoading ? 'লোড হচ্ছে...' : serviceTypesError ? 'লোড করতে সমস্যা' : 'ধরন নির্বাচন করুন'}
-                    </option>
-                    {serviceTypes.map(service => {
-                      const value = service?.id || service?.value || service?.slug || service;
-                      const label = service?.name || service?.label || service?.title || service;
-                      return (
-                      <option key={String(value)} value={String(value)}>
-                        {String(label)}
-                      </option>
-                      );
-                    })}
-                  </select>
-                  {serviceTypesLoading && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                    </div>
-                  )}
-                </div>
-                
-                {/* Customer Type Management */}
-                <div className="mt-2">
-                  {/* Customer type management is now handled by CategoryManagement component */}
-                </div>
-              </div>
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* নাম: First & Last */}
               <div className="space-y-1">
                 <label className={`block text-xs font-semibold transition-colors duration-300 ${
@@ -1266,7 +1002,7 @@ const AddCustomer = () => {
               </div>
 
               {/* উপজেলা */}
-              <div className="space-y-2">
+                  <div className="space-y-2">
                 <label className={`block text-sm font-semibold transition-colors duration-300 ${
                   isDark ? 'text-gray-200' : 'text-gray-700'
                 }`}>
@@ -1362,19 +1098,19 @@ const AddCustomer = () => {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Passport Scan & Fill */}
-              <div className="space-y-2 md:col-span-2 lg:col-span-3">
+              <div className="space-y-2 sm:col-span-2 lg:col-span-3">
                 <label className={`block text-sm font-semibold transition-colors duration-300 ${
                   isDark ? 'text-gray-200' : 'text-gray-700'
                 }`}>
                   Passport Scan (optional)
                 </label>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <input type="file" accept="image/*,.pdf" onChange={handlePassportScanFileChange} className="w-full sm:w-auto flex-1 border rounded-xl px-4 py-3" />
+                  <input type="file" accept="image/*,.pdf" onChange={handlePassportScanFileChange} className="w-full sm:w-auto flex-1 border rounded-xl px-4 py-3 min-w-0" />
                   <button
                     type="button"
                     onClick={handleScanAndFill}
                     disabled={!passportScanFile || isScanning}
-                    className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl ${
+                    className={`inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl w-full sm:w-auto ${
                       !passportScanFile || isScanning ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'
                     }`}
                     title="Scan and auto-fill passport fields"
@@ -1748,311 +1484,14 @@ const AddCustomer = () => {
             </div>
           </div>
 
-          {/* অতিরিক্ত তথ্য Section */}
-          <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
-            isDark 
-              ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
-              : 'bg-white border-gray-100'
-          }`}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl">
-                <ImageIcon className="w-6 h-6 text-white" />
-              </div>
-              <h2 className={`text-2xl font-bold transition-colors duration-300 ${
-                isDark ? 'text-white' : 'text-gray-800'
-              }`}>অতিরিক্ত তথ্য</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Service Type */}
-              <div className="space-y-2">
-                <label className={`block text-sm font-semibold transition-colors duration-300 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-                  Service Type
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    name="serviceType"
-                    value={formData.serviceType}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setFormData((prev) => ({ ...prev, serviceType: value, serviceStatus: '' }));
-                    }}
-                    disabled={serviceTypesLoading}
-                    className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'} ${serviceTypesLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
-                  >
-                    <option value="">{serviceTypesLoading ? 'Loading services...' : 'Select a service'}</option>
-                    {serviceTypes.map((s) => {
-                      const value = s?.id || s?.value || s?.slug || s;
-                      const label = s?.name || s?.label || s?.title || s;
-                      return (
-                        <option key={String(value)} value={String(value)}>{String(label)}</option>
-                      );
-                    })}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleAddServiceType}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium bg-green-600 hover:bg-green-700 text-white transition-colors duration-200`}
-                  >
-                    Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDeleteServiceType}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors duration-200`}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-
-              {/* Status (dependent) */}
-              <div className="space-y-2">
-                <label className={`block text-sm font-semibold transition-colors duration-300 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-                  Status
-                </label>
-                <div className="relative">
-                  <div className="flex gap-2">
-                    <select
-                      name="serviceStatus"
-                      value={formData.serviceStatus}
-                      onChange={handleInputChange}
-                      disabled={!formData.serviceType || serviceStatusesLoading}
-                      className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${isDark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'} ${(!formData.serviceType || serviceStatusesLoading) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      <option value="">{serviceStatusesLoading ? 'Loading statuses...' : 'Select status'}</option>
-                      {serviceStatuses.map((s) => {
-                        const value = s?.id || s?.value || s?.slug || s;
-                        const label = s?.name || s?.label || s?.title || s;
-                        return (
-                          <option key={String(value)} value={String(value)}>{String(label)}</option>
-                        );
-                      })}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={handleAddServiceStatus}
-                      disabled={!formData.serviceType}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium bg-green-600 hover:bg-green-700 text-white transition-colors duration-200 ${!formData.serviceType ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDeleteServiceStatus}
-                      disabled={!formData.serviceType || !formData.serviceStatus}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-700 text-white transition-colors duration-200 ${(!formData.serviceType || !formData.serviceStatus) ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                  {serviceStatusesLoading && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <Loader2 className="w-4 h-4 animate-spin text-purple-600" />
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* কাস্টমার ছবি */}
-              <div className="space-y-2">
-                <label className={`block text-sm font-semibold transition-colors duration-300 ${
-                  isDark ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  কাস্টমার ছবি
-                </label>
-                <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors duration-200 ${
-                  isDark 
-                    ? 'border-gray-600 hover:border-purple-400' 
-                    : 'border-gray-300 hover:border-purple-400'
-                }`}>
-                  {imagePreview ? (
-                    <div className="space-y-3">
-                      <img 
-                        src={imagePreview} 
-                        alt="Preview" 
-                        className={`w-24 h-24 mx-auto rounded-lg object-cover border-2 transition-colors duration-300 ${
-                          isDark ? 'border-gray-600' : 'border-gray-200'
-                        }`}
-                      />
-                      
-                      {/* Upload Status */}
-                      {imageUploading && (
-                        <div className="flex items-center justify-center gap-2 text-blue-600">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-xs">Cloudinary এ আপলোড হচ্ছে...</span>
-                        </div>
-                      )}
-                      
-                      {/* Cloudinary Link */}
-                      {uploadedImageUrl && !imageUploading && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-center gap-2 text-green-600">
-                            <Upload className="w-4 h-4" />
-                            <span className="text-xs">Cloudinary এ আপলোড হয়েছে</span>
-                          </div>
-                          <a 
-                            href={uploadedImageUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className={`text-xs text-blue-600 hover:text-blue-800 underline block ${
-                              isDark ? 'text-blue-400 hover:text-blue-300' : ''
-                            }`}
-                          >
-                            Cloudinary লিংক দেখুন
-                          </a>
-                        </div>
-                      )}
-                      
-                      <button
-                        type="button"
-                        onClick={handleRemoveImage}
-                        className="text-red-500 hover:text-red-700 text-xs font-medium"
-                      >
-                        ছবি সরান
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <ImageIcon className={`w-12 h-12 mx-auto transition-colors duration-300 ${
-                        isDark ? 'text-gray-500' : 'text-gray-400'
-                      }`} />
-                      <div>
-                        <label htmlFor="customerImage" className="cursor-pointer">
-                          <span className="text-purple-600 hover:text-purple-700 font-medium text-sm">
-                            ছবি আপলোড করুন
-                          </span>
-                          <span className={`text-xs block mt-1 transition-colors duration-300 ${
-                            isDark ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
-                            PNG, JPG, GIF (সর্বোচ্চ ৫MB)
-                          </span>
-                          <span className={`text-xs block mt-1 transition-colors duration-300 ${
-                            isDark ? 'text-gray-400' : 'text-gray-500'
-                          }`}>
-                            Cloudinary এ আপলোড হবে
-                          </span>
-                        </label>
-                        <input
-                          id="customerImage"
-                          type="file"
-                          name="customerImage"
-                          accept="image/*"
-                          onChange={handleInputChange}
-                          className="hidden"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Active/Inactive Toggle */}
-              <div className="space-y-2">
-                <label className={`block text-sm font-semibold transition-colors duration-300 ${
-                  isDark ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  স্ট্যাটাস
-                </label>
-                <div className="flex items-center space-x-4">
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, isActive: true }))}
-                    className={`flex items-center space-x-2 px-4 py-3 rounded-xl transition-all duration-200 ${
-                      formData.isActive 
-                        ? 'bg-green-100 text-green-700 border-2 border-green-300' 
-                        : isDark 
-                          ? 'bg-gray-700 text-gray-300 border-2 border-gray-600' 
-                          : 'bg-gray-100 text-gray-500 border-2 border-gray-200'
-                    }`}
-                  >
-                    <ToggleRight className="w-5 h-5" />
-                    <span className="font-medium">Active</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, isActive: false }))}
-                    className={`flex items-center space-x-2 px-4 py-3 rounded-xl transition-all duration-200 ${
-                      !formData.isActive 
-                        ? 'bg-red-100 text-red-700 border-2 border-red-300' 
-                        : isDark 
-                          ? 'bg-gray-700 text-gray-300 border-2 border-gray-600' 
-                          : 'bg-gray-100 text-gray-500 border-2 border-gray-200'
-                    }`}
-                  >
-                    <ToggleLeft className="w-5 h-5" />
-                    <span className="font-medium">Inactive</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Reference By */}
-              <div className="space-y-2">
-                <label className={`block text-sm font-semibold transition-colors duration-300 ${
-                  isDark ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  Reference By
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    name="referenceBy"
-                    value={formData.referenceBy}
-                    onChange={handleInputChange}
-                    placeholder="রেফারেন্সের নাম"
-                    className={`flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowReferenceSearchModal(true)}
-                    className={`px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors duration-200 ${
-                      isDark ? 'hover:bg-blue-600' : ''
-                    }`}
-                  >
-                    <Search className="w-4 h-4" />
-                  </button>
-                </div>
-                {formData.referenceCustomerId && (
-                  <p className="text-xs text-green-600 dark:text-green-400">
-                    ✅ রেফারেন্স কাস্টমার লিংক করা হয়েছে
-                  </p>
-                )}
-              </div>
-
-              {/* নোট - Full width */}
-              <div className="md:col-span-2 space-y-2">
-                <label className={`block text-sm font-semibold transition-colors duration-300 ${
-                  isDark ? 'text-gray-200' : 'text-gray-700'
-                }`}>
-                  নোট
-                </label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleInputChange}
-                  rows="4"
-                  placeholder="কাস্টমার সম্পর্কে অতিরিক্ত তথ্য লিখুন..."
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'border-gray-300'
-                  }`}
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Submit Button */}
           <div className="text-center">
             <button
               type="submit"
-              disabled={createCustomerMutation.isPending || imageUploading}
-              className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 hover:from-blue-700 hover:via-purple-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              disabled={createAirCustomerMutation.isPending || isSubmitting || imageUploading}
+              className="w-full sm:w-auto group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 hover:from-blue-700 hover:via-purple-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {createCustomerMutation.isPending ? (
+              {(createAirCustomerMutation.isPending || isSubmitting) ? (
                 <>
                   <Loader2 className="w-6 h-6 mr-3 animate-spin" />
                   কাস্টমার যোগ হচ্ছে...
@@ -2183,302 +1622,10 @@ const AddCustomer = () => {
         </div>
       )}
 
-      {/* Customer type management is now handled by CategoryManagement component */}
-      {false && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={`max-w-2xl w-full rounded-2xl shadow-2xl transition-colors duration-300 ${
-            isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-          } border p-6`}>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className={`text-xl font-bold transition-colors duration-300 ${
-                isDark ? 'text-white' : 'text-gray-800'
-              }`}>
-                কাস্টমার ধরন ব্যবস্থাপনা
-              </h3>
-              <button
-                onClick={() => setShowAddCustomerTypeModal(false)}
-                className={`p-2 rounded-lg transition-colors duration-200 ${
-                  isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                }`}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Side - Add/Edit Type */}
-              <div className="space-y-4">
-                <h4 className={`text-lg font-semibold transition-colors duration-300 ${
-                  isDark ? 'text-white' : 'text-gray-800'
-                }`}>
-                  {editingCustomerType ? 'ধরন সম্পাদনা করুন' : 'নতুন ধরন যোগ করুন'}
-                </h4>
-                
-                {/* Value Field */}
-                <div>
-                  <label className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
-                    isDark ? 'text-gray-200' : 'text-gray-700'
-                  }`}>
-                    Value (ইংরেজি) *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCustomerType ? editingCustomerType.value : newCustomerType.value}
-                    onChange={(e) => {
-                      if (editingCustomerType) {
-                        setEditingCustomerType(prev => ({ ...prev, value: e.target.value }));
-                      } else {
-                        setNewCustomerType(prev => ({ ...prev, value: e.target.value }));
-                      }
-                    }}
-                    placeholder="hajj, umrah, air"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                    }`}
-                  />
-                </div>
-
-                {/* Label Field */}
-                <div>
-                  <label className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
-                    isDark ? 'text-gray-200' : 'text-gray-700'
-                  }`}>
-                    Label (বাংলা) *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCustomerType ? editingCustomerType.label : newCustomerType.label}
-                    onChange={(e) => {
-                      if (editingCustomerType) {
-                        setEditingCustomerType(prev => ({ ...prev, label: e.target.value }));
-                      } else {
-                        setNewCustomerType(prev => ({ ...prev, label: e.target.value }));
-                      }
-                    }}
-                    placeholder="হাজ্জ, ওমরাহ, এয়ার"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                    }`}
-                  />
-                </div>
-
-                {/* Prefix Field */}
-                <div>
-                  <label className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
-                    isDark ? 'text-gray-200' : 'text-gray-700'
-                  }`}>
-                    Prefix (প্রিফিক্স) *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingCustomerType ? editingCustomerType.prefix : newCustomerType.prefix}
-                    onChange={(e) => {
-                      if (editingCustomerType) {
-                        setEditingCustomerType(prev => ({ ...prev, prefix: e.target.value.toUpperCase() }));
-                      } else {
-                        setNewCustomerType(prev => ({ ...prev, prefix: e.target.value.toUpperCase() }));
-                      }
-                    }}
-                    placeholder="H, U, A"
-                    maxLength="3"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                    }`}
-                  />
-                  <p className={`text-xs mt-1 transition-colors duration-300 ${
-                    isDark ? 'text-gray-400' : 'text-gray-500'
-                  }`}>
-                    কাস্টমার আইডি জেনারেশনের জন্য (সর্বোচ্চ ৩ অক্ষর)
-                  </p>
-                </div>
-
-                {/* Icon Field */}
-                <div>
-                  <label className={`block text-sm font-semibold mb-2 transition-colors duration-300 ${
-                    isDark ? 'text-gray-200' : 'text-gray-700'
-                  }`}>
-                    আইকন
-                  </label>
-                  <select
-                    value={editingCustomerType ? editingCustomerType.icon : newCustomerType.icon}
-                    onChange={(e) => {
-                      if (editingCustomerType) {
-                        setEditingCustomerType(prev => ({ ...prev, icon: e.target.value }));
-                      } else {
-                        setNewCustomerType(prev => ({ ...prev, icon: e.target.value }));
-                      }
-                    }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                      isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'bg-white border-gray-300'
-                    }`}
-                  >
-                    {availableIcons.map(icon => (
-                      <option key={icon.value} value={icon.value}>
-                        {icon.label} ({icon.value})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  {editingCustomerType ? (
-                    <>
-                      <button
-                        onClick={handleUpdateCustomerType}
-                        disabled={!editingCustomerType.value || !editingCustomerType.label || !editingCustomerType.prefix}
-                        className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                          !editingCustomerType.value || !editingCustomerType.label || !editingCustomerType.prefix
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : 'bg-green-600 hover:bg-green-700 text-white'
-                        }`}
-                      >
-                        আপডেট করুন
-                      </button>
-                      <button
-                        onClick={() => setEditingCustomerType(null)}
-                        className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200"
-                      >
-                        বাতিল
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={handleAddCustomerType}
-                      disabled={!newCustomerType.value || !newCustomerType.label || !newCustomerType.prefix}
-                      className={`w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                        !newCustomerType.value || !newCustomerType.label || !newCustomerType.prefix
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      যোগ করুন
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Side - Manage Existing Types */}
-              <div className="space-y-4">
-                <h4 className={`text-lg font-semibold transition-colors duration-300 ${
-                  isDark ? 'text-white' : 'text-gray-800'
-                }`}>
-                  বর্তমান ধরনসমূহ
-                </h4>
-                
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {customerTypesLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                      <span className="ml-2 text-gray-600 dark:text-gray-400">লোড হচ্ছে...</span>
-                    </div>
-                  ) : customerTypes.length > 0 ? (
-                    customerTypes.map(type => {
-                      const IconComponent = getIconComponent(type.icon);
-                      return (
-                        <div
-                          key={type._id || type.value}
-                          className={`flex items-center justify-between p-3 rounded-lg transition-all duration-200 ${
-                            isDark 
-                              ? 'bg-gray-700 text-gray-200' 
-                              : 'bg-gray-100 text-gray-700'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <IconComponent className="w-4 h-4" />
-                            <div className="flex flex-col">
-                              <span className="text-sm font-medium">{type.label}</span>
-                              <div className="flex gap-1">
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  isDark ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'
-                                }`}>
-                                  {type.value}
-                                </span>
-                                <span className={`text-xs px-2 py-1 rounded ${
-                                  isDark ? 'bg-blue-600 text-blue-200' : 'bg-blue-200 text-blue-600'
-                                }`}>
-                                  {type.prefix}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              onClick={() => setEditingCustomerType(type)}
-                              className={`p-1.5 rounded-lg hover:bg-blue-100 transition-colors duration-200 ${
-                                isDark ? 'hover:bg-blue-900' : 'hover:bg-blue-100'
-                              }`}
-                              title="সম্পাদনা করুন"
-                            >
-                              <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                              </svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteCustomerType(type._id, type.value)}
-                              className={`p-1.5 rounded-lg hover:bg-red-100 transition-colors duration-200 ${
-                                isDark ? 'hover:bg-red-900' : 'hover:bg-red-100'
-                              }`}
-                              title="মুছে ফেলুন"
-                            >
-                              <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className={`text-gray-600 dark:text-gray-400 transition-colors duration-300 ${
-                        isDark ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
-                        কোন কাস্টমার ধরন পাওয়া যায়নি
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Close Button */}
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => {
-                  setShowAddCustomerTypeModal(false);
-                  setEditingCustomerType(null);
-                  setNewCustomerType({ value: '', label: '', icon: 'Home', prefix: '' });
-                }}
-                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
-                  isDark 
-                    ? 'bg-gray-600 hover:bg-gray-700 text-white' 
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                }`}
-              >
-                বন্ধ করুন
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       
       </div>
     </>
   );
 };
 
-export default AddCustomer;
+export default NewPassenger;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   X, 
   Home, 
@@ -26,13 +26,23 @@ import {
 import Swal from 'sweetalert2';
 import { useTheme } from '../../contexts/ThemeContext';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { 
+  useCustomerTypes, 
+  useCreateCustomerType, 
+  useUpdateCustomerType, 
+  useDeleteCustomerType 
+} from '../../hooks/useCustomerTypeQueries';
 
 const CustomerManagment = () => {
   const { isDark } = useTheme();
   const axiosSecure = useAxiosSecure();
   
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // React Query hooks
+  const { data: categories = [], isLoading: loading } = useCustomerTypes();
+  const createMutation = useCreateCustomerType();
+  const updateMutation = useUpdateCustomerType();
+  const deleteMutation = useDeleteCustomerType();
+  
   const [formData, setFormData] = useState({
     value: '',
     label: '',
@@ -86,31 +96,6 @@ const CustomerManagment = () => {
     { value: 'building2', label: 'অফিস (Office)' }
   ];
 
-  // Load categories from backend
-  useEffect(() => {
-    loadCategories();
-  }, []);
-
-  const loadCategories = async () => {
-    try {
-      setLoading(true);
-      const response = await axiosSecure.get('/customer-types');
-      
-      if (response.data.success) {
-        const categoriesData = response.data.customerTypes || [];
-        console.log('Loaded categories:', categoriesData); // Debug log
-        setCategories(categoriesData);
-      } else {
-        setCategories([]);
-      }
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      setCategories([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -130,102 +115,34 @@ const CustomerManagment = () => {
       return;
     }
 
-    try {
-      if (editingCategory) {
-        // Update existing category
-        const categoryId = editingCategory._id || editingCategory.id;
-        console.log('Updating category with ID:', categoryId, 'Full category:', editingCategory); // Debug log
-        const response = await axiosSecure.patch(`/customer-types/${categoryId}`, {
+    if (editingCategory) {
+      // Update existing category
+      const categoryId = editingCategory._id || editingCategory.id;
+      updateMutation.mutate({
+        customerTypeId: categoryId,
+        updates: {
           value: formData.value,
           label: formData.label,
           prefix: formData.prefix,
           icon: formData.icon,
           type: formData.type
-        });
-        
-        if (response.data.success) {
-          // Reload categories from backend
-          await loadCategories();
-          resetForm();
-          
-          Swal.fire({
-            title: 'সফল!',
-            text: 'কাস্টমার টাইপ সফলভাবে আপডেট হয়েছে।',
-            icon: 'success',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#10B981',
-            background: isDark ? '#1F2937' : '#F9FAFB',
-            customClass: {
-              title: 'text-green-600 font-bold text-xl',
-              popup: 'rounded-2xl shadow-2xl'
-            }
-          });
-        } else {
-          throw new Error(response.data.message || 'Failed to update category');
         }
-      } else {
-        // Create new category
-        const response = await axiosSecure.post('/customer-types', {
-          value: formData.value,
-          label: formData.label,
-          prefix: formData.prefix,
-          icon: formData.icon,
-          type: formData.type
-        });
-        
-        if (response.data.success) {
-          // Reload categories from backend
-          await loadCategories();
+      }, {
+        onSuccess: () => {
           resetForm();
-          
-          Swal.fire({
-            title: 'সফল!',
-            text: 'নতুন কাস্টমার টাইপ যোগ হয়েছে!',
-            icon: 'success',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#10B981',
-            background: isDark ? '#1F2937' : '#F9FAFB',
-            customClass: {
-              title: 'text-green-600 font-bold text-xl',
-              popup: 'rounded-2xl shadow-2xl'
-            }
-          });
-        } else {
-          throw new Error(response.data.message || 'Failed to create category');
         }
-      }
-    } catch (error) {
-      console.error('Category update error:', error); // Debug log
-      let errorMessage = 'কাস্টমার টাইপ সংরক্ষণ করতে সমস্যা হয়েছে।';
-      
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Add more specific error handling for ID format issues
-      if (errorMessage.includes('Invalid') && errorMessage.includes('ID')) {
-        errorMessage = 'কাস্টমার টাইপ ID ফরম্যাট সঠিক নয়। দয়া করে পুনরায় চেষ্টা করুন।';
-      }
-      
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: errorMessage,
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
-        background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
+      });
+    } else {
+      // Create new category
+      createMutation.mutate(formData, {
+        onSuccess: () => {
+          resetForm();
         }
       });
     }
   };
 
   const handleEdit = (category) => {
-    console.log('Editing category:', category); // Debug log
     setEditingCategory(category);
     setFormData({
       value: category.value,
@@ -378,52 +295,10 @@ const CustomerManagment = () => {
     });
 
     if (confirmResult.isConfirmed) {
-      try {
-        const response = await axiosSecure.delete(`/customer-types/${categoryId}`, {
-          data: { value: valueToDelete }
-        });
-        
-        if (response.data.success) {
-          // Reload categories from backend
-          await loadCategories();
-          
-          Swal.fire({
-            title: 'মুছে ফেলা হয়েছে!',
-            text: 'কাস্টমার টাইপ মুছে ফেলা হয়েছে।',
-            icon: 'success',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#10B981',
-            background: isDark ? '#1F2937' : '#F9FAFB',
-            customClass: {
-              title: 'text-green-600 font-bold text-xl',
-              popup: 'rounded-2xl shadow-2xl'
-            }
-          });
-        } else {
-          throw new Error(response.data.message || 'Failed to delete category');
-        }
-      } catch (error) {
-        let errorMessage = 'কাস্টমার টাইপ মুছতে সমস্যা হয়েছে।';
-        
-        if (error.response?.data?.message) {
-          errorMessage = error.response.data.message;
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        Swal.fire({
-          title: 'ত্রুটি!',
-          text: errorMessage,
-          icon: 'error',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#EF4444',
-          background: isDark ? '#1F2937' : '#FEF2F2',
-          customClass: {
-            title: 'text-red-600 font-bold text-xl',
-            popup: 'rounded-2xl shadow-2xl'
-          }
-        });
-      }
+      deleteMutation.mutate({
+        customerTypeId: categoryId,
+        value: valueToDelete
+      });
     }
   };
 
@@ -591,7 +466,7 @@ const CustomerManagment = () => {
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   {categories.map(category => (
                     <div
-                      key={category.id}
+                      key={category._id || category.id}
                       className={`flex items-center justify-between p-4 rounded-lg border ${
                         isDark 
                           ? 'bg-gray-700 border-gray-600 hover:bg-gray-600' 
