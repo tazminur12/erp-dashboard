@@ -707,7 +707,7 @@ const AgentPackageCreation = () => {
         <div className="space-y-4">
           {passengers.map((passenger, index) => (
             <div key={passenger.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">যাত্রীর ধরন</label>
                   <select
@@ -754,33 +754,15 @@ const AgentPackageCreation = () => {
                     min="0"
                     step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    placeholder="0.00 BDT"
+                    placeholder="0.00 SAR"
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মূল্য (BDT)</label>
-                  <input
-                    type="number"
-                    value={passenger.price}
-                    onChange={(e) => handlers.handleChange(passenger.id, 'price', e.target.value)}
-                    min="0"
-                    step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    placeholder="0.00 BDT"
-                  />
-                </div>
-                
-                <div className="flex items-end"></div>
               </div>
               
               <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
                 <div className="font-medium">ক্যালকুলেশন:</div>
                 <div className="text-xs">
-                  {passenger.count} × {passenger.days || 0} × {(passenger.perDayPrice || 0).toLocaleString()} = {((passenger.count || 0) * (passenger.days || 0) * (passenger.perDayPrice || 0)).toLocaleString()} BDT
-                </div>
-                <div className="text-xs mt-1">
-                  মোট: {passenger.count} × {(passenger.price || 0).toLocaleString()} = {((passenger.count || 0) * (passenger.price || 0)).toLocaleString()} BDT
+                  {passenger.count} × {passenger.days || 0} × {formatNumber(passenger.perDayPrice || 0)} = {formatNumber((passenger.count || 0) * (passenger.days || 0) * (passenger.perDayPrice || 0))} BDT
                 </div>
               </div>
             </div>
@@ -854,7 +836,7 @@ const AgentPackageCreation = () => {
               </div>
               
               <div className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                মোট: {passenger.count} × {passenger.price.toLocaleString()} = {(passenger.count * passenger.price).toLocaleString()} BDT
+                মোট: {passenger.count} × {formatNumber(passenger.price)} = {formatNumber(passenger.count * passenger.price)} BDT
               </div>
             </div>
           ))}
@@ -966,7 +948,7 @@ const AgentPackageCreation = () => {
                   <div className="text-sm text-gray-600 dark:text-gray-400">
                     <div className="font-medium">ক্যালকুলেশন:</div>
                     <div className="text-xs">
-                      {passenger.roomNumber} × {passenger.perNight} × {passenger.totalNights} = {formatCurrency(totalPerPerson * (parseFloat(formData.sarToBdtRate) || 1))} BDT (প্রতি হাজীর জন্য)
+                      {passenger.roomNumber} × {passenger.perNight} × {passenger.totalNights} = {formatCurrency(totalPerPerson * (parseFloat(formData.sarToBdtRate) || 1))} BDT 
                     </div>
                   </div>
                   <div></div>
@@ -1199,11 +1181,18 @@ const AgentPackageCreation = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('bn-BD', {
+    return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 2
     }).format(amount || 0);
+  };
+
+  const formatNumber = (number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(number || 0);
   };
 
   const isFormValid = formData.packageName.trim() && formData.packageYear && totals.subtotal > 0 && formData.agentId;
@@ -1212,7 +1201,7 @@ const AgentPackageCreation = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 px-4">
-      <style jsx>{`
+      <style>{`
         /* Hide number input spinners */
         input[type="number"]::-webkit-outer-spin-button,
         input[type="number"]::-webkit-inner-spin-button {

@@ -594,10 +594,12 @@ const AgentDetails = () => {
                   {agent.lastActivity ? new Date(agent.lastActivity).toLocaleDateString() : '-'}
                 </p>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Agent ID</label>
-                <p className="text-sm text-gray-900 dark:text-white font-mono">{agent.agentId || id}</p>
-              </div>
+              {agent.agentId && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Agent ID</label>
+                  <p className="text-sm text-gray-900 dark:text-white font-mono">{agent.agentId}</p>
+                </div>
+              )}
             </div>
           </div>
 
