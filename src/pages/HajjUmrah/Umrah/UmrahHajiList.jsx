@@ -21,7 +21,7 @@ import {
 import DataTable from '../../../components/common/DataTable';
 import FilterBar from '../../../components/common/FilterBar';
 import ExcelUploader from '../../../components/common/ExcelUploader';
-import { useUmrahList, useDeleteUmrah } from '../../../hooks/UseUmrahQuries';
+import { useUmrahList, useDeleteUmrah, useBulkCreateUmrah } from '../../../hooks/UseUmrahQuries';
 import Swal from 'sweetalert2';
 
 const UmrahHajiList = () => {
@@ -33,12 +33,21 @@ const UmrahHajiList = () => {
     paymentStatus: 'all'
   });
 
-  // Fetch Umrah pilgrims data
-  const { data: umrahData, isLoading, error } = useUmrahList({});
-  const umrahPilgrims = umrahData?.data || [];
+  // Fetch Umrah pilgrims data - request all data (limit 20000 to get all)
+  const { data: umrahData, isLoading, error } = useUmrahList({ 
+    limit: 20000,  // Backend max limit is 20000, so request all data
+    page: 1 
+  });
+  const umrahPilgrims = useMemo(() => umrahData?.data || [], [umrahData?.data]);
+  
+  // Get total count from API response pagination (if available) or use umrahPilgrims.length
+  const totalUmrahPilgrims = umrahData?.pagination?.total || umrahPilgrims.length;
   
   // Delete Umrah mutation
   const deleteUmrahMutation = useDeleteUmrah();
+  
+  // Bulk Create Umrah mutation
+  const bulkCreateUmrahMutation = useBulkCreateUmrah();
 
   // Filter and search functionality - memoized to prevent infinite re-renders
   const filteredPilgrims = useMemo(() => {
@@ -264,23 +273,24 @@ const UmrahHajiList = () => {
     }
   ];
 
-  const handleExcelDataProcessed = (processed) => {
-    const rows = processed.map((row, index) => ({
-      _id: `U${String(Date.now() + index).slice(-3)}`,
-      ...row,
-      status: row.status || 'pending',
-      paymentStatus: row.paymentStatus || 'pending',
-      registrationDate: row.registrationDate || new Date().toISOString().split('T')[0],
-      departureDate: row.departureDate || '',
-      agent: row.agent || '',
-      totalAmount: parseFloat(row.totalAmount) || 0,
-      paidAmount: parseFloat(row.paidAmount) || 0,
-      dueAmount: (parseFloat(row.totalAmount) || 0) - (parseFloat(row.paidAmount) || 0)
-    }));
-    // Note: This would need to be implemented with actual API call to add Umrah pilgrims
-    console.log('Excel data processed:', rows);
+  const handleExcelDataProcessed = (processedData) => {
+    // Validate that we have data to process
+    if (!Array.isArray(processedData) || processedData.length === 0) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'Excel ফাইলে কোনো ডাটা পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+
+    // Close the Excel uploader modal
     setShowExcelUploader(false);
-    alert(`Successfully processed ${rows.length} Umrah Haji from Excel! Note: This data needs to be saved via API.`);
+
+    // Use bulk create mutation to process the data
+    bulkCreateUmrahMutation.mutate(processedData);
   };
 
   // Handle loading state
@@ -359,7 +369,7 @@ const UmrahHajiList = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Umrah Haji List</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{umrahPilgrims.length}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalUmrahPilgrims}</p>
             </div>
             <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
@@ -424,6 +434,8 @@ const UmrahHajiList = () => {
         searchable={false}
         exportable={false}
         actions={false}
+        pagination={true}
+        pageSize={50}
       />
 
       {showExcelUploader && (
@@ -432,11 +444,26 @@ const UmrahHajiList = () => {
           onClose={() => setShowExcelUploader(false)}
           onDataProcessed={handleExcelDataProcessed}
           title="Upload Umrah Haji Data from Excel"
-          acceptedFields={[ 'name', 'passport', 'phone', 'email', 'address', 'package', 'agent', 'totalAmount', 'paidAmount', 'status', 'paymentStatus', 'registrationDate', 'departureDate' ]}
-          requiredFields={[ 'name', 'passport', 'phone', 'email', 'package' ]}
+          acceptedFields={[
+            'name', 'mobile no', 'fathers name', 'mother\'s name', 'upazila', 'districts'
+          ]}
+          requiredFields={['name', 'mobile no']}
           sampleData={[
-            ['Name','Passport','Phone','Email','Address','Package','Agent','Total Amount','Paid Amount','Status','Payment Status','Registration Date','Departure Date'],
-            ['Abu Bakar','U1234567','+8801700000001','abu@example.com','Dhaka, Bangladesh','Standard Umrah 2024','Madina Tours','120000','60000','pending','partial','2024-10-01','2024-11-15']
+            [
+              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Upazila', 'Districts'
+            ],
+            [
+              'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum', 
+              'Dhanmondi', 'Dhaka'
+            ],
+            [
+              'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun', 
+              'Kotwali', 'Chittagong'
+            ],
+            [
+              'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum', 
+              'Sylhet Sadar', 'Sylhet'
+            ]
           ]}
         />
       )}

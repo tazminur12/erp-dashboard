@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 // import { useDropzone } from 'react-dropzone'; // Temporarily disabled due to attr-accept import issues
 import * as XLSX from 'xlsx';
+import Swal from 'sweetalert2';
 import {
   Upload,
   FileSpreadsheet,
@@ -41,10 +42,10 @@ const ExcelUploader = ({
   const [validationErrors, setValidationErrors] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1); // 1: Upload, 2: Map, 3: Preview, 4: Process
+  const [currentStep, setCurrentStep] = useState(1); // 1: Upload, 2: Preview, 3: Process
 
   // Define available field types
-  const fieldTypes = {
+  const baseFieldTypes = {
     'name': { label: 'Name', icon: Users, type: 'text', required: true },
     'email': { label: 'Email', icon: Mail, type: 'email', required: true },
     'phone': { label: 'Phone', icon: Phone, type: 'text', required: true },
@@ -80,6 +81,50 @@ const ExcelUploader = ({
     'unitPrice': { label: 'Unit Price', icon: DollarSign, type: 'number', required: false },
     'netAmount': { label: 'Net Amount', icon: DollarSign, type: 'number', required: false }
   };
+
+  // Create dynamic field types for acceptedFields that don't exist
+  const fieldTypes = useMemo(() => {
+    const dynamicTypes = { ...baseFieldTypes };
+    
+    acceptedFields.forEach(fieldKey => {
+      if (!dynamicTypes[fieldKey]) {
+        // Capitalize first letter of each word for label
+        const label = fieldKey
+          .replace(/'/g, '') // Remove apostrophes
+          .split(/[\s-]+/)
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+          .join(' ');
+        
+        // Determine field type based on field name
+        let type = 'text';
+        let icon = Users;
+        if (fieldKey.toLowerCase().includes('mobile') || fieldKey.toLowerCase().includes('phone')) {
+          type = 'text';
+          icon = Phone;
+        } else if (fieldKey.toLowerCase().includes('email')) {
+          type = 'email';
+          icon = Mail;
+        } else if (fieldKey.toLowerCase().includes('date')) {
+          type = 'date';
+          icon = Calendar;
+        } else if (fieldKey.toLowerCase().includes('amount') || fieldKey.toLowerCase().includes('price')) {
+          type = 'number';
+          icon = DollarSign;
+        } else if (fieldKey.toLowerCase().includes('address') || fieldKey.toLowerCase().includes('location') || fieldKey.toLowerCase().includes('district') || fieldKey.toLowerCase().includes('upazila')) {
+          icon = MapPin;
+        }
+        
+        dynamicTypes[fieldKey] = {
+          label: label,
+          icon: icon,
+          type: type,
+          required: requiredFields.includes(fieldKey)
+        };
+      }
+    });
+    
+    return dynamicTypes;
+  }, [acceptedFields, requiredFields]);
 
   // File validation function
   const isValidFileType = (file) => {
@@ -154,30 +199,172 @@ const ExcelUploader = ({
           
           setHeaders(excelHeaders);
           setExcelData(excelRows);
-          setCurrentStep(2);
           
-          // Simple auto-mapping
+          // Bengali to English field mapping
+          const bengaliFieldMapping = {
+            // Name variations
+            'নাম': 'name',
+            'name': 'name',
+            'Name': 'name',
+            
+            // Mobile variations
+            'মোবাইল নং': 'mobile no',
+            'মোবাইল': 'mobile no',
+            'মোবাইল নাম্বার': 'mobile no',
+            'mobile no': 'mobile no',
+            'Mobile no': 'mobile no',
+            'Mobile No': 'mobile no',
+            'mobile': 'mobile no',
+            'phone': 'mobile no',
+            'Phone': 'mobile no',
+            
+            // Father's name variations
+            'পিতার নাম': 'fathers name',
+            'পিতা': 'fathers name',
+            'fathers name': 'fathers name',
+            'Fathers name': 'fathers name',
+            "Father's name": 'fathers name',
+            'father name': 'fathers name',
+            'Father Name': 'fathers name',
+            
+            // Mother's name variations
+            'মাতার নাম': 'mother\'s name',
+            'মাতা': 'mother\'s name',
+            "mother's name": 'mother\'s name',
+            "Mother's name": 'mother\'s name',
+            "Mother's Name": 'mother\'s name',
+            'mother name': 'mother\'s name',
+            'Mother Name': 'mother\'s name',
+            'mothers name': 'mother\'s name',
+            
+            // Upazila variations
+            'উপজেলা': 'upazila',
+            'Upazila': 'upazila',
+            'upazila': 'upazila',
+            
+            // District variations
+            'জেলা': 'districts',
+            'জেলার নাম': 'districts',
+            'Districts': 'districts',
+            'District': 'districts',
+            'districts': 'districts',
+            'district': 'districts',
+          };
+          
+          // Auto-mapping based on acceptedFields and header names
           const autoMapping = {};
           
           excelHeaders.forEach((header, index) => {
             if (!header) return;
             
-            const headerLower = header.toString().toLowerCase().trim();
+            const headerStr = header.toString().trim();
+            const headerLower = headerStr.toLowerCase();
             
-            // Simple direct matching
+            // First, try to match with Bengali mapping
+            let matchedFieldKey = null;
+            
+            // Direct Bengali match
+            if (bengaliFieldMapping[headerStr]) {
+              matchedFieldKey = bengaliFieldMapping[headerStr];
+            }
+            // Lowercase match
+            else if (bengaliFieldMapping[headerLower]) {
+              matchedFieldKey = bengaliFieldMapping[headerLower];
+            }
+            // Partial Bengali match (for merged cells or combined text)
+            else {
+              Object.keys(bengaliFieldMapping).forEach(bengaliKey => {
+                if (headerStr.includes(bengaliKey) || bengaliKey.includes(headerStr)) {
+                  matchedFieldKey = bengaliFieldMapping[bengaliKey];
+                }
+              });
+            }
+            
+            // If matched with Bengali mapping, check if it's in acceptedFields
+            if (matchedFieldKey && acceptedFields.includes(matchedFieldKey)) {
+              if (autoMapping[matchedFieldKey] === undefined) {
+                autoMapping[matchedFieldKey] = index;
+                console.log(`Mapped Bengali "${header}" to field "${matchedFieldKey}"`);
+              }
+            }
+            
+            // Also try English matching if not already mapped
+            acceptedFields.forEach(fieldKey => {
+              // Skip if already mapped
+              if (autoMapping[fieldKey] !== undefined) return;
+              
+              // Try to match field key or field label
+              const fieldLabel = (fieldTypes[fieldKey]?.label || fieldKey).toLowerCase();
+              const fieldKeyLower = fieldKey.toLowerCase();
+              
+              // Normalize strings for better matching
+              // Remove special characters, normalize spaces, remove apostrophes
+              const normalizeString = (str) => {
+                return str
+                  .toLowerCase()
+                  .replace(/['".,]/g, '') // Remove quotes, apostrophes, dots, commas
+                  .replace(/\s+/g, ' ')   // Normalize spaces
+                  .trim();
+              };
+              
+              const headerNormalized = normalizeString(headerLower);
+              const fieldLabelNormalized = normalizeString(fieldLabel);
+              const fieldKeyNormalized = normalizeString(fieldKeyLower);
+              
+              // Multiple matching strategies
+              const matches = 
+                // Exact match after normalization
+                headerNormalized === fieldLabelNormalized ||
+                headerNormalized === fieldKeyNormalized ||
+                // Contains match
+                headerNormalized.includes(fieldLabelNormalized) ||
+                fieldLabelNormalized.includes(headerNormalized) ||
+                headerNormalized.includes(fieldKeyNormalized) ||
+                fieldKeyNormalized.includes(headerNormalized) ||
+                // Direct comparison (case-insensitive)
+                headerLower === fieldKeyLower ||
+                headerLower === fieldLabel ||
+                // Partial word matching (for "mobile no" vs "mobile", "fathers name" vs "father name")
+                (fieldKeyNormalized.split(' ').some(word => word.length > 3 && headerNormalized.includes(word))) ||
+                (headerNormalized.split(' ').some(word => word.length > 3 && fieldKeyNormalized.includes(word)));
+              
+              if (matches) {
+                autoMapping[fieldKey] = index;
+                console.log(`Mapped "${header}" to field "${fieldKey}"`);
+              }
+            });
+            
+            // Also check other field types for additional fields
             Object.keys(fieldTypes).forEach(fieldKey => {
+              if (autoMapping[fieldKey] !== undefined) return; // Already mapped
+              
               const fieldLabel = fieldTypes[fieldKey].label.toLowerCase();
+              const normalizeString = (str) => {
+                return str.toLowerCase().replace(/['".,]/g, '').replace(/\s+/g, ' ').trim();
+              };
+              
+              const headerNormalized = normalizeString(headerLower);
+              const fieldLabelNormalized = normalizeString(fieldLabel);
               
               // Direct match or contains match
-              if (headerLower === fieldLabel || 
-                  headerLower.includes(fieldLabel) || 
-                  fieldLabel.includes(headerLower)) {
+              if (headerNormalized === fieldLabelNormalized || 
+                  headerNormalized.includes(fieldLabelNormalized) || 
+                  fieldLabelNormalized.includes(headerNormalized)) {
                 autoMapping[fieldKey] = index;
+                console.log(`Mapped "${header}" to field "${fieldKey}"`);
               }
             });
           });
           
+          console.log('Final auto-mapping:', autoMapping);
+          console.log('Excel headers:', excelHeaders);
+          console.log('Accepted fields:', acceptedFields);
+          
           setMappedFields(autoMapping);
+          
+          // Skip step 2 (mapping), go directly to step 2 (preview)
+          setShowPreview(true);
+          setCurrentStep(2);
         }
       } catch (error) {
         console.error('Error processing Excel file:', error);
@@ -193,11 +380,40 @@ const ExcelUploader = ({
     const errors = [];
     const processedData = [];
 
+    // Check if we have data to process
+    if (!excelData || excelData.length === 0) {
+      errors.push('No data found in Excel file');
+      setValidationErrors(errors);
+      return { errors, processedData: [] };
+    }
+
+    // Check if we have any mapped fields
+    if (!mappedFields || Object.keys(mappedFields).length === 0) {
+      const expectedFields = acceptedFields.map(f => {
+        const label = fieldTypes[f]?.label || f;
+        return `"${label}"`;
+      }).join(', ');
+      
+      const currentHeaders = headers.length > 0 
+        ? headers.map(h => `"${h}"`).join(', ')
+        : 'কোনো header নেই';
+      
+      errors.push(`কোনো field map হয়নি। আপনার Excel file-এর column headers এই field গুলোর সাথে match করতে হবে: ${expectedFields}। বর্তমান headers: ${currentHeaders}`);
+      setValidationErrors(errors);
+      console.error('Mapping failed:', {
+        headers: headers,
+        acceptedFields: acceptedFields,
+        mappedFields: mappedFields
+      });
+      return { errors, processedData: [] };
+    }
+
     // Simple validation - only check if required fields are mapped
     requiredFields.forEach(field => {
       const columnIndex = mappedFields[field];
       if (columnIndex === undefined || columnIndex === null) {
-        errors.push(`Required field "${fieldTypes[field]?.label}" is not mapped`);
+        const fieldLabel = fieldTypes[field]?.label || field;
+        errors.push(`Required field "${fieldLabel}" is not mapped`);
       }
     });
 
@@ -206,36 +422,94 @@ const ExcelUploader = ({
       return { errors, processedData: [] };
     }
 
-    // Process all rows without strict validation
+    // Process all rows with validation
     excelData.forEach((row, rowIndex) => {
       const rowData = {};
+      const rowErrors = [];
+      
+      // Check if row is completely empty (skip empty rows)
+      const isRowEmpty = !row || row.every(cell => 
+        cell === undefined || 
+        cell === null || 
+        cell === '' || 
+        (typeof cell === 'string' && cell.trim() === '')
+      );
+      
+      if (isRowEmpty) {
+        console.log(`Skipping empty row ${rowIndex + 1}`);
+        return; // Skip completely empty rows
+      }
       
       Object.keys(mappedFields).forEach(field => {
         const columnIndex = mappedFields[field];
-        if (columnIndex !== undefined && columnIndex !== null && row[columnIndex] !== undefined) {
+        if (columnIndex !== undefined && columnIndex !== null) {
           let value = row[columnIndex];
           
+          // Handle undefined, null, or empty values
+          if (value === undefined || value === null || value === '') {
+            // Check if it's a required field
+            if (requiredFields.includes(field)) {
+              const fieldLabel = fieldTypes[field]?.label || field;
+              rowErrors.push(`Row ${rowIndex + 1}: ${fieldLabel} is required but empty`);
+            }
+            return; // Skip this field
+          }
+          
           // Simple formatting
-          if (fieldTypes[field]?.type === 'number') {
+          const fieldType = fieldTypes[field]?.type || 'text';
+          if (fieldType === 'number') {
             value = parseFloat(value) || 0;
-          } else if (fieldTypes[field]?.type === 'date') {
+          } else if (fieldType === 'date') {
             if (value instanceof Date) {
               value = value.toISOString().split('T')[0];
             } else if (typeof value === 'number') {
               const date = new Date((value - 25569) * 86400 * 1000);
               value = date.toISOString().split('T')[0];
             } else {
-              value = value.toString();
+              value = value ? value.toString().trim() : '';
             }
           } else {
-            value = value.toString().trim();
+            value = value ? value.toString().trim() : '';
           }
           
-          rowData[field] = value;
+          // Check if required field is empty after trimming
+          if (requiredFields.includes(field) && (!value || value === '')) {
+            const fieldLabel = fieldTypes[field]?.label || field;
+            rowErrors.push(`Row ${rowIndex + 1}: ${fieldLabel} is required but empty`);
+          }
+          
+          if (value !== undefined && value !== null && value !== '') {
+            rowData[field] = value;
+          }
         }
       });
       
-      processedData.push(rowData);
+      // Check if all required fields are present
+      requiredFields.forEach(reqField => {
+        if (!rowData[reqField] || String(rowData[reqField]).trim() === '') {
+          const fieldLabel = fieldTypes[reqField]?.label || reqField;
+          if (!rowErrors.some(err => err.includes(fieldLabel))) {
+            rowErrors.push(`Row ${rowIndex + 1}: ${fieldLabel} is required`);
+          }
+        }
+      });
+      
+      // If there are errors for this row, add them to errors array
+      if (rowErrors.length > 0) {
+        errors.push(...rowErrors);
+        console.warn(`Row ${rowIndex + 1} has errors:`, rowErrors, rowData);
+      }
+      
+      // Only add row if it has all required fields
+      const hasAllRequiredFields = requiredFields.every(reqField => 
+        rowData[reqField] && String(rowData[reqField]).trim() !== ''
+      );
+      
+      if (hasAllRequiredFields && Object.keys(rowData).length > 0) {
+        processedData.push(rowData);
+      } else if (!hasAllRequiredFields) {
+        console.warn(`Skipping row ${rowIndex + 1} - missing required fields`, rowData);
+      }
     });
 
     setValidationErrors([]);
@@ -246,15 +520,118 @@ const ExcelUploader = ({
     const { errors, processedData } = validateData();
     if (errors.length === 0) {
       setShowPreview(true);
-      setCurrentStep(3);
+      // Already on step 2 (preview), no need to change step
     }
   };
 
   const handleProcessData = () => {
-    const { processedData } = validateData();
-    if (processedData.length > 0) {
-      onDataProcessed?.(processedData);
-      onClose?.();
+    console.log('Process Data clicked');
+    console.log('Mapped fields:', mappedFields);
+    console.log('Headers:', headers);
+    console.log('Excel data length:', excelData?.length);
+    console.log('Required fields:', requiredFields);
+    
+    const { errors, processedData } = validateData();
+    
+    console.log('Validation errors:', errors);
+    console.log('Processed data length:', processedData?.length);
+    
+    // Show validation errors if any
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      Swal.fire({
+        title: 'Validation Error',
+        html: errors.map(err => `<p style="text-align: left;">• ${err}</p>`).join(''),
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    
+    if (!processedData || processedData.length === 0) {
+      setValidationErrors(['No data to process. Please check your Excel file.']);
+      Swal.fire({
+        title: 'No Data',
+        text: 'No valid data found to process. Please check your Excel file.',
+        icon: 'warning',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    
+    try {
+      // Convert processed data to use expected backend field names (not original Excel headers)
+      // Map field keys to backend-expected header names - ONLY these 6 fields
+      const fieldToBackendHeader = {
+        'name': 'Name',
+        'mobile no': 'Mobile no',
+        'fathers name': 'Fathers name',
+        'mother\'s name': 'Mother\'s Name',
+        'upazila': 'Upazila',
+        'districts': 'Districts'
+      };
+      
+      // Only process these specific fields - ignore all others
+      const allowedFields = ['name', 'mobile no', 'fathers name', 'mother\'s name', 'upazila', 'districts'];
+      
+      const dataWithOriginalHeaders = processedData.map((row, rowIdx) => {
+        const rowData = {};
+        
+        // Only include the 6 allowed fields
+        allowedFields.forEach(fieldKey => {
+          // Check if this field is in the mapped fields and has a value
+          if (mappedFields[fieldKey] !== undefined && row[fieldKey] !== undefined) {
+            const value = row[fieldKey];
+            if (value !== undefined && value !== null && value !== '') {
+              // Use backend-expected header name
+              const backendHeader = fieldToBackendHeader[fieldKey];
+              if (backendHeader) {
+                rowData[backendHeader] = value;
+              }
+            }
+          }
+        });
+        
+        // Validate required fields for this row
+        requiredFields.forEach(reqField => {
+          if (allowedFields.includes(reqField)) {
+            const backendHeader = fieldToBackendHeader[reqField];
+            if (!rowData[backendHeader] || !String(rowData[backendHeader]).trim()) {
+              console.warn(`Row ${rowIdx + 1}: Missing required field "${backendHeader}"`, rowData);
+            }
+          }
+        });
+        
+        return rowData;
+      });
+      
+      console.log('Final processed data:', dataWithOriginalHeaders);
+      console.log('Final data count:', dataWithOriginalHeaders.length);
+      
+      // Call the callback with processed data
+      if (onDataProcessed) {
+        console.log('Calling onDataProcessed callback');
+        onDataProcessed(dataWithOriginalHeaders);
+      } else {
+        console.warn('onDataProcessed callback is not defined');
+      }
+      
+      // Close the modal
+      if (onClose) {
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error processing data:', error);
+      setValidationErrors([`Error processing data: ${error.message}`]);
+      Swal.fire({
+        title: 'Processing Error',
+        text: error.message || 'An error occurred while processing the data.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#EF4444',
+      });
     }
   };
 
@@ -335,10 +712,9 @@ const ExcelUploader = ({
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h2>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Step {currentStep} of 4: {
+                Step {currentStep} of 3: {
                   currentStep === 1 ? 'Upload File' :
-                  currentStep === 2 ? 'Map Fields' :
-                  currentStep === 3 ? 'Preview Data' :
+                  currentStep === 2 ? 'Preview Data' :
                   'Process Data'
                 }
               </p>
@@ -363,7 +739,7 @@ const ExcelUploader = ({
           {/* Progress Bar */}
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-2">
-              {[1, 2, 3, 4].map((step) => (
+              {[1, 2, 3].map((step) => (
                 <div key={step} className="flex items-center">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                     step <= currentStep
@@ -372,7 +748,7 @@ const ExcelUploader = ({
                   }`}>
                     {step}
                   </div>
-                  {step < 4 && (
+                  {step < 3 && (
                     <div className={`w-16 h-1 mx-2 ${
                       step < currentStep ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
                     }`} />
@@ -466,139 +842,8 @@ const ExcelUploader = ({
               </div>
             )}
 
-            {/* Step 2: Field Mapping */}
+            {/* Step 2: Preview */}
             {currentStep === 2 && (
-              <div className="space-y-6">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <div className="flex items-center space-x-2">
-                    <Info className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                    <div>
-                      <p className="text-blue-800 dark:text-blue-400">
-                        Select which Excel column matches each field. Required fields are marked with *.
-                      </p>
-                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                        {Object.keys(mappedFields).length} fields auto-mapped. 
-                        Map the remaining fields manually if needed.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Available Fields */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                      Available Fields
-                    </h3>
-                    <div className="space-y-3">
-                      {Object.entries(fieldTypes).map(([fieldKey, fieldConfig]) => {
-                        const Icon = fieldConfig.icon;
-                        return (
-                          <div
-                            key={fieldKey}
-                            className={`p-3 rounded-lg border ${
-                              mappedFields[fieldKey] !== undefined
-                                ? 'border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20'
-                                : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <Icon className="w-5 h-5 text-gray-400" />
-                              <div className="flex-1">
-                                <span className="font-medium text-gray-900 dark:text-white">
-                                  {fieldConfig.label}
-                                </span>
-                                {fieldConfig.required && (
-                                  <span className="text-red-500 ml-1">*</span>
-                                )}
-                              </div>
-                              {mappedFields[fieldKey] !== undefined && (
-                                <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Excel Headers */}
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                      Excel Columns
-                    </h3>
-                    <div className="space-y-3">
-                      {headers.map((header, index) => (
-                        <div
-                          key={index}
-                          className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <FileSpreadsheet className="w-5 h-5 text-gray-400" />
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {header}
-                              </span>
-                            </div>
-                            <select
-                              value={Object.keys(mappedFields).find(key => mappedFields[key] === index) || ''}
-                              onChange={(e) => {
-                                const fieldKey = e.target.value;
-                                if (fieldKey) {
-                                  setMappedFields(prev => ({
-                                    ...prev,
-                                    [fieldKey]: index
-                                  }));
-                                } else {
-                                  // Remove mapping
-                                  const currentField = Object.keys(mappedFields).find(key => mappedFields[key] === index);
-                                  if (currentField) {
-                                    setMappedFields(prev => {
-                                      const newMapping = { ...prev };
-                                      delete newMapping[currentField];
-                                      return newMapping;
-                                    });
-                                  }
-                                }
-                              }}
-                              className="px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
-                            >
-                              <option value="">Select field</option>
-                              {Object.entries(fieldTypes).map(([fieldKey, fieldConfig]) => (
-                                <option key={fieldKey} value={fieldKey}>
-                                  {fieldConfig.label} {fieldConfig.required ? '*' : ''}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {validationErrors.length > 0 && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
-                      <h4 className="font-medium text-red-800 dark:text-red-400">
-                        Mapping Issues
-                      </h4>
-                    </div>
-                    <ul className="space-y-1">
-                      {validationErrors.map((error, index) => (
-                        <li key={index} className="text-sm text-red-600 dark:text-red-500">
-                          • {error}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 3: Preview */}
-            {currentStep === 3 && (
               <div className="space-y-6">
                 <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                   <div className="flex items-center space-x-2">
@@ -678,16 +923,6 @@ const ExcelUploader = ({
               </button>
               
               {currentStep === 2 && (
-                <button
-                  onClick={handlePreview}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Preview</span>
-                </button>
-              )}
-              
-              {currentStep === 3 && (
                 <button
                   onClick={handleProcessData}
                   className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"

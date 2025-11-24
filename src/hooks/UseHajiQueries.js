@@ -225,6 +225,129 @@ export const useDeleteHaji = () => {
   });
 };
 
+// Bulk Create Haji from Excel Upload
+export const useBulkCreateHaji = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (hajiDataArray) => {
+      // Validate that we have an array with data
+      if (!Array.isArray(hajiDataArray) || hajiDataArray.length === 0) {
+        throw new Error('Data array is required and must not be empty');
+      }
+
+      // Filter out invalid records and collect errors
+      const validRecords = [];
+      const invalidRecords = [];
+      
+      for (let i = 0; i < hajiDataArray.length; i++) {
+        const record = hajiDataArray[i];
+        const rowNumber = i + 1;
+        
+        // Check required fields - try multiple variations
+        const name = record['Name'] || 
+                     record['name'] || 
+                     record.name || 
+                     record['নাম'] || // Bengali
+                     '';
+        
+        const mobile = record['Mobile no'] || 
+                       record['Mobile No'] || 
+                       record['mobile no'] || 
+                       record['Mobile'] || 
+                       record.mobile ||
+                       record['মোবাইল নং'] || // Bengali
+                       record['মোবাইল'] || // Bengali
+                       '';
+        
+        // Validate required fields
+        const nameValid = name && String(name).trim();
+        const mobileValid = mobile && String(mobile).trim();
+        
+        if (!nameValid || !mobileValid) {
+          const missingFields = [];
+          if (!nameValid) missingFields.push('Name');
+          if (!mobileValid) missingFields.push('Mobile');
+          invalidRecords.push({
+            row: rowNumber,
+            missingFields: missingFields.join(', ')
+          });
+          console.warn(`Row ${rowNumber} skipped - missing: ${missingFields.join(', ')}`);
+          continue; // Skip this record
+        }
+        
+        // Add valid record
+        validRecords.push(record);
+      }
+      
+      // If no valid records, throw error
+      if (validRecords.length === 0) {
+        const errorMsg = invalidRecords.length > 0
+          ? `All ${hajiDataArray.length} rows are invalid. Missing fields: ${invalidRecords.map(r => `Row ${r.row} (${r.missingFields})`).join('; ')}`
+          : 'No valid records found';
+        throw new Error(errorMsg);
+      }
+      
+      // If some records are invalid, log warning but continue with valid ones
+      if (invalidRecords.length > 0) {
+        console.warn(`${invalidRecords.length} rows skipped due to missing required fields:`, invalidRecords);
+      }
+      
+      // Use only valid records
+      const recordsToProcess = validRecords;
+
+      const response = await axiosSecure.post('/haj-umrah/haji/bulk', { data: recordsToProcess });
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to bulk create haji');
+    },
+    onSuccess: (data) => {
+      const results = data?.data || {};
+      const successCount = results.successCount || 0;
+      const failedCount = results.failedCount || 0;
+      const total = results.total || 0;
+
+      // Invalidate queries to refresh the list
+      queryClient.invalidateQueries({ queryKey: hajiKeys.lists() });
+
+      // Show success message with details
+      if (failedCount === 0) {
+        Swal.fire({
+          title: 'সফল!',
+          html: `সব ${total} টি হাজি সফলভাবে তৈরি হয়েছে।`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
+      } else {
+        Swal.fire({
+          title: 'আংশিক সফল!',
+          html: `
+            <div class="text-left">
+              <p>মোট: ${total} টি রেকর্ড</p>
+              <p class="text-green-600">সফল: ${successCount} টি</p>
+              <p class="text-red-600">ব্যর্থ: ${failedCount} টি</p>
+            </div>
+          `,
+          icon: 'warning',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
+      }
+    },
+    onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Excel থেকে হাজি তৈরি করতে সমস্যা হয়েছে।';
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};
+
 export default {
   hajiKeys,
   useHajiList,
@@ -232,6 +355,7 @@ export default {
   useCreateHaji,
   useUpdateHaji,
   useDeleteHaji,
+  useBulkCreateHaji,
 };
 
 

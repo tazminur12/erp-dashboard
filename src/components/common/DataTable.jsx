@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Download, Edit, Trash2, Printer, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 const DataTable = ({ 
@@ -18,6 +18,17 @@ const DataTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [sortColumn, setSortColumn] = useState(null);
   const [sortDirection, setSortDirection] = useState('asc');
+  
+  // Reset to page 1 when data changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [data]);
+  
+  // Debug: Log pageSize to verify it's being passed correctly
+  useEffect(() => {
+    console.log('DataTable pageSize:', pageSize);
+    console.log('DataTable data length:', data?.length);
+  }, [pageSize, data]);
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
@@ -215,47 +226,55 @@ const DataTable = ({
       </div>
 
       {/* Pagination */}
-      {pagination && totalPages > 1 && (
+      {pagination && (
         <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="text-sm text-gray-700 dark:text-gray-300">
-              Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length} results
+              {filteredData.length === 0 ? 'কোনো ফলাফল নেই' : `${((currentPage - 1) * pageSize) + 1} থেকে ${Math.min(currentPage * pageSize, filteredData.length)} - মোট ${filteredData.length} টি`}
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                <ChevronsLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                Page {currentPage} of {totalPages}
-              </span>
-              
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-              >
-                <ChevronsRight className="w-4 h-4" />
-              </button>
-            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                  title="প্রথম পৃষ্ঠা"
+                >
+                  প্রথম
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center space-x-1"
+                  title="আগের পৃষ্ঠা"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>আগের</span>
+                </button>
+                
+                <span className="text-sm text-gray-700 dark:text-gray-300 px-2">
+                  পৃষ্ঠা {currentPage} / {totalPages}
+                </span>
+                
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex items-center space-x-1"
+                  title="পরের পৃষ্ঠা"
+                >
+                  <span>পরের</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                  title="শেষ পৃষ্ঠা"
+                >
+                  শেষ
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

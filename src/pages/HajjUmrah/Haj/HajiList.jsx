@@ -23,7 +23,7 @@ import DataTable from '../../../components/common/DataTable';
 import FilterBar from '../../../components/common/FilterBar';
 import Modal from '../../../components/common/Modal';
 import ExcelUploader from '../../../components/common/ExcelUploader';
-import { useHajiList, useDeleteHaji } from '../../../hooks/UseHajiQueries';
+import { useHajiList, useDeleteHaji, useBulkCreateHaji } from '../../../hooks/UseHajiQueries';
 import Swal from 'sweetalert2';
 
 const HajiList = () => {
@@ -41,12 +41,31 @@ const HajiList = () => {
   // Add local state for loading indicator for delete per row
   const [deletingHajiId, setDeletingHajiId] = useState(null);
 
-  // Fetch Haji data with proper error handling
-  const { data: hajiData, isLoading, error } = useHajiList({});
+  // Fetch Haji data with proper error handling - request all data (limit 20000 to get all hajis)
+  // Backend now supports up to 20000 records
+  const { data: hajiData, isLoading, error } = useHajiList({ 
+    limit: 20000,  // Backend max limit is 20000, so request all data
+    page: 1 
+  });
   const hajis = useMemo(() => hajiData?.data || [], [hajiData?.data]);
+  
+  // Get total count from API response pagination (if available) or use hajis.length
+  // Backend returns pagination.total which has the total count
+  const totalHajis = hajiData?.pagination?.total || hajis.length;
+  
+  // Debug: Log counts to verify
+  useEffect(() => {
+    console.log('API Response:', hajiData);
+    console.log('Total Hajis (from API pagination):', hajiData?.pagination?.total);
+    console.log('Hajis array length:', hajis.length);
+    console.log('Filtered Hajis:', filteredHajis.length);
+  }, [hajiData, hajis.length, filteredHajis.length]);
   
   // Delete Haji mutation
   const deleteHajiMutation = useDeleteHaji();
+  
+  // Bulk Create Haji mutation
+  const bulkCreateHajiMutation = useBulkCreateHaji();
 
   // Filter and search functionality
   useEffect(() => {
@@ -157,12 +176,23 @@ const HajiList = () => {
   };
 
   const handleExcelDataProcessed = (processedData) => {
-    // Process the uploaded Excel data - this would need to be implemented with create mutation
-    console.log('Excel data processed:', processedData);
+    // Validate that we have data to process
+    if (!Array.isArray(processedData) || processedData.length === 0) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'Excel ফাইলে কোনো ডাটা পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+
+    // Close the Excel uploader modal
     setShowExcelUploader(false);
-    
-    // Show success message
-    alert(`Successfully processed ${processedData.length} Haji from Excel file!`);
+
+    // Use bulk create mutation to process the data
+    bulkCreateHajiMutation.mutate(processedData);
   };
 
   const getStatusBadge = (status) => {
@@ -424,7 +454,7 @@ const HajiList = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Haji</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{hajis.length}</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalHajis}</p>
             </div>
             <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
@@ -491,6 +521,8 @@ const HajiList = () => {
         searchable={false}
         exportable={false}
         actions={false}
+        pagination={true}
+        pageSize={50}
       />
 
       {/* Haji Details Modal */}
@@ -651,31 +683,24 @@ const HajiList = () => {
           onDataProcessed={handleExcelDataProcessed}
           title="Upload Haji Data from Excel"
           acceptedFields={[
-            'name', 'passport', 'phone', 'email', 'address', 
-            'package', 'agent', 'totalAmount', 'paidAmount', 
-            'status', 'paymentStatus', 'registrationDate', 'departureDate'
+            'name', 'mobile no', 'fathers name', 'mother\'s name', 'upazila', 'districts'
           ]}
-          requiredFields={['name', 'passport', 'phone', 'email', 'package']}
+          requiredFields={['name', 'mobile no']}
           sampleData={[
             [
-              'Name', 'Passport', 'Phone', 'Email', 'Address', 
-              'Package', 'Agent', 'Total Amount', 'Paid Amount', 
-              'Status', 'Payment Status', 'Registration Date', 'Departure Date'
+              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Upazila', 'Districts'
             ],
             [
-              'Md. Abdul Rahman', 'A1234567', '+8801712345678', 'abdul.rahman@email.com', 
-              'Dhaka, Bangladesh', 'Premium Hajj 2024', 'Al-Hijrah Travels', '450000', '450000', 
-              'confirmed', 'paid', '2024-01-15', '2024-06-10'
+              'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum', 
+              'Dhanmondi', 'Dhaka'
             ],
             [
-              'Fatima Begum', 'B2345678', '+8801712345679', 'fatima.begum@email.com', 
-              'Chittagong, Bangladesh', 'Standard Umrah 2024', 'Madina Tours', '180000', '90000', 
-              'pending', 'partial', '2024-02-20', '2024-03-15'
+              'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun', 
+              'Kotwali', 'Chittagong'
             ],
             [
-              'Md. Karim Uddin', 'C3456789', '+8801712345680', 'karim.uddin@email.com', 
-              'Sylhet, Bangladesh', 'Deluxe Hajj 2024', 'Al-Hijrah Travels', '550000', '550000', 
-              'confirmed', 'paid', '2024-01-10', '2024-06-05'
+              'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum', 
+              'Sylhet Sadar', 'Sylhet'
             ]
           ]}
         />
