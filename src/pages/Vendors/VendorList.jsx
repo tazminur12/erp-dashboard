@@ -10,7 +10,8 @@ import {
   useVendors, 
   useCustomerTypes, 
   useCreateVendorOrder,
-  useDeleteVendor
+  useDeleteVendor,
+  useBulkVendorOperation
 } from '../../hooks/useVendorQueries';
 
 
@@ -23,6 +24,7 @@ const VendorList = () => {
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCustomerTypes();
   const createOrderMutation = useCreateVendorOrder();
   const deleteVendorMutation = useDeleteVendor();
+  const bulkUploadMutation = useBulkVendorOperation();
   
   // Local state
   const [query, setQuery] = useState('');
@@ -112,46 +114,24 @@ const VendorList = () => {
     });
   };
 
-  const handleExcelDataProcessed = async (processedData) => {
-    try {
-      // Simulate API call to save data
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Convert processed data to vendor format
-      const newVendors = processedData.map((record, index) => ({
-        vendorId: record.vendorId || `VND-${String(Date.now() + index).padStart(4, '0')}`,
-        tradeName: record.tradeName || '',
-        tradeLocation: record.tradeLocation || '',
-        ownerName: record.ownerName || '',
-        contactNo: record.contactNo || '',
-        dob: record.dob || '',
-        nid: record.nid || '',
-        passport: record.passport || ''
-      }));
-      
-      // Note: In a real implementation, you would send this data to the server
-      // and then invalidate the vendors query to refetch the updated data
-      // For now, we'll just show success message
-      
-      // Show success message
+  const handleExcelDataProcessed = (processedData) => {
+    // Validate that we have data to process
+    if (!Array.isArray(processedData) || processedData.length === 0) {
       Swal.fire({
-        icon: 'success',
-        title: 'Vendors Uploaded Successfully',
-        text: `Successfully uploaded ${processedData.length} vendor records!`,
-        confirmButtonColor: '#7c3aed'
-      });
-      
-    } catch (error) {
-      console.error('Error processing Excel data:', error);
-      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'Excel ফাইলে কোনো ডাটা পাওয়া যায়নি।',
         icon: 'error',
-        title: 'Upload Failed',
-        text: 'Error processing Excel data. Please try again.',
-        confirmButtonColor: '#7c3aed'
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
       });
-    } finally {
-      setShowExcelUploader(false);
+      return;
     }
+
+    // Close the Excel uploader modal
+    setShowExcelUploader(false);
+
+    // Use bulk create mutation to process the data (sends array directly to backend)
+    bulkUploadMutation.mutate(processedData);
   };
 
   const handleDeleteVendor = async (vendor) => {

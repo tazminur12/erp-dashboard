@@ -479,7 +479,7 @@ const ExcelUploader = ({
           }
           
           if (value !== undefined && value !== null && value !== '') {
-            rowData[field] = value;
+          rowData[field] = value;
           }
         }
       });
@@ -506,7 +506,7 @@ const ExcelUploader = ({
       );
       
       if (hasAllRequiredFields && Object.keys(rowData).length > 0) {
-        processedData.push(rowData);
+      processedData.push(rowData);
       } else if (!hasAllRequiredFields) {
         console.warn(`Skipping row ${rowIndex + 1} - missing required fields`, rowData);
       }
@@ -563,41 +563,59 @@ const ExcelUploader = ({
     
     try {
       // Convert processed data to use expected backend field names (not original Excel headers)
-      // Map field keys to backend-expected header names - ONLY these 6 fields
-      const fieldToBackendHeader = {
-        'name': 'Name',
-        'mobile no': 'Mobile no',
-        'fathers name': 'Fathers name',
-        'mother\'s name': 'Mother\'s Name',
-        'upazila': 'Upazila',
-        'districts': 'Districts'
-      };
+      // Map field keys to backend-expected header names based on accepted fields
+      const fieldToBackendHeader = {};
       
-      // Only process these specific fields - ignore all others
-      const allowedFields = ['name', 'mobile no', 'fathers name', 'mother\'s name', 'upazila', 'districts'];
+      // Build mapping based on accepted fields
+      // For Haji/Umrah: name, mobile no, etc.
+      // For Agents: tradeName, tradeLocation, etc.
+      acceptedFields.forEach(fieldKey => {
+        const fieldLabel = fieldTypes[fieldKey]?.label || fieldKey;
+        // Convert to proper case for backend (e.g., "Trade Name" -> "Trade Name")
+        fieldToBackendHeader[fieldKey] = fieldLabel;
+      });
+      
+      // Special mappings for Haji/Umrah fields
+      if (acceptedFields.includes('name') || acceptedFields.includes('mobile no')) {
+        fieldToBackendHeader['name'] = 'Name';
+        fieldToBackendHeader['mobile no'] = 'Mobile no';
+        fieldToBackendHeader['fathers name'] = 'Fathers name';
+        fieldToBackendHeader['mother\'s name'] = 'Mother\'s Name';
+        fieldToBackendHeader['upazila'] = 'Upazila';
+        fieldToBackendHeader['districts'] = 'Districts';
+      }
+      
+      // Special mappings for Agent fields
+      if (acceptedFields.includes('tradeName') || acceptedFields.includes('ownerName')) {
+        fieldToBackendHeader['tradeName'] = 'Trade Name';
+        fieldToBackendHeader['tradeLocation'] = 'Trade Location';
+        fieldToBackendHeader['ownerName'] = 'Owner Name';
+        fieldToBackendHeader['contactNo'] = 'Contact No';
+        fieldToBackendHeader['dob'] = 'Date of Birth';
+        fieldToBackendHeader['nid'] = 'NID';
+        fieldToBackendHeader['passport'] = 'Passport';
+      }
       
       const dataWithOriginalHeaders = processedData.map((row, rowIdx) => {
         const rowData = {};
         
-        // Only include the 6 allowed fields
-        allowedFields.forEach(fieldKey => {
+        // Process all accepted fields
+        acceptedFields.forEach(fieldKey => {
           // Check if this field is in the mapped fields and has a value
           if (mappedFields[fieldKey] !== undefined && row[fieldKey] !== undefined) {
             const value = row[fieldKey];
             if (value !== undefined && value !== null && value !== '') {
               // Use backend-expected header name
-              const backendHeader = fieldToBackendHeader[fieldKey];
-              if (backendHeader) {
-                rowData[backendHeader] = value;
-              }
+              const backendHeader = fieldToBackendHeader[fieldKey] || fieldTypes[fieldKey]?.label || fieldKey;
+              rowData[backendHeader] = value;
             }
           }
         });
         
         // Validate required fields for this row
         requiredFields.forEach(reqField => {
-          if (allowedFields.includes(reqField)) {
-            const backendHeader = fieldToBackendHeader[reqField];
+          if (acceptedFields.includes(reqField)) {
+            const backendHeader = fieldToBackendHeader[reqField] || fieldTypes[reqField]?.label || reqField;
             if (!rowData[backendHeader] || !String(rowData[backendHeader]).trim()) {
               console.warn(`Row ${rowIdx + 1}: Missing required field "${backendHeader}"`, rowData);
             }

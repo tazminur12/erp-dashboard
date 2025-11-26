@@ -630,3 +630,120 @@ export const useDeleteVendorBill = () => {
     },
   });
 };
+
+// Bulk Create Vendors from Excel Upload
+export const useBulkVendorOperation = () => {
+  const axiosSecure = useSecureAxios();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (vendorsDataArray) => {
+      // Validate that we have an array with data
+      if (!Array.isArray(vendorsDataArray) || vendorsDataArray.length === 0) {
+        throw new Error('Vendors array is required and must not be empty');
+      }
+
+      // Filter out invalid records and collect errors
+      const validRecords = [];
+      const invalidRecords = [];
+      
+      for (let i = 0; i < vendorsDataArray.length; i++) {
+        const record = vendorsDataArray[i];
+        const rowNumber = i + 1;
+        
+        // Map Excel field names (from ExcelUploader) to backend expected field names
+        // ExcelUploader returns data with Excel header names like "Trade Name", "Owner Name", etc.
+        // Backend expects: tradeName, tradeLocation, ownerName, contactNo, dob, nid, passport
+        
+        // Try multiple possible field name variations
+        const tradeName = record['Trade Name'] || record['tradeName'] || record.tradeName || '';
+        const tradeLocation = record['Trade Location'] || record['tradeLocation'] || record.tradeLocation || '';
+        const ownerName = record['Owner Name'] || record['ownerName'] || record.ownerName || '';
+        const contactNo = record['Contact No'] || record['contactNo'] || record.contactNo || '';
+        
+        // Optional fields
+        const dob = record['Date of Birth'] || record['DOB'] || record['dob'] || record.dob || null;
+        const nid = record['NID'] || record['nid'] || record.nid || '';
+        const passport = record['Passport'] || record['passport'] || record.passport || '';
+        
+        // Validate required fields (same as backend validation)
+        if (!tradeName || !String(tradeName).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Trade Name' });
+          continue;
+        }
+        if (!tradeLocation || !String(tradeLocation).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Trade Location' });
+          continue;
+        }
+        if (!ownerName || !String(ownerName).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Owner Name' });
+          continue;
+        }
+        if (!contactNo || !String(contactNo).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Contact No' });
+          continue;
+        }
+        
+        // Add valid record with proper field mapping (backend field names)
+        validRecords.push({
+          tradeName: String(tradeName).trim(),
+          tradeLocation: String(tradeLocation).trim(),
+          ownerName: String(ownerName).trim(),
+          contactNo: String(contactNo).trim(),
+          dob: dob && dob.trim() ? String(dob).trim() : null,
+          nid: nid && nid.trim() ? String(nid).trim() : '',
+          passport: passport && passport.trim() ? String(passport).trim() : ''
+        });
+      }
+      
+      // If no valid records, throw error
+      if (validRecords.length === 0) {
+        const errorMsg = invalidRecords.length > 0
+          ? `Row ${invalidRecords[0].row}: ${invalidRecords[0].missingFields || invalidRecords[0].error || 'Invalid data'}`
+          : 'No valid records found';
+        throw new Error(errorMsg);
+      }
+      
+      // If some records are invalid, log warning but continue with valid ones
+      if (invalidRecords.length > 0) {
+        console.warn(`${invalidRecords.length} rows skipped due to validation errors:`, invalidRecords);
+        // Show warning but don't fail the entire operation
+      }
+
+      // Backend accepts either array directly or { vendors: [...] }
+      // Send as array directly as per backend code: const vendorsPayload = Array.isArray(req.body) ? req.body : req.body?.vendors;
+      const response = await axiosSecure.post('/vendors/bulk', validRecords);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to bulk create vendors');
+    },
+    onSuccess: (data) => {
+      const count = data?.count || data?.data?.length || 0;
+      
+      // Invalidate and refetch vendors list
+      queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
+      
+      // Show success message with details
+      Swal.fire({
+        title: 'সফল!',
+        html: `${count} টি ভেন্ডর সফলভাবে তৈরি হয়েছে।`,
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+        timer: 5000,
+        showConfirmButton: true,
+      });
+    },
+    onError: (error) => {
+      // Backend returns error format: { error: true, message: "..." }
+      const errorMessage = error?.response?.data?.message || error?.message || 'Excel থেকে ভেন্ডর তৈরি করতে সমস্যা হয়েছে।';
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};

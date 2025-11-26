@@ -199,41 +199,147 @@ export const useDeleteAgent = () => {
   });
 };
 
-// Custom hook for bulk operations (like Excel upload)
+// Bulk Create Agents from Excel Upload
 export const useBulkAgentOperation = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (formData) => {
-      const response = await axiosSecure.post('/api/haj-umrah/agents/bulk', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+    mutationFn: async (agentsDataArray) => {
+      // Validate that we have an array with data
+      if (!Array.isArray(agentsDataArray) || agentsDataArray.length === 0) {
+        throw new Error('Agents array is required and must not be empty');
+      }
+
+      // Filter out invalid records and collect errors
+      const validRecords = [];
+      const invalidRecords = [];
+      
+      for (let i = 0; i < agentsDataArray.length; i++) {
+        const record = agentsDataArray[i];
+        const rowNumber = i + 1;
+        
+        // Map Excel field names (from ExcelUploader) to backend expected field names
+        // ExcelUploader returns data with Excel header names like "Trade Name", "Owner Name", etc.
+        // Backend expects: tradeName, tradeLocation, ownerName, contactNo, dob, nid, passport
+        
+        // Try multiple possible field name variations
+        const tradeName = record['Trade Name'] || record['tradeName'] || record.tradeName || '';
+        const tradeLocation = record['Trade Location'] || record['tradeLocation'] || record.tradeLocation || '';
+        const ownerName = record['Owner Name'] || record['ownerName'] || record.ownerName || '';
+        const contactNo = record['Contact No'] || record['contactNo'] || record.contactNo || '';
+        
+        // Optional fields
+        const dob = record['Date of Birth'] || record['DOB'] || record['dob'] || record.dob || null;
+        const nid = record['NID'] || record['nid'] || record.nid || '';
+        const passport = record['Passport'] || record['passport'] || record.passport || '';
+        
+        // Validate required fields
+        if (!tradeName || !String(tradeName).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Trade Name' });
+          continue;
+        }
+        if (!tradeLocation || !String(tradeLocation).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Trade Location' });
+          continue;
+        }
+        if (!ownerName || !String(ownerName).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Owner Name' });
+          continue;
+        }
+        if (!contactNo || !String(contactNo).trim()) {
+          invalidRecords.push({ row: rowNumber, missingFields: 'Contact No' });
+          continue;
+        }
+        
+        // Validate phone format (same regex as backend)
+        const phoneRegex = /^\+?[0-9\-()\s]{6,20}$/;
+        if (!phoneRegex.test(String(contactNo).trim())) {
+          invalidRecords.push({ row: rowNumber, error: 'Enter a valid phone number' });
+          continue;
+        }
+        
+        // Validate NID if provided (same regex as backend)
+        if (nid && nid.trim() && !/^[0-9]{8,20}$/.test(String(nid).trim())) {
+          invalidRecords.push({ row: rowNumber, error: 'NID should be 8-20 digits' });
+          continue;
+        }
+        
+        // Validate Passport if provided (same regex as backend)
+        if (passport && passport.trim() && !/^[A-Za-z0-9]{6,12}$/.test(String(passport).trim())) {
+          invalidRecords.push({ row: rowNumber, error: 'Passport should be 6-12 chars' });
+          continue;
+        }
+        
+        // Validate date format if provided (backend uses isValidDate function)
+        if (dob && dob.trim()) {
+          // Basic date validation - YYYY-MM-DD format
+          const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+          if (!dateRegex.test(String(dob).trim())) {
+            invalidRecords.push({ row: rowNumber, error: 'Invalid date format for dob (YYYY-MM-DD)' });
+            continue;
+          }
+        }
+        
+        // Add valid record with proper field mapping (backend field names)
+        validRecords.push({
+          tradeName: String(tradeName).trim(),
+          tradeLocation: String(tradeLocation).trim(),
+          ownerName: String(ownerName).trim(),
+          contactNo: String(contactNo).trim(),
+          dob: dob && dob.trim() ? String(dob).trim() : null,
+          nid: nid && nid.trim() ? String(nid).trim() : '',
+          passport: passport && passport.trim() ? String(passport).trim() : ''
+        });
+      }
+      
+      // If no valid records, throw error
+      if (validRecords.length === 0) {
+        const errorMsg = invalidRecords.length > 0
+          ? `Row ${invalidRecords[0].row}: ${invalidRecords[0].missingFields || invalidRecords[0].error || 'Invalid data'}`
+          : 'No valid records found';
+        throw new Error(errorMsg);
+      }
+      
+      // If some records are invalid, log warning but continue with valid ones
+      if (invalidRecords.length > 0) {
+        console.warn(`${invalidRecords.length} rows skipped due to validation errors:`, invalidRecords);
+        // Show warning but don't fail the entire operation
+      }
+
+      // Backend accepts either array directly or { agents: [...] }
+      // Send as array directly as per backend code: const agentsPayload = Array.isArray(req.body) ? req.body : req.body?.agents;
+      const response = await axiosSecure.post('/api/haj-umrah/agents/bulk', validRecords);
       const data = response?.data;
       if (data?.success) return data;
-      throw new Error(data?.message || 'Failed to upload agents');
+      throw new Error(data?.message || 'Failed to bulk create agents');
     },
     onSuccess: (data) => {
+      const count = data?.count || data?.data?.length || 0;
+      
       // Invalidate and refetch agents list
       queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
       
       // Show success message with details
       Swal.fire({
+        title: 'সফল!',
+        html: `${count} টি এজেন্ট সফলভাবে তৈরি হয়েছে।`,
         icon: 'success',
-        title: 'Bulk Upload Successful!',
-        text: data?.message || 'Agents uploaded successfully',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
         timer: 5000,
-        showConfirmButton: false,
+        showConfirmButton: true,
       });
     },
     onError: (error) => {
-      const message = error?.response?.data?.message || 'Failed to upload agents';
+      // Backend returns error format: { error: true, message: "..." }
+      const errorMessage = error?.response?.data?.message || error?.message || 'Excel থেকে এজেন্ট তৈরি করতে সমস্যা হয়েছে।';
       Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
         icon: 'error',
-        title: 'Upload Failed',
-        text: message,
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
       });
     },
   });

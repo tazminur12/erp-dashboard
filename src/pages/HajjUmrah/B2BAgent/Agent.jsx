@@ -156,13 +156,23 @@ const Agent = () => {
   };
 
   const handleExcelDataProcessed = (processedData) => {
-    // Create FormData for bulk upload
-    const formData = new FormData();
-    formData.append('agents', JSON.stringify(processedData));
-    
-    // Use React Query mutation for bulk upload
-    bulkUploadMutation.mutate(formData);
+    // Validate that we have data to process
+    if (!Array.isArray(processedData) || processedData.length === 0) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'Excel ফাইলে কোনো ডাটা পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+
+    // Close the Excel uploader modal
     setShowExcelUploader(false);
+
+    // Use bulk create mutation to process the data (sends array directly to backend)
+    bulkUploadMutation.mutate(processedData);
   };
 
   // Show error if query fails
