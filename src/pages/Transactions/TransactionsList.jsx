@@ -429,21 +429,32 @@ const TransactionsList = () => {
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
 
-      // Prepare transaction data for PDF
+      // Prepare transaction data for PDF with all available information
       const pdfData = {
         transactionId: transaction.transactionId || transaction._id,
         transactionType: transaction.transactionType,
-        customerId: transaction.customerId,
-        customerName: transaction.customerName,
-        customerPhone: transaction.customerPhone,
-        customerEmail: transaction.customerEmail,
-        category: transaction.category,
+        status: transaction.status,
+        customerId: transaction.customerId || transaction.customer?._id || transaction.customer?.id,
+        customerName: getCustomerName(transaction),
+        customerPhone: getCustomerPhone(transaction),
+        customerEmail: transaction.customerEmail || transaction.customer?.email || transaction.party?.email,
+        category: getCategory(transaction),
         paymentMethod: transaction.paymentMethod,
         paymentDetails: transaction.paymentDetails,
         notes: transaction.notes,
         date: transaction.date,
-        createdBy: userProfile?.email || 'unknown_user',
-        branchId: userProfile?.branchId || 'main_branch'
+        createdBy: userProfile?.email || userProfile?.name || 'System',
+        branchId: userProfile?.branchId || 'Main Branch',
+        // Include additional fields if available
+        invoiceId: transaction.invoiceId,
+        customer: transaction.customer,
+        party: transaction.party,
+        partyType: transaction.partyType,
+        debitAccount: transaction.debitAccount,
+        creditAccount: transaction.creditAccount,
+        sourceAccount: transaction.sourceAccount,
+        destinationAccount: transaction.destinationAccount,
+        customerBankAccount: transaction.customerBankAccount
       };
 
       // Try to generate PDF with HTML rendering first
@@ -610,20 +621,32 @@ const TransactionsList = () => {
       for (const transactionId of selectedTransactions) {
         const transaction = currentTransactions.find(t => (t.transactionId || t._id) === transactionId);
         if (transaction) {
+          // Prepare transaction data for PDF with all available information
           const pdfData = {
             transactionId: transaction.transactionId || transaction._id,
             transactionType: transaction.transactionType,
-            customerId: transaction.customerId,
-            customerName: transaction.customerName,
-            customerPhone: transaction.customerPhone,
-            customerEmail: transaction.customerEmail,
-            category: transaction.category,
+            status: transaction.status,
+            customerId: transaction.customerId || transaction.customer?._id || transaction.customer?.id,
+            customerName: getCustomerName(transaction),
+            customerPhone: getCustomerPhone(transaction),
+            customerEmail: transaction.customerEmail || transaction.customer?.email || transaction.party?.email,
+            category: getCategory(transaction),
             paymentMethod: transaction.paymentMethod,
             paymentDetails: transaction.paymentDetails,
             notes: transaction.notes,
             date: transaction.date,
-            createdBy: userProfile?.email || 'unknown_user',
-            branchId: userProfile?.branchId || 'main_branch'
+            createdBy: userProfile?.email || userProfile?.name || 'System',
+            branchId: userProfile?.branchId || 'Main Branch',
+            // Include additional fields if available
+            invoiceId: transaction.invoiceId,
+            customer: transaction.customer,
+            party: transaction.party,
+            partyType: transaction.partyType,
+            debitAccount: transaction.debitAccount,
+            creditAccount: transaction.creditAccount,
+            sourceAccount: transaction.sourceAccount,
+            destinationAccount: transaction.destinationAccount,
+            customerBankAccount: transaction.customerBankAccount
           };
 
           try {
