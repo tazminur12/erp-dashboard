@@ -56,6 +56,8 @@ export const useAgentPackageList = (params = {}) => {
 };
 
 // Get single Agent Package by id
+// Returns package data with profitLoss calculation from backend
+// profitLoss includes: packagePrice, costingPrice, profitLoss, isProfit, isLoss, profitLossPercentage
 export const useAgentPackage = (id) => {
   const axiosSecure = useAxiosSecure();
   return useQuery({
@@ -453,6 +455,71 @@ export const usePackageStatistics = (packageId) => {
   });
 };
 
+// Add/Update agent package costing
+export const useUpdateAgentPackageCosting = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, costingData }) => {
+      const response = await axiosSecure.post(
+        `/api/haj-umrah/agent-packages/${id}/costing`,
+        costingData
+      );
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to add/update package costing');
+    },
+    onSuccess: (data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: agentPackageKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: agentPackageKeys.lists() });
+      // Also invalidate agent queries to refresh agent profile (due amounts)
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
+      if (data?.data) {
+        queryClient.setQueryData(agentPackageKeys.detail(id), data.data);
+      }
+      Swal.fire({
+        title: 'সফল!',
+        text: 'প্যাকেজ খরচ সফলভাবে সংরক্ষণ করা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error?.response?.data?.message || error?.message || 'প্যাকেজ খরচ সংরক্ষণে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};
+
+// Get package transactions (agent-specific)
+export const useAgentPackageTransactions = ({ packageId, page = 1, limit = 10, fromDate = '', toDate = '' }) => {
+  const axiosSecure = useAxiosSecure();
+
+  return useQuery({
+    queryKey: [...agentPackageKeys.detail(packageId), 'transactions', { page, limit, fromDate, toDate }],
+    queryFn: async () => {
+      const params = { page, limit };
+      if (fromDate) params.fromDate = fromDate;
+      if (toDate) params.toDate = toDate;
+
+      const response = await axiosSecure.get(`/api/haj-umrah/agent-packages/${packageId}/transactions`, { params });
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to load agent package transactions');
+    },
+    enabled: !!packageId,
+    keepPreviousData: true,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
 export default {
   agentPackageKeys,
   useAgentPackageList,
@@ -469,4 +536,6 @@ export default {
   useAvailableCustomers,
   useBulkAssignCustomers,
   usePackageStatistics,
+  useUpdateAgentPackageCosting,
+  useAgentPackageTransactions,
 };

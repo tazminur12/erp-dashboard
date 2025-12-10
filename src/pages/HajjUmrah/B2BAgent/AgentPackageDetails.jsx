@@ -18,14 +18,22 @@ import {
   Building,
   Plane,
   Hotel,
-  FileText
+  FileText,
+  Calculator,
+  TrendingUp,
+  TrendingDown,
+  Save,
+  Trash2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { 
   useAgentPackage, 
   useAssignCustomersToPackage, 
   useRemoveCustomerFromPackage,
   useAvailableCustomers,
-  usePackageCustomers
+  usePackageCustomers,
+  useUpdateAgentPackage
 } from '../../../hooks/UseAgentPacakageQueries';
 import { useHajiList } from '../../../hooks/UseHajiQueries';
 import { useUmrahList } from '../../../hooks/UseUmrahQuries';
@@ -44,6 +52,395 @@ const AgentPackageDetails = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerFilter, setCustomerFilter] = useState('all'); // 'all', 'hajj', 'umrah'
+  
+  // State for costing modal
+  const [showCostingModal, setShowCostingModal] = useState(false);
+  const [isEditingCosts, setIsEditingCosts] = useState(false);
+  
+  // Update mutation
+  const updatePackageMutation = useUpdateAgentPackage();
+  
+  // Cost fields state (similar to AgentPackageCreation)
+  const [costs, setCosts] = useState({
+    airFare: '',
+    makkahHotel1: '',
+    makkahHotel2: '',
+    makkahHotel3: '',
+    madinaHotel1: '',
+    madinaHotel2: '',
+    zamzamWater: '',
+    maktab: '',
+    visaFee: '',
+    insuranceFee: '',
+    electronicsFee: '',
+    groundServiceFee: '',
+    makkahRoute: '',
+    baggage: '',
+    serviceCharge: '',
+    monazzem: '',
+    food: '',
+    ziyaraFee: '',
+    idCard: '',
+    hajjKollan: '',
+    trainFee: '',
+    hajjGuide: '',
+    govtServiceCharge: '',
+    licenseFee: '',
+    transportFee: '',
+    otherBdCosts: ''
+  });
+  
+  // Passenger types state
+  const [bangladeshVisaPassengers, setBangladeshVisaPassengers] = useState([]);
+  const [bangladeshAirfarePassengers, setBangladeshAirfarePassengers] = useState([]);
+  const [bangladeshBusPassengers, setBangladeshBusPassengers] = useState([]);
+  const [bangladeshTrainingOtherPassengers, setBangladeshTrainingOtherPassengers] = useState([]);
+  const [saudiVisaPassengers, setSaudiVisaPassengers] = useState([]);
+  const [saudiMakkahHotelPassengers, setSaudiMakkahHotelPassengers] = useState([]);
+  const [saudiMadinaHotelPassengers, setSaudiMadinaHotelPassengers] = useState([]);
+  const [saudiMakkahFoodPassengers, setSaudiMakkahFoodPassengers] = useState([]);
+  const [saudiMadinaFoodPassengers, setSaudiMadinaFoodPassengers] = useState([]);
+  const [saudiMakkahZiyaraPassengers, setSaudiMakkahZiyaraPassengers] = useState([]);
+  const [saudiMadinaZiyaraPassengers, setSaudiMadinaZiyaraPassengers] = useState([]);
+  const [saudiTransportPassengers, setSaudiTransportPassengers] = useState([]);
+  const [saudiCampFeePassengers, setSaudiCampFeePassengers] = useState([]);
+  const [saudiAlMashayerPassengers, setSaudiAlMashayerPassengers] = useState([]);
+  const [saudiOthersPassengers, setSaudiOthersPassengers] = useState([]);
+  
+  const [discount, setDiscount] = useState('');
+  const [sarToBdtRate, setSarToBdtRate] = useState('');
+  
+  // Modal states
+  const [showPassengerModal, setShowPassengerModal] = useState(false);
+  const [passengerModalConfig, setPassengerModalConfig] = useState({ group: '', type: 'standard' });
+  const [newPassenger, setNewPassenger] = useState({
+    type: 'Adult',
+    count: 0,
+    price: 0,
+    roomNumber: 0,
+    perNight: 0,
+    totalNights: 0,
+    days: 0,
+    perDayPrice: 0
+  });
+  
+  const [collapsedSections, setCollapsedSections] = useState({
+    bangladesh: false,
+    saudi: false,
+    custom: false
+  });
+  
+  // Initialize costs from packageInfo when modal opens
+  React.useEffect(() => {
+    if (showCostingModal && packageInfo) {
+      // Initialize costs from package data
+      if (packageInfo.costs) {
+        setCosts(prev => ({ ...prev, ...packageInfo.costs }));
+      }
+      if (packageInfo.discount) {
+        setDiscount(packageInfo.discount.toString());
+      }
+      if (packageInfo?.sarToBdtRate) {
+        setSarToBdtRate(packageInfo.sarToBdtRate.toString());
+      }
+      // Initialize passenger arrays
+      if (packageInfo.bangladeshVisaPassengers) {
+        setBangladeshVisaPassengers(packageInfo.bangladeshVisaPassengers);
+      }
+      if (packageInfo.bangladeshAirfarePassengers) {
+        setBangladeshAirfarePassengers(packageInfo.bangladeshAirfarePassengers);
+      }
+      if (packageInfo.bangladeshBusPassengers) {
+        setBangladeshBusPassengers(packageInfo.bangladeshBusPassengers);
+      }
+      if (packageInfo.bangladeshTrainingOtherPassengers) {
+        setBangladeshTrainingOtherPassengers(packageInfo.bangladeshTrainingOtherPassengers);
+      }
+      if (packageInfo.saudiVisaPassengers) {
+        setSaudiVisaPassengers(packageInfo.saudiVisaPassengers);
+      }
+      if (packageInfo.saudiMakkahHotelPassengers) {
+        setSaudiMakkahHotelPassengers(packageInfo.saudiMakkahHotelPassengers);
+      }
+      if (packageInfo.saudiMadinaHotelPassengers) {
+        setSaudiMadinaHotelPassengers(packageInfo.saudiMadinaHotelPassengers);
+      }
+      if (packageInfo.saudiMakkahFoodPassengers) {
+        setSaudiMakkahFoodPassengers(packageInfo.saudiMakkahFoodPassengers);
+      }
+      if (packageInfo.saudiMadinaFoodPassengers) {
+        setSaudiMadinaFoodPassengers(packageInfo.saudiMadinaFoodPassengers);
+      }
+      if (packageInfo.saudiMakkahZiyaraPassengers) {
+        setSaudiMakkahZiyaraPassengers(packageInfo.saudiMakkahZiyaraPassengers);
+      }
+      if (packageInfo.saudiMadinaZiyaraPassengers) {
+        setSaudiMadinaZiyaraPassengers(packageInfo.saudiMadinaZiyaraPassengers);
+      }
+      if (packageInfo.saudiTransportPassengers) {
+        setSaudiTransportPassengers(packageInfo.saudiTransportPassengers);
+      }
+      if (packageInfo.saudiCampFeePassengers) {
+        setSaudiCampFeePassengers(packageInfo.saudiCampFeePassengers);
+      }
+      if (packageInfo.saudiAlMashayerPassengers) {
+        setSaudiAlMashayerPassengers(packageInfo.saudiAlMashayerPassengers);
+      }
+      if (packageInfo.saudiOthersPassengers) {
+        setSaudiOthersPassengers(packageInfo.saudiOthersPassengers);
+      }
+    }
+  }, [showCostingModal, packageInfo]);
+  
+  // Helper to generate unique IDs
+  const generateId = () => Math.random().toString(36).substr(2, 9);
+  
+  // Handle cost changes
+  const handleCostChange = (e) => {
+    const { name, value } = e.target;
+    setCosts(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  // Toggle section collapse
+  const toggleSection = (section) => {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+  
+  // Open passenger modal
+  const openPassengerModal = (group, type) => {
+    setPassengerModalConfig({ group, type });
+    setNewPassenger({
+      type: 'Adult',
+      count: 0,
+      price: 0,
+      roomNumber: 0,
+      perNight: 0,
+      totalNights: 0,
+      days: 0,
+      perDayPrice: 0
+    });
+    setShowPassengerModal(true);
+  };
+  
+  // Close passenger modal
+  const closePassengerModal = () => {
+    setShowPassengerModal(false);
+    setNewPassenger({
+      type: 'Adult',
+      count: 0,
+      price: 0,
+      roomNumber: 0,
+      perNight: 0,
+      totalNights: 0,
+      days: 0,
+      perDayPrice: 0
+    });
+  };
+  
+  // Add passenger
+  const addPassenger = () => {
+    const passenger = {
+      id: generateId(),
+      ...newPassenger
+    };
+    
+    switch (passengerModalConfig.group) {
+      case 'bdVisa':
+        setBangladeshVisaPassengers(prev => [...prev, passenger]);
+        break;
+      case 'bdAirfare':
+        setBangladeshAirfarePassengers(prev => [...prev, passenger]);
+        break;
+      case 'bdBus':
+        setBangladeshBusPassengers(prev => [...prev, passenger]);
+        break;
+      case 'bdTraining':
+        setBangladeshTrainingOtherPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saVisa':
+        setSaudiVisaPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saMakkahHotel':
+        setSaudiMakkahHotelPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saMadinaHotel':
+        setSaudiMadinaHotelPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saMakkahFood':
+        setSaudiMakkahFoodPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saMadinaFood':
+        setSaudiMadinaFoodPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saMakkahZiyara':
+        setSaudiMakkahZiyaraPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saMadinaZiyara':
+        setSaudiMadinaZiyaraPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saTransport':
+        setSaudiTransportPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saCampFee':
+        setSaudiCampFeePassengers(prev => [...prev, passenger]);
+        break;
+      case 'saAlMashayer':
+        setSaudiAlMashayerPassengers(prev => [...prev, passenger]);
+        break;
+      case 'saOthers':
+        setSaudiOthersPassengers(prev => [...prev, passenger]);
+        break;
+    }
+    closePassengerModal();
+  };
+  
+  // Remove passenger
+  const removePassenger = (group, id) => {
+    switch (group) {
+      case 'bdVisa':
+        setBangladeshVisaPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'bdAirfare':
+        setBangladeshAirfarePassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'bdBus':
+        setBangladeshBusPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'bdTraining':
+        setBangladeshTrainingOtherPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saVisa':
+        setSaudiVisaPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saMakkahHotel':
+        setSaudiMakkahHotelPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saMadinaHotel':
+        setSaudiMadinaHotelPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saMakkahFood':
+        setSaudiMakkahFoodPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saMadinaFood':
+        setSaudiMadinaFoodPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saMakkahZiyara':
+        setSaudiMakkahZiyaraPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saMadinaZiyara':
+        setSaudiMadinaZiyaraPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saTransport':
+        setSaudiTransportPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saCampFee':
+        setSaudiCampFeePassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saAlMashayer':
+        setSaudiAlMashayerPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+      case 'saOthers':
+        setSaudiOthersPassengers(prev => prev.filter(p => p.id !== id));
+        break;
+    }
+  };
+  
+  // Update passenger field
+  const updatePassenger = (group, id, field, value) => {
+    const numValue = ['count', 'price', 'roomNumber', 'perNight', 'totalNights', 'days', 'perDayPrice'].includes(field) 
+      ? (value === '' ? 0 : parseFloat(value) || 0) 
+      : value;
+    
+    switch (group) {
+      case 'bdVisa':
+        setBangladeshVisaPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'bdAirfare':
+        setBangladeshAirfarePassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'bdBus':
+        setBangladeshBusPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'bdTraining':
+        setBangladeshTrainingOtherPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saVisa':
+        setSaudiVisaPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saMakkahHotel':
+        setSaudiMakkahHotelPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saMadinaHotel':
+        setSaudiMadinaHotelPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saMakkahFood':
+        setSaudiMakkahFoodPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saMadinaFood':
+        setSaudiMadinaFoodPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saMakkahZiyara':
+        setSaudiMakkahZiyaraPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saMadinaZiyara':
+        setSaudiMadinaZiyaraPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saTransport':
+        setSaudiTransportPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saCampFee':
+        setSaudiCampFeePassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saAlMashayer':
+        setSaudiAlMashayerPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+      case 'saOthers':
+        setSaudiOthersPassengers(prev => prev.map(p => p.id === id ? { ...p, [field]: numValue } : p));
+        break;
+    }
+  };
+  
+  // Save costing data
+  const handleSaveCosting = async () => {
+    try {
+      const updateData = {
+        costs,
+        discount: parseFloat(discount) || 0,
+        sarToBdtRate: parseFloat(sarToBdtRate) || 1,
+        bangladeshVisaPassengers,
+        bangladeshAirfarePassengers,
+        bangladeshBusPassengers,
+        bangladeshTrainingOtherPassengers,
+        saudiVisaPassengers,
+        saudiMakkahHotelPassengers,
+        saudiMadinaHotelPassengers,
+        saudiMakkahFoodPassengers,
+        saudiMadinaFoodPassengers,
+        saudiMakkahZiyaraPassengers,
+        saudiMadinaZiyaraPassengers,
+        saudiTransportPassengers,
+        saudiCampFeePassengers,
+        saudiAlMashayerPassengers,
+        saudiOthersPassengers
+      };
+      
+      await updatePackageMutation.mutateAsync({
+        id,
+        updates: updateData
+      });
+      
+      setIsEditingCosts(false);
+      setShowCostingModal(false);
+    } catch (error) {
+      // Error handling is done in the mutation hook
+    }
+  };
   
   // Fetch Hajj and Umrah customers
   const { data: hajiData, isLoading: hajiLoading } = useHajiList({ limit: 1000 });
@@ -196,6 +593,44 @@ const AgentPackageDetails = () => {
       // Error handling is done in the mutation hook
     }
   };
+
+  // Format currency helper
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'BDT',
+      minimumFractionDigits: 2
+    }).format(amount || 0);
+  };
+
+  // Get profit/loss data from backend (calculated in API)
+  const profitLossData = packageInfo?.profitLoss ? {
+    totalCost: packageInfo.profitLoss.costingPrice || 0,
+    sellingPrice: packageInfo.profitLoss.packagePrice || 0,
+    profitLoss: packageInfo.profitLoss.profitLoss || 0,
+    profitLossPercentage: parseFloat(packageInfo.profitLoss.profitLossPercentage) || 0,
+    isProfit: packageInfo.profitLoss.isProfit || false,
+    isLoss: packageInfo.profitLoss.isLoss || false
+  } : {
+    totalCost: 0,
+    sellingPrice: 0,
+    profitLoss: 0,
+    profitLossPercentage: 0,
+    isProfit: true,
+    isLoss: false
+  };
+
+  // Payment summary (total paid & remaining due)
+  const computedPackageTotal = packageInfo?.totalPrice 
+    ?? packageInfo?.totals?.grandTotal 
+    ?? packageInfo?.totals?.subtotal 
+    ?? 0;
+  const computedTotalPaid = packageInfo?.paymentSummary?.totalPaid || 0;
+  const paymentSummary = {
+    totalPaid: computedTotalPaid,
+    remainingDue: Math.max(computedPackageTotal - computedTotalPaid, 0),
+    packageTotal: computedPackageTotal
+  };
   
   if (packageLoading) {
     return (
@@ -225,33 +660,42 @@ const AgentPackageDetails = () => {
   
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+        <div className="rounded-2xl bg-white/70 dark:bg-gray-800/80 backdrop-blur border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate(-1)}
-                className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                aria-label="Go back"
               >
                 <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Package Details</h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">{packageInfo.packageName}</p>
+                <p className="text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">Package Details</p>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">{packageInfo.packageName}</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{packageInfo.customPackageType || packageInfo.packageType}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-3 justify-end">
               <button
                 onClick={() => setShowCustomerModal(true)}
-                className="flex items-center space-x-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add Customers</span>
               </button>
               <button
+                onClick={() => navigate(`/hajj-umrah/agent-packages/${id}/costing`)}
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+              >
+                <Calculator className="w-4 h-4" />
+                <span>Add Costing</span>
+              </button>
+              <button
                 onClick={() => navigate(`/hajj-umrah/agent-packages/${id}/edit`)}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
               >
                 <Edit className="w-4 h-4" />
                 <span>Edit Package</span>
@@ -260,7 +704,7 @@ const AgentPackageDetails = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
           {/* Left Column - Package Info */}
           <div className="lg:col-span-1 space-y-6">
             {/* Package Overview */}
@@ -313,13 +757,123 @@ const AgentPackageDetails = () => {
                   <span className="font-medium text-gray-900 dark:text-white">{packageInfo.status}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Total Price:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Total Package Price:</span>
                   <span className="font-medium text-green-600 dark:text-green-400">
-                    ৳{packageInfo.totals?.subtotal?.toLocaleString() || packageInfo.totalPrice?.toLocaleString() || '0'}
+                    ৳{(packageInfo.totalPrice || packageInfo.totals?.subtotal || 0).toLocaleString()}
                   </span>
                 </div>
               </div>
             </div>
+
+            {/* Profit & Loss Section */}
+            {packageInfo?.profitLoss && (
+              <div className={`bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm border-2 ${
+                profitLossData.isProfit 
+                  ? 'border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10' 
+                  : profitLossData.isLoss
+                  ? 'border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-900/10'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+                  {profitLossData.isProfit ? (
+                    <TrendingUp className="w-5 h-5 mr-2 text-green-600 dark:text-green-400" />
+                  ) : profitLossData.isLoss ? (
+                    <TrendingDown className="w-5 h-5 mr-2 text-red-600 dark:text-red-400" />
+                  ) : (
+                    <Calculator className="w-5 h-5 mr-2 text-gray-600 dark:text-gray-400" />
+                  )}
+                  Profit & Loss
+                </h3>
+                <div className="space-y-4">
+                  {/* Costing Price */}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Costing Price</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.totalCost)}
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                        <Calculator className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Agent Package Price */}
+                  <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Agent Package Price</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.sellingPrice)}
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">
+                        <DollarSign className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Profit/Loss */}
+                  <div className={`rounded-lg p-4 ${
+                    profitLossData.isProfit 
+                      ? 'bg-green-100 dark:bg-green-900/20' 
+                      : profitLossData.isLoss
+                      ? 'bg-red-100 dark:bg-red-900/20'
+                      : 'bg-gray-100 dark:bg-gray-700/50'
+                  }`}>
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                          {profitLossData.isProfit ? 'লাভ (Profit)' : profitLossData.isLoss ? 'ক্ষতি (Loss)' : 'লাভ/ক্ষতি (Profit/Loss)'}
+                        </p>
+                        <p className={`text-2xl font-bold ${
+                          profitLossData.isProfit 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : profitLossData.isLoss
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {profitLossData.isProfit ? '+' : ''}{formatCurrency(profitLossData.profitLoss)}
+                        </p>
+                        {profitLossData.profitLossPercentage !== 0 && (
+                          <p className={`text-sm font-medium mt-1 flex items-center ${
+                            profitLossData.isProfit 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : profitLossData.isLoss
+                              ? 'text-red-600 dark:text-red-400'
+                              : 'text-gray-600 dark:text-gray-400'
+                          }`}>
+                            {profitLossData.isProfit ? (
+                              <TrendingUp className="w-4 h-4 mr-1" />
+                            ) : profitLossData.isLoss ? (
+                              <TrendingDown className="w-4 h-4 mr-1" />
+                            ) : null}
+                            {Math.abs(profitLossData.profitLossPercentage)}%
+                          </p>
+                        )}
+                      </div>
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        profitLossData.isProfit 
+                          ? 'bg-green-200 dark:bg-green-800/30' 
+                          : profitLossData.isLoss
+                          ? 'bg-red-200 dark:bg-red-800/30'
+                          : 'bg-gray-200 dark:bg-gray-700'
+                      }`}>
+                        {profitLossData.isProfit ? (
+                          <TrendingUp className={`w-6 h-6 ${profitLossData.isProfit ? 'text-green-600 dark:text-green-400' : ''}`} />
+                        ) : profitLossData.isLoss ? (
+                          <TrendingDown className={`w-6 h-6 ${profitLossData.isLoss ? 'text-red-600 dark:text-red-400' : ''}`} />
+                        ) : (
+                          <Calculator className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Customer Assignment */}
@@ -417,6 +971,40 @@ const AgentPackageDetails = () => {
                 )}
               </div>
             </div>
+
+            {/* Payment & Profit/Loss Summary (moved here under package details) */}
+            {(packageInfo?.profitLoss || packageInfo?.paymentSummary) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Payment Summary */}
+                <div className="rounded-xl p-6 border-2 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />
+                    পেমেন্ট সারসংক্ষেপ
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">মোট মূল্য:</span>
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(packageInfo?.totalPrice ?? paymentSummary.packageTotal)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">পরিশোধিত:</span>
+                      <span className="font-semibold text-green-600 dark:text-green-400">
+                        {formatCurrency(paymentSummary.totalPaid)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">বকেয়া:</span>
+                      <span className="font-semibold text-red-600 dark:text-red-400">
+                        {formatCurrency(paymentSummary.remainingDue)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -547,6 +1135,151 @@ const AgentPackageDetails = () => {
                     Assign Customers
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+               
+
+      {/* Passenger Modal */}
+      {showPassengerModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">যাত্রী যোগ করুন</h3>
+              <button
+                onClick={closePassengerModal}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              >
+                <XCircle className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">যাত্রীর ধরন</label>
+                <select
+                  value={newPassenger.type}
+                  onChange={(e) => setNewPassenger(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                >
+                  <option value="Adult">Adult</option>
+                  <option value="Child">Child</option>
+                  <option value="Infant">Infant</option>
+                </select>
+              </div>
+              
+              {passengerModalConfig.type === 'hotel' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">রুম সংখ্যা</label>
+                    <input
+                      type="number"
+                      value={newPassenger.roomNumber}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, roomNumber: e.target.value }))}
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">প্রতি রাত (SAR)</label>
+                    <input
+                      type="number"
+                      value={newPassenger.perNight}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, perNight: e.target.value }))}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">মোট রাত</label>
+                    <input
+                      type="number"
+                      value={newPassenger.totalNights}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, totalNights: e.target.value }))}
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                </>
+              ) : passengerModalConfig.type === 'food' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">সংখ্যা</label>
+                    <input
+                      type="number"
+                      value={newPassenger.count}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, count: e.target.value }))}
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">কত দিন</label>
+                    <input
+                      type="number"
+                      value={newPassenger.days}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, days: e.target.value }))}
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">প্রতি দিন (SAR)</label>
+                    <input
+                      type="number"
+                      value={newPassenger.perDayPrice}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, perDayPrice: e.target.value }))}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">সংখ্যা</label>
+                    <input
+                      type="number"
+                      value={newPassenger.count}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, count: e.target.value }))}
+                      min="0"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {passengerModalConfig.group.startsWith('sa') ? 'মূল্য (SAR)' : 'মূল্য (BDT)'}
+                    </label>
+                    <input
+                      type="number"
+                      value={newPassenger.price}
+                      onChange={(e) => setNewPassenger(prev => ({ ...prev, price: e.target.value }))}
+                      min="0"
+                      step="0.01"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                </>
+              )}
+              
+              <div className="flex items-center justify-end space-x-3 pt-4">
+                <button
+                  onClick={closePassengerModal}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  বাতিল
+                </button>
+                <button
+                  onClick={addPassenger}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg"
+                >
+                  যোগ করুন
+                </button>
               </div>
             </div>
           </div>

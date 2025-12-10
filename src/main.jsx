@@ -65,6 +65,7 @@ const Agent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ def
 const AgentPackageCreation = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageCreation'));
 const AgentPackageDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageDetails'));
 const AgentPackageEdit = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageEdit'));
+const AgentPackageCosting = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageCosting'));
 const AgentDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentDetails'));
 const AddAgent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddAgent })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditB2BAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/EditAgent'));
@@ -469,6 +470,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <AgentPackageEdit />
+          </Suspense>
+        )
+      },
+      {
+        path: "agent-packages/:id/costing",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentPackageCosting />
           </Suspense>
         )
       },

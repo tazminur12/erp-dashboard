@@ -28,7 +28,8 @@ import {
   Building2, 
   Globe,
   MoreHorizontal,
-  X
+  X,
+  Package
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -57,6 +58,7 @@ import { useCategoryQueries } from '../../hooks/useCategoryQueries';
 import { useHajiList } from '../../hooks/UseHajiQueries';
 import { useUmrahList } from '../../hooks/UseUmrahQuries';
 import { useLoans } from '../../hooks/useLoanQueries';
+import { useAgentPackageList } from '../../hooks/UseAgentPacakageQueries';
 import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
 import Swal from 'sweetalert2';
 import { useFarmExpenses, useFarmIncomes } from '../../hooks/useFinanceQueries';
@@ -167,6 +169,10 @@ const NewTransaction = () => {
     // Step 4: Invoice Selection (for credit/debit)
     selectedInvoice: null,
     invoiceId: '',
+    
+    // Package selection for agent transactions
+    selectedPackage: null,
+    selectedPackageId: '',
     
     // Step 5: Payment Method (for credit/debit)
     paymentMethod: '',
@@ -335,6 +341,14 @@ const NewTransaction = () => {
     searchTerm,
     selectedSearchType === 'vendor' && !!searchTerm?.trim()
   );
+
+  // Fetch agent packages when agent is selected
+  const { data: agentPackagesData, isLoading: packagesLoading } = useAgentPackageList(
+    formData.customerType === 'agent' && formData.customerId
+      ? { agentId: formData.customerId, limit: 1000 }
+      : {}
+  );
+  const agentPackages = agentPackagesData?.data || [];
   const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
 
   // Loans search list for the "Loans" selector tab
@@ -649,7 +663,10 @@ const NewTransaction = () => {
       ...(autoServiceCategory ? { serviceCategory: autoServiceCategory } : {}),
       selectedInvoice: null,
       invoiceId: '',
-      agentDueInfo: null
+      agentDueInfo: null,
+      // Package selection for agent transactions
+      selectedPackage: null,
+      selectedPackageId: ''
     }));
     setSearchLoading(false);
   };
@@ -931,6 +948,12 @@ const NewTransaction = () => {
             // For agents, validate selectedOption
             if (!formData.selectedOption) {
               newErrors.selectedOption = 'পেমেন্টের ধরন নির্বাচন করুন';
+            }
+            // Validate package selection for hajj/umrah (optional for others)
+            if (formData.selectedOption && (formData.selectedOption === 'hajj' || formData.selectedOption === 'umrah')) {
+              if (!formData.selectedPackageId) {
+                newErrors.selectedPackage = 'প্যাকেজ নির্বাচন করুন';
+              }
             }
           }
           break;
@@ -1368,7 +1391,10 @@ const NewTransaction = () => {
       // Some backends use partyName for generic parties
       partyName: formData.customerName || undefined,
       // Pass meta to backend for better categorization (agent: hajj/umrah/others)
-      meta: formData.selectedOption ? { selectedOption: formData.selectedOption } : undefined,
+      meta: formData.selectedOption ? { 
+        selectedOption: formData.selectedOption,
+        packageId: formData.selectedPackageId || undefined
+      } : undefined,
       notes: formData.notes || null,
       invoiceId: formData.invoiceId || null,
       accountManagerId: formData.accountManager?.id || null,
@@ -3064,7 +3090,7 @@ const NewTransaction = () => {
                               ? 'bg-gradient-to-r from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 border-amber-400 dark:border-amber-500 shadow-lg' 
                               : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                           }`}
-                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'hajj' }))}
+                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'hajj', selectedPackage: null, selectedPackageId: '' }))}
                         >
                           <div className="flex items-center justify-between">
                             <div>
@@ -3094,7 +3120,7 @@ const NewTransaction = () => {
                               ? 'bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border-blue-400 dark:border-blue-500 shadow-lg' 
                               : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                           }`}
-                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'umrah' }))}
+                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'umrah', selectedPackage: null, selectedPackageId: '' }))}
                         >
                           <div className="flex items-center justify-between">
                             <div>
@@ -3124,7 +3150,7 @@ const NewTransaction = () => {
                               ? 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 border-gray-400 dark:border-gray-500 shadow-lg' 
                               : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600'
                           }`}
-                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'others' }))}
+                          onClick={() => setFormData(prev => ({ ...prev, selectedOption: 'others', selectedPackage: null, selectedPackageId: '' }))}
                         >
                           <div className="flex items-center justify-between">
                             <div>
@@ -3157,7 +3183,124 @@ const NewTransaction = () => {
                           </p>
                         </div>
                       )}
+                      {errors.selectedPackage && (
+                        <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                          <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" />
+                            {errors.selectedPackage}
+                          </p>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Package List Section */}
+                    {formData.selectedOption && (
+                      <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                            প্যাকেজ নির্বাচন করুন
+                          </h3>
+                        </div>
+
+                        {packagesLoading ? (
+                          <div className="flex items-center justify-center py-8">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                            <span className="ml-2 text-gray-600 dark:text-gray-400">প্যাকেজ লোড হচ্ছে...</span>
+                          </div>
+                        ) : agentPackages.length === 0 ? (
+                          <div className="text-center py-8">
+                            <Package className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-600 dark:text-gray-400">কোনো প্যাকেজ পাওয়া যায়নি</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {agentPackages
+                              .filter(pkg => {
+                                // Filter packages based on selectedOption
+                                if (formData.selectedOption === 'hajj') {
+                                  return pkg.packageType === 'Hajj' || pkg.packageType === 'হজ্জ' || 
+                                         pkg.customPackageType === 'Custom Hajj' || pkg.customPackageType === 'Hajj';
+                                } else if (formData.selectedOption === 'umrah') {
+                                  return pkg.packageType === 'Umrah' || pkg.packageType === 'উমরাহ' || 
+                                         pkg.customPackageType === 'Custom Umrah' || pkg.customPackageType === 'Umrah';
+                                } else {
+                                  // For 'others', show all packages
+                                  return true;
+                                }
+                              })
+                              .map((pkg) => {
+                                const packageTotal = pkg.totalPrice || pkg.totals?.grandTotal || pkg.totals?.subtotal || 0;
+                                const packagePaid = pkg.totalPaid || pkg.paymentSummary?.totalPaid || pkg.financialSummary?.totalPaid || 0;
+                                const packageDue = packageTotal - packagePaid;
+                                
+                                return (
+                                  <div
+                                    key={pkg._id}
+                                    onClick={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        selectedPackage: pkg,
+                                        selectedPackageId: pkg._id
+                                      }));
+                                    }}
+                                    className={`rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
+                                      formData.selectedPackageId === pkg._id
+                                        ? 'bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-400 dark:border-purple-500 shadow-lg'
+                                        : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <h4 className={`font-semibold text-sm ${
+                                            formData.selectedPackageId === pkg._id
+                                              ? 'text-purple-700 dark:text-purple-300'
+                                              : 'text-gray-900 dark:text-white'
+                                          }`}>
+                                            {pkg.packageName || 'Untitled Package'}
+                                          </h4>
+                                          {formData.selectedPackageId === pkg._id && (
+                                            <CheckCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                          )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                          <div>
+                                            <p className="text-gray-600 dark:text-gray-400">মোট মূল্য:</p>
+                                            <p className="font-medium text-gray-900 dark:text-white">
+                                              ৳{packageTotal.toLocaleString()}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <p className="text-gray-600 dark:text-gray-400">পরিশোধিত:</p>
+                                            <p className="font-medium text-green-600 dark:text-green-400">
+                                              ৳{packagePaid.toLocaleString()}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                                              বকেয়া:
+                                            </span>
+                                            <span className={`text-sm font-bold ${
+                                              packageDue > 0
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-green-600 dark:text-green-400'
+                                            }`}>
+                                              ৳{packageDue.toLocaleString()}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ) : formData.transactionType === 'transfer' ? (
                   // Transfer: Transfer Details first, then Account Manager Selection

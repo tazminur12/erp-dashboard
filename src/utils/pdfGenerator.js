@@ -3,49 +3,47 @@ import html2canvas from 'html2canvas';
 
 // --- I. Constants and Local Data ---
 
-// English Labels
+// --- Updated Bangla Labels (সব বাংলায়) ---
 const L = {
-  transactionDetails: 'Transaction Details',
-  transactionId: 'Transaction ID',
-  date: 'Date',
-  time: 'Time',
-  createdBy: 'Created By',
-  customerInfo: 'Customer Information',
-  name: 'Name',
-  phone: 'Phone',
-  email: 'Email',
-  customerId: 'Customer ID',
-  paymentInfo: 'Payment Information',
-  paymentMethod: 'Payment Method',
-  category: 'Category',
-  notes: 'Additional Notes',
-  invoiceId: 'Invoice ID',
-  branchId: 'Branch',
-  customerBank: 'Customer Bank',
-  customerAccNum: 'Customer Account Number',
-  bankName: 'Bank Name',
-  accountNumber: 'Account Number',
-  chequeNumber: 'Cheque Number',
-  mobileProvider: 'Provider',
-  transactionIdShort: 'Transaction ID',
-  reference: 'Reference',
-  debitAccount: 'Debit Account',
-  creditAccount: 'Credit Account',
-  bank: 'Bank',
-  accountNumberLong: 'Account Number',
-  footerMessage: 'This is an official transaction receipt',
-  systemName: 'Salma Air Travels & Tours',
-  status: 'Status',
-  amount: 'Amount',
-  transactionType: 'Transaction Type',
-  receiptTitle: 'TRANSACTION RECEIPT',
-  officialCopy: 'OFFICIAL COPY',
-  receiptNo: 'Receipt No.',
-  amountInWords: 'Amount in Words',
-  authorizedSignatory: 'Authorized Signatory',
-  thankYouMessage: 'Thank you for your business',
-  termsAndConditions: 'Terms & Conditions',
-  contactInfo: 'For any queries, contact us at: admin@salmaair.com | +880 1946 881177',
+  transactionDetails: 'লেনদেনের বিবরণ',
+  transactionId: 'লেনদেন আইডি',
+  date: 'তারিখ',
+  time: 'সময়',
+  createdBy: 'তৈরি করেছেন',
+  customerInfo: 'গ্রাহকের তথ্য',
+  name: 'নাম',
+  phone: 'মোবাইল নম্বর',
+  email: 'ইমেইল',
+  customerId: 'গ্রাহক আইডি',
+  paymentInfo: 'পেমেন্ট তথ্য',
+  paymentMethod: 'পেমেন্টের মাধ্যম',
+  category: 'সেবার ধরন',
+  notes: 'অতিরিক্ত মন্তব্য',
+  invoiceId: 'ইনভয়েস নম্বর',
+  branchId: 'শাখা',
+  customerBank: 'গ্রাহকের ব্যাংক',
+  customerAccNum: 'গ্রাহকের অ্যাকাউন্ট নম্বর',
+  bankName: 'ব্যাংকের নাম',
+  accountNumber: 'অ্যাকাউন্ট নম্বর',
+  chequeNumber: 'চেক নম্বর',
+  mobileProvider: 'মোবাইল ব্যাংকিং সেবা',
+  transactionIdShort: 'লেনদেন আইডি',
+  reference: 'রেফারেন্স',
+  debitAccount: 'ডেবিট অ্যাকাউন্ট',
+  creditAccount: 'ক্রেডিট অ্যাকাউন্ট',
+  bank: 'ব্যাংক',
+  accountNumberLong: 'অ্যাকাউন্ট নম্বর',
+  footerMessage: 'এটি একটি অফিসিয়াল লেনদেনের রিসিপ্ট',
+  systemName: 'সালমা এয়ার ট্রাভেলস এন্ড ট্যুরস',
+  status: 'স্ট্যাটাস',
+  amount: 'পরিমাণ',
+  transactionType: 'লেনদেনের ধরন',
+  receiptTitle: 'লেনদেনের রিসিপ্ট',
+  officialCopy: 'অফিসিয়াল কপি',
+  receiptNo: 'রিসিপ্ট নং',
+  authorizedSignatory: 'অনুমোদিত স্বাক্ষর',
+  thankYouMessage: 'আপনার ব্যবসার জন্য ধন্যবাদ',
+  contactInfo: 'যেকোনো প্রশ্নের জন্য যোগাযোগ করুন: admin@salmaair.com | +880 1946 881177',
 };
 
 // Transaction Types and their colors
@@ -275,11 +273,11 @@ const createInfoRow = (label, value, S, options = {}) => {
   const displayValue = isValidValue(value) ? value : 'N/A';
   
   return `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0; padding: 8px 0; border-bottom: 1px solid ${S.divider};">
-      <span style="color: ${S.textSecondary}; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; flex: 1;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0; padding: 8px 0; border-bottom: 1px solid ${S.divider}; flex-wrap: wrap; gap: 8px;">
+      <span style="color: ${S.textSecondary}; font-size: clamp(10px, 2vw, 12px); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; min-width: 120px;">
         ${label}
       </span>
-      <span style="color: ${valueColor}; font-size: 13px; font-weight: ${isBoldValue ? '600' : '500'}; text-align: right; flex: 1;">
+      <span style="color: ${valueColor}; font-size: clamp(11px, 2.2vw, 13px); font-weight: ${isBoldValue ? '600' : '500'}; text-align: right; flex: 1; min-width: 100px; word-break: break-word;">
         ${displayValue}
       </span>
     </div>
@@ -306,56 +304,56 @@ const buildHeaderHTML = (S, data) => {
     <!-- Main Header -->
     <div style="position: relative; z-index: 1; margin-bottom: 25px; border-bottom: 2px solid ${S.primary}; padding-bottom: 20px;">
       <!-- Top Info Bar -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 15px; background: linear-gradient(135deg, ${S.primary}10 0%, ${S.secondary}10 100%); border-radius: 8px; border: 1px solid ${S.border};">
-        <div>
-          <span style="color: ${S.textSecondary}; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 10px 15px; background: linear-gradient(135deg, ${S.primary}10 0%, ${S.secondary}10 100%); border-radius: 8px; border: 1px solid ${S.border}; flex-wrap: wrap; gap: 10px;">
+        <div style="flex: 1; min-width: 200px;">
+          <span style="color: ${S.textSecondary}; font-size: clamp(9px, 1.8vw, 10px); font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
             ${L.receiptNo}
           </span>
-          <span style="color: ${S.accent}; font-size: 16px; font-weight: 700; margin-left: 10px; letter-spacing: 1px;">
+          <span style="color: ${S.accent}; font-size: clamp(14px, 3vw, 16px); font-weight: 700; margin-left: 10px; letter-spacing: 1px;">
             ${data.transactionId || 'N/A'}
           </span>
         </div>
-        <div style="text-align: right;">
-          <span style="color: ${S.textSecondary}; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-            Issue Date
+        <div style="text-align: right; flex: 1; min-width: 150px;">
+          <span style="color: ${S.textSecondary}; font-size: clamp(9px, 1.8vw, 10px); font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+            ইস্যু তারিখ
           </span>
-          <span style="color: ${S.textPrimary}; font-size: 14px; font-weight: 600; margin-left: 10px;">
+          <span style="color: ${S.textPrimary}; font-size: clamp(12px, 2.5vw, 14px); font-weight: 600; margin-left: 10px;">
             ${formatDate(data.date)}
           </span>
         </div>
       </div>
       
       <!-- Company Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
-          <img src="${logoSrc}" alt="Company Logo" style="height: 60px; width: auto; object-fit: contain; border-radius: 8px; border: 2px solid ${S.border}; padding: 3px; background: ${S.paperBg};" />
-          <div>
-            <h1 style="color: ${S.primary}; font-size: 28px; margin: 0 0 4px 0; font-weight: 800; font-family: 'Inter', sans-serif; letter-spacing: -0.5px;">
+      <div class="header-flex" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 15px; flex: 1; min-width: 250px;">
+          <img src="${logoSrc}" alt="Company Logo" style="height: 60px; width: auto; max-width: 100%; object-fit: contain; border-radius: 8px; border: 2px solid ${S.border}; padding: 3px; background: ${S.paperBg};" />
+          <div style="flex: 1; min-width: 200px;">
+            <h1 style="color: ${S.primary}; font-size: clamp(20px, 4vw, 28px); margin: 0 0 4px 0; font-weight: 800; font-family: 'Inter', sans-serif; letter-spacing: -0.5px;">
               ${L.systemName}
             </h1>
-            <p style="color: ${S.textMuted}; font-size: 11px; margin: 0; font-weight: 500; font-family: 'Inter', sans-serif; letter-spacing: 0.5px;">
-              Travel Agency & Tour Operator
+            <p style="color: ${S.textMuted}; font-size: clamp(9px, 2vw, 11px); margin: 0; font-weight: 500; font-family: 'Inter', sans-serif; letter-spacing: 0.5px;">
+              ট্রাভেল এজেন্সি ও ট্যুর অপারেটর
             </p>
-            <p style="color: ${S.textMuted}; font-size: 10px; margin: 2px 0 0 0; font-weight: 400;">
+            <p style="color: ${S.textMuted}; font-size: clamp(8px, 1.8vw, 10px); margin: 2px 0 0 0; font-weight: 400;">
               1/1 E Sat Masjid Road, Mohammadpur, Dhaka, Bangladesh | Phone: +880 1946 881177
             </p>
           </div>
         </div>
         
-        <div style="text-align: center;">
-          <img src="${qrSrc}" alt="QR Code" style="height: 80px; width: 80px; object-fit: contain; border-radius: 6px; border: 1px solid ${S.border}; padding: 3px; background: ${S.paperBg};" />
-          <p style="color: ${S.textMuted}; font-size: 9px; margin: 5px 0 0 0; font-weight: 500;">
-            Scan to Verify
+        <div style="text-align: center; flex-shrink: 0;">
+          <img src="${qrSrc}" alt="QR Code" style="height: 80px; width: 80px; max-width: 100%; object-fit: contain; border-radius: 6px; border: 1px solid ${S.border}; padding: 3px; background: ${S.paperBg};" />
+          <p style="color: ${S.textMuted}; font-size: clamp(8px, 1.8vw, 9px); margin: 5px 0 0 0; font-weight: 500;">
+            যাচাই করতে স্ক্যান করুন
           </p>
         </div>
       </div>
       
       <!-- Receipt Title -->
       <div style="text-align: center; margin: 10px 0; padding: 15px; background: linear-gradient(135deg, ${S.primary} 0%, ${S.secondary} 100%); border-radius: 8px;">
-        <h2 style="color: white; font-size: 24px; margin: 0; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">
+        <h2 style="color: white; font-size: clamp(18px, 4vw, 24px); margin: 0; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">
           ${L.receiptTitle}
         </h2>
-        <p style="color: rgba(255, 255, 255, 0.9); font-size: 12px; margin: 5px 0 0 0; font-weight: 500; letter-spacing: 1px;">
+        <p style="color: rgba(255, 255, 255, 0.9); font-size: clamp(10px, 2vw, 12px); margin: 5px 0 0 0; font-weight: 500; letter-spacing: 1px;">
           ${L.officialCopy}
         </p>
       </div>
@@ -368,51 +366,42 @@ const buildSummaryHTML = (data, typeData, amount, S) => {
   const statusColor = getStatusColor(data.status);
   
   return `
-    <div style="margin-bottom: 25px; padding: 0;">
-      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px;">
+    <div style="margin-bottom: 25px; padding: 0; width: 100%; box-sizing: border-box;">
+      <div class="summary-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; box-sizing: border-box;">
         <!-- Left Column - Transaction Info -->
-        <div style="padding: 20px; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow};">
-          <h3 style="color: ${S.primary}; font-size: 16px; margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
+        <div style="padding: 1.25rem; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow}; width: 100%; box-sizing: border-box;">
+          <h3 style="color: ${S.primary}; font-size: clamp(14px, 3vw, 16px); margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
             ${L.transactionDetails}
           </h3>
           
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+          <div class="info-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
             <div>
-              ${createInfoRow('Transaction ID', data.transactionId, S, { isBoldValue: true })}
-              ${createInfoRow('Date', formatDate(data.date), S)}
-              ${createInfoRow('Time', formatTime(data.date), S)}
+              ${createInfoRow('লেনদেন আইডি', data.transactionId, S, { isBoldValue: true })}
+              ${createInfoRow('তারিখ', formatDate(data.date), S)}
+              ${createInfoRow('সময়', formatTime(data.date), S)}
             </div>
             <div>
-              ${createInfoRow('Transaction Type', typeData.text, S, { isBoldValue: true, valueColor: typeData.color })}
-              ${createInfoRow('Status', getStatusText(data.status), S, { isBoldValue: true, valueColor: statusColor })}
-              ${createInfoRow('Created By', data.createdBy || 'System', S)}
+              ${createInfoRow('লেনদেনের ধরন', typeData.text, S, { isBoldValue: true, valueColor: typeData.color })}
+              ${createInfoRow('স্ট্যাটাস', getStatusText(data.status), S, { isBoldValue: true, valueColor: statusColor })}
+              ${createInfoRow('তৈরি করেছেন', data.createdBy || 'সিস্টেম', S)}
             </div>
           </div>
         </div>
         
         <!-- Right Column - Amount Box -->
-        <div style="display: flex; flex-direction: column;">
-          <div style="flex: 1; padding: 20px; background: linear-gradient(135deg, ${typeData.bgColor} 0%, ${typeData.color}10 100%); border-radius: 10px; border: 2px solid ${typeData.color}; text-align: center; box-shadow: 0 4px 12px ${typeData.color}20;">
-            <p style="color: ${typeData.color}; font-size: 11px; margin: 0 0 8px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+        <div style="display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
+          <div style="flex: 1; padding: 1.25rem; background: linear-gradient(135deg, ${typeData.bgColor} 0%, ${typeData.color}10 100%); border-radius: 10px; border: 2px solid ${typeData.color}; text-align: center; box-shadow: 0 4px 12px ${typeData.color}20; width: 100%; box-sizing: border-box;">
+            <p style="color: ${typeData.color}; font-size: clamp(10px, 2vw, 11px); margin: 0 0 8px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
               ${typeData.subtitle}
             </p>
-            <p style="color: ${S.textPrimary}; font-size: 32px; margin: 0 0 5px 0; font-weight: 800; font-family: 'Inter', sans-serif;">
+            <p style="color: ${S.textPrimary}; font-size: clamp(24px, 5vw, 32px); margin: 0 0 5px 0; font-weight: 800; font-family: 'Inter', sans-serif;">
               ৳ ${formatCurrency(amount)}
             </p>
-            <p style="color: ${typeData.color}; font-size: 10px; margin: 0; font-weight: 600; letter-spacing: 0.5px;">
-              ${typeData.text} TRANSACTION
+            <p style="color: ${typeData.color}; font-size: clamp(9px, 1.8vw, 10px); margin: 0; font-weight: 600; letter-spacing: 0.5px;">
+              ${typeData.text} লেনদেন
             </p>
           </div>
           
-          <!-- Amount in Words -->
-          <div style="margin-top: 15px; padding: 15px; background: ${S.cardBg}; border-radius: 8px; border: 1px solid ${S.border};">
-            <p style="color: ${S.textSecondary}; font-size: 10px; margin: 0 0 5px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-              ${L.amountInWords}
-            </p>
-            <p style="color: ${S.textPrimary}; font-size: 12px; margin: 0; font-weight: 500; font-style: italic; line-height: 1.4;">
-              ${amountToWords(amount)}
-            </p>
-          </div>
         </div>
       </div>
     </div>
@@ -427,25 +416,25 @@ const buildCustomerInfoHTML = (data, S) => {
   const customerId = data.customerId || data.customer?._id || data.customer?.id || 'N/A';
 
   return `
-    <div style="padding: 20px; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow};">
-      <h3 style="color: ${S.primary}; font-size: 16px; margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
+    <div style="padding: 1.25rem; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow}; width: 100%; height: 100%; box-sizing: border-box;">
+      <h3 style="color: ${S.primary}; font-size: clamp(14px, 3vw, 16px); margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
         ${L.customerInfo}
       </h3>
       
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
-        <div style="grid-column: span 2;">
-          ${createInfoRow('Full Name', customerName, S, { isBoldValue: true })}
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <div style="grid-column: 1 / -1;">
+          ${createInfoRow('পুরো নাম', customerName, S, { isBoldValue: true })}
         </div>
-        ${createInfoRow('Phone Number', customerPhone, S)}
-        ${createInfoRow('Email Address', customerEmail, S)}
-        ${createInfoRow('Customer ID', customerId, S)}
-        ${createInfoRow('Customer Type', data.customerType || 'Regular', S)}
+        ${createInfoRow('ফোন নাম্বার', customerPhone, S)}
+        ${createInfoRow('ইমেইল ঠিকানা', customerEmail, S)}
+        ${createInfoRow('গ্রাহক আইডি', customerId, S)}
+        ${createInfoRow('গ্রাহকের ধরন', data.customerType || 'নিয়মিত', S)}
       </div>
       
       ${data.customer?.address ? `
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${S.divider};">
           <p style="color: ${S.textSecondary}; font-size: 11px; margin: 0 0 5px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-            Address
+            ঠিকানা
           </p>
           <p style="color: ${S.textPrimary}; font-size: 12px; margin: 0; line-height: 1.4;">
             ${data.customer.address}
@@ -467,47 +456,47 @@ const buildPaymentInfoHTML = (data, S) => {
     const pd = data.paymentDetails;
     
     if (data.paymentMethod === 'bank' || data.paymentMethod === 'bank-transfer') {
-      detailsHTML += createInfoRow('Bank Name', pd.bankName, S);
-      detailsHTML += createInfoRow('Account Number', pd.accountNumber, S);
-      detailsHTML += createInfoRow('Branch', pd.branch || 'N/A', S);
-      detailsHTML += createInfoRow('Transaction Reference', pd.reference, S);
+      detailsHTML += createInfoRow('ব্যাংকের নাম', pd.bankName, S);
+      detailsHTML += createInfoRow('একাউন্ট নম্বর', pd.accountNumber, S);
+      detailsHTML += createInfoRow('শাখা', pd.branch || 'N/A', S);
+      detailsHTML += createInfoRow('লেনদেনের রেফারেন্স', pd.reference, S);
     } else if (data.paymentMethod === 'cheque') {
-      detailsHTML += createInfoRow('Cheque Number', pd.chequeNumber, S);
-      detailsHTML += createInfoRow('Bank Name', pd.bankName, S);
-      detailsHTML += createInfoRow('Cheque Date', pd.chequeDate ? formatDate(pd.chequeDate) : 'N/A', S);
-      detailsHTML += createInfoRow('Reference', pd.reference, S);
+      detailsHTML += createInfoRow('চেক নম্বর', pd.chequeNumber, S);
+      detailsHTML += createInfoRow('ব্যাংকের নাম', pd.bankName, S);
+      detailsHTML += createInfoRow('চেকের তারিখ', pd.chequeDate ? formatDate(pd.chequeDate) : 'N/A', S);
+      detailsHTML += createInfoRow('রেফারেন্স', pd.reference, S);
     } else if (data.paymentMethod === 'mobile-banking') {
-      detailsHTML += createInfoRow('Service Provider', pd.mobileProvider, S);
-      detailsHTML += createInfoRow('Transaction ID', pd.transactionId, S);
-      detailsHTML += createInfoRow('Wallet Number', pd.walletNumber || 'N/A', S);
-      detailsHTML += createInfoRow('Reference', pd.reference, S);
+      detailsHTML += createInfoRow('সেবা প্রদানকারী', pd.mobileProvider, S);
+      detailsHTML += createInfoRow('লেনদেন আইডি', pd.transactionId, S);
+      detailsHTML += createInfoRow('ওয়ালেট নম্বর', pd.walletNumber || 'N/A', S);
+      detailsHTML += createInfoRow('রেফারেন্স', pd.reference, S);
     } else if (data.paymentMethod === 'cash') {
-      detailsHTML += createInfoRow('Payment Mode', 'Cash', S);
-      detailsHTML += createInfoRow('Received By', pd.receivedBy || data.createdBy || 'N/A', S);
-      detailsHTML += createInfoRow('Reference', pd.reference || 'N/A', S);
+      detailsHTML += createInfoRow('পেমেন্ট মাধ্যম', 'নগদ', S);
+      detailsHTML += createInfoRow('গ্রহণ করেছেন', pd.receivedBy || data.createdBy || 'N/A', S);
+      detailsHTML += createInfoRow('রেফারেন্স', pd.reference || 'N/A', S);
     } else if (data.paymentMethod === 'card') {
-      detailsHTML += createInfoRow('Card Type', pd.cardType || 'Credit/Debit', S);
-      detailsHTML += createInfoRow('Last 4 Digits', pd.lastFourDigits || 'N/A', S);
-      detailsHTML += createInfoRow('Authorization Code', pd.authCode || 'N/A', S);
-      detailsHTML += createInfoRow('Transaction ID', pd.transactionId || 'N/A', S);
+      detailsHTML += createInfoRow('কার্ডের ধরন', pd.cardType || 'ক্রেডিট/ডেবিট', S);
+      detailsHTML += createInfoRow('শেষের ৪ ডিজিট', pd.lastFourDigits || 'N/A', S);
+      detailsHTML += createInfoRow('অনুমোদন কোড', pd.authCode || 'N/A', S);
+      detailsHTML += createInfoRow('লেনদেন আইডি', pd.transactionId || 'N/A', S);
     }
   }
   
   return `
-    <div style="padding: 20px; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow};">
-      <h3 style="color: ${S.primary}; font-size: 16px; margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
+    <div style="padding: 1.25rem; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow}; width: 100%; height: 100%; box-sizing: border-box;">
+      <h3 style="color: ${S.primary}; font-size: clamp(14px, 3vw, 16px); margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
         ${L.paymentInfo}
       </h3>
       
-      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 15px;">
-        ${createInfoRow('Payment Method', paymentMethodText, S, { isBoldValue: true })}
-        ${createInfoRow('Service Category', categoryText, S, { isBoldValue: true })}
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+        ${createInfoRow('পেমেন্ট পদ্ধতি', paymentMethodText, S, { isBoldValue: true })}
+        ${createInfoRow('সেবার ধরন', categoryText, S, { isBoldValue: true })}
       </div>
       
       ${detailsHTML ? `
         <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${S.divider};">
           <p style="color: ${S.textSecondary}; font-size: 12px; margin: 0 0 10px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
-            Payment Details
+            পেমেন্টের বিস্তারিত
           </p>
           ${detailsHTML}
         </div>
@@ -515,7 +504,7 @@ const buildPaymentInfoHTML = (data, S) => {
       
       ${data.invoiceId ? `
         <div style="margin-top: 15px; padding: 10px; background: ${S.bg}; border-radius: 6px; border: 1px solid ${S.border};">
-          ${createInfoRow('Invoice ID', data.invoiceId, S, { isBoldValue: true, valueColor: S.accent })}
+          ${createInfoRow('ইনভয়েস আইডি', data.invoiceId, S, { isBoldValue: true, valueColor: S.accent })}
         </div>
       ` : ''}
     </div>
@@ -536,46 +525,46 @@ const buildAccountTransferHTML = (data, S) => {
     return `
       <div style="margin-bottom: 25px; padding: 20px; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow};">
         <h3 style="color: ${S.primary}; font-size: 16px; margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
-          Account Transfer Details
+          একাউন্ট ট্রান্সফার বিবরণ
         </h3>
         
-        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 20px; align-items: center; margin: 20px 0;">
+        <div class="transfer-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; align-items: center; margin: 20px 0;">
           <!-- From Account -->
           <div style="padding: 15px; background: ${S.bg}; border-radius: 8px; border: 2px solid ${S.danger};">
-            <p style="color: ${S.danger}; font-size: 12px; margin: 0 0 10px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
-              From Account
+            <p style="color: ${S.danger}; font-size: clamp(11px, 2.2vw, 12px); margin: 0 0 10px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
+              একাউন্ট থেকে
             </p>
-            ${createInfoRow('Account Name', debitAccount.name || 'N/A', S, { isBoldValue: true })}
-            ${createInfoRow('Bank Name', debitAccount.bankName || 'N/A', S)}
-            ${createInfoRow('Account Number', debitAccount.accountNumber || 'N/A', S)}
-            ${createInfoRow('Branch', debitAccount.branch || 'N/A', S)}
+            ${createInfoRow('একাউন্টের নাম', debitAccount.name || 'N/A', S, { isBoldValue: true })}
+            ${createInfoRow('ব্যাংকের নাম', debitAccount.bankName || 'N/A', S)}
+            ${createInfoRow('একাউন্ট নম্বর', debitAccount.accountNumber || 'N/A', S)}
+            ${createInfoRow('শাখা', debitAccount.branch || 'N/A', S)}
           </div>
           
           <!-- Transfer Arrow -->
-          <div style="text-align: center;">
+          <div class="transfer-arrow" style="text-align: center; order: 2;">
             <div style="width: 40px; height: 40px; background: linear-gradient(135deg, ${S.primary} 0%, ${S.secondary} 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 4px 8px ${S.shadow};">
               <span style="color: white; font-size: 18px; font-weight: bold;">→</span>
             </div>
-            <p style="color: ${S.textMuted}; font-size: 10px; margin: 5px 0 0 0; font-weight: 600; text-transform: uppercase;">
-              Transfer
+            <p style="color: ${S.textMuted}; font-size: clamp(9px, 1.8vw, 10px); margin: 5px 0 0 0; font-weight: 600; text-transform: uppercase;">
+              স্থানান্তর
             </p>
           </div>
           
           <!-- To Account -->
-          <div style="padding: 15px; background: ${S.bg}; border-radius: 8px; border: 2px solid ${S.success};">
-            <p style="color: ${S.success}; font-size: 12px; margin: 0 0 10px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
-              To Account
+          <div style="padding: 15px; background: ${S.bg}; border-radius: 8px; border: 2px solid ${S.success}; order: 3;">
+            <p style="color: ${S.success}; font-size: clamp(11px, 2.2vw, 12px); margin: 0 0 10px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
+              একাউন্টে
             </p>
-            ${createInfoRow('Account Name', creditAccount.name || 'N/A', S, { isBoldValue: true })}
-            ${createInfoRow('Bank Name', creditAccount.bankName || 'N/A', S)}
-            ${createInfoRow('Account Number', creditAccount.accountNumber || 'N/A', S)}
-            ${createInfoRow('Branch', creditAccount.branch || 'N/A', S)}
+            ${createInfoRow('একাউন্টের নাম', creditAccount.name || 'N/A', S, { isBoldValue: true })}
+            ${createInfoRow('ব্যাংকের নাম', creditAccount.bankName || 'N/A', S)}
+            ${createInfoRow('একাউন্ট নম্বর', creditAccount.accountNumber || 'N/A', S)}
+            ${createInfoRow('শাখা', creditAccount.branch || 'N/A', S)}
           </div>
         </div>
         
         ${data.paymentDetails?.reference ? `
           <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid ${S.divider};">
-            ${createInfoRow('Transaction Reference', data.paymentDetails.reference, S)}
+            ${createInfoRow('লেনদেনের রেফারেন্স', data.paymentDetails.reference, S)}
           </div>
         ` : ''}
       </div>
@@ -589,18 +578,18 @@ const buildAccountTransferHTML = (data, S) => {
     return `
       <div style="margin-bottom: 25px; padding: 20px; background: ${S.cardBg}; border-radius: 10px; border: 1px solid ${S.border}; box-shadow: 0 2px 8px ${S.shadow};">
         <h3 style="color: ${S.primary}; font-size: 16px; margin: 0 0 15px 0; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid ${S.primary}; text-transform: uppercase; letter-spacing: 1px;">
-          Bank Account Details
+          ব্যাংক একাউন্টের বিবরণ
         </h3>
         
         <div style="padding: 15px; background: ${S.bg}; border-radius: 8px; border: 2px solid ${borderColor};">
           <p style="color: ${borderColor}; font-size: 12px; margin: 0 0 10px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; text-align: center;">
             ${accountType}
           </p>
-          ${createInfoRow('Account Name', account.name || 'N/A', S, { isBoldValue: true })}
-          ${createInfoRow('Bank Name', account.bankName || 'N/A', S)}
-          ${createInfoRow('Account Number', account.accountNumber || 'N/A', S)}
-          ${createInfoRow('Account Type', account.accountType || 'Savings/Current', S)}
-          ${createInfoRow('Branch', account.branch || 'N/A', S)}
+          ${createInfoRow('একাউন্টের নাম', account.name || 'N/A', S, { isBoldValue: true })}
+          ${createInfoRow('ব্যাংকের নাম', account.bankName || 'N/A', S)}
+          ${createInfoRow('একাউন্ট নম্বর', account.accountNumber || 'N/A', S)}
+          ${createInfoRow('একাউন্টের ধরন', account.accountType || 'সেভিংস/কারেন্ট', S)}
+          ${createInfoRow('শাখা', account.branch || 'N/A', S)}
         </div>
       </div>
     `;
@@ -649,62 +638,50 @@ const buildNotesHTML = (data, S) => {
 
 // 3.7. Footer with Terms and Signatory
 const buildFooterHTML = (S) => `
-  <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid ${S.divider};">
-    <!-- Terms and Conditions -->
-    <div style="margin-bottom: 20px; padding: 15px; background: ${S.cardBg}; border-radius: 8px; border: 1px solid ${S.border};">
-      <p style="color: ${S.textSecondary}; font-size: 10px; margin: 0 0 8px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-        ${L.termsAndConditions}
-      </p>
-      <ul style="color: ${S.textMuted}; font-size: 9px; margin: 0; padding-left: 15px; line-height: 1.4;">
-        <li>This receipt is proof of transaction and should be retained for record purposes.</li>
-        <li>Any discrepancies must be reported within 7 days of transaction date.</li>
-        <li>Refunds are subject to company policy and may incur processing fees.</li>
-        <li>For refunds, original receipt must be presented.</li>
-      </ul>
-    </div>
+  <div style="margin-top: 20px; padding-top: 15px; border-top: 2px solid ${S.divider};">
     
     <!-- Signatory and Contact -->
-    <div style="display: flex; justify-content: space-between; align-items: flex-end; padding: 20px 0; border-top: 1px solid ${S.divider};">
+    <div class="footer-flex" style="display: flex; justify-content: space-between; align-items: flex-end; padding: 15px 0; border-top: 1px solid ${S.divider}; flex-wrap: wrap; gap: 20px;">
       <!-- Signatory -->
-      <div style="text-align: center; flex: 1;">
-        <div style="margin-bottom: 40px; position: relative;">
-          <div style="border-top: 1px solid ${S.textMuted}; width: 150px; margin: 0 auto;"></div>
+      <div style="text-align: center; flex: 1; min-width: 150px;">
+        <div style="margin-bottom: 30px; position: relative;">
+          <div style="border-top: 1px solid ${S.textMuted}; width: 100%; max-width: 150px; margin: 0 auto;"></div>
         </div>
-        <p style="color: ${S.textPrimary}; font-size: 12px; margin: 0; font-weight: 600;">
+        <p style="color: ${S.textPrimary}; font-size: clamp(11px, 2.2vw, 12px); margin: 0; font-weight: 600;">
           ${L.authorizedSignatory}
         </p>
-        <p style="color: ${S.textMuted}; font-size: 10px; margin: 5px 0 0 0;">
-          Salma Air Travels & Tours
+        <p style="color: ${S.textMuted}; font-size: clamp(9px, 1.8vw, 10px); margin: 5px 0 0 0;">
+          সালমা এয়ার ট্রাভেলস অ্যান্ড ট্যুরস
         </p>
       </div>
       
       <!-- Thank You Message -->
-      <div style="text-align: center; flex: 2;">
-        <p style="color: ${S.primary}; font-size: 14px; margin: 0 0 10px 0; font-weight: 700; font-style: italic;">
+      <div style="text-align: center; flex: 2; min-width: 200px;">
+        <p style="color: ${S.primary}; font-size: clamp(12px, 2.5vw, 14px); margin: 0 0 10px 0; font-weight: 700; font-style: italic;">
           ${L.thankYouMessage}
         </p>
-        <p style="color: ${S.textMuted}; font-size: 9px; margin: 0; line-height: 1.4;">
+        <p style="color: ${S.textMuted}; font-size: clamp(8px, 1.6vw, 9px); margin: 0; line-height: 1.4;">
           ${L.contactInfo}
         </p>
       </div>
       
       <!-- Company Stamp -->
-      <div style="text-align: center; flex: 1;">
-        <div style="width: 80px; height: 80px; border: 2px solid ${S.danger}; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; opacity: 0.7;">
-          <span style="color: ${S.danger}; font-size: 9px; font-weight: 700; text-align: center; line-height: 1.2;">
-            PAID<br>STAMP
+      <div style="text-align: center; flex: 1; min-width: 100px;">
+        <div style="width: 80px; height: 80px; max-width: 100%; border: 2px solid ${S.danger}; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; opacity: 0.7;">
+          <span style="color: ${S.danger}; font-size: clamp(8px, 1.6vw, 9px); font-weight: 700; text-align: center; line-height: 1.2;">
+            পরিশোধিত<br>স্ট্যাম্প
           </span>
         </div>
-        <p style="color: ${S.textMuted}; font-size: 9px; margin: 0;">
-          Transaction Verified
+        <p style="color: ${S.textMuted}; font-size: clamp(8px, 1.6vw, 9px); margin: 0;">
+          লেনদেন যাচাইকৃত
         </p>
       </div>
     </div>
     
     <!-- Final Footer -->
-    <div style="text-align: center; padding: 10px; background: ${S.primary}10; border-radius: 4px; margin-top: 10px;">
+    <div style="text-align: center; padding: 8px; background: ${S.primary}10; border-radius: 4px; margin-top: 8px; margin-bottom: 0;">
       <p style="color: ${S.textMuted}; font-size: 8px; margin: 0; font-weight: 500;">
-        ${L.footerMessage} | Generated on ${new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} | Document ID: ${Math.random().toString(36).substr(2, 9).toUpperCase()}
+        ${L.footerMessage} | ${new Date().toLocaleString('bn-BD', { dateStyle: 'medium', timeStyle: 'short' })} এ তৈরি হয়েছে | ডকুমেন্ট আইডি: ${Math.random().toString(36).substr(2, 9).toUpperCase()}
       </p>
     </div>
   </div>
@@ -721,14 +698,16 @@ const createReceiptElement = (transactionData, isDark) => {
     position: absolute;
     top: -9999px;
     left: -9999px;
-    /* একটু বেশি চওড়া রাখছি যেন PDF এ সাইডে বেশি ফাঁকা না থাকে */
+    /* Responsive width - adapts to screen size */
     width: 1150px;
-    padding: 24px 32px;
+    padding: 1rem 2rem;
     background: ${S.paperBg};
     color: ${S.textPrimary};
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     line-height: 1.5;
     box-shadow: 0 0 20px ${S.shadow};
+    box-sizing: border-box;
+    margin: 0;
   `;
 
   const typeKey = transactionData.transactionType && TRANSACTION_TYPES[transactionData.transactionType] 
@@ -747,13 +726,50 @@ const createReceiptElement = (transactionData, isDark) => {
   const footerHTML = buildFooterHTML(S);
 
   receiptDiv.innerHTML = `
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+   <link href="https://fonts.maateen.me/kalpurush/font.css" rel="stylesheet">
+    <style>
+      @media (max-width: 768px) {
+        .receipt-container {
+          padding: 1rem !important;
+        }
+        .summary-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .info-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .customer-payment-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .transfer-grid {
+          grid-template-columns: 1fr !important;
+        }
+        .transfer-arrow {
+          transform: rotate(90deg) !important;
+          margin: 10px auto !important;
+        }
+        .header-flex {
+          flex-direction: column !important;
+          gap: 15px !important;
+        }
+        .footer-flex {
+          flex-direction: column !important;
+          gap: 20px !important;
+          align-items: center !important;
+        }
+      }
+      @media (max-width: 480px) {
+        .receipt-container {
+          padding: 0.75rem !important;
+        }
+      }
+    </style>
     
-    <div style="max-width: 800px; margin: 0 auto;">
+    <div class="receipt-container" style="width: 100%; margin: 0; padding: 0; box-sizing: border-box;">
       ${headerHTML}
       ${summaryHTML}
       
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+      <div class="customer-payment-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; width: 100%; box-sizing: border-box;">
         ${customerInfoHTML}
         ${paymentInfoHTML}
       </div>
@@ -768,8 +784,10 @@ const createReceiptElement = (transactionData, isDark) => {
 };
 
 // Main PDF Generator Function
-export const generateTransactionPDF = async (transactionData, isDark = false) => {
+export const generateTransactionPDF = async (transactionData, isDark = false, options = {}) => {
   try {
+    const { filename: customFilename, download = true } = options;
+    
     // 1. Create a temporary element to render the receipt
     const receiptElement = createReceiptElement(transactionData, isDark);
     document.body.appendChild(receiptElement);
@@ -781,6 +799,8 @@ export const generateTransactionPDF = async (transactionData, isDark = false) =>
       allowTaint: true,
       backgroundColor: isDark ? '#111827' : '#FFFFFF',
       logging: false,
+      windowWidth: receiptElement.scrollWidth,
+      windowHeight: receiptElement.scrollHeight,
       onclone: (clonedDoc) => {
         const clonedElement = clonedDoc.querySelector('div');
         if (clonedElement) {
@@ -788,6 +808,14 @@ export const generateTransactionPDF = async (transactionData, isDark = false) =>
           clonedElement.style.position = 'relative';
           clonedElement.style.top = '0';
           clonedElement.style.left = '0';
+          clonedElement.style.margin = '0';
+          clonedElement.style.padding = '0';
+        }
+        // Remove extra padding from receipt-container
+        const receiptContainer = clonedDoc.querySelector('.receipt-container');
+        if (receiptContainer) {
+          receiptContainer.style.margin = '0';
+          receiptContainer.style.padding = '0';
         }
       }
     });
@@ -807,32 +835,38 @@ export const generateTransactionPDF = async (transactionData, isDark = false) =>
     // Make the whole receipt fit into a **single** A4 page
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
+    
+    // Minimal margins for top and bottom
+    const topMargin = 2; // 2mm top margin
+    const bottomMargin = 2; // 2mm bottom margin
+    const availableHeight = pdfHeight - topMargin - bottomMargin;
 
-    // Try to use full page width first so that 2 পাশে ফাঁকা কম থাকে
+    // Calculate scaling ratios
     const ratioWidth = pdfWidth / canvas.width;
-    const ratioHeight = pdfHeight / canvas.height;
+    const ratioHeight = availableHeight / canvas.height;
 
-    // If full-width scaling makes the height too large, fall back to full-height fit
-    let ratio = ratioWidth;
-    if (canvas.height * ratioWidth > pdfHeight) {
-      ratio = Math.min(ratioWidth, ratioHeight);
-    }
+    // Use the smaller ratio to ensure content fits within page bounds
+    let ratio = Math.min(ratioWidth, ratioHeight);
 
     const imgWidth = canvas.width * ratio;
     const imgHeight = canvas.height * ratio;
 
-    // Left side 0 থেকে শুরু, ওপর-নিচ একটু balanced রাখি
+    // Position: left aligned, top with minimal margin
     const x = 0;
-    const y = imgHeight < pdfHeight ? (pdfHeight - imgHeight) / 2 : 0;
+    const y = topMargin;
 
     // Add single page with scaled image
     pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
 
     // 5. Generate filename and Download PDF
-    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const filename = `Receipt_${transactionData.transactionId || 'TRX'}_${timestamp}.pdf`;
+    const filename = customFilename || (() => {
+      const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      return `Receipt_${transactionData.transactionId || 'TRX'}_${timestamp}.pdf`;
+    })();
 
-    pdf.save(filename);
+    if (download) {
+      pdf.save(filename);
+    }
     
     return { success: true, filename, size: pdf.getNumberOfPages() };
   } catch (error) {
@@ -840,7 +874,7 @@ export const generateTransactionPDF = async (transactionData, isDark = false) =>
     
     // Fallback to simple PDF
     try {
-      return generateSimplePDF(transactionData);
+      return generateSimplePDF(transactionData, options);
     } catch (fallbackError) {
       console.error('Fallback PDF generation error:', fallbackError);
       return { success: false, error: error.message };
@@ -849,8 +883,10 @@ export const generateTransactionPDF = async (transactionData, isDark = false) =>
 };
 
 // Simple PDF generator as fallback (kept as backup)
-export const generateSimplePDF = (transactionData) => {
+export const generateSimplePDF = (transactionData, options = {}) => {
   try {
+    const { filename: customFilename, download = true } = options;
+    
     const pdf = new jsPDF('p', 'mm', 'a4');
     
     // Add content similar to professional version
@@ -947,9 +983,14 @@ export const generateSimplePDF = (transactionData) => {
     pdf.text(L.contactInfo, 105, 280, { align: 'center' });
     
     // Generate filename and save
-    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const filename = `Receipt_${transactionData.transactionId || 'TRX'}_${timestamp}.pdf`;
-    pdf.save(filename);
+    const filename = customFilename || (() => {
+      const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      return `Receipt_${transactionData.transactionId || 'TRX'}_${timestamp}.pdf`;
+    })();
+    
+    if (download) {
+      pdf.save(filename);
+    }
     
     return { success: true, filename };
   } catch (error) {

@@ -1,15 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, Receipt, Upload, Loader2, Trash2, Eye } from 'lucide-react';
+import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, Upload, Loader2, Trash2, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Modal, { ModalFooter } from '../../components/common/Modal';
 import ExcelUploader from '../../components/common/ExcelUploader';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
-import { useAuth } from '../../contexts/AuthContext.jsx';
 import Swal from 'sweetalert2';
 import { 
   useVendors, 
-  useCustomerTypes, 
-  useCreateVendorOrder,
   useDeleteVendor,
   useBulkVendorOperation
 } from '../../hooks/useVendorQueries';
@@ -17,12 +13,9 @@ import {
 
 const VendorList = () => {
   const { isDark } = useTheme();
-  const { userProfile } = useAuth();
   
   // React Query hooks
   const { data: vendors = [], isLoading: loading, error: vendorsError } = useVendors();
-  const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useCustomerTypes();
-  const createOrderMutation = useCreateVendorOrder();
   const deleteVendorMutation = useDeleteVendor();
   const bulkUploadMutation = useBulkVendorOperation();
   
@@ -30,12 +23,7 @@ const VendorList = () => {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 10;
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [showExcelUploader, setShowExcelUploader] = useState(false);
-  const [orderForm, setOrderForm] = useState({ vendorId: '', orderType: '', amount: '' });
-  const [touched, setTouched] = useState({});
-  const [orderVendorQuery, setOrderVendorQuery] = useState('');
-  const [showVendorList, setShowVendorList] = useState(false);
 
   // Show error if vendors failed to load
   useEffect(() => {
@@ -60,59 +48,6 @@ const VendorList = () => {
     const start = (currentPage - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
   }, [filtered, currentPage]);
-
-  // Modal vendor list filtering (independent from page search)
-  const modalVendors = useMemo(() => {
-    const q = orderVendorQuery.trim().toLowerCase();
-    if (!q) return Array.isArray(vendors) ? vendors : [];
-    return Array.isArray(vendors) ? vendors.filter((v) => (v.vendorId || '').toLowerCase().includes(q)) : [];
-  }, [orderVendorQuery, vendors]);
-
-  const orderErrors = useMemo(() => {
-    const e = {};
-    if (!orderForm.vendorId) e.vendorId = 'Vendor is required';
-    if (!orderForm.orderType) e.orderType = 'Order type is required';
-    const amt = parseFloat(orderForm.amount);
-    if (!orderForm.amount) e.amount = 'Amount is required';
-    else if (Number.isNaN(amt) || amt <= 0) e.amount = 'Enter a valid amount';
-    return e;
-  }, [orderForm]);
-
-  const hasOrderError = (name) => touched[name] && orderErrors[name];
-
-  const resetOrderForm = () => {
-    setOrderForm({ vendorId: '', orderType: '', amount: '' });
-    setTouched({});
-    setOrderVendorQuery('');
-    setShowVendorList(false);
-  };
-
-  const handleOrderSubmit = async (e) => {
-    e.preventDefault();
-    setTouched({ vendorId: true, orderType: true, amount: true });
-    if (Object.keys(orderErrors).length) return;
-    
-    // Prepare order data
-    const orderData = {
-      vendorId: orderForm.vendorId,
-      orderType: orderForm.orderType,
-      amount: parseFloat(orderForm.amount),
-      status: 'pending',
-      createdBy: userProfile?.email || 'unknown_user',
-      branchId: userProfile?.branchId || 'main_branch',
-      createdAt: new Date().toISOString()
-    };
-
-    createOrderMutation.mutate(orderData, {
-      onSuccess: (data) => {
-        const vendor = vendors.find((v) => v.vendorId === orderForm.vendorId);
-        const details = `${vendor?.tradeName || ''} • ${orderForm.orderType} • ৳${Number(orderForm.amount).toFixed(2)}`;
-        
-        resetOrderForm();
-        setIsCreateOpen(false);
-      }
-    });
-  };
 
   const handleExcelDataProcessed = (processedData) => {
     // Validate that we have data to process
@@ -187,12 +122,6 @@ const VendorList = () => {
             className="inline-flex items-center gap-2 rounded-lg border border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-3.5 py-2.5"
           >
             <Upload className="w-4 h-4" /> Excel Upload
-          </button>
-          <button
-            onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-3.5 py-2.5"
-          >
-            <Receipt className="w-4 h-4" /> Create Order
           </button>
           <Link
             to="/vendors/add"
@@ -332,143 +261,6 @@ const VendorList = () => {
         </div>
       </div>
       
-      {/* Create Order Modal */}
-      <Modal isOpen={isCreateOpen} onClose={() => { setIsCreateOpen(false); resetOrderForm(); }} title="Create Order" size="lg">
-        <div className="max-h-[70vh] overflow-y-auto pr-1">
-        <form onSubmit={handleOrderSubmit} className="space-y-5">
-          {/* Vendor Search */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <input
-                type="text"
-                value={orderForm.vendorId ? (vendors.find(v => v.vendorId === orderForm.vendorId)?.vendorId || '') : orderVendorQuery}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setOrderVendorQuery(val);
-                  setShowVendorList(true);
-                  setTouched((t) => ({ ...t, vendorId: true }));
-                  setOrderForm((f) => ({ ...f, vendorId: '' }));
-                }}
-                onFocus={() => setShowVendorList(true)}
-                placeholder="Search vendor by ID..."
-                className={`w-full rounded-lg border px-3 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasOrderError('vendorId') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              />
-              {showVendorList && (
-                <div className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg max-h-56 overflow-auto">
-                  {modalVendors.slice(0, 50).map((v) => (
-                    <button
-                      type="button"
-                      key={v.vendorId}
-                      onClick={() => {
-                        setOrderForm((f) => ({ ...f, vendorId: v.vendorId }));
-                        setOrderVendorQuery(v.vendorId);
-                        setShowVendorList(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 ${orderForm.vendorId === v.vendorId ? 'bg-purple-50 dark:bg-purple-900/20' : ''}`}
-                    >
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{v.vendorId}</div>
-                      <div className="text-xs text-gray-500">{v.tradeName} • {v.ownerName}</div>
-                    </button>
-                  ))}
-                  {modalVendors.length === 0 && (
-                    <div className="px-3 py-2 text-sm text-gray-500">No vendors found</div>
-                  )}
-                </div>
-              )}
-            </div>
-            {hasOrderError('vendorId') && (
-              <p className="mt-1 text-sm text-red-600">{orderErrors.vendorId}</p>
-            )}
-          </div>
-
-          {/* Order Type (styled like AddCustomer কাস্টমারের ধরন *) */}
-          <div className="space-y-1">
-            <label className={`block text-xs font-semibold transition-colors duration-300 ${
-              isDark ? 'text-gray-200' : 'text-gray-700'
-            }`}>
-              Order Type *
-            </label>
-            <div className="relative">
-              <select
-                name="orderType"
-                value={orderForm.orderType}
-                onChange={(e) => setOrderForm((f) => ({ ...f, orderType: e.target.value }))}
-                onBlur={() => setTouched((t) => ({ ...t, orderType: true }))}
-                required
-                disabled={categoriesLoading}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                  isDark 
-                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                    : 'bg-white border-gray-300'
-                } ${categoriesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <option value="">
-                  {categoriesLoading ? 'Loading...' : 'Select Order Type'}
-                </option>
-                {Array.isArray(categories) && categories.length > 0 && (
-                  categories.map((c) => (
-                    <option key={c.id || c._id} value={c.value || c.label}>
-                      {(c.label || c.value) + (c.prefix ? ` (${c.prefix})` : '')}
-                    </option>
-                  ))
-                )}
-              </select>
-              {categoriesLoading && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                </div>
-              )}
-            </div>
-            {hasOrderError('orderType') && (
-              <p className="text-xs text-red-600">{orderErrors.orderType}</p>
-            )}
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Order Amount <span className="text-red-500">*</span></label>
-            <div className="relative">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <span className="text-gray-500 text-sm">৳</span>
-              </div>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={orderForm.amount}
-                onChange={(e) => setOrderForm((f) => ({ ...f, amount: e.target.value }))}
-                onBlur={() => setTouched((t) => ({ ...t, amount: true }))}
-                placeholder="0.00"
-                className={`w-full rounded-lg border pl-7 pr-3 py-2.5 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasOrderError('amount') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              />
-            </div>
-            {hasOrderError('amount') && (
-              <p className="mt-1 text-sm text-red-600">{orderErrors.amount}</p>
-            )}
-          </div>
-
-          <ModalFooter>
-            <button
-              type="button"
-              onClick={() => { setIsCreateOpen(false); resetOrderForm(); }}
-              className="rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={createOrderMutation.isPending}
-              className="rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {createOrderMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              {createOrderMutation.isPending ? 'Creating...' : 'Create Order'}
-            </button>
-          </ModalFooter>
-        </form>
-      </div>
-      </Modal>
-
       {/* Excel Uploader Modal */}
       {showExcelUploader && (
         <ExcelUploader

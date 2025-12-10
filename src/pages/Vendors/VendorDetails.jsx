@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
+import React, { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   Building2, Phone, User, MapPin, Calendar, CreditCard, FileText, ArrowLeft, Clock, Edit,
   DollarSign, TrendingUp, TrendingDown, Wallet, Receipt, AlertCircle, CheckCircle,
   Briefcase, Globe, Mail, Hash, Calendar as CalendarIcon, Star
 } from 'lucide-react';
-import { useVendor, useVendorFinancials, useVendorActivities } from '../../hooks/useVendorQueries';
-import Swal from 'sweetalert2';
+import { useVendor, useVendorFinancials } from '../../hooks/useVendorQueries';
 
 
 
 const VendorDetails = () => {
   const { id } = useParams();
-  const [activities, setActivities] = useState([]);
 
   // Use React Query hooks to fetch vendor data
   const { 
@@ -27,12 +25,6 @@ const VendorDetails = () => {
     isLoading: financialLoading,
     error: financialError 
   } = useVendorFinancials(id);
-
-  const { 
-    data: activitiesData, 
-    isLoading: activitiesLoading,
-    error: activitiesError 
-  } = useVendorActivities(id);
 
   // Default financial data for fallback
   const defaultFinancialData = {
@@ -53,40 +45,34 @@ const VendorDetails = () => {
   // Use actual data merged with defaults to avoid undefined fields
   const financial = { ...defaultFinancialData, ...(financialData || {}) };
 
-  // Icon mapping for activities
-  const iconMap = {
-    'Receipt': Receipt,
-    'CheckCircle': CheckCircle,
-    'Edit': Edit,
-    'Clock': Clock,
-    'AlertCircle': AlertCircle,
-    'DollarSign': DollarSign
-  };
+  const formatCurrency = (amount = 0) => `৳${Number(amount || 0).toLocaleString()}`;
 
-  // Set activities from API or use mock data
-  React.useEffect(() => {
-    if (activitiesData && activitiesData.length > 0) {
-      // Map string icon names to actual icon components
-      const mappedActivities = activitiesData.map(activity => ({
-        ...activity,
-        icon: iconMap[activity.icon] || Clock
-      }));
-      setActivities(mappedActivities);
-    } else {
-      // Fallback mock activities
-      const mockActivities = [
-        {
-          id: '1',
-          type: 'order',
-          title: 'No recent activity found',
-          description: 'This vendor has no recent activities',
-          time: new Date().toISOString(),
-          icon: Clock
-        }
-      ];
-      setActivities(mockActivities);
-    }
-  }, [activitiesData]);
+  const recentTransactions = vendor?.recentActivity?.transactions || [];
+  const recentBills = vendor?.recentActivity?.bills || [];
+
+  const activityItems = useMemo(() => {
+    const txItems = recentTransactions.map((tx, idx) => ({
+      id: `tx-${tx.transactionId || idx}`,
+      title: tx.transactionType ? tx.transactionType.toUpperCase() : 'Transaction',
+      description: `${tx.reference || 'Ref'} • ${formatCurrency(tx.amount)}${tx.paymentMethod ? ` • ${tx.paymentMethod}` : ''}`,
+      time: tx.createdAt || tx.date || new Date().toISOString(),
+      icon: tx.transactionType === 'debit' ? TrendingDown : TrendingUp,
+      tone: tx.transactionType === 'debit' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
+    }));
+
+    const billItems = recentBills.map((bill, idx) => ({
+      id: `bill-${bill.billId || idx}`,
+      title: bill.billType || 'Bill',
+      description: `${bill.billNumber || '—'} • ${formatCurrency(bill.totalAmount)} • Paid ${formatCurrency(bill.paidAmount)}`,
+      time: bill.createdAt || bill.billDate || new Date().toISOString(),
+      icon: Receipt,
+      tone: 'text-purple-600 dark:text-purple-400',
+    }));
+
+    return [...txItems, ...billItems].sort(
+      (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+    );
+  }, [recentTransactions, recentBills]);
 
   // Handle error state: avoid modal; rely on inline not-found UI
   React.useEffect(() => {
@@ -99,7 +85,7 @@ const VendorDetails = () => {
   React.useEffect(() => {
     console.log('VendorDetails - ID:', id);
 
-  }, [id, loading, vendor, vendorError, financialLoading, financialData, financialError, activitiesLoading, activitiesData, activitiesError]);
+  }, [id, loading, vendor, vendorError, financialLoading, financialData, financialError]);
 
   if (loading) {
     return (
@@ -358,23 +344,27 @@ const VendorDetails = () => {
             Recent Activity
           </h2>
           <div className="space-y-4">
-            {activities.map((activity) => {
-              const IconComponent = activity.icon;
-              return (
-                <div key={activity.id} className="flex items-start gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                  <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <IconComponent className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{activity.title}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.description}</div>
-                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                      {new Date(activity.time).toLocaleString()}
+            {activityItems.length === 0 ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400">No recent activity found.</div>
+            ) : (
+              activityItems.map((activity) => {
+                const IconComponent = activity.icon || Clock;
+                return (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                    <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <IconComponent className={`w-4 h-4 ${activity.tone || 'text-purple-600 dark:text-purple-400'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{activity.title}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{activity.description}</div>
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                        {new Date(activity.time).toLocaleString()}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </div>

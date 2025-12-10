@@ -78,6 +78,9 @@ export const useVendor = (vendorId) => {
       }
       
       const vendor = response.data.vendor || response.data;
+      const recentActivity = response.data.recentActivity || {};
+      const transactionsActivity = Array.isArray(recentActivity.transactions) ? recentActivity.transactions : [];
+      const billsActivity = Array.isArray(recentActivity.bills) ? recentActivity.bills : [];
       
       if (!vendor) {
         throw new Error(`Vendor with ID "${vendorId}" not found`);
@@ -99,7 +102,28 @@ export const useVendor = (vendorId) => {
         hajDue: vendor.hajDue ?? 0,
         umrahDue: vendor.umrahDue ?? 0,
         createdAt: vendor.createdAt || new Date().toISOString(),
-        updatedAt: vendor.updatedAt || new Date().toISOString()
+        updatedAt: vendor.updatedAt || new Date().toISOString(),
+        recentActivity: {
+          transactions: transactionsActivity.map((tx) => ({
+            transactionId: tx.transactionId || tx._id,
+            transactionType: tx.transactionType || tx.type || '',
+            amount: tx.amount ?? 0,
+            status: tx.status || '',
+            paymentMethod: tx.paymentMethod || tx?.paymentDetails?.method || null,
+            reference: tx.reference || tx?.paymentDetails?.reference || tx.transactionId || tx._id,
+            createdAt: tx.createdAt || tx.date || null,
+          })),
+          bills: billsActivity.map((bill) => ({
+            billId: bill.billId || bill._id,
+            billNumber: bill.billNumber || null,
+            billType: bill.billType || null,
+            totalAmount: bill.totalAmount ?? 0,
+            paidAmount: bill.amount ?? bill.paidAmount ?? 0,
+            paymentStatus: bill.paymentStatus || null,
+            billDate: bill.billDate || null,
+            createdAt: bill.createdAt || null,
+          })),
+        }
       };
     },
     enabled: !!vendorId,
