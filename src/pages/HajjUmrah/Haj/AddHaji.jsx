@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -20,6 +20,7 @@ import { useCreateHaji, useUpdateHaji, useHaji } from '../../../hooks/UseHajiQue
 import Swal from 'sweetalert2';
 import { usePackages } from '../../../hooks/usePackageQueries';
 import { useAgents } from '../../../hooks/useAgentQueries';
+import divisionData from '../../../jsondata/AllDivision.json';
 
 const toast = {
   success: (message) => console.log('Success:', message),
@@ -158,6 +159,7 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
         division: hajiData.division || '',
         district: hajiData.district || '',
         upazila: hajiData.upazila || '',
+        area: hajiData.area || '',
         postCode: hajiData.postCode || '',
         passportNumber: hajiData.passportNumber || '',
         passportType: hajiData.passportType || '',
@@ -218,6 +220,7 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
     division: '',
     district: '',
     upazila: '',
+    area: '',
     postCode: '',
     emergencyContact: '',
     emergencyPhone: '',
@@ -253,6 +256,23 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
     serviceStatus: '',
     isActive: true
   });
+
+  // Location options derived from AllDivision.json
+  const divisionOptions = useMemo(
+    () => (divisionData?.Bangladesh || []).map((d) => ({ value: d.Division, label: d.Division })),
+    []
+  );
+
+  const districtOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    return (division?.Districts || []).map((d) => ({ value: d.District, label: d.District }));
+  }, [formData.division]);
+
+  const upazilaOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    const district = (division?.Districts || []).find((dist) => dist.District === formData.district);
+    return (district?.Upazilas || []).map((u) => ({ value: u, label: u }));
+  }, [formData.division, formData.district]);
 
 // Load packages from backend
 useEffect(() => {
@@ -306,6 +326,27 @@ useEffect(() => {
         }
         return updated;
       });
+      return;
+    }
+
+    if (name === 'division') {
+      setFormData(prev => ({
+        ...prev,
+        division: nextValue,
+        district: '',
+        upazila: '',
+        area: ''
+      }));
+      return;
+    }
+
+    if (name === 'district') {
+      setFormData(prev => ({
+        ...prev,
+        district: nextValue,
+        upazila: '',
+        area: ''
+      }));
       return;
     }
 
@@ -410,6 +451,7 @@ useEffect(() => {
         division: formData.division,
         district: formData.district,
         upazila: formData.upazila,
+        area: formData.area,
         postCode: formData.postCode,
 
         // Passport/NID and dates (hooks validate YYYY-MM-DD)
@@ -687,27 +729,28 @@ useEffect(() => {
               name="division" 
               value={formData.division}
               onChange={handleInputChange}
-              options={[
-                { value: 'Dhaka', label: 'Dhaka' },
-                { value: 'Chittagong', label: 'Chittagong' },
-                { value: 'Sylhet', label: 'Sylhet' },
-                { value: 'Rajshahi', label: 'Rajshahi' },
-                { value: 'Khulna', label: 'Khulna' },
-                { value: 'Barisal', label: 'Barisal' },
-                { value: 'Rangpur', label: 'Rangpur' },
-                { value: 'Mymensingh', label: 'Mymensingh' }
-              ]} 
+              options={divisionOptions}
             />
-            <InputGroup 
+            <SelectGroup 
               label="District" 
               name="district" 
               value={formData.district}
               onChange={handleInputChange}
+              options={districtOptions}
+              disabled={!formData.division}
             />
-            <InputGroup 
+            <SelectGroup 
               label="Upazila" 
               name="upazila" 
               value={formData.upazila}
+              onChange={handleInputChange}
+              options={upazilaOptions}
+              disabled={!formData.district}
+            />
+            <InputGroup 
+              label="Area" 
+              name="area" 
+              value={formData.area}
               onChange={handleInputChange}
             />
             <InputGroup 

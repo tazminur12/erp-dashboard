@@ -4,6 +4,66 @@ import Swal from 'sweetalert2';
 import { umrahKeys, useUmrahList } from './UseUmrahQuries';
 import { hajiKeys, useHajiList } from './UseHajiQueries';
 
+// Normalize mixed string/number values (e.g. "৳12,000")
+const toNumeric = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    if (!cleaned) return null;
+    const numericValue = Number(cleaned);
+    return Number.isNaN(numericValue) ? null : numericValue;
+  }
+  return null;
+};
+
+const normalizePassengerTotals = (totals = {}) => {
+  const passengers = totals.passengerTotals || {};
+  return {
+    ...totals,
+    passengerTotals: {
+      adult: toNumeric(passengers.adult) ?? 0,
+      child: toNumeric(passengers.child) ?? 0,
+      infant: toNumeric(passengers.infant) ?? 0,
+    },
+  };
+};
+
+const normalizeProfitLoss = (pkg = {}) => {
+  const totals = pkg.totals || {};
+  const profitLossFromApi = pkg.profitLoss || {};
+
+  const costingPrice =
+    toNumeric(profitLossFromApi.costingPrice) ??
+    toNumeric(totals.costingPrice) ??
+    toNumeric(totals.grandTotal) ??
+    0;
+
+  const packagePrice =
+    toNumeric(profitLossFromApi.packagePrice) ??
+    toNumeric(pkg.totalPrice) ??
+    toNumeric(totals.packagePrice) ??
+    toNumeric(totals.subtotal) ??
+    toNumeric(totals.grandTotal) ??
+    0;
+
+  const profitValue =
+    toNumeric(profitLossFromApi.profitOrLoss) ??
+    toNumeric(profitLossFromApi.profitLoss) ??
+    (packagePrice - costingPrice);
+
+  const percentage = packagePrice ? (profitValue / packagePrice) * 100 : 0;
+
+  return {
+    costingPrice,
+    packagePrice,
+    profitLoss: profitValue,
+    profitLossPercentage: percentage,
+    isProfit: profitValue > 0,
+    isLoss: profitValue < 0,
+  };
+};
+
 // Query keys for consistent caching
 export const packageKeys = {
   all: ['packages'],
@@ -54,7 +114,14 @@ export const usePackage = (id) => {
       if (!id) return null;
       const response = await axiosSecure.get(`/haj-umrah/packages/${id}`);
       const data = response?.data;
-      if (data?.success) return data?.data;
+      if (data?.success) {
+        const pkg = data?.data || {};
+        return {
+          ...pkg,
+          totals: normalizePassengerTotals(pkg.totals),
+          profitLoss: normalizeProfitLoss(pkg),
+        };
+      }
       throw new Error(data?.message || 'Failed to load package');
     },
     enabled: !!id,
@@ -172,6 +239,44 @@ export const useDeletePackage = () => {
         icon: 'error',
         title: 'Error',
         text: message,
+      });
+    },
+  });
+};
+
+// Add/Update package costing
+export const useUpdatePackageCosting = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, costingData }) => {
+      const response = await axiosSecure.post(`/haj-umrah/packages/${id}/costing`, costingData);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to add/update package costing');
+    },
+    onSuccess: (data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
+      if (data?.data) {
+        queryClient.setQueryData(packageKeys.detail(id), data.data);
+      }
+      Swal.fire({
+        title: 'সফল!',
+        text: data?.message || 'প্যাকেজ খরচ সফলভাবে সংরক্ষণ করা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error?.response?.data?.message || error?.message || 'প্যাকেজ খরচ সংরক্ষণে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
       });
     },
   });

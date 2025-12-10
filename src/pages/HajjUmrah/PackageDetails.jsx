@@ -11,7 +11,11 @@ import {
   Printer,
   Users,
   User,
-  CreditCard
+  CreditCard,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Plus
 } from 'lucide-react';
 import { usePackage, useDeletePackage, usePackageCustomers } from '../../hooks/usePackageQueries';
 import Swal from 'sweetalert2';
@@ -55,11 +59,40 @@ const PackageDetails = () => {
 
   const incomeStats = calculateTotalIncome();
 
+  // Profit & Loss summary (uses backend data when available, otherwise derives from totals)
+  const profitLossData = pkg?.profitLoss ? {
+    totalCost: pkg.profitLoss.costingPrice || 0,
+    sellingPrice: pkg.profitLoss.packagePrice || 0,
+    profitLoss: pkg.profitLoss.profitLoss || 0,
+    profitLossPercentage: parseFloat(pkg.profitLoss.profitLossPercentage) || 0,
+    isProfit: pkg.profitLoss.isProfit ?? (pkg.profitLoss.profitLoss || 0) >= 0,
+    isLoss: pkg.profitLoss.isLoss ?? (pkg.profitLoss.profitLoss || 0) < 0
+  } : (() => {
+    const totalCost = parseFloat(pkg?.totals?.total) || 0;
+    const sellingPrice = parseFloat(
+      pkg?.totals?.totalBD ??
+      pkg?.totals?.grandTotal ??
+      pkg?.totals?.subtotal ??
+      0
+    ) || 0;
+    const profitLoss = sellingPrice - totalCost;
+    const profitLossPercentage = totalCost ? (profitLoss / totalCost) * 100 : 0;
+    return {
+      totalCost,
+      sellingPrice,
+      profitLoss,
+      profitLossPercentage,
+      isProfit: profitLoss > 0,
+      isLoss: profitLoss < 0
+    };
+  })();
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'personal', label: 'Personal Info', icon: FileText },
     { id: 'package', label: 'Package Info', icon: Package },
-    { id: 'financial', label: 'Financial', icon: CreditCard }
+    { id: 'financial', label: 'Financial', icon: CreditCard },
+    { id: 'profitLoss', label: 'Profit & Loss', icon: TrendingUp }
   ];
 
   const formatCurrency = (amount) => {
@@ -904,6 +937,113 @@ const PackageDetails = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Profit & Loss Tab */}
+          {activeTab === 'profitLoss' && (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                  Profit & Loss
+                </h2>
+                <button
+                  onClick={() => navigate(`/hajj-umrah/package-list/${id}/costing`)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Costing</span>
+                </button>
+              </div>
+
+              <div className={`rounded-2xl border-2 p-6 shadow-sm ${
+                profitLossData.isProfit
+                  ? 'border-green-200 dark:border-green-800 bg-green-50/40 dark:bg-green-900/10'
+                  : profitLossData.isLoss
+                  ? 'border-red-200 dark:border-red-800 bg-red-50/40 dark:bg-red-900/10'
+                  : 'border-gray-200 dark:border-gray-700 bg-gray-50/40 dark:bg-gray-800/40'
+              }`}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 flex items-center justify-between shadow-sm">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Costing Price</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatCurrency(profitLossData.totalCost)}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                      <Calculator className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 flex items-center justify-between shadow-sm">
+                    <div>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Agent Package Price</p>
+                      <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                        {formatCurrency(profitLossData.sellingPrice)}
+                      </p>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                      <DollarSign className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`rounded-lg p-5 flex items-center justify-between ${
+                  profitLossData.isProfit
+                    ? 'bg-green-100 dark:bg-green-900/30'
+                    : profitLossData.isLoss
+                    ? 'bg-red-100 dark:bg-red-900/30'
+                    : 'bg-gray-100 dark:bg-gray-800'
+                }`}>
+                  <div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+                      {profitLossData.isProfit ? 'লাভ (Profit)' : profitLossData.isLoss ? 'ক্ষতি (Loss)' : 'লাভ/ক্ষতি (Profit/Loss)'}
+                    </p>
+                    <p className={`text-3xl font-bold ${
+                      profitLossData.isProfit
+                        ? 'text-green-700 dark:text-green-400'
+                        : profitLossData.isLoss
+                        ? 'text-red-700 dark:text-red-400'
+                        : 'text-gray-900 dark:text-white'
+                    }`}>
+                      {profitLossData.isProfit ? '+' : ''}{formatCurrency(profitLossData.profitLoss)}
+                    </p>
+                    {profitLossData.profitLossPercentage !== 0 && (
+                      <p className={`mt-1 text-sm font-semibold flex items-center ${
+                        profitLossData.isProfit
+                          ? 'text-green-700 dark:text-green-400'
+                          : profitLossData.isLoss
+                          ? 'text-red-700 dark:text-red-400'
+                          : 'text-gray-600 dark:text-gray-300'
+                      }`}>
+                        {profitLossData.isProfit ? (
+                          <TrendingUp className="w-4 h-4 mr-1" />
+                        ) : profitLossData.isLoss ? (
+                          <TrendingDown className="w-4 h-4 mr-1" />
+                        ) : null}
+                        {Math.abs(profitLossData.profitLossPercentage).toFixed(2)}%
+                      </p>
+                    )}
+                  </div>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    profitLossData.isProfit
+                      ? 'bg-green-200 dark:bg-green-800/40'
+                      : profitLossData.isLoss
+                      ? 'bg-red-200 dark:bg-red-800/40'
+                      : 'bg-gray-200 dark:bg-gray-700'
+                  }`}>
+                    {profitLossData.isProfit ? (
+                      <TrendingUp className="w-6 h-6 text-green-700 dark:text-green-400" />
+                    ) : profitLossData.isLoss ? (
+                      <TrendingDown className="w-6 h-6 text-red-700 dark:text-red-400" />
+                    ) : (
+                      <Calculator className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

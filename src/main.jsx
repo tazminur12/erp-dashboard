@@ -76,6 +76,7 @@ const PackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => 
 const PackageDetails = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageDetails })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageEdit = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageEdit })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageCustomersList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCustomersList })).catch(() => ({ default: () => <div>Component not found</div> })));
+const PackageCosting = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCosting })).catch(() => ({ default: () => <div>Component not found</div> })));
 const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.EditUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahHajiList })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -502,6 +503,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <PackageDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "package-list/:id/costing",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PackageCosting />
           </Suspense>
         )
       },

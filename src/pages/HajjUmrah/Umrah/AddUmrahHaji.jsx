@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo, useCallback } from 'react';
+import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -19,6 +19,7 @@ import { useCreateUmrah, useUpdateUmrah, useUmrah } from '../../../hooks/UseUmra
 import { usePackages } from '../../../hooks/usePackageQueries';
 import { useAgents } from '../../../hooks/useAgentQueries';
 import Swal from 'sweetalert2';
+import divisionData from '../../../jsondata/AllDivision.json';
 
 const toast = {
   success: (message) => console.log('Success:', message),
@@ -173,6 +174,7 @@ const AddUmrahHaji = () => {
     division: '',
     district: '',
     upazila: '',
+    area: '',
     postCode: '',
     emergencyContact: '',
     emergencyPhone: '',
@@ -202,6 +204,23 @@ const AddUmrahHaji = () => {
     serviceStatus: '',
     isActive: true
   });
+
+  // Location options derived from AllDivision.json
+  const divisionOptions = useMemo(
+    () => (divisionData?.Bangladesh || []).map((d) => ({ value: d.Division, label: d.Division })),
+    []
+  );
+
+  const districtOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    return (division?.Districts || []).map((d) => ({ value: d.District, label: d.District }));
+  }, [formData.division]);
+
+  const upazilaOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    const district = (division?.Districts || []).find((dist) => dist.District === formData.district);
+    return (district?.Upazilas || []).map((u) => ({ value: u, label: u }));
+  }, [formData.division, formData.district]);
 
   // Populate form for edit mode using loaded Umrah data
   useEffect(() => {
@@ -235,6 +254,7 @@ const AddUmrahHaji = () => {
       division: umrahData.division || '',
       district: umrahData.district || '',
       upazila: umrahData.upazila || '',
+      area: umrahData.area || '',
       postCode: umrahData.postCode || '',
       emergencyContact: umrahData.emergencyContact || '',
       emergencyPhone: umrahData.emergencyPhone || '',
@@ -314,6 +334,27 @@ const AddUmrahHaji = () => {
         }
         return updated;
       });
+      return;
+    }
+
+    if (name === 'division') {
+      setFormData(prev => ({
+        ...prev,
+        division: nextValue,
+        district: '',
+        upazila: '',
+        area: ''
+      }));
+      return;
+    }
+
+    if (name === 'district') {
+      setFormData(prev => ({
+        ...prev,
+        district: nextValue,
+        upazila: '',
+        area: ''
+      }));
       return;
     }
 
@@ -435,6 +476,7 @@ const AddUmrahHaji = () => {
         division: formData.division,
         district: formData.district,
         upazila: formData.upazila,
+        area: formData.area,
         postCode: formData.postCode,
         emergencyContact: formData.emergencyContact,
         emergencyPhone: formData.emergencyPhone,
@@ -620,6 +662,41 @@ const AddUmrahHaji = () => {
                 onChange={handleInputChange}
               />
             </div>
+            <SelectGroup 
+              label="Division" 
+              name="division" 
+              value={formData.division}
+              onChange={handleInputChange}
+              options={divisionOptions}
+            />
+            <SelectGroup 
+              label="District" 
+              name="district" 
+              value={formData.district}
+              onChange={handleInputChange}
+              options={districtOptions}
+              disabled={!formData.division}
+            />
+            <SelectGroup 
+              label="Upazila" 
+              name="upazila" 
+              value={formData.upazila}
+              onChange={handleInputChange}
+              options={upazilaOptions}
+              disabled={!formData.district}
+            />
+            <InputGroup 
+              label="Area" 
+              name="area" 
+              value={formData.area}
+              onChange={handleInputChange}
+            />
+            <InputGroup 
+              label="Post Code" 
+              name="postCode" 
+              value={formData.postCode}
+              onChange={handleInputChange}
+            />
             <InputGroup 
               label="Emergency Contact Name" 
               name="emergencyContact" 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { 
-  Users, ArrowLeft, Pencil, UserCheck, Calendar, DollarSign, 
+import {
+  Users, ArrowLeft, Pencil, UserCheck, Calendar, DollarSign,
   TrendingUp, MapPin, Phone, Mail, CreditCard, FileText,
   Building, Globe, Award, Target, BarChart3, PieChart, Package,
   ChevronDown, ChevronUp, Eye, Edit, Trash2, Plus, Wallet, Receipt,
@@ -13,11 +13,23 @@ import { useHajiList } from '../../../hooks/UseHajiQueries';
 import { useUmrahList } from '../../../hooks/UseUmrahQuries';
 import Swal from 'sweetalert2';
 
+// Safely convert mixed string/number values (handles commas, currency symbols)
+const toNumeric = (value) => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[^0-9.-]/g, '');
+    if (!cleaned) return null;
+    const numericValue = Number(cleaned);
+    return Number.isNaN(numericValue) ? null : numericValue;
+  }
+  return null;
+};
+
 const resolveNumber = (...values) => {
   for (const value of values) {
-    if (value === undefined || value === null) continue;
-    const numericValue = Number(value);
-    if (!Number.isNaN(numericValue)) {
+    const numericValue = toNumeric(value);
+    if (numericValue !== null) {
       return numericValue;
     }
   }
@@ -27,9 +39,9 @@ const resolveNumber = (...values) => {
 const pickNumberFromObject = (source, keys, fallback = 0) => {
   if (!source) return fallback;
   for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(source, key) && source[key] !== undefined && source[key] !== null) {
-      const numericValue = Number(source[key]);
-      if (!Number.isNaN(numericValue)) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) {
+      const numericValue = toNumeric(source[key]);
+      if (numericValue !== null) {
         return numericValue;
       }
     }
@@ -45,6 +57,47 @@ const formatCurrency = (amount = 0) => {
 const formatCount = (value = 0) => {
   const numericValue = Number(value) || 0;
   return numericValue.toLocaleString();
+};
+
+const formatPercentage = (value = 0) => `${(Number(value) || 0).toFixed(1)}%`;
+
+const calculateProfitLoss = (pkg = {}) => {
+  const totals = pkg.totals || {};
+  const profitLossFromApi = pkg.profitLoss || {};
+
+  const costingPrice =
+    resolveNumber(
+      profitLossFromApi.costingPrice,
+      totals.costingPrice,
+      totals.grandTotal,
+      pkg.costingPrice
+    ) || 0;
+
+  const packagePrice =
+    resolveNumber(
+      profitLossFromApi.packagePrice,
+      pkg.totalPrice,
+      totals.packagePrice,
+      totals.subtotal,
+      totals.grandTotal
+    ) || 0;
+
+  const profitValue =
+    resolveNumber(
+      profitLossFromApi.profitOrLoss,
+      profitLossFromApi.profitLoss
+    ) || (packagePrice - costingPrice);
+
+  const percentage = packagePrice ? (profitValue / packagePrice) * 100 : 0;
+
+  return {
+    costingPrice,
+    packagePrice,
+    profitValue,
+    percentage,
+    isProfit: profitValue > 0,
+    isLoss: profitValue < 0,
+  };
 };
 
 const AgentDetails = () => {
@@ -890,50 +943,63 @@ const transactionsData = {
                                 <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Hajj Packages ({yearPackages.hajj.length})</h5>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {yearPackages.hajj.map((pkg) => (
-                                  <div key={pkg._id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:shadow-md transition-shadow">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">
-                                        {pkg.packageName}
-                                      </h6>
-                                      <span className={`text-xs px-2 py-1 rounded-full ${
-                                        pkg.isActive 
-                                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                                      }`}>
-                                        {pkg.isActive ? 'Active' : 'Inactive'}
-                                      </span>
+                                {yearPackages.hajj.map((pkg) => {
+                                  const profit = calculateProfitLoss(pkg);
+                                  return (
+                                    <div key={pkg._id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:shadow-md transition-shadow">
+                                      <div className="flex items-start justify-between mb-2">
+                                        <h6 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">
+                                          {pkg.packageName}
+                                        </h6>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                          pkg.isActive 
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                        }`}>
+                                          {pkg.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                                        <p>Total Price: {formatCurrency(profit.packagePrice)}</p>
+                                        <p>Costing: {formatCurrency(profit.costingPrice)}</p>
+                                        <p className={`font-semibold ${
+                                          profit.isProfit
+                                            ? 'text-green-600 dark:text-green-400'
+                                            : profit.isLoss
+                                            ? 'text-red-600 dark:text-red-400'
+                                            : 'text-gray-700 dark:text-gray-300'
+                                        }`}>
+                                          {profit.isProfit ? 'Profit' : profit.isLoss ? 'Loss' : 'Break-even'}: {profit.isProfit ? '+' : ''}{formatCurrency(profit.profitValue)} ({formatPercentage(profit.percentage)})
+                                        </p>
+                                        <p>Status: {pkg.status || 'Draft'}</p>
+                                      </div>
+                                      <div className="flex items-center justify-end space-x-1 mt-3">
+                                        <button
+                                          onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}`)}
+                                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                          title="View Details"
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}/edit`)}
+                                          className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                                          title="Edit Package"
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeletePackage(pkg._id, pkg.packageName)}
+                                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                          title="Delete Package"
+                                          disabled={deletePackageMutation.isPending}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                                      <p>Total Price: ৳{pkg.totals?.subtotal?.toLocaleString() || pkg.totalPrice?.toLocaleString() || '0'}</p>
-                                      <p>Status: {pkg.status || 'Draft'}</p>
-                                    </div>
-                                    <div className="flex items-center justify-end space-x-1 mt-3">
-                                      <button
-                                        onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}`)}
-                                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                        title="View Details"
-                                      >
-                                        <Eye className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}/edit`)}
-                                        className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400"
-                                        title="Edit Package"
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeletePackage(pkg._id, pkg.packageName)}
-                                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                        title="Delete Package"
-                                        disabled={deletePackageMutation.isPending}
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -946,50 +1012,63 @@ const transactionsData = {
                                 <h5 className="text-sm font-semibold text-gray-900 dark:text-white">Umrah Packages ({yearPackages.umrah.length})</h5>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {yearPackages.umrah.map((pkg) => (
-                                  <div key={pkg._id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:shadow-md transition-shadow">
-                                    <div className="flex items-start justify-between mb-2">
-                                      <h6 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">
-                                        {pkg.packageName}
-                                      </h6>
-                                      <span className={`text-xs px-2 py-1 rounded-full ${
-                                        pkg.isActive 
-                                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                                      }`}>
-                                        {pkg.isActive ? 'Active' : 'Inactive'}
-                                      </span>
+                                {yearPackages.umrah.map((pkg) => {
+                                  const profit = calculateProfitLoss(pkg);
+                                  return (
+                                    <div key={pkg._id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-3 hover:shadow-md transition-shadow">
+                                      <div className="flex items-start justify-between mb-2">
+                                        <h6 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">
+                                          {pkg.packageName}
+                                        </h6>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                          pkg.isActive 
+                                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
+                                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                                        }`}>
+                                          {pkg.isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
+                                        <p>Total Price: {formatCurrency(profit.packagePrice)}</p>
+                                        <p>Costing: {formatCurrency(profit.costingPrice)}</p>
+                                        <p className={`font-semibold ${
+                                          profit.isProfit
+                                            ? 'text-green-600 dark:text-green-400'
+                                            : profit.isLoss
+                                            ? 'text-red-600 dark:text-red-400'
+                                            : 'text-gray-700 dark:text-gray-300'
+                                        }`}>
+                                          {profit.isProfit ? 'Profit' : profit.isLoss ? 'Loss' : 'Break-even'}: {profit.isProfit ? '+' : ''}{formatCurrency(profit.profitValue)} ({formatPercentage(profit.percentage)})
+                                        </p>
+                                        <p>Status: {pkg.status || 'Draft'}</p>
+                                      </div>
+                                      <div className="flex items-center justify-end space-x-1 mt-3">
+                                        <button
+                                          onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}`)}
+                                          className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                                          title="View Details"
+                                        >
+                                          <Eye className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}/edit`)}
+                                          className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400"
+                                          title="Edit Package"
+                                        >
+                                          <Edit className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeletePackage(pkg._id, pkg.packageName)}
+                                          className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                                          title="Delete Package"
+                                          disabled={deletePackageMutation.isPending}
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div className="space-y-1 text-xs text-gray-600 dark:text-gray-400">
-                                      <p>Total Price: ৳{pkg.totals?.subtotal?.toLocaleString() || pkg.totalPrice?.toLocaleString() || '0'}</p>
-                                      <p>Status: {pkg.status || 'Draft'}</p>
-                                    </div>
-                                    <div className="flex items-center justify-end space-x-1 mt-3">
-                                      <button
-                                        onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}`)}
-                                        className="p-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
-                                        title="View Details"
-                                      >
-                                        <Eye className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => navigate(`/hajj-umrah/agent-packages/${pkg._id}/edit`)}
-                                        className="p-1 text-gray-400 hover:text-green-600 dark:hover:text-green-400"
-                                        title="Edit Package"
-                                      >
-                                        <Edit className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeletePackage(pkg._id, pkg.packageName)}
-                                        className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"
-                                        title="Delete Package"
-                                        disabled={deletePackageMutation.isPending}
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}

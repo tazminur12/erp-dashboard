@@ -6,6 +6,7 @@ export { default as PackageList } from './PackageList';
 export { default as PackageDetails } from './PackageDetails';
 export { default as PackageEdit } from './PackageEdit';
 export { default as PackageCustomersList } from './PackageCustomersList';
+export { default as PackageCosting } from './PackageCosting';
 export { default as AddUmrahHaji } from './Umrah/AddUmrahHaji';
 export { default as EditUmrahHaji } from './Umrah/EditUmrahHaji';
 export { default as UmrahHajiList } from './Umrah/UmrahHajiList';

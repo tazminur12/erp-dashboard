@@ -366,3 +366,48 @@ export const useAgentStats = () => {
     },
   });
 };
+
+// POST /haj-umrah/packages/:id/costing - Add/Update package costing
+export const useUpdatePackageCosting = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, costingData }) => {
+      const response = await axiosSecure.post(
+        `/haj-umrah/packages/${id}/costing`,
+        costingData
+      );
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to add/update package costing');
+    },
+    onSuccess: (data, { id }) => {
+      // Keep package data fresh after costing update
+      queryClient.invalidateQueries({ queryKey: ['packages', 'detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['packages', 'list'] });
+      if (data?.data) {
+        queryClient.setQueryData(['packages', 'detail', id], data.data);
+      }
+      Swal.fire({
+        title: 'সফল!',
+        text: data?.message || 'প্যাকেজ খরচ সফলভাবে সংরক্ষণ করা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text:
+          error?.response?.data?.message ||
+          error?.message ||
+          'প্যাকেজ খরচ সংরক্ষণে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};

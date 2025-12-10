@@ -445,24 +445,24 @@ const UmrahHajiList = () => {
           onDataProcessed={handleExcelDataProcessed}
           title="Upload Umrah Haji Data from Excel"
           acceptedFields={[
-            'name', 'mobile no', 'fathers name', 'mother\'s name', 'upazila', 'districts'
+            'name', 'mobile no', 'fathers name', 'mother\'s name', 'districts', 'upazila', 'area'
           ]}
           requiredFields={['name', 'mobile no']}
           sampleData={[
             [
-              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Upazila', 'Districts'
+              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Districts', 'Upazila', 'Area'
             ],
             [
-              'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum', 
-              'Dhanmondi', 'Dhaka'
+              'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum',
+              'Dhaka', 'Dhamrai', 'Area 1'
             ],
             [
-              'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun', 
-              'Kotwali', 'Chittagong'
+              'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun',
+              'Chittagong', 'Kotwali', 'Area 2'
             ],
             [
-              'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum', 
-              'Sylhet Sadar', 'Sylhet'
+              'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum',
+              'Sylhet', 'Sylhet Sadar', 'Area 3'
             ]
           ]}
         />
