@@ -59,17 +59,66 @@ const PackageDetails = () => {
 
   const incomeStats = calculateTotalIncome();
 
+  // Calculate assigned passenger counts by type
+  const getAssignedPassengerCounts = () => {
+    // First try to use profitLoss data if available
+    if (pkg?.profitLoss?.assignedPassengerCounts) {
+      return {
+        adult: pkg.profitLoss.assignedPassengerCounts.adult || 0,
+        child: pkg.profitLoss.assignedPassengerCounts.child || 0,
+        infant: pkg.profitLoss.assignedPassengerCounts.infant || 0
+      };
+    }
+    
+    // Fallback: count from customers array
+    const allCustomers = customers.all || [];
+    let adultCount = 0;
+    let childCount = 0;
+    let infantCount = 0;
+
+    allCustomers.forEach(customer => {
+      const passengerType = customer.passengerType || customer.passenger_type || 'adult';
+      if (passengerType.toLowerCase() === 'adult') {
+        adultCount++;
+      } else if (passengerType.toLowerCase() === 'child') {
+        childCount++;
+      } else if (passengerType.toLowerCase() === 'infant') {
+        infantCount++;
+      } else {
+        // Default to adult if type is not recognized
+        adultCount++;
+      }
+    });
+
+    return { adult: adultCount, child: childCount, infant: infantCount };
+  };
+
+  const assignedPassengerCounts = getAssignedPassengerCounts();
+
   // Profit & Loss summary (uses backend data when available, otherwise derives from totals)
+  // Backend returns profitLoss object with: assignedPassengerCounts, originalPrices, costingPrices,
+  // totalOriginalPrice, totalCostingPrice, profitOrLoss, passengerOriginalTotals, passengerCostingTotals, passengerProfit
   const profitLossData = pkg?.profitLoss ? {
-    totalCost: pkg.profitLoss.costingPrice || 0,
-    sellingPrice: pkg.profitLoss.packagePrice || 0,
-    profitLoss: pkg.profitLoss.profitLoss || 0,
-    profitLossPercentage: parseFloat(pkg.profitLoss.profitLossPercentage) || 0,
-    isProfit: pkg.profitLoss.isProfit ?? (pkg.profitLoss.profitLoss || 0) >= 0,
-    isLoss: pkg.profitLoss.isLoss ?? (pkg.profitLoss.profitLoss || 0) < 0
+    totalCost: pkg.profitLoss.totalCostingPrice || 0,
+    sellingPrice: pkg.profitLoss.totalOriginalPrice || 0,
+    profitLoss: pkg.profitLoss.profitOrLoss || 0,
+    profitLossPercentage: pkg.profitLoss.totalCostingPrice 
+      ? ((pkg.profitLoss.profitOrLoss || 0) / pkg.profitLoss.totalCostingPrice) * 100 
+      : 0,
+    isProfit: (pkg.profitLoss.profitOrLoss || 0) > 0,
+    isLoss: (pkg.profitLoss.profitOrLoss || 0) < 0,
+    // Additional backend data
+    assignedPassengerCounts: pkg.profitLoss.assignedPassengerCounts || { adult: 0, child: 0, infant: 0 },
+    originalPrices: pkg.profitLoss.originalPrices || { adult: 0, child: 0, infant: 0 },
+    costingPrices: pkg.profitLoss.costingPrices || { adult: 0, child: 0, infant: 0 },
+    passengerOriginalTotals: pkg.profitLoss.passengerOriginalTotals || { adult: 0, child: 0, infant: 0 },
+    passengerCostingTotals: pkg.profitLoss.passengerCostingTotals || { adult: 0, child: 0, infant: 0 },
+    passengerProfit: pkg.profitLoss.passengerProfit || { adult: 0, child: 0, infant: 0 }
   } : (() => {
-    const totalCost = parseFloat(pkg?.totals?.total) || 0;
+    // Fallback calculation if backend profitLoss is not available
+    const totalCost = parseFloat(pkg?.totals?.grandTotal || pkg?.totals?.total || 0);
     const sellingPrice = parseFloat(
+      pkg?.totalPrice ??
       pkg?.totals?.totalBD ??
       pkg?.totals?.grandTotal ??
       pkg?.totals?.subtotal ??
@@ -83,7 +132,13 @@ const PackageDetails = () => {
       profitLoss,
       profitLossPercentage,
       isProfit: profitLoss > 0,
-      isLoss: profitLoss < 0
+      isLoss: profitLoss < 0,
+      assignedPassengerCounts: pkg?.assignedPassengerCounts || { adult: 0, child: 0, infant: 0 },
+      originalPrices: pkg?.totals?.passengerTotals || { adult: 0, child: 0, infant: 0 },
+      costingPrices: pkg?.totals?.costingPassengerTotals || { adult: 0, child: 0, infant: 0 },
+      passengerOriginalTotals: { adult: 0, child: 0, infant: 0 },
+      passengerCostingTotals: { adult: 0, child: 0, infant: 0 },
+      passengerProfit: { adult: 0, child: 0, infant: 0 }
     };
   })();
 
@@ -859,22 +914,58 @@ const PackageDetails = () => {
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Adult (প্রাপ্তবয়স্ক)</p>
+                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                            Adult (প্রাপ্তবয়স্ক)
+                            {assignedPassengerCounts.adult > 0 && (
+                              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                ({assignedPassengerCounts.adult} জন)
+                              </span>
+                            )}
+                          </p>
                           <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                             {formatCurrency(pkg.totals.passengerTotals.adult)}
                           </p>
+                          {assignedPassengerCounts.adult > 0 && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              মোট: {formatCurrency(pkg.totals.passengerTotals.adult * assignedPassengerCounts.adult)}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Child (শিশু)</p>
+                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                            Child (শিশু)
+                            {assignedPassengerCounts.child > 0 && (
+                              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                ({assignedPassengerCounts.child} জন)
+                              </span>
+                            )}
+                          </p>
                           <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                             {formatCurrency(pkg.totals.passengerTotals.child)}
                           </p>
+                          {assignedPassengerCounts.child > 0 && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              মোট: {formatCurrency(pkg.totals.passengerTotals.child * assignedPassengerCounts.child)}
+                            </p>
+                          )}
                         </div>
                         <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
-                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Infant (শিশু)</p>
+                          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                            Infant (শিশু)
+                            {assignedPassengerCounts.infant > 0 && (
+                              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                                ({assignedPassengerCounts.infant} জন)
+                              </span>
+                            )}
+                          </p>
                           <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
                             {formatCurrency(pkg.totals.passengerTotals.infant)}
                           </p>
+                          {assignedPassengerCounts.infant > 0 && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                              মোট: {formatCurrency(pkg.totals.passengerTotals.infant * assignedPassengerCounts.infant)}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -882,62 +973,6 @@ const PackageDetails = () => {
                 </div>
               )}
 
-              {/* Financial Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Total Cost Summary */}
-                {pkg.totals && (
-                  <div className="bg-white dark:bg-gray-700 rounded-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">মোট খরচের সারাংশ</h3>
-                    <div className="space-y-2">
-                      {pkg.totals.total !== undefined && (
-                        <div className="flex justify-between items-center py-3 px-4 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
-                          <span className="text-base font-medium text-gray-700 dark:text-gray-300">মোট খরচ</span>
-                          <span className="text-xl font-bold text-purple-600 dark:text-purple-400">
-                            {formatCurrency(pkg.totals.total)}
-                          </span>
-                        </div>
-                      )}
-                      {pkg.totals.totalBD !== undefined && (
-                        <div className="flex justify-between items-center py-2 px-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট খরচ (BDT)</span>
-                          <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {formatCurrency(pkg.totals.totalBD)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Profit/Loss Summary */}
-                {incomeStats.customerCount > 0 && pkg.totals && (
-                  <div className="bg-white dark:bg-gray-700 rounded-lg p-6 border-2 border-indigo-200 dark:border-indigo-800">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">লাভ/ক্ষতি (Profit/Loss)</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center py-3 px-4 bg-green-50 dark:bg-green-900/30 rounded-lg">
-                        <span className="text-base font-medium text-gray-700 dark:text-gray-300">মোট আয়</span>
-                        <span className="text-xl font-bold text-green-600 dark:text-green-400">
-                          {formatCurrency(incomeStats.totalIncome)}
-                        </span>
-                      </div>
-                      {pkg.totals.total !== undefined && (
-                        <div className="flex justify-between items-center py-3 px-4 bg-red-50 dark:bg-red-900/30 rounded-lg">
-                          <span className="text-base font-medium text-gray-700 dark:text-gray-300">মোট খরচ</span>
-                          <span className="text-xl font-bold text-red-600 dark:text-red-400">
-                            {formatCurrency(pkg.totals.total)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-center py-3 px-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg border-2 border-indigo-200 dark:border-indigo-800">
-                        <span className="text-base font-semibold text-gray-700 dark:text-gray-300">নিট লাভ/ক্ষতি</span>
-                        <span className={`text-xl font-bold ${(incomeStats.totalIncome - (pkg.totals.total || 0)) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                          {formatCurrency(incomeStats.totalIncome - (pkg.totals.total || 0))}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
@@ -980,7 +1015,7 @@ const PackageDetails = () => {
 
                   <div className="bg-white dark:bg-gray-700 rounded-lg p-4 flex items-center justify-between shadow-sm">
                     <div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Agent Package Price</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Package Price</p>
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {formatCurrency(profitLossData.sellingPrice)}
                       </p>

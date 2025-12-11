@@ -76,13 +76,14 @@ export const packageKeys = {
 // Custom hook for fetching packages list with pagination and filters
 export const usePackages = (filters = {}) => {
   const axiosSecure = useAxiosSecure();
-  const { year, type, customPackageType, status, limit = 50, page = 1 } = filters;
+  const { year, month, type, customPackageType, status, limit = 50, page = 1 } = filters;
 
   return useQuery({
-    queryKey: packageKeys.list({ year, type, customPackageType, status, limit, page }),
+    queryKey: packageKeys.list({ year, month, type, customPackageType, status, limit, page }),
     queryFn: async () => {
       const params = {};
       if (year) params.year = year;
+      if (month) params.month = month;
       if (type) params.type = type;
       if (customPackageType) params.customPackageType = customPackageType;
       if (status) params.status = status;
@@ -91,7 +92,22 @@ export const usePackages = (filters = {}) => {
 
       const response = await axiosSecure.get('/haj-umrah/packages', { params });
       const data = response?.data;
-      if (data?.success) return data;
+      if (data?.success) {
+        // Normalize packages to ensure passengerTotals structure exists
+        const normalizedPackages = (data.data || []).map(pkg => ({
+          ...pkg,
+          totals: normalizePassengerTotals(pkg.totals),
+          assignedPassengerCounts: pkg.assignedPassengerCounts || {
+            adult: 0,
+            child: 0,
+            infant: 0
+          }
+        }));
+        return {
+          ...data,
+          data: normalizedPackages
+        };
+      }
       throw new Error(data?.message || 'Failed to load packages');
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -116,10 +132,20 @@ export const usePackage = (id) => {
       const data = response?.data;
       if (data?.success) {
         const pkg = data?.data || {};
+        
+        // Backend now returns profitLoss object directly, use it if available
+        // Otherwise fall back to calculating it
+        const profitLossData = pkg.profitLoss || normalizeProfitLoss(pkg);
+        
         return {
           ...pkg,
           totals: normalizePassengerTotals(pkg.totals),
-          profitLoss: normalizeProfitLoss(pkg),
+          assignedPassengerCounts: pkg.assignedPassengerCounts || {
+            adult: 0,
+            child: 0,
+            infant: 0
+          },
+          profitLoss: profitLossData,
         };
       }
       throw new Error(data?.message || 'Failed to load package');
@@ -142,7 +168,43 @@ export const useCreatePackage = () => {
 
   return useMutation({
     mutationFn: async (packageData) => {
-      const response = await axiosSecure.post('/haj-umrah/packages', packageData);
+      // Normalize package data to match backend expectations
+      const normalizedData = {
+        packageName: String(packageData.packageName || ''),
+        packageYear: String(packageData.packageYear || ''),
+        packageMonth: packageData.packageMonth || '',
+        packageType: packageData.packageType || 'Regular',
+        customPackageType: packageData.customPackageType || '',
+        sarToBdtRate: parseFloat(packageData.sarToBdtRate) || 0,
+        notes: packageData.notes || '',
+        status: packageData.status || 'Active',
+        costs: packageData.costs || {},
+        totals: packageData.totals || {},
+      };
+
+      // Handle totalPrice - optional field, only set if provided
+      if (packageData.totalPrice !== undefined && packageData.totalPrice !== null && packageData.totalPrice !== '') {
+        normalizedData.totalPrice = Number((parseFloat(packageData.totalPrice) || 0).toFixed(2));
+      }
+
+      // Ensure totals.passengerTotals structure exists and is properly formatted
+      // Passenger totals are stored separately: adult, child, infant
+      if (!normalizedData.totals.passengerTotals) {
+        normalizedData.totals.passengerTotals = {
+          adult: 0,
+          child: 0,
+          infant: 0
+        };
+      } else {
+        // Ensure all three passenger types are present and properly formatted
+        normalizedData.totals.passengerTotals = {
+          adult: Number((parseFloat(normalizedData.totals.passengerTotals.adult) || 0).toFixed(2)),
+          child: Number((parseFloat(normalizedData.totals.passengerTotals.child) || 0).toFixed(2)),
+          infant: Number((parseFloat(normalizedData.totals.passengerTotals.infant) || 0).toFixed(2))
+        };
+      }
+
+      const response = await axiosSecure.post('/haj-umrah/packages', normalizedData);
       const data = response?.data;
       if (data?.success) return data;
       throw new Error(data?.message || 'Failed to create package');
@@ -251,7 +313,10 @@ export const useUpdatePackageCosting = () => {
 
   return useMutation({
     mutationFn: async ({ id, costingData }) => {
-      const response = await axiosSecure.post(`/haj-umrah/packages/${id}/costing`, costingData);
+      // Ensure totalPrice is not sent in costing update (backend explicitly ignores it)
+      const { totalPrice, ...dataWithoutTotalPrice } = costingData;
+      
+      const response = await axiosSecure.post(`/haj-umrah/packages/${id}/costing`, dataWithoutTotalPrice);
       const data = response?.data;
       if (data?.success) return data;
       throw new Error(data?.message || 'Failed to add/update package costing');

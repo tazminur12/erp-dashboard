@@ -188,7 +188,8 @@ const EditUmrahHaji = () => {
     referenceCustomerId: '',
     serviceType: 'umrah',
     serviceStatus: '',
-    isActive: true
+    isActive: true,
+    manualSerialNumber: ''
   });
 
   // Load Umrah data for edit mode
@@ -237,14 +238,16 @@ const EditUmrahHaji = () => {
         previousUmrah: !!umrahData.previousUmrah,
         specialRequirements: umrahData.specialRequirements || '',
         notes: umrahData.notes || '',
-        customerId: umrahData._id || umrahData.customerId || '',
+        // Preserve business/customer ID; don't replace with Mongo _id on edit
+        customerId: umrahData.customerId || '',
         passportFirstName: umrahData.passportFirstName || '',
         passportLastName: umrahData.passportLastName || '',
         referenceBy: umrahData.referenceBy || '',
         referenceCustomerId: umrahData.referenceCustomerId || '',
         serviceType: 'umrah',
         serviceStatus: umrahData.serviceStatus || '',
-        isActive: umrahData.status ? umrahData.status === 'active' : true
+        isActive: umrahData.status ? umrahData.status === 'active' : true,
+        manualSerialNumber: umrahData.manualSerialNumber || ''
       });
     }
   }, [umrahData]);
@@ -359,6 +362,7 @@ const EditUmrahHaji = () => {
         name: formData.name,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        manualSerialNumber: formData.manualSerialNumber,
         fatherName: formData.fatherName,
         motherName: formData.motherName,
         spouseName: formData.spouseName,
@@ -511,6 +515,13 @@ const EditUmrahHaji = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <FormSection title="Personal Information" icon={User}>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <InputGroup 
+                    label="Manual Serial Number" 
+                    name="manualSerialNumber" 
+                    value={formData.manualSerialNumber}
+                    onChange={handleInputChange}
+                    placeholder="Enter manual serial number"
+                  />
                   <InputGroup 
                     label="Full Name" 
                     name="name" 
@@ -726,6 +737,21 @@ const EditUmrahHaji = () => {
                     value={formData.agentId}
                     options={agents}
                     onChange={handleInputChange}
+                  />
+                  <SelectGroup 
+                    label="উমরাহ্‌ হাজ্বীর স্ট্যাটাস" 
+                    name="serviceStatus" 
+                    value={formData.serviceStatus}
+                    onChange={handleInputChange}
+                    options={[
+                      { value: 'পাসপোর্ট রেডি নয়', label: 'পাসপোর্ট রেডি নয়' },
+                      { value: 'পাসপোর্ট রেডি', label: 'পাসপোর্ট রেডি' },
+                      { value: 'প্যাকেজ যুক্ত', label: 'প্যাকেজ যুক্ত' },
+                      { value: 'রেডি ফর উমরাহ্‌', label: 'রেডি ফর উমরাহ্‌' },
+                      { value: 'উমরাহ্‌ সম্পন্ন', label: 'উমরাহ্‌ সম্পন্ন' },
+                      { value: 'রিফান্ডেড', label: 'রিফান্ডেড' },
+                      { value: 'অন্যান্য', label: 'অন্যান্য' },
+                    ]}
                   />
                   <InputGroup 
                     label="Departure Date" 

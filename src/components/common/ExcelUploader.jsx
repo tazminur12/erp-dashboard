@@ -583,6 +583,8 @@ const ExcelUploader = ({
         fieldToBackendHeader['mother\'s name'] = 'Mother\'s Name';
         fieldToBackendHeader['upazila'] = 'Upazila';
         fieldToBackendHeader['districts'] = 'Districts';
+        fieldToBackendHeader['manual serial number'] = 'Manual Serial Number';
+        fieldToBackendHeader['area'] = 'Area';
       }
       
       // Special mappings for Agent fields

@@ -367,6 +367,235 @@ export const useAgentStats = () => {
   });
 };
 
+// ==================== PACKAGES ROUTES (for general package management without agents) ====================
+
+// Query keys for packages
+export const packageKeys = {
+  all: ['packages'],
+  lists: () => [...packageKeys.all, 'list'],
+  list: (filters) => [...packageKeys.lists(), { filters }],
+  details: () => [...packageKeys.all, 'detail'],
+  detail: (id) => [...packageKeys.details(), id],
+};
+
+// Normalize passenger totals structure
+const normalizePassengerTotals = (totals = {}) => {
+  const passengers = totals.passengerTotals || {};
+  return {
+    ...totals,
+    passengerTotals: {
+      adult: Number((parseFloat(passengers.adult) || 0).toFixed(2)),
+      child: Number((parseFloat(passengers.child) || 0).toFixed(2)),
+      infant: Number((parseFloat(passengers.infant) || 0).toFixed(2)),
+    },
+  };
+};
+
+// POST /haj-umrah/packages - Create new package
+export const useCreatePackage = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (packageData) => {
+      const {
+        packageName,
+        packageYear,
+        packageMonth,
+        packageType,
+        customPackageType,
+        sarToBdtRate,
+        notes,
+        costs,
+        totals,
+        status,
+        totalPrice
+      } = packageData;
+
+      // Validation
+      if (!packageName || !packageYear) {
+        throw new Error('Package name and year are required');
+      }
+
+      // Ensure totals.passengerTotals structure exists
+      const totalsData = totals || {};
+      if (!totalsData.passengerTotals) {
+        totalsData.passengerTotals = {
+          adult: 0,
+          child: 0,
+          infant: 0
+        };
+      } else {
+        totalsData.passengerTotals = {
+          adult: Number((parseFloat(totalsData.passengerTotals.adult) || 0).toFixed(2)),
+          child: Number((parseFloat(totalsData.passengerTotals.child) || 0).toFixed(2)),
+          infant: Number((parseFloat(totalsData.passengerTotals.infant) || 0).toFixed(2))
+        };
+      }
+
+      const normalizedData = {
+        packageName: String(packageName),
+        packageYear: String(packageYear),
+        packageMonth: packageMonth || '',
+        packageType: packageType || 'Regular',
+        customPackageType: customPackageType || '',
+        sarToBdtRate: parseFloat(sarToBdtRate) || 0,
+        notes: notes || '',
+        status: status || 'Active',
+        costs: costs || {},
+        totals: totalsData,
+      };
+
+      // Handle totalPrice - optional field, only set if provided
+      if (totalPrice !== undefined && totalPrice !== null && totalPrice !== '') {
+        normalizedData.totalPrice = Number((parseFloat(totalPrice) || 0).toFixed(2));
+      }
+
+      const response = await axiosSecure.post('/haj-umrah/packages', normalizedData);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to create package');
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: data?.message || 'Package created successfully',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to create package';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+      });
+    },
+  });
+};
+
+// GET /haj-umrah/packages - Get all packages
+export const usePackages = (filters = {}) => {
+  const axiosSecure = useAxiosSecure();
+  const { year, month, type, customPackageType, status, limit = 50, page = 1 } = filters;
+
+  return useQuery({
+    queryKey: packageKeys.list({ year, month, type, customPackageType, status, limit, page }),
+    queryFn: async () => {
+      const params = {};
+      if (year) params.year = year;
+      if (month) params.month = month;
+      if (type) params.type = type;
+      if (customPackageType) params.customPackageType = customPackageType;
+      if (status) params.status = status;
+      params.limit = limit;
+      params.page = page;
+
+      const response = await axiosSecure.get('/haj-umrah/packages', { params });
+      const data = response?.data;
+      if (data?.success) {
+        // Normalize packages to ensure passengerTotals structure exists
+        const normalizedPackages = (data.data || []).map(pkg => ({
+          ...pkg,
+          totals: normalizePassengerTotals(pkg.totals),
+          assignedPassengerCounts: pkg.assignedPassengerCounts || {
+            adult: 0,
+            child: 0,
+            infant: 0
+          }
+        }));
+        return {
+          ...data,
+          data: normalizedPackages
+        };
+      }
+      throw new Error(data?.message || 'Failed to load packages');
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error?.response?.status >= 400 && error?.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+  });
+};
+
+// GET /haj-umrah/packages/:id - Get single package
+export const usePackage = (id) => {
+  const axiosSecure = useAxiosSecure();
+
+  return useQuery({
+    queryKey: packageKeys.detail(id),
+    queryFn: async () => {
+      if (!id) return null;
+      const response = await axiosSecure.get(`/haj-umrah/packages/${id}`);
+      const data = response?.data;
+      if (data?.success) {
+        const pkg = data?.data || {};
+        // Normalize passenger totals and profitLoss data
+        const normalizedPkg = {
+          ...pkg,
+          totals: normalizePassengerTotals(pkg.totals),
+          assignedPassengerCounts: pkg.assignedPassengerCounts || {
+            adult: 0,
+            child: 0,
+            infant: 0
+          },
+          profitLoss: pkg.profitLoss || null
+        };
+        return normalizedPkg;
+      }
+      throw new Error(data?.message || 'Failed to load package');
+    },
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error?.response?.status >= 400 && error?.response?.status < 500) {
+        return false;
+      }
+      return failureCount < 3;
+    },
+  });
+};
+
+// PUT /haj-umrah/packages/:id - Update package
+export const useUpdatePackage = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...packageData }) => {
+      const response = await axiosSecure.put(`/haj-umrah/packages/${id}`, packageData);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to update package');
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: packageKeys.detail(variables.id) });
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: data?.message || 'Package updated successfully',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to update package';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+      });
+    },
+  });
+};
+
 // POST /haj-umrah/packages/:id/costing - Add/Update package costing
 export const useUpdatePackageCosting = () => {
   const axiosSecure = useAxiosSecure();
@@ -374,20 +603,22 @@ export const useUpdatePackageCosting = () => {
 
   return useMutation({
     mutationFn: async ({ id, costingData }) => {
+      // Ensure totalPrice is not sent in costing update (backend explicitly ignores it)
+      const { totalPrice, ...dataWithoutTotalPrice } = costingData;
+      
       const response = await axiosSecure.post(
         `/haj-umrah/packages/${id}/costing`,
-        costingData
+        dataWithoutTotalPrice
       );
       const data = response?.data;
       if (data?.success) return data;
       throw new Error(data?.message || 'Failed to add/update package costing');
     },
     onSuccess: (data, { id }) => {
-      // Keep package data fresh after costing update
-      queryClient.invalidateQueries({ queryKey: ['packages', 'detail', id] });
-      queryClient.invalidateQueries({ queryKey: ['packages', 'list'] });
+      queryClient.invalidateQueries({ queryKey: packageKeys.detail(id) });
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
       if (data?.data) {
-        queryClient.setQueryData(['packages', 'detail', id], data.data);
+        queryClient.setQueryData(packageKeys.detail(id), data.data);
       }
       Swal.fire({
         title: 'সফল!',
@@ -407,6 +638,90 @@ export const useUpdatePackageCosting = () => {
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};
+
+// DELETE /haj-umrah/packages/:id - Delete package
+export const useDeletePackage = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id) => {
+      const response = await axiosSecure.delete(`/haj-umrah/packages/${id}`);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to delete package');
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: data?.message || 'Package deleted successfully',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to delete package';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
+      });
+    },
+  });
+};
+
+// POST /haj-umrah/packages/:id/assign-passenger - Assign package to passenger with type selection
+export const useAssignPackageToPassenger = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ packageId, passengerId, passengerType, passengerCategory }) => {
+      if (!packageId) {
+        throw new Error('Package ID is required');
+      }
+      if (!passengerId) {
+        throw new Error('Passenger ID is required');
+      }
+      if (!passengerType || !['adult', 'child', 'infant'].includes(passengerType.toLowerCase())) {
+        throw new Error('Passenger type must be one of: adult, child, infant');
+      }
+
+      const response = await axiosSecure.post(
+        `/haj-umrah/packages/${packageId}/assign-passenger`,
+        {
+          passengerId,
+          passengerType: passengerType.toLowerCase(),
+          passengerCategory
+        }
+      );
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to assign package to passenger');
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: packageKeys.detail(variables.packageId) });
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: data?.message || 'Package assigned successfully',
+        timer: 3000,
+        showConfirmButton: false,
+      });
+    },
+    onError: (error) => {
+      const message = error?.response?.data?.message || error?.message || 'Failed to assign package to passenger';
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: message,
       });
     },
   });

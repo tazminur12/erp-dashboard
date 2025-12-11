@@ -44,6 +44,7 @@ const HajiDetails = () => {
   
   // Use the appropriate data based on type
   const haji = isUmrah ? umrahData : hajiData;
+  const area = haji?.area ?? haji?.doc?.area ?? null;
   const isLoading = isUmrah ? umrahLoading : hajiLoading;
   const error = isUmrah ? umrahError : hajiError;
 
@@ -76,14 +77,34 @@ const HajiDetails = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, serviceStatus) => {
+    const displayStatus = serviceStatus || status;
+    if (!displayStatus) {
+      return (
+        <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          N/A
+        </span>
+      );
+    }
+
+    const normalized = displayStatus.toLowerCase ? displayStatus.toLowerCase() : String(displayStatus);
     const statusClasses = {
       active: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
       inactive: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
     };
+    const cls =
+      statusClasses[normalized] ||
+      (normalized.includes('রেডি') || normalized.includes('নিবন্ধিত') || normalized.includes('হজ্ব সম্পন্ন')
+        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+        : normalized.includes('রিফান্ড') || normalized.includes('আর্কাইভ')
+        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+        : normalized.includes('আনপেইড')
+        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200');
+
     return (
-      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${statusClasses[status] || statusClasses.active}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${cls}`}>
+        {displayStatus}
       </span>
     );
   };
@@ -215,14 +236,14 @@ const HajiDetails = () => {
             </div>
           </div>
           <div className="flex flex-row sm:flex-col items-center sm:items-end space-x-2 sm:space-x-0 sm:space-y-2">
-            {getStatusBadge(haji.status || 'active')}
+            {getStatusBadge(haji.status, haji.serviceStatus)}
             {getPaymentBadge(haji.paymentStatus || 'pending')}
           </div>
         </div>
       </div>
 
       {/* Key Information Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -230,6 +251,15 @@ const HajiDetails = () => {
               <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.customerId || haji._id || haji.id || 'N/A'}</p>
             </div>
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.manualSerialNumber || 'N/A'}</p>
+            </div>
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -308,6 +338,10 @@ const HajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.customerId || haji._id || haji.id || 'N/A'}</p>
           </div>
           <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.manualSerialNumber || 'N/A'}</p>
+          </div>
+          <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">
               {haji.dateOfBirth ? new Date(haji.dateOfBirth).toLocaleDateString() : 'N/A'}
@@ -316,6 +350,10 @@ const HajiDetails = () => {
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gender</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{haji.gender || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">হাজ্বীর স্ট্যাটাস</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.serviceStatus || haji.status || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Marital Status</label>
@@ -422,6 +460,10 @@ const HajiDetails = () => {
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Upazila</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.upazila || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Area</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{area || 'N/A'}</p>
           </div>
         </div>
         <div className="mt-3 sm:mt-4">

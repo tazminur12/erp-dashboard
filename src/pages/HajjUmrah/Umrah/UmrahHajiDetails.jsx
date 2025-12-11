@@ -28,6 +28,10 @@ const UmrahHajiDetails = () => {
   const [selectedPassengerType, setSelectedPassengerType] = useState('adult');
 
   const { data: umrah, isLoading, error } = useUmrah(id);
+  const area = umrah?.area ?? umrah?.doc?.area ?? null;
+  const division = umrah?.division ?? umrah?.doc?.division ?? null;
+  const district = umrah?.district ?? umrah?.doc?.district ?? null;
+  const upazila = umrah?.upazila ?? umrah?.doc?.upazila ?? null;
   const { data: packagesResp } = usePackages({ status: 'Active', limit: 200, page: 1 });
   const packageList = packagesResp?.data || packagesResp?.packages || [];
 
@@ -55,13 +59,36 @@ const UmrahHajiDetails = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, serviceStatus) => {
+    const displayStatus = serviceStatus || status;
+    if (!displayStatus) {
+      return (
+        <span className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          N/A
+        </span>
+      );
+    }
+
+    const normalized = displayStatus.toLowerCase ? displayStatus.toLowerCase() : String(displayStatus);
     const statusClasses = {
       active: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-      inactive: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+      inactive: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
+      confirmed: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
+      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
     };
-    const cls = statusClasses[status] || statusClasses.active;
-    return <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${cls}`}>{(status || 'active').replace(/^./, c => c.toUpperCase())}</span>;
+    const cls =
+      statusClasses[normalized] ||
+      (normalized.includes('রেডি')
+        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+        : normalized.includes('রিফান্ড') || normalized.includes('refund')
+        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200');
+
+    return (
+      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${cls}`}>
+        {displayStatus}
+      </span>
+    );
   };
 
   const getPaymentBadge = (paymentStatus) => {
@@ -177,13 +204,13 @@ const UmrahHajiDetails = () => {
             </div>
           </div>
           <div className="flex flex-row sm:flex-col items-center sm:items-end space-x-2 sm:space-x-0 sm:space-y-2">
-            {getStatusBadge(umrah.status || 'active')}
+            {getStatusBadge(umrah.status, umrah.serviceStatus)}
             {getPaymentBadge(umrah.paymentStatus || 'pending')}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -191,6 +218,15 @@ const UmrahHajiDetails = () => {
               <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.customerId || umrah._id || umrah.id || 'N/A'}</p>
             </div>
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.manualSerialNumber || 'N/A'}</p>
+            </div>
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -251,12 +287,24 @@ const UmrahHajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{umrah.name || 'N/A'}</p>
           </div>
           <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Umrah ID</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.customerId || umrah._id || umrah.id || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.manualSerialNumber || 'N/A'}</p>
+          </div>
+          <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{formatDate(umrah.dateOfBirth)}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gender</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{umrah.gender || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">উমরাহ্‌ হাজ্বীর স্ট্যাটাস</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.serviceStatus || umrah.status || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Mobile</label>
@@ -273,6 +321,22 @@ const UmrahHajiDetails = () => {
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Address</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.address || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Area</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{area || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Division</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{division || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">District</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{district || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Upazila</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{upazila || 'N/A'}</p>
           </div>
         </div>
       </div>

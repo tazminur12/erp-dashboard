@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Menu, 
@@ -14,21 +14,22 @@ import { useUIStore } from '../../store/ui';
 import { useTheme } from '../../contexts/ThemeContext';
 import { signOutUser, getCurrentUser, onAuthStateChange } from '../../firebase/auth';
 import { Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import useAxiosSecure from '../../hooks/UseAxiosSecure';
 
 const TopBar = ({ pageTitle = 'Dashboard' }) => {
   const navigate = useNavigate();
   const { toggleMobileSidebar } = useUIStore();
   const { isDark, toggleTheme } = useTheme();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [notifications] = useState([
-    { id: 1, message: 'New customer added', time: '2 min ago', unread: true },
-    { id: 2, message: 'Ticket sale completed', time: '1 hour ago', unread: true },
-    { id: 3, message: 'Vendor payment received', time: '3 hours ago', unread: false }
-  ]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const currentUser = getCurrentUser();
+  const currentUserId = currentUser?.uid;
 
   useEffect(() => {
     // Check if user is logged in
@@ -79,7 +80,76 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
     }
   };
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const {
+    data: notificationsData,
+    isLoading: notificationsLoading,
+    isError: notificationsError,
+  } = useQuery({
+    queryKey: ['notifications', currentUserId],
+    enabled: !!currentUserId,
+    queryFn: async () => {
+      const response = await axiosSecure.get('/api/notifications', {
+        params: {
+          userId: currentUserId,
+          limit: 20,
+        },
+      });
+
+      if (response?.data?.success) {
+        return response.data;
+      }
+
+      throw new Error(response?.data?.message || 'Failed to fetch notifications');
+    },
+    refetchOnWindowFocus: false,
+  });
+
+  const notifications = notificationsData?.notifications || [];
+  const unreadCount = notificationsData?.unreadCount || 0;
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axiosSecure.patch('/api/notifications/read-all', {
+        userId: currentUserId,
+      });
+
+      if (response?.data?.success) return response.data;
+      throw new Error(response?.data?.message || 'Failed to mark all as read');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications', currentUserId]);
+    },
+  });
+
+  const markSingleReadMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await axiosSecure.patch(`/api/notifications/${id}/read`);
+      if (response?.data?.success) return response.data;
+      throw new Error(response?.data?.message || 'Failed to mark as read');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications', currentUserId]);
+    },
+  });
+
+  const handleMarkAllRead = () => {
+    if (!currentUserId || unreadCount === 0 || markAllReadMutation.isLoading) return;
+    markAllReadMutation.mutate();
+  };
+
+  const handleMarkSingleRead = (id, isRead) => {
+    if (!id || isRead || markSingleReadMutation.isLoading) return;
+    markSingleReadMutation.mutate(id);
+  };
+
+  const renderNotificationTime = useMemo(() => {
+    return (dateString) => {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return '';
+      return date.toLocaleString();
+    };
+  }, []);
 
   return (
     <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-3 sticky top-0 z-30 w-full">
@@ -157,28 +227,49 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
                     <h3 className="text-sm font-medium text-gray-900 dark:text-white">
                       Notifications
                     </h3>
-                    <button className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                    <button
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 disabled:opacity-50"
+                      onClick={handleMarkAllRead}
+                      disabled={unreadCount === 0 || markAllReadMutation.isLoading}
+                    >
                       Mark all as read
                     </button>
                   </div>
                   
                   <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {notificationsLoading && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
+                    )}
+                    {notificationsError && (
+                      <p className="text-sm text-red-500">Failed to load notifications</p>
+                    )}
+                    {!notificationsLoading && notifications.length === 0 && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">No notifications</p>
+                    )}
                     {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`p-3 rounded-lg ${
-                          notification.unread 
-                            ? 'bg-blue-50 dark:bg-blue-900/20' 
-                            : 'bg-gray-50 dark:bg-gray-700'
+                      <button
+                        key={notification._id}
+                        type="button"
+                        onClick={() => handleMarkSingleRead(notification._id, notification.isRead)}
+                        className={`w-full text-left p-3 rounded-lg ${
+                          notification.isRead 
+                            ? 'bg-gray-50 dark:bg-gray-700'
+                            : 'bg-blue-50 dark:bg-blue-900/20'
                         }`}
                       >
-                        <p className="text-sm text-gray-900 dark:text-white">
+                        <p className="text-xs uppercase text-gray-500 dark:text-gray-400 font-semibold">
+                          {notification.type || 'Info'}
+                        </p>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white">
+                          {notification.title}
+                        </p>
+                        <p className="text-sm text-gray-800 dark:text-gray-200">
                           {notification.message}
                         </p>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {notification.time}
+                          {renderNotificationTime(notification.createdAt)}
                         </p>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>

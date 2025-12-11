@@ -28,6 +28,9 @@ const UmrahHajiList = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [showExcelUploader, setShowExcelUploader] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [deletingUmrahId, setDeletingUmrahId] = useState(null);
   const [filters, setFilters] = useState({
     status: 'all',
     paymentStatus: 'all'
@@ -61,13 +64,17 @@ const UmrahHajiList = () => {
         (pilgrim.mobile && pilgrim.mobile.includes(searchTerm)) ||
         (pilgrim.email && pilgrim.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (pilgrim._id && pilgrim._id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (pilgrim.nidNumber && pilgrim.nidNumber.includes(searchTerm))
+        (pilgrim.nidNumber && pilgrim.nidNumber.includes(searchTerm)) ||
+        (pilgrim.manualSerialNumber && pilgrim.manualSerialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
-    // Status filter
+    // Status filter (prefer serviceStatus from backend)
     if (filters.status !== 'all') {
-      filtered = filtered.filter(pilgrim => pilgrim.status === filters.status);
+      filtered = filtered.filter(pilgrim => {
+        const statusValue = pilgrim.serviceStatus || pilgrim.status;
+        return statusValue === filters.status;
+      });
     }
 
     // Payment status filter
@@ -78,16 +85,158 @@ const UmrahHajiList = () => {
     return filtered;
   }, [umrahPilgrims, searchTerm, filters.status, filters.paymentStatus]);
 
-  const getStatusBadge = (status) => {
+  useEffect(() => {
+    const filteredIds = new Set(filteredPilgrims.map(p => p._id));
+    setSelectedIds(prev => prev.filter(id => filteredIds.has(id)));
+  }, [filteredPilgrims]);
+
+  const handleToggleSelectAll = () => {
+    const selectable = filteredPilgrims.filter(p => p._id);
+    if (selectable.length === 0) return;
+    const allIds = selectable.map(p => p._id);
+    const allSelected = allIds.every(id => selectedIds.includes(id));
+    setSelectedIds(allSelected ? [] : allIds);
+  };
+
+  const handleToggleSelect = (pilgrim) => {
+    if (!pilgrim?._id) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হাজির _id পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    setSelectedIds(prev => 
+      prev.includes(pilgrim._id) ? prev.filter(id => id !== pilgrim._id) : [...prev, pilgrim._id]
+    );
+  };
+
+  const handleDelete = (pilgrim) => {
+    const id = pilgrim?._id;
+    if (!id) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হাজির _id পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+
+    const fullName = pilgrim.name || 'এই হাজি';
+    Swal.fire({
+      title: 'নিশ্চিত করুন',
+      text: `${fullName} কে কি মুছে ফেলতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+      cancelButtonText: 'বাতিল',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setDeletingUmrahId(id);
+        deleteUmrahMutation.mutate(id, {
+          onSettled: () => {
+            setDeletingUmrahId(null);
+            setSelectedIds(prev => prev.filter(pid => pid !== id));
+          }
+        });
+      }
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) {
+      Swal.fire({
+        title: 'নির্বাচন করুন',
+        text: 'কমপক্ষে একটি হাজি নির্বাচন করুন।',
+        icon: 'info',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#3B82F6',
+      });
+      return;
+    }
+
+    const count = selectedIds.length;
+    const name = count === 1 ? 'এই হাজি' : `${count} টি হাজি`;
+    const confirmText = count === 1 ? 'হ্যাঁ, মুছে ফেলুন' : 'হ্যাঁ, সবগুলো মুছুন';
+
+    const result = await Swal.fire({
+      title: 'নিশ্চিত করুন',
+      text: `আপনি কি ${name} মুছে ফেলতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: 'বাতিল',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setBulkDeleting(true);
+      const results = await Promise.allSettled(
+        selectedIds.map(id => deleteUmrahMutation.mutateAsync(id))
+      );
+      const rejected = results.filter(r => r.status === 'rejected');
+      if (rejected.length) {
+        Swal.fire({
+          title: 'কিছু মুছতে সমস্যা হয়েছে',
+          text: `${rejected.length} টি মুছতে ব্যর্থ হয়েছে। বাকি গুলো মুছে ফেলা হয়েছে (যদি সফল হয়ে থাকে)।`,
+          icon: 'warning',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+      } else {
+        Swal.fire({
+          title: 'সম্পন্ন!',
+          text: `${count} টি হাজি মুছে ফেলা হয়েছে।`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
+      }
+    } finally {
+      setBulkDeleting(false);
+      setSelectedIds([]);
+    }
+  };
+
+  const getStatusBadge = (status, serviceStatus) => {
+    const displayStatus = serviceStatus || status;
+    if (!displayStatus) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          N/A
+        </span>
+      );
+    }
+
+    const normalized = displayStatus.toLowerCase ? displayStatus.toLowerCase() : String(displayStatus);
     const statusClasses = {
       active: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
       inactive: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
       confirmed: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
       pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
     };
+
+    const badgeClasses =
+      statusClasses[normalized] ||
+      (normalized.includes('রেডি')
+        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+        : normalized.includes('রিফান্ড') || normalized.includes('refund')
+        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200');
+
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClasses[status] || statusClasses.active}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badgeClasses}`}>
+        {displayStatus}
       </span>
     );
   };
@@ -105,20 +254,62 @@ const UmrahHajiList = () => {
     );
   };
 
+  const selectablePilgrims = useMemo(
+    () => filteredPilgrims.filter(p => p._id),
+    [filteredPilgrims]
+  );
+  const allSelected = selectablePilgrims.length > 0 && selectablePilgrims.every(p => selectedIds.includes(p._id));
+  const partiallySelected = selectablePilgrims.some(p => selectedIds.includes(p._id)) && !allSelected;
+
   const columns = [
     {
+      key: 'select',
+      header: (
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          onChange={handleToggleSelectAll}
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = partiallySelected;
+          }}
+          aria-label="Select all"
+        />
+      ),
+      render: (value, pilgrim) => (
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          checked={selectedIds.includes(pilgrim._id)}
+          onChange={() => handleToggleSelect(pilgrim)}
+          disabled={!pilgrim._id}
+          aria-label="Select row"
+        />
+      )
+    },
+    {
       key: '_id',
-      header: 'Umrah ID',
+      header: 'উমরাহ আইডি',
       sortable: true,
       render: (value, pilgrim) => (
         <span className="font-medium text-blue-600 dark:text-blue-400">
-          {pilgrim.customerId || pilgrim._id || pilgrim.id}
+          {pilgrim.customerId || pilgrim.id || 'N/A'}
+        </span>
+      )
+    },
+    {
+      key: 'manualSerialNumber',
+      header: 'ম্যানুয়াল সিরিয়াল',
+      sortable: true,
+      render: (value, pilgrim) => (
+        <span className="font-medium text-gray-900 dark:text-white">
+          {pilgrim.manualSerialNumber || 'N/A'}
         </span>
       )
     },
     {
       key: 'name',
-      header: 'Name',
+      header: 'নাম',
       sortable: true,
       render: (value, pilgrim) => (
         <div className="flex items-center space-x-3">
@@ -149,7 +340,7 @@ const UmrahHajiList = () => {
     },
     {
       key: 'contact',
-      header: 'Contact',
+      header: 'যোগাযোগ',
       render: (value, pilgrim) => (
         <div className="text-sm">
           <div className="flex items-center space-x-1 text-gray-600 dark:text-gray-400">
@@ -173,7 +364,7 @@ const UmrahHajiList = () => {
     },
     {
       key: 'package',
-      header: 'Package',
+      header: 'প্যাকেজ',
       sortable: true,
       render: (value, pilgrim) => (
         <div className="text-sm">
@@ -184,13 +375,13 @@ const UmrahHajiList = () => {
     },
     {
       key: 'status',
-      header: 'Status',
+      header: 'স্ট্যাটাস',
       sortable: true,
-      render: (value, pilgrim) => getStatusBadge(pilgrim.status || 'active')
+      render: (value, pilgrim) => getStatusBadge(pilgrim.status, pilgrim.serviceStatus)
     },
     {
       key: 'payment',
-      header: 'Payment',
+      header: 'পেমেন্ট',
       sortable: true,
       render: (value, pilgrim) => (
         <div className="text-sm">
@@ -203,7 +394,7 @@ const UmrahHajiList = () => {
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: 'অ্যাকশন',
       render: (value, pilgrim) => (
         <div className="flex items-center space-x-2">
           <button
@@ -221,28 +412,20 @@ const UmrahHajiList = () => {
             <Edit className="w-4 h-4" />
           </button>
           <button
-            onClick={() => {
-              const fullName = pilgrim.name || 'এই হাজি';
-              Swal.fire({
-                title: 'নিশ্চিত করুন',
-                text: `${fullName} কে কি মুছে ফেলতে চান?`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
-                cancelButtonText: 'বাতিল',
-                confirmButtonColor: '#EF4444',
-                cancelButtonColor: '#6B7280',
-              }).then((result) => {
-                if (result.isConfirmed) {
-                  deleteUmrahMutation.mutate(pilgrim._id);
-                }
-              });
-            }}
-            className="p-2 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg"
-            title="Delete"
-            disabled={deleteUmrahMutation.isPending}
+            onClick={() => handleDelete(pilgrim)}
+            className={`p-2 rounded-lg ${
+              deletingUmrahId === pilgrim._id
+                ? 'text-gray-400 cursor-not-allowed'
+                : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'
+            }`}
+            title={deletingUmrahId === pilgrim._id ? 'Deleting...' : 'Delete'}
+            disabled={deletingUmrahId === pilgrim._id}
           >
-            <Trash2 className="w-4 h-4" />
+            {deletingUmrahId === pilgrim._id ? (
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
           </button>
         </div>
       )
@@ -254,7 +437,14 @@ const UmrahHajiList = () => {
       label: 'Status',
       key: 'status',
       options: [
-        { value: 'all', label: 'All Status' },
+        { value: 'all', label: 'সব স্ট্যাটাস' },
+        { value: 'পাসপোর্ট রেডি নয়', label: 'পাসপোর্ট রেডি নয়' },
+        { value: 'পাসপোর্ট রেডি', label: 'পাসপোর্ট রেডি' },
+        { value: 'প্যাকেজ যুক্ত', label: 'প্যাকেজ যুক্ত' },
+        { value: 'রেডি ফর উমরাহ্‌', label: 'রেডি ফর উমরাহ্‌' },
+        { value: 'উমরাহ্‌ সম্পন্ন', label: 'উমরাহ্‌ সম্পন্ন' },
+        { value: 'রিফান্ডেড', label: 'রিফান্ডেড' },
+        { value: 'অন্যান্য', label: 'অন্যান্য' },
         { value: 'active', label: 'Active' },
         { value: 'inactive', label: 'Inactive' },
         { value: 'confirmed', label: 'Confirmed' },
@@ -342,6 +532,22 @@ const UmrahHajiList = () => {
           <p className="text-gray-600 dark:text-gray-400">Manage all registered Umrah Haji List</p>
         </div>
         <div className="flex items-center space-x-3 mt-4 sm:mt-0">
+          <button
+            onClick={handleBulkDelete}
+            disabled={selectedIds.length === 0 || bulkDeleting}
+            className={`flex items-center space-x-2 px-4 py-2 border rounded-lg ${
+              selectedIds.length === 0 || bulkDeleting
+                ? 'text-gray-400 border-gray-200 dark:border-gray-700 cursor-not-allowed'
+                : 'text-red-600 border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+            }`}
+          >
+            {bulkDeleting ? (
+              <div className="w-4 h-4 border-2 border-red-300 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            <span>{bulkDeleting ? 'Deleting...' : 'Delete Selected'}</span>
+          </button>
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Download className="w-4 h-4" />
             <span>Export</span>
@@ -415,7 +621,7 @@ const UmrahHajiList = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by name, passport, mobile, email, Umrah ID, or NID..."
+              placeholder="Search by name, passport, mobile, email, Umrah ID, NID, or Manual Serial..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -445,24 +651,24 @@ const UmrahHajiList = () => {
           onDataProcessed={handleExcelDataProcessed}
           title="Upload Umrah Haji Data from Excel"
           acceptedFields={[
-            'name', 'mobile no', 'fathers name', 'mother\'s name', 'districts', 'upazila', 'area'
+            'name', 'mobile no', 'fathers name', 'mother\'s name', 'districts', 'upazila', 'area', 'manual serial number'
           ]}
           requiredFields={['name', 'mobile no']}
           sampleData={[
             [
-              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Districts', 'Upazila', 'Area'
+              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Districts', 'Upazila', 'Area', 'Manual Serial Number'
             ],
             [
               'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum',
-              'Dhaka', 'Dhamrai', 'Area 1'
+              'Dhaka', 'Dhamrai', 'Area 1', 'UMR-001'
             ],
             [
               'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun',
-              'Chittagong', 'Kotwali', 'Area 2'
+              'Chittagong', 'Kotwali', 'Area 2', 'UMR-002'
             ],
             [
               'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum',
-              'Sylhet', 'Sylhet Sadar', 'Area 3'
+              'Sylhet', 'Sylhet Sadar', 'Area 3', 'UMR-003'
             ]
           ]}
         />

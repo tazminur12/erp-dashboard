@@ -33,6 +33,8 @@ const HajiList = () => {
   const [selectedHaji, setSelectedHaji] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showExcelUploader, setShowExcelUploader] = useState(false);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [filters, setFilters] = useState({
     status: 'all',
     package: 'all',
@@ -79,13 +81,17 @@ const HajiList = () => {
         (haji.mobile && haji.mobile.includes(searchTerm)) ||
         (haji.email && haji.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (haji._id && haji._id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (haji.nidNumber && haji.nidNumber.includes(searchTerm))
+        (haji.nidNumber && haji.nidNumber.includes(searchTerm)) ||
+        (haji.manualSerialNumber && haji.manualSerialNumber.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
-    // Status filter
+    // Status filter (prefer serviceStatus from backend)
     if (filters.status !== 'all') {
-      filtered = filtered.filter(haji => haji.status === filters.status);
+      filtered = filtered.filter(haji => {
+        const statusValue = haji.serviceStatus || haji.status;
+        return statusValue === filters.status;
+      });
     }
 
     // Package filter
@@ -96,6 +102,9 @@ const HajiList = () => {
     }
 
     setFilteredHajis(filtered);
+    // Remove selections that are no longer in the filtered list
+    const filteredIds = new Set(filtered.map(h => h._id));
+    setSelectedIds(prev => prev.filter(id => filteredIds.has(id)));
   }, [hajis, searchTerm, filters]);
 
   const handleViewDetails = (haji) => {
@@ -165,10 +174,94 @@ const HajiList = () => {
       if (result.isConfirmed) {
         setDeletingHajiId(hajiId);
         deleteHajiMutation.mutate(hajiId, {
-          onSettled: () => setDeletingHajiId(null)
+          onSettled: () => {
+            setDeletingHajiId(null);
+            setSelectedIds(prev => prev.filter(id => id !== hajiId));
+          }
         });
       }
     });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectableHajis.length === 0) return;
+    const allIds = selectableHajis.map(h => h._id);
+    const currentlyAllSelected = allIds.length > 0 && allIds.every(id => selectedIds.includes(id));
+    setSelectedIds(currentlyAllSelected ? [] : allIds);
+  };
+
+  const handleToggleSelect = (haji) => {
+    if (!haji?._id) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হাজির _id পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    setSelectedIds(prev => 
+      prev.includes(haji._id) ? prev.filter(id => id !== haji._id) : [...prev, haji._id]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedIds.length) {
+      Swal.fire({
+        title: 'নির্বাচন করুন',
+        text: 'কমপক্ষে একটি হাজি নির্বাচন করুন।',
+        icon: 'info',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#3B82F6',
+      });
+      return;
+    }
+
+    const count = selectedIds.length;
+    const name = count === 1 ? 'এই হাজি' : `${count} টি হাজি`;
+    const confirmText = count === 1 ? 'হ্যাঁ, মুছে ফেলুন' : 'হ্যাঁ, সবগুলো মুছুন';
+
+    const result = await Swal.fire({
+      title: 'নিশ্চিত করুন',
+      text: `আপনি কি ${name} মুছে ফেলতে চান?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: confirmText,
+      cancelButtonText: 'বাতিল',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      setBulkDeleting(true);
+      const results = await Promise.allSettled(
+        selectedIds.map(id => deleteHajiMutation.mutateAsync(id))
+      );
+      const rejected = results.filter(r => r.status === 'rejected');
+      if (rejected.length) {
+        Swal.fire({
+          title: 'কিছু মুছতে সমস্যা হয়েছে',
+          text: `${rejected.length} টি মুছতে ব্যর্থ হয়েছে। বাকি গুলো মুছে ফেলা হয়েছে (যদি সফল হয়ে থাকে)।`,
+          icon: 'warning',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+      } else {
+        Swal.fire({
+          title: 'সম্পন্ন!',
+          text: `${count} টি হাজি মুছে ফেলা হয়েছে।`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
+      }
+    } finally {
+      setBulkDeleting(false);
+      setSelectedIds([]);
+    }
   };
 
   const handleExcelUpload = () => {
@@ -195,14 +288,35 @@ const HajiList = () => {
     bulkCreateHajiMutation.mutate(processedData);
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, serviceStatus) => {
+    const displayStatus = serviceStatus || status;
+    if (!displayStatus) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+          N/A
+        </span>
+      );
+    }
+
+    const normalized = displayStatus.toLowerCase ? displayStatus.toLowerCase() : String(displayStatus);
     const statusClasses = {
       active: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
       inactive: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
     };
+
+    const badgeClasses =
+      statusClasses[normalized] ||
+      (normalized.includes('রেডি') || normalized.includes('নিবন্ধিত') || normalized.includes('হজ্ব সম্পন্ন')
+        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+        : normalized.includes('রিফান্ড') || normalized.includes('আর্কাইভ')
+        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+        : normalized.includes('আনপেইড')
+        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200');
+
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClasses[status] || statusClasses.active}`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${badgeClasses}`}>
+        {displayStatus}
       </span>
     );
   };
@@ -220,10 +334,42 @@ const HajiList = () => {
     );
   };
 
+  const selectableHajis = useMemo(
+    () => filteredHajis.filter(h => h._id),
+    [filteredHajis]
+  );
+  const allSelected = selectableHajis.length > 0 && selectableHajis.every(h => selectedIds.includes(h._id));
+  const partiallySelected = selectableHajis.some(h => selectedIds.includes(h._id)) && !allSelected;
+
   const columns = [
     {
+      key: 'select',
+      header: (
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          onChange={handleToggleSelectAll}
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = partiallySelected;
+          }}
+          aria-label="Select all"
+        />
+      ),
+      render: (value, haji) => (
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          checked={selectedIds.includes(haji._id)}
+          onChange={() => handleToggleSelect(haji)}
+          disabled={!haji._id}
+          aria-label="Select row"
+        />
+      )
+    },
+    {
       key: '_id',
-      header: 'Haji ID',
+      header: 'হাজী আইডি',
       sortable: true,
         render: (value, haji) => (
           <span className="font-medium text-blue-600 dark:text-blue-400">
@@ -232,8 +378,18 @@ const HajiList = () => {
         )
     },
     {
+      key: 'manualSerialNumber',
+      header: 'ম্যানুয়াল সিরিয়াল',
+      sortable: true,
+      render: (value, haji) => (
+        <span className="font-medium text-gray-900 dark:text-white">
+          {haji.manualSerialNumber || 'N/A'}
+        </span>
+      )
+    },
+    {
       key: 'name',
-      header: 'Name',
+      header: 'নাম',
       sortable: true,
       render: (value, haji) => (
         <div className="flex items-center space-x-3">
@@ -264,7 +420,7 @@ const HajiList = () => {
     },
     {
       key: 'contact',
-      header: 'Contact',
+      header: 'যোগাযোগ',
       render: (value, haji) => (
         <div className="text-sm">
           <div className="flex items-center space-x-1 text-gray-600 dark:text-gray-400">
@@ -289,7 +445,7 @@ const HajiList = () => {
   
     {
       key: 'package',
-      header: 'Package',
+      header: 'প্যাকেজ',
       sortable: true,
       render: (value, haji) => (
         <div className="text-sm">
@@ -300,13 +456,13 @@ const HajiList = () => {
     },
     {
       key: 'status',
-      header: 'Status',
+      header: 'স্ট্যাটাস',
       sortable: true,
-      render: (value, haji) => getStatusBadge(haji.status || 'active')
+      render: (value, haji) => getStatusBadge(haji.status, haji.serviceStatus)
     },
     {
       key: 'payment',
-      header: 'Payment',
+      header: 'পেমেন্ট',
       sortable: true,
       render: (value, haji) => (
         <div className="text-sm">
@@ -319,7 +475,7 @@ const HajiList = () => {
     },
     {
       key: 'actions',
-      header: 'Actions',
+      header: 'অ্যাকশন',
       render: (value, haji) => (
         <div className="flex items-center space-x-2">
           <button
@@ -362,7 +518,15 @@ const HajiList = () => {
       label: 'Status',
       key: 'status',
       options: [
-        { value: 'all', label: 'All Status' },
+        { value: 'all', label: 'সব স্ট্যাটাস' },
+        { value: 'আনপেইড', label: 'আনপেইড' },
+        { value: 'প্রাক-নিবন্ধিত', label: 'প্রাক-নিবন্ধিত' },
+        { value: 'নিবন্ধিত', label: 'নিবন্ধিত' },
+        { value: 'হজ্ব সম্পন্ন', label: 'হজ্ব সম্পন্ন' },
+        { value: 'আর্কাইভ', label: 'আর্কাইভ' },
+        { value: 'রেডি রিপ্লেস', label: 'রেডি রিপ্লেস' },
+        { value: 'রিফান্ডেড', label: 'রিফান্ডেড' },
+        { value: 'অন্যান্য', label: 'অন্যান্য' },
         { value: 'active', label: 'Active' },
         { value: 'inactive', label: 'Inactive' }
       ]
@@ -427,6 +591,22 @@ const HajiList = () => {
           <p className="text-gray-600 dark:text-gray-400">Manage all registered Haji</p>
         </div>
         <div className="flex items-center space-x-3 mt-4 sm:mt-0">
+          <button
+            onClick={handleBulkDelete}
+            disabled={selectedIds.length === 0 || bulkDeleting}
+            className={`flex items-center space-x-2 px-4 py-2 border rounded-lg ${
+              selectedIds.length === 0 || bulkDeleting
+                ? 'text-gray-400 border-gray-200 dark:border-gray-700 cursor-not-allowed'
+                : 'text-red-600 border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+            }`}
+          >
+            {bulkDeleting ? (
+              <div className="w-4 h-4 border-2 border-red-300 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <Trash2 className="w-4 h-4" />
+            )}
+            <span>{bulkDeleting ? 'Deleting...' : 'Delete Selected'}</span>
+          </button>
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Download className="w-4 h-4" />
             <span>Export</span>
@@ -501,7 +681,7 @@ const HajiList = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by name, passport, mobile, email, Haji ID, or NID..."
+              placeholder="Search by name, passport, mobile, email, Haji ID, NID, or Manual Serial..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -545,6 +725,10 @@ const HajiList = () => {
                 <div>
                   <label className="text-sm text-gray-600 dark:text-gray-400">Haji ID</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.customerId || selectedHaji._id || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</label>
+                  <p className="text-gray-900 dark:text-white">{selectedHaji.manualSerialNumber || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600 dark:text-gray-400">Mobile</label>
@@ -683,23 +867,23 @@ const HajiList = () => {
           onDataProcessed={handleExcelDataProcessed}
           title="Upload Haji Data from Excel"
           acceptedFields={[
-            'name', 'mobile no', 'fathers name', 'mother\'s name', 'districts', 'upazila', 'area'
+            'name', 'mobile no', 'fathers name', 'mother\'s name', 'manual serial number', 'districts', 'upazila', 'area'
           ]}
           requiredFields={['name', 'mobile no']}
           sampleData={[
             [
-              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Districts', 'Upazila', 'Area'
+              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Manual Serial Number', 'Districts', 'Upazila', 'Area'
             ],
             [
-              'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum', 
+              'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum', 'MSN-001',
               'Dhaka', 'Dhamrai', 'Area 1'
             ],
             [
-              'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun', 
+              'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun', 'MSN-002',
               'Chittagong', 'Kotwali', 'Area 2'
             ],
             [
-              'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum', 
+              'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum', 'MSN-003',
               'Sylhet', 'Sylhet Sadar', 'Area 3'
             ]
           ]}

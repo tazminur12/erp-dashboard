@@ -194,7 +194,9 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
         status: hajiData.status || 'active',
         referenceBy: hajiData.referenceBy || '',
         referenceHajiId: hajiData.referenceHajiId || '',
-        notes: hajiData.notes || ''
+        serviceStatus: hajiData.serviceStatus || '',
+        notes: hajiData.notes || '',
+        manualSerialNumber: hajiData.manualSerialNumber || ''
       });
       setNameManuallyEdited(false);
     }
@@ -253,8 +255,9 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
     referenceBy: '',
     referenceCustomerId: '',
     serviceType: '',
-    serviceStatus: '',
-    isActive: true
+    serviceStatus: 'প্রাক-নিবন্ধিত',
+    isActive: true,
+    manualSerialNumber: ''
   });
 
   // Location options derived from AllDivision.json
@@ -442,6 +445,7 @@ useEffect(() => {
         name: computedName,
         firstName: formData.firstName || formData.name.split(' ')[0] || '',
         lastName: formData.lastName || formData.name.split(' ').slice(1).join(' ') || '',
+        manualSerialNumber: formData.manualSerialNumber,
         mobile: formData.mobile || formData.phone,
         phone: formData.mobile || formData.phone,
         whatsappNo: formData.whatsappNo,
@@ -472,7 +476,7 @@ useEffect(() => {
 
         // Service and status
         serviceType: 'hajj',
-        serviceStatus: formData.paymentStatus === 'paid' ? 'confirmed' : 'pending',
+        serviceStatus: formData.serviceStatus,
         isActive: formData.isActive,
         notes: formData.notes,
         referenceBy: formData.referenceBy,
@@ -576,6 +580,13 @@ useEffect(() => {
         <FormSection title="Personal Information" icon={User}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <InputGroup 
+              label="Manual Serial Number" 
+              name="manualSerialNumber" 
+              value={formData.manualSerialNumber}
+              onChange={handleInputChange}
+              placeholder="Enter manual serial number"
+            />
+            <InputGroup 
               label="Full Name" 
               name="name" 
               required
@@ -652,6 +663,22 @@ useEffect(() => {
               name="nationality" 
               value={formData.nationality}
               onChange={handleInputChange}
+            />
+            <SelectGroup
+              label="Haji Status"
+              name="serviceStatus"
+              value={formData.serviceStatus}
+              onChange={handleInputChange}
+              options={[
+                { value: 'আনপেইড', label: 'আনপেইড' },
+                { value: 'প্রাক-নিবন্ধিত', label: 'প্রাক-নিবন্ধিত' },
+                { value: 'নিবন্ধিত', label: 'নিবন্ধিত' },
+                { value: 'হজ্ব সম্পন্ন', label: 'হজ্ব সম্পন্ন' },
+                { value: 'আর্কাইভ', label: 'আর্কাইভ' },
+                { value: 'রেডি রিপ্লেস', label: 'রেডি রিপ্লেস' },
+                { value: 'রিফান্ডেড', label: 'রিফান্ডেড' },
+                { value: 'অন্যান্য', label: 'অন্যান্য' }
+              ]}
             />
           </div>
         </FormSection>
