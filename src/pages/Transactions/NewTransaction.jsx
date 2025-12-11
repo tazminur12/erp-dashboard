@@ -163,6 +163,12 @@ const NewTransaction = () => {
     payload.append('api_key', smsApiKey);
     payload.append('msg', message);
     payload.append('to', to);
+    payload.append('type', 'unicode'); // Bangla text
+    const approvedSender = 'Salma Air';
+    const senderIdEnv = (import.meta.env.VITE_SMS_SENDER_ID || '').trim();
+    const senderId = senderIdEnv && senderIdEnv !== approvedSender ? approvedSender : approvedSender;
+    payload.append('senderid', senderId);
+    payload.append('sender_id', senderId);
 
     try {
       const response = await fetch('https://api.sms.net.bd/sendsms', {
@@ -170,10 +176,12 @@ const NewTransaction = () => {
         body: payload
       });
       if (!response.ok) {
+        const errText = await response.text();
+        console.error('Transaction SMS failed response text:', errText);
         throw new Error(`SMS API responded with ${response.status}`);
       }
       const body = await response.text();
-      console.log('SMS sent successfully:', body);
+      console.log('Transaction SMS sent:', { to, message, senderId, body, transactionId });
     } catch (err) {
       console.error('Failed to send SMS:', err);
     }

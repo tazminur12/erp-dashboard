@@ -35,6 +35,8 @@ const HajiDetails = () => {
   const [showPackagePicker, setShowPackagePicker] = useState(false);
   const [packageSearch, setPackageSearch] = useState('');
   const [selectedPassengerType, setSelectedPassengerType] = useState('adult');
+  const [isSendingDueSms, setIsSendingDueSms] = useState(false);
+  const [dueSmsStatus, setDueSmsStatus] = useState(null);
 
   // Determine if this is a Haji or Umrah based on query parameter
   const isUmrah = searchParams.get('type') === 'umrah';
@@ -153,6 +155,72 @@ const HajiDetails = () => {
       return <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-600 dark:text-yellow-400" />;
     } else {
       return <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 dark:text-red-400" />;
+    }
+  };
+
+  // SMS helpers for sending due reminders
+  const smsApiKey = import.meta.env.VITE_SMS_API_KEY;
+  const normalizePhoneForSms = (rawPhone) => {
+    if (!rawPhone) return null;
+    const digitsOnly = String(rawPhone).replace(/\D/g, '');
+    if (digitsOnly.startsWith('880')) return digitsOnly;
+    if (digitsOnly.startsWith('0')) return `88${digitsOnly}`;
+    if (digitsOnly.startsWith('1')) return `880${digitsOnly}`;
+    return digitsOnly || null;
+  };
+
+  const sendDueSms = async () => {
+    const phone = haji?.mobile || haji?.phone;
+    const to = normalizePhoneForSms(phone);
+    const dueAmount =
+      typeof haji?.due === 'number'
+        ? haji.due
+        : Math.max(Number(haji?.totalAmount || 0) - Number(haji?.paidAmount || 0), 0);
+
+    if (!smsApiKey) {
+      setDueSmsStatus({ type: 'error', message: 'SMS API key সেট করা নেই।' });
+      return;
+    }
+    if (!to) {
+      setDueSmsStatus({ type: 'error', message: 'সঠিক ফোন নম্বর পাওয়া যায়নি।' });
+      return;
+    }
+
+    setIsSendingDueSms(true);
+    setDueSmsStatus(null);
+
+    const amountText = Number(dueAmount || 0).toLocaleString('en-US');
+    const message = `আপনার বকেয়া রয়েছে ${amountText} BDT\nwww.salmaair.com`;
+
+    const payload = new URLSearchParams();
+    payload.append('api_key', smsApiKey);
+    payload.append('msg', message);
+    payload.append('to', to);
+    payload.append('type', 'unicode'); // Bangla text needs unicode flag
+    const approvedSender = 'Salma Air'; // masking sender approved by gateway
+    const senderIdEnv = (import.meta.env.VITE_SMS_SENDER_ID || '').trim();
+    const senderId = senderIdEnv && senderIdEnv !== approvedSender ? approvedSender : approvedSender;
+    // Always use approved sender to avoid 413 Invalid Sender ID
+    payload.append('senderid', senderId);
+    payload.append('sender_id', senderId);
+
+    try {
+      const response = await fetch('https://api.sms.net.bd/sendsms', {
+        method: 'POST',
+        body: payload
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('Due SMS failed response text:', errText);
+        throw new Error(`SMS API responded with ${response.status}`);
+      }
+      const body = await response.text();
+      setDueSmsStatus({ type: 'success', message: 'বকেয়ার SMS পাঠানো হয়েছে।' });
+    } catch (err) {
+      console.error('Failed to send due SMS:', err);
+      setDueSmsStatus({ type: 'error', message: 'SMS পাঠানো যায়নি।' });
+    } finally {
+      setIsSendingDueSms(false);
     }
   };
 
@@ -661,6 +729,36 @@ const HajiDetails = () => {
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
             <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Number((typeof haji.due === 'number' ? haji.due : Math.max((Number(haji.totalAmount || 0) - Number(haji.paidAmount || 0)), 0))).toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            SMS যাবে নম্বর: <span className="font-medium text-gray-900 dark:text-white">{haji.mobile || haji.phone || 'N/A'}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            {dueSmsStatus && (
+              <span
+                className={`text-sm ${
+                  dueSmsStatus.type === 'success'
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+              >
+                {dueSmsStatus.message}
+              </span>
+            )}
+            <button
+              onClick={sendDueSms}
+              disabled={isSendingDueSms || (!haji.mobile && !haji.phone)}
+              className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base ${
+                isSendingDueSms || (!haji.mobile && !haji.phone)
+                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>{isSendingDueSms ? 'পাঠানো হচ্ছে...' : 'Due SMS পাঠান'}</span>
+            </button>
           </div>
         </div>
       </div>

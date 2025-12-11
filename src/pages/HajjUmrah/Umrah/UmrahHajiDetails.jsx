@@ -15,7 +15,8 @@ import {
   AlertCircle,
   FileText,
   Package,
-  Image as ImageIcon
+  Image as ImageIcon,
+  MessageCircle
 } from 'lucide-react';
 import { useUmrah, useUpdateUmrah } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
@@ -27,6 +28,8 @@ const UmrahHajiDetails = () => {
   const [showPackagePicker, setShowPackagePicker] = useState(false);
   const [packageSearch, setPackageSearch] = useState('');
   const [selectedPassengerType, setSelectedPassengerType] = useState('adult');
+  const [isSendingDueSms, setIsSendingDueSms] = useState(false);
+  const [dueSmsStatus, setDueSmsStatus] = useState(null);
 
   const { data: umrah, isLoading, error } = useUmrah(id);
   const area = umrah?.area ?? umrah?.doc?.area ?? null;
@@ -183,6 +186,67 @@ const UmrahHajiDetails = () => {
     { id: 'documents', label: 'Documents', icon: ImageIcon }
   ];
 
+  const smsApiKey = import.meta.env.VITE_SMS_API_KEY;
+  const normalizePhoneForSms = (rawPhone) => {
+    if (!rawPhone) return null;
+    const digitsOnly = String(rawPhone).replace(/\D/g, '');
+    if (digitsOnly.startsWith('880')) return digitsOnly;
+    if (digitsOnly.startsWith('0')) return `88${digitsOnly}`;
+    if (digitsOnly.startsWith('1')) return `880${digitsOnly}`;
+    return digitsOnly || null;
+  };
+
+  const sendDueSms = async () => {
+    const phone = umrah?.mobile || umrah?.phone;
+    const to = normalizePhoneForSms(phone);
+    const dueAmount = Math.max(Number(umrah?.totalAmount || 0) - Number(umrah?.paidAmount || 0), 0);
+
+    if (!smsApiKey) {
+      setDueSmsStatus({ type: 'error', message: 'SMS API key সেট করা নেই।' });
+      return;
+    }
+    if (!to) {
+      setDueSmsStatus({ type: 'error', message: 'সঠিক ফোন নম্বর পাওয়া যায়নি।' });
+      return;
+    }
+
+    setIsSendingDueSms(true);
+    setDueSmsStatus(null);
+
+    const amountText = Number(dueAmount || 0).toLocaleString('en-US');
+    const message = `আপনার বকেয়া রয়েছে ${amountText} BDT\nwww.salmaair.com`;
+
+    const payload = new URLSearchParams();
+    payload.append('api_key', smsApiKey);
+    payload.append('msg', message);
+    payload.append('to', to);
+    payload.append('type', 'unicode'); // Bangla text needs unicode flag
+    const approvedSender = 'Salma Air'; // masking sender approved by gateway
+    const senderIdEnv = (import.meta.env.VITE_SMS_SENDER_ID || '').trim();
+    const senderId = senderIdEnv && senderIdEnv !== approvedSender ? approvedSender : approvedSender;
+    payload.append('senderid', senderId);
+    payload.append('sender_id', senderId);
+
+    try {
+      const response = await fetch('https://api.sms.net.bd/sendsms', {
+        method: 'POST',
+        body: payload
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error('Due SMS failed response text:', errText);
+        throw new Error(`SMS API responded with ${response.status}`);
+      }
+      const body = await response.text();
+      setDueSmsStatus({ type: 'success', message: 'বকেয়ার SMS পাঠানো হয়েছে।' });
+    } catch (err) {
+      console.error('Failed to send due SMS:', err);
+      setDueSmsStatus({ type: 'error', message: 'SMS পাঠানো যায়নি।' });
+    } finally {
+      setIsSendingDueSms(false);
+    }
+  };
+
   const renderOverview = () => (
     <div className="space-y-4 sm:space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
@@ -297,6 +361,36 @@ const UmrahHajiDetails = () => {
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
             <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{formatNumber(Math.max(Number(umrah.totalAmount || 0) - Number(umrah.paidAmount || 0), 0))}</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            SMS যাবে নম্বর: <span className="font-medium text-gray-900 dark:text-white">{umrah.mobile || umrah.phone || 'N/A'}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            {dueSmsStatus && (
+              <span
+                className={`text-sm ${
+                  dueSmsStatus.type === 'success'
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+              >
+                {dueSmsStatus.message}
+              </span>
+            )}
+            <button
+              onClick={sendDueSms}
+              disabled={isSendingDueSms || (!umrah.mobile && !umrah.phone)}
+              className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base ${
+                isSendingDueSms || (!umrah.mobile && !umrah.phone)
+                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>{isSendingDueSms ? 'পাঠানো হচ্ছে...' : 'Due SMS পাঠান'}</span>
+            </button>
           </div>
         </div>
       </div>
