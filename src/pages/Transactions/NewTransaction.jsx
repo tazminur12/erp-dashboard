@@ -142,6 +142,43 @@ const NewTransaction = () => {
   const categoryQueries = useCategoryQueries();
   const { data: settingsCategories = [], isLoading: settingsCategoriesLoading } = (categoryQueries && categoryQueries.useCategories) ? categoryQueries.useCategories() : { data: [], isLoading: false };
 
+  // SMS helpers
+  const smsApiKey = import.meta.env.VITE_SMS_API_KEY;
+  const normalizePhoneForSms = (rawPhone) => {
+    if (!rawPhone) return null;
+    const digitsOnly = String(rawPhone).replace(/\D/g, '');
+    if (digitsOnly.startsWith('880')) return digitsOnly;
+    if (digitsOnly.startsWith('0')) return `88${digitsOnly}`;
+    if (digitsOnly.startsWith('1')) return `880${digitsOnly}`;
+    return digitsOnly || null;
+  };
+  const sendTransactionSms = async ({ phone, amount, transactionId }) => {
+    const to = normalizePhoneForSms(phone);
+    if (!smsApiKey || !to) return;
+
+    const amountText = Number(amount || 0).toLocaleString('en-US');
+    const message = `আপনার লেনদেন সফলভাবে গৃহীত হয়েছে।\nপরিমানঃ ${amountText} BDT\nwww.salmaair.com`;
+
+    const payload = new URLSearchParams();
+    payload.append('api_key', smsApiKey);
+    payload.append('msg', message);
+    payload.append('to', to);
+
+    try {
+      const response = await fetch('https://api.sms.net.bd/sendsms', {
+        method: 'POST',
+        body: payload
+      });
+      if (!response.ok) {
+        throw new Error(`SMS API responded with ${response.status}`);
+      }
+      const body = await response.text();
+      console.log('SMS sent successfully:', body);
+    } catch (err) {
+      console.error('Failed to send SMS:', err);
+    }
+  };
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Transaction Type
@@ -1432,7 +1469,7 @@ const NewTransaction = () => {
         // Complete the transaction atomically on backend (idempotent)
         // This will update accounts, parties (agent/customer/vendor), and invoices
         completeTransactionMutation.mutate(txId, {
-          onSuccess: (completeData) => {
+          onSuccess: async (completeData) => {
             console.log('Transaction completed successfully:', completeData);
             
             // Additional cache invalidation for invoice if present
@@ -1447,6 +1484,13 @@ const NewTransaction = () => {
               queryClient.invalidateQueries({ queryKey: vendorKeys.detail(partyId) });
               queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(partyId), 'financials'] });
             }
+
+            // Notify customer via SMS (best-effort)
+            await sendTransactionSms({
+              phone: unifiedTransactionData.customerPhone || formData.customerPhone,
+              amount,
+              transactionId: txId
+            });
           },
           onError: (error) => {
             console.error('Transaction completion failed:', error);

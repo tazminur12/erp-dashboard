@@ -21,6 +21,7 @@ import Swal from 'sweetalert2';
 import { usePackages } from '../../../hooks/usePackageQueries';
 import { useAgents } from '../../../hooks/useAgentQueries';
 import divisionData from '../../../jsondata/AllDivision.json';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
 
 const toast = {
   success: (message) => console.log('Success:', message),
@@ -77,46 +78,101 @@ const SelectGroup = memo(({ label, name, options = [], required = false, value, 
   </div>
 ));
 
-const FileUploadGroup = memo(({ label, name, accept, required = false, value, onFileChange, onRemoveFile }) => (
-  <div className="space-y-2">
-    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-      {label} {required && <span className="text-red-500">*</span>}
-    </label>
-    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4">
-      {value ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <FileText className="w-5 h-5 text-gray-400" />
-            <span className="text-sm text-gray-900 dark:text-white">
-              {value.name}
-            </span>
+const FileUploadGroup = memo(({ label, name, accept, required = false, value, onFileChange, onRemoveFile, preview, uploading }) => {
+  const isImage = preview || (value && typeof value === 'string' && (value.match(/\.(jpg|jpeg|png|gif|webp)$/i) || (value.startsWith('http') && !value.match(/\.pdf(\?|$)/i))));
+  const isPdf = value && typeof value === 'string' && (value.match(/\.pdf(\?|$)/i) || (value.includes('pdf') && !value.match(/\.(jpg|jpeg|png|gif|webp)$/i)));
+  
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4">
+        {uploading ? (
+          <div className="flex flex-col items-center justify-center space-y-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Uploading to Cloudinary...</span>
           </div>
-          <button
-            type="button"
-            onClick={onRemoveFile}
-            className="text-red-500 hover:text-red-700"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      ) : (
-        <label htmlFor={`file-${name}`} className="block text-center cursor-pointer">
-          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Click to upload or drag and drop
-          </span>
-          <input
-            id={`file-${name}`}
-            type="file"
-            accept={accept}
-            onChange={onFileChange}
-            className="hidden"
-          />
-        </label>
-      )}
+        ) : isImage ? (
+          <div className="flex flex-col items-center space-y-3">
+            <img 
+              src={preview || value} 
+              alt={label}
+              className="max-h-48 max-w-full rounded-lg object-contain"
+            />
+            <button
+              type="button"
+              onClick={onRemoveFile}
+              className="flex items-center space-x-2 px-3 py-1 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+              <span>Remove {label}</span>
+            </button>
+          </div>
+        ) : isPdf || (value && typeof value === 'string') ? (
+          <div className="flex flex-col items-center space-y-3">
+            <div className="flex items-center space-x-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+              <FileText className="w-8 h-8 text-red-500" />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
+                  {label} Uploaded
+                </span>
+                {isPdf && (
+                  <a 
+                    href={value} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    View PDF
+                  </a>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onRemoveFile}
+              className="flex items-center space-x-2 px-3 py-1 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+              <span>Remove {label}</span>
+            </button>
+          </div>
+        ) : value && value.name ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <FileText className="w-5 h-5 text-gray-400" />
+              <span className="text-sm text-gray-900 dark:text-white">
+                {value.name}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={onRemoveFile}
+              className="text-red-500 hover:text-red-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <label htmlFor={`file-${name}`} className="block text-center cursor-pointer">
+            <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Click to upload or drag and drop
+            </span>
+            <input
+              id={`file-${name}`}
+              type="file"
+              accept={accept}
+              onChange={onFileChange}
+              className="hidden"
+            />
+          </label>
+        )}
+      </div>
     </div>
-  </div>
-));
+  );
+});
 
 const AddHaji = () => {
   const navigate = useNavigate();
@@ -125,6 +181,12 @@ const AddHaji = () => {
   const [packages, setPackages] = useState([]);
   const [agents, setAgents] = useState([]);
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [passportUploading, setPassportUploading] = useState(false);
+  const [passportPreview, setPassportPreview] = useState(null);
+  const [nidUploading, setNidUploading] = useState(false);
+  const [nidPreview, setNidPreview] = useState(null);
   
   // Check for URL parameters
   const urlParams = new URLSearchParams(location.search);
@@ -148,6 +210,7 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
   useEffect(() => {
     if (editMode && hajiData) {
       // Populate form with Haji data
+      const photoUrl = hajiData.photo || hajiData.photoUrl || '';
       setFormData({
         name: hajiData.name || '',
         firstName: hajiData.firstName || '',
@@ -196,8 +259,29 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
         referenceHajiId: hajiData.referenceHajiId || '',
         serviceStatus: hajiData.serviceStatus || '',
         notes: hajiData.notes || '',
-        manualSerialNumber: hajiData.manualSerialNumber || ''
+        manualSerialNumber: hajiData.manualSerialNumber || '',
+        photo: photoUrl,
+        passportCopy: hajiData.passportCopy || hajiData.passportCopyUrl || '',
+        nidCopy: hajiData.nidCopy || hajiData.nidCopyUrl || ''
       });
+      // Set previews if URLs exist
+      if (photoUrl) {
+        setPhotoPreview(photoUrl);
+      }
+      const passportUrl = hajiData.passportCopy || hajiData.passportCopyUrl || '';
+      if (passportUrl) {
+        // Only set preview if it's an image
+        if (passportUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) || passportUrl.startsWith('http')) {
+          setPassportPreview(passportUrl);
+        }
+      }
+      const nidUrl = hajiData.nidCopy || hajiData.nidCopyUrl || '';
+      if (nidUrl) {
+        // Only set preview if it's an image
+        if (nidUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) || nidUrl.startsWith('http')) {
+          setNidPreview(nidUrl);
+        }
+      }
       setNameManuallyEdited(false);
     }
   }, [editMode, hajiData]);
@@ -362,14 +446,320 @@ useEffect(() => {
   const handleFileUpload = useCallback((fieldName) => (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Upload to Cloudinary for photo, passport, and nid
+      if (fieldName === 'photo') {
+        uploadPhotoToCloudinary(file);
+      } else if (fieldName === 'passportCopy') {
+        uploadPassportToCloudinary(file);
+      } else if (fieldName === 'nidCopy') {
+        uploadNidToCloudinary(file);
+      } else {
+        // For other files, store directly
+        setFormData(prev => ({
+          ...prev,
+          [fieldName]: file
+        }));
+      }
+    }
+  }, []);
+
+  // Cloudinary Upload Function for Photo
+  const uploadPhotoToCloudinary = useCallback(async (file) => {
+    try {
+      // Validate Cloudinary configuration first
+      if (!validateCloudinaryConfig()) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'Cloudinary configuration is incomplete. Please check your .env.local file.',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      setPhotoUploading(true);
+
+      // Validate file
+      if (!file || !file.type.startsWith('image/')) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'Please select a valid image file',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'File size must be less than 5MB',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPhotoPreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+
+      // Create FormData for Cloudinary upload
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'hajj-photos');
+
+      // Upload to Cloudinary
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const imageUrl = result.secure_url;
+
+      // Update form data with Cloudinary URL
       setFormData(prev => ({
         ...prev,
-        [fieldName]: file
+        photo: imageUrl
       }));
+
+      // Show success message
+      Swal.fire({
+        title: 'সফল!',
+        text: 'ছবি Cloudinary এ আপলোড হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.message || 'ছবি আপলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      setPhotoPreview(null);
+    } finally {
+      setPhotoUploading(false);
+    }
+  }, []);
+
+  // Cloudinary Upload Function for Passport
+  const uploadPassportToCloudinary = useCallback(async (file) => {
+    try {
+      if (!validateCloudinaryConfig()) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'Cloudinary configuration is incomplete. Please check your .env.local file.',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      setPassportUploading(true);
+
+      if (!file) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'Please select a valid file',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'File size must be less than 5MB',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      // Create preview for images
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPassportPreview(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // Create FormData for Cloudinary upload
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'hajj-documents/passport');
+
+      // Upload to Cloudinary
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const fileUrl = result.secure_url;
+
+      // Update form data with Cloudinary URL
+      setFormData(prev => ({
+        ...prev,
+        passportCopy: fileUrl
+      }));
+
+      Swal.fire({
+        title: 'সফল!',
+        text: 'পাসপোর্ট কপি Cloudinary এ আপলোড হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.message || 'ফাইল আপলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      setPassportPreview(null);
+    } finally {
+      setPassportUploading(false);
+    }
+  }, []);
+
+  // Cloudinary Upload Function for NID
+  const uploadNidToCloudinary = useCallback(async (file) => {
+    try {
+      if (!validateCloudinaryConfig()) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'Cloudinary configuration is incomplete. Please check your .env.local file.',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      setNidUploading(true);
+
+      if (!file) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'Please select a valid file',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'File size must be less than 5MB',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      // Create preview for images
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setNidPreview(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // Create FormData for Cloudinary upload
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'hajj-documents/nid');
+
+      // Upload to Cloudinary
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const fileUrl = result.secure_url;
+
+      // Update form data with Cloudinary URL
+      setFormData(prev => ({
+        ...prev,
+        nidCopy: fileUrl
+      }));
+
+      Swal.fire({
+        title: 'সফল!',
+        text: 'NID কপি Cloudinary এ আপলোড হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.message || 'ফাইল আপলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      setNidPreview(null);
+    } finally {
+      setNidUploading(false);
     }
   }, []);
 
   const removeFile = useCallback((fieldName) => () => {
+    if (fieldName === 'photo') {
+      setPhotoPreview(null);
+    } else if (fieldName === 'passportCopy') {
+      setPassportPreview(null);
+    } else if (fieldName === 'nidCopy') {
+      setNidPreview(null);
+    }
     setFormData(prev => ({
       ...prev,
       [fieldName]: null
@@ -503,7 +893,15 @@ useEffect(() => {
           packageType: 'hajj',
           agent: agents.find(a => a.id === formData.agentId)?.name || '',
           agentContact: agents.find(a => a.id === formData.agentId)?.phone || ''
-        }
+        },
+
+        // Documents (Cloudinary URLs)
+        photo: formData.photo || undefined,
+        photoUrl: formData.photo || undefined,
+        passportCopy: formData.passportCopy || undefined,
+        passportCopyUrl: formData.passportCopy || undefined,
+        nidCopy: formData.nidCopy || undefined,
+        nidCopyUrl: formData.nidCopy || undefined
       };
 
       if (editMode) {
@@ -936,6 +1334,8 @@ useEffect(() => {
               value={formData.passportCopy}
               onFileChange={handleFileUpload('passportCopy')}
               onRemoveFile={removeFile('passportCopy')}
+              preview={passportPreview}
+              uploading={passportUploading}
             />
             <FileUploadGroup 
               label="NID Copy" 
@@ -944,6 +1344,8 @@ useEffect(() => {
               value={formData.nidCopy}
               onFileChange={handleFileUpload('nidCopy')}
               onRemoveFile={removeFile('nidCopy')}
+              preview={nidPreview}
+              uploading={nidUploading}
             />
             <FileUploadGroup 
               label="Photo" 
@@ -952,6 +1354,8 @@ useEffect(() => {
               value={formData.photo}
               onFileChange={handleFileUpload('photo')}
               onRemoveFile={removeFile('photo')}
+              preview={photoPreview}
+              uploading={photoUploading}
             />
           </div>
         </FormSection>

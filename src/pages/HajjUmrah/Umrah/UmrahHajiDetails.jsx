@@ -14,7 +14,8 @@ import {
   Clock,
   AlertCircle,
   FileText,
-  Package
+  Package,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useUmrah, useUpdateUmrah } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
@@ -70,22 +71,43 @@ const UmrahHajiDetails = () => {
     }
 
     const normalized = displayStatus.toLowerCase ? displayStatus.toLowerCase() : String(displayStatus);
-    const statusClasses = {
-      active: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-      inactive: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
-      confirmed: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-      pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-    };
-    const cls =
-      statusClasses[normalized] ||
-      (normalized.includes('রেডি')
-        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-        : normalized.includes('রিফান্ড') || normalized.includes('refund')
-        ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200');
+    
+    // Define specific colors for each status
+    let badgeClasses = 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+    
+    // Check for specific Umrah statuses
+    if (normalized.includes('পাসপোর্ট রেডি নয়') || normalized.includes('passport not ready')) {
+      badgeClasses = 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400';
+    } else if (normalized.includes('পাসপোর্ট রেডি') || normalized.includes('passport ready')) {
+      badgeClasses = 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/20 dark:text-cyan-400';
+    } else if (normalized.includes('প্যাকেজ যুক্ত') || normalized.includes('package added')) {
+      badgeClasses = 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
+    } else if (normalized.includes('রেডি ফর উমরাহ্‌') || normalized.includes('ready for umrah')) {
+      badgeClasses = 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+    } else if (normalized.includes('উমরাহ্‌ সম্পন্ন') || normalized.includes('umrah completed')) {
+      badgeClasses = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400';
+    } else if (normalized.includes('রিফান্ডেড') || normalized.includes('refunded')) {
+      badgeClasses = 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+    } else if (normalized.includes('অন্যান্য') || normalized.includes('other')) {
+      badgeClasses = 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
+    } else if (normalized === 'pending' || normalized.includes('pending')) {
+      badgeClasses = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+    } else if (normalized === 'active' || normalized.includes('active')) {
+      badgeClasses = 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+    } else if (normalized === 'inactive' || normalized.includes('inactive')) {
+      badgeClasses = 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+    } else if (normalized.includes('রেডি') || normalized.includes('ready')) {
+      badgeClasses = 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+    } else if (normalized.includes('নিবন্ধিত') || normalized.includes('registered')) {
+      badgeClasses = 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
+    } else if (normalized.includes('আর্কাইভ') || normalized.includes('archive')) {
+      badgeClasses = 'bg-slate-100 text-slate-800 dark:bg-slate-900/20 dark:text-slate-400';
+    } else {
+      badgeClasses = 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-200';
+    }
 
     return (
-      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${cls}`}>
+      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${badgeClasses}`}>
         {displayStatus}
       </span>
     );
@@ -157,7 +179,8 @@ const UmrahHajiDetails = () => {
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'personal', label: 'Personal Info', icon: FileText },
     { id: 'package', label: 'Package Info', icon: Package },
-    { id: 'financial', label: 'Financial', icon: CreditCard }
+    { id: 'financial', label: 'Financial', icon: CreditCard },
+    { id: 'documents', label: 'Documents', icon: ImageIcon }
   ];
 
   const renderOverview = () => (
@@ -166,15 +189,18 @@ const UmrahHajiDetails = () => {
         <div className="flex flex-col sm:flex-row sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
           <div className="flex items-center space-x-4 sm:block">
             <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full overflow-hidden flex-shrink-0">
-              {umrah.image ? (
-                <img
-                  src={umrah.image}
-                  alt={umrah.name || 'Umrah Haji'}
-                  className="w-full h-full object-cover"
-                  onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                />
-              ) : null}
-              <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${umrah.image ? 'hidden' : 'flex'}`}>
+              {(() => {
+                const photoUrl = umrah.photo || umrah.photoUrl || umrah.image;
+                return photoUrl ? (
+                  <img
+                    src={photoUrl}
+                    alt={umrah.name || 'Umrah Haji'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                  />
+                ) : null;
+              })()}
+              <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${(umrah.photo || umrah.photoUrl || umrah.image) ? 'hidden' : 'flex'}`}>
                 <User className="w-8 h-8 sm:w-12 sm:h-12 text-blue-600 dark:text-blue-400" />
               </div>
             </div>
@@ -460,6 +486,129 @@ const UmrahHajiDetails = () => {
     </div>
   );
 
+  const renderDocuments = () => (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Uploaded Photos and Documents */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Uploaded Photos & Documents</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Photo */}
+          {(() => {
+            const photoUrl = umrah.photo || umrah.photoUrl || umrah.image;
+            return photoUrl ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Photo</label>
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <img 
+                    src={photoUrl} 
+                    alt={`${umrah.name || 'Umrah Haji'} Photo`}
+                    className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => window.open(photoUrl, '_blank')}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                </div>
+                <a 
+                  href={photoUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-block"
+                >
+                  View Full Size
+                </a>
+              </div>
+            ) : null;
+          })()}
+          
+          {/* Passport Copy */}
+          {(() => {
+            const passportUrl = umrah.passportCopy || umrah.passportCopyUrl;
+            return passportUrl ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Passport Copy</label>
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  {passportUrl.match(/\.pdf(\?|$)/i) ? (
+                    <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      <div className="text-center">
+                        <FileText className="w-12 h-12 text-red-500 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600 dark:text-gray-400">PDF Document</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <img 
+                      src={passportUrl} 
+                      alt={`${umrah.name || 'Umrah Haji'} Passport`}
+                      className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(passportUrl, '_blank')}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  )}
+                </div>
+                <a 
+                  href={passportUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-block"
+                >
+                  {passportUrl.match(/\.pdf(\?|$)/i) ? 'View PDF' : 'View Full Size'}
+                </a>
+              </div>
+            ) : null;
+          })()}
+          
+          {/* NID Copy */}
+          {(() => {
+            const nidUrl = umrah.nidCopy || umrah.nidCopyUrl;
+            return nidUrl ? (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">NID Copy</label>
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  {nidUrl.match(/\.pdf(\?|$)/i) ? (
+                    <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                      <div className="text-center">
+                        <FileText className="w-12 h-12 text-red-500 mx-auto mb-2" />
+                        <p className="text-sm text-gray-600 dark:text-gray-400">PDF Document</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <img 
+                      src={nidUrl} 
+                      alt={`${umrah.name || 'Umrah Haji'} NID`}
+                      className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => window.open(nidUrl, '_blank')}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  )}
+                </div>
+                <a 
+                  href={nidUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-block"
+                >
+                  {nidUrl.match(/\.pdf(\?|$)/i) ? 'View PDF' : 'View Full Size'}
+                </a>
+              </div>
+            ) : null;
+          })()}
+        </div>
+        
+        {/* Show message if no documents uploaded */}
+        {!umrah.photo && !umrah.photoUrl && !umrah.image && !umrah.passportCopy && !umrah.passportCopyUrl && !umrah.nidCopy && !umrah.nidCopyUrl && (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No photos or documents uploaded yet</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -470,6 +619,8 @@ const UmrahHajiDetails = () => {
         return renderPackage();
       case 'financial':
         return renderFinancial();
+      case 'documents':
+        return renderDocuments();
       default:
         return renderOverview();
     }
