@@ -23,7 +23,7 @@ import {
   Users,
   Image as ImageIcon
 } from 'lucide-react';
-import { useHaji, useUpdateHaji } from '../../../hooks/UseHajiQueries';
+import { useHaji, useHajiList, useUpdateHaji, useAddHajiRelation, useHajiFamilySummary } from '../../../hooks/UseHajiQueries';
 import { useUmrah, useUpdateUmrah } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
 
@@ -35,6 +35,10 @@ const HajiDetails = () => {
   const [showPackagePicker, setShowPackagePicker] = useState(false);
   const [packageSearch, setPackageSearch] = useState('');
   const [selectedPassengerType, setSelectedPassengerType] = useState('adult');
+  const [showRelationPicker, setShowRelationPicker] = useState(false);
+  const [relationSearch, setRelationSearch] = useState('');
+  const [selectedRelationType, setSelectedRelationType] = useState('relative');
+  const [relationsState, setRelationsState] = useState([]);
   const [isSendingDueSms, setIsSendingDueSms] = useState(false);
   const [dueSmsStatus, setDueSmsStatus] = useState(null);
 
@@ -54,6 +58,13 @@ const HajiDetails = () => {
   // Load packages for selection (active ones, large page size for convenience)
   const { data: packagesResp } = usePackages({ status: 'Active', limit: 200, page: 1 });
   const packageList = packagesResp?.data || packagesResp?.packages || [];
+
+  // Load haji list for relation picker (large page for suggestions)
+  const { data: hajiListResp, isLoading: hajiListLoading } = useHajiList({ limit: 500, page: 1 });
+  const hajiList = hajiListResp?.data || hajiListResp?.haji || hajiListResp?.hajis || hajiListResp?.list || [];
+
+  // Family summary (only meaningful for Haji)
+  const { data: familySummaryData } = useHajiFamilySummary(!isUmrah ? id : undefined);
 
   // Mutations for updating haji/umrah
   const updateHajiMutation = useUpdateHaji();
@@ -78,6 +89,13 @@ const HajiDetails = () => {
       console.error('Error assigning package:', error);
       // Error is already handled by the mutation hook
     }
+  };
+
+  const handleVerifyTracking = () => {
+    if (!haji?.trackingNo) return;
+    const encoded = encodeURIComponent(haji.trackingNo);
+    const url = `https://pilgrim.hajj.gov.bd/web/pilgrim-search?q=${encoded}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const getStatusBadge = (status, serviceStatus) => {
@@ -158,6 +176,35 @@ const HajiDetails = () => {
     }
   };
 
+  // Sync initial relations into local state for UI updates
+  useEffect(() => {
+    if (!haji) return;
+    const relations = Array.isArray(haji?.relations)
+      ? haji.relations
+      : Array.isArray(haji?.relationWith)
+        ? haji.relationWith
+        : Array.isArray(haji?.relatedHajis)
+          ? haji.relatedHajis
+          : Array.isArray(haji?.relatedPassengers)
+            ? haji.relatedPassengers
+            : [];
+    setRelationsState(relations);
+  }, [haji]);
+
+  const addRelationMutation = useAddHajiRelation();
+  const relationTypeOptions = [
+    { value: 'mother', label: 'Mother' },
+    { value: 'father', label: 'Father' },
+    { value: 'wife', label: 'Wife' },
+    { value: 'husband', label: 'Husband' },
+    { value: 'brother', label: 'Brother' },
+    { value: 'sister', label: 'Sister' },
+    { value: 'son', label: 'Son' },
+    { value: 'daughter', label: 'Daughter' },
+    { value: 'relative', label: 'Relative' },
+    { value: 'other', label: 'Other' },
+  ];
+
   // SMS helpers for sending due reminders
   const smsApiKey = import.meta.env.VITE_SMS_API_KEY;
   const normalizePhoneForSms = (rawPhone) => {
@@ -229,8 +276,14 @@ const HajiDetails = () => {
     { id: 'personal', label: 'Personal Info', icon: FileText },
     { id: 'package', label: 'Package Info', icon: Package },
     { id: 'financial', label: 'Financial', icon: CreditCard },
-    { id: 'documents', label: 'Documents', icon: ImageIcon }
+    { id: 'documents', label: 'Documents', icon: ImageIcon },
+    { id: 'relations', label: 'Relation With', icon: Users }
   ];
+
+  // Navigate to the Haji list for linking relations
+  const handleAssignRelationClick = () => {
+    navigate(`/hajj-umrah/haji-list?assignRelationFor=${id}`);
+  };
 
   if (isLoading) {
     return (
@@ -339,7 +392,7 @@ const HajiDetails = () => {
       </div>
 
       {/* Key Information Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -356,6 +409,48 @@ const HajiDetails = () => {
               <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.manualSerialNumber || 'N/A'}</p>
             </div>
             <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.pidNo || 'N/A'}</p>
+            </div>
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.ngSerialNo || 'N/A'}</p>
+            </div>
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.trackingNo || 'N/A'}</p>
+            </div>
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600 dark:text-cyan-400" />
+              <button
+                type="button"
+                onClick={handleVerifyTracking}
+                disabled={!haji.trackingNo}
+                className={`px-3 py-1.5 text-xs sm:text-sm rounded-md ${
+                  haji.trackingNo
+                    ? 'bg-gradient-to-r from-cyan-500 to-emerald-500 text-white shadow-sm hover:from-cyan-600 hover:to-emerald-600 focus:ring-2 focus:ring-cyan-300 dark:focus:ring-cyan-700'
+                    : 'border border-gray-300 text-gray-400 cursor-not-allowed dark:border-gray-700 dark:text-gray-500'
+                }`}
+                title={haji.trackingNo ? 'Verify tracking on pilgrim portal' : 'No tracking number'}
+              >
+                Verify
+              </button>
+            </div>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -404,6 +499,36 @@ const HajiDetails = () => {
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
             <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Number((typeof haji.due === 'number' ? haji.due : Math.max((Number(haji.totalAmount || 0) - Number(haji.paidAmount || 0)), 0))).toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
+            SMS যাবে নম্বর: <span className="font-medium text-gray-900 dark:text-white">{haji.mobile || haji.phone || 'N/A'}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            {dueSmsStatus && (
+              <span
+                className={`text-sm ${
+                  dueSmsStatus.type === 'success'
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}
+              >
+                {dueSmsStatus.message}
+              </span>
+            )}
+            <button
+              onClick={sendDueSms}
+              disabled={isSendingDueSms || (!haji.mobile && !haji.phone)}
+              className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg text-sm sm:text-base ${
+                isSendingDueSms || (!haji.mobile && !haji.phone)
+                  ? 'bg-gray-300 text-gray-600 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              <span>{isSendingDueSms ? 'পাঠানো হচ্ছে...' : 'Due SMS পাঠান'}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -595,6 +720,18 @@ const HajiDetails = () => {
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NID Number</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.nidNumber || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.pidNo || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.ngSerialNo || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.trackingNo || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Passport First Name</label>
@@ -987,6 +1124,295 @@ const HajiDetails = () => {
     </div>
   );
 
+  const renderRelations = () => {
+    const normalizeId = (value) => (value ? String(value) : null);
+    const findHajiById = (idValue) => {
+      const target = normalizeId(idValue);
+      if (!target) return null;
+      const fromFamily = (familySummaryData?.members || []).find((m) => normalizeId(m?._id) === target);
+      if (fromFamily) return fromFamily;
+      const fromList = (hajiList || []).find(
+        (item) =>
+          normalizeId(item._id) === target ||
+          normalizeId(item.id) === target ||
+          normalizeId(item.customerId) === target
+      );
+      if (fromList) return fromList;
+      if (normalizeId(haji?._id) === target || normalizeId(haji?.customerId) === target) return haji;
+      return null;
+    };
+
+    const resolveName = (relation) => {
+      if (!relation) return 'N/A';
+      if (typeof relation === 'string') return relation;
+      const relId =
+        relation.relatedHajiId ||
+        relation.hajiId ||
+        relation._id ||
+        relation.id ||
+        relation.customerId;
+      const found = findHajiById(relId);
+      const fallback =
+        relation.name ||
+        relation.hajiName ||
+        relation.passengerName ||
+        relation.relatedName ||
+        relation.customerName ||
+        relation.fullName ||
+        relation.relationWith;
+      return found?.name || fallback || 'Unknown Haji';
+    };
+
+    const resolveRelationType = (relation) => {
+      if (!relation || typeof relation === 'string') return '';
+      return (
+        relation.relationType ||
+        relation.type ||
+        relation.relation ||
+        relation.label ||
+        relation.role ||
+        ''
+      );
+    };
+
+    const resolveContact = (relation) => {
+      if (!relation || typeof relation === 'string') return '';
+      const relId =
+        relation.relatedHajiId ||
+        relation.hajiId ||
+        relation._id ||
+        relation.id ||
+        relation.customerId;
+      const found = findHajiById(relId);
+      return (
+        relation.mobile ||
+        relation.phone ||
+        relation.contact ||
+        relation.contactNumber ||
+        found?.mobile ||
+        found?.phone ||
+        ''
+      );
+    };
+
+    const filteredHajiList = (hajiList || []).filter((item) => {
+      const query = relationSearch.trim().toLowerCase();
+      if (!query) return true;
+      const name = (item.name || '').toLowerCase();
+      const mobile = (item.mobile || item.phone || '').toLowerCase();
+      const customerId = String(item.customerId || item._id || '').toLowerCase();
+      return name.includes(query) || mobile.includes(query) || customerId.includes(query);
+    });
+
+    const handleRelationSelect = async (selected) => {
+      if (!selected) return;
+      const existingIds = new Set(
+        relationsState.map((r) => r?._id || r?.id || r?.hajiId || r?.customerId || r)
+      );
+      const selectedId = selected._id || selected.id || selected.customerId;
+      if (existingIds.has(selectedId)) {
+        setShowRelationPicker(false);
+        return;
+      }
+      try {
+        await addRelationMutation.mutateAsync({
+          primaryId: id,
+          relatedHajiId: selectedId,
+          relationType: selectedRelationType || 'relative',
+        });
+        // Optimistic local add for immediate UI response
+        const newRelation = {
+          hajiId: selectedId,
+          name: selected.name,
+          mobile: selected.mobile || selected.phone,
+          relationType: selectedRelationType || 'relative',
+        };
+        setRelationsState((prev) => [...prev, newRelation]);
+        setShowRelationPicker(false);
+        setSelectedRelationType('relative');
+      } catch (err) {
+        console.error('Relation add failed:', err);
+      }
+    };
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Relation With</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Assign or view linked Hajis for this profile.</p>
+          </div>
+          <button
+            onClick={() => setShowRelationPicker(true)}
+            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700"
+          >
+            Assign Relation Haji
+          </button>
+        </div>
+
+        {/* Family summary (from backend aggregation) */}
+        {familySummaryData && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Family Total</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                ৳{Number(familySummaryData.familyTotal || 0).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Family Paid</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">
+                ৳{Number(familySummaryData.familyPaid || 0).toLocaleString()}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Family Due</p>
+              <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
+                ৳{Number(familySummaryData.familyDue || 0).toLocaleString()}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-3">Linked Hajis</h4>
+          {relationsState.length > 0 ? (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {relationsState.map((relation, idx) => {
+                const name = resolveName(relation);
+                const relationType = resolveRelationType(relation);
+                const contact = resolveContact(relation);
+                const relId =
+                  relation?.relatedHajiId ||
+                  relation?.hajiId ||
+                  relation?._id ||
+                  relation?.id ||
+                  relation?.customerId ||
+                  null;
+                const found = relId ? hajiList.find((item) => {
+                  const normalized = (val) => (val ? String(val) : null);
+                  return (
+                    normalized(item._id) === String(relId) ||
+                    normalized(item.id) === String(relId) ||
+                    normalized(item.customerId) === String(relId)
+                  );
+                }) || (familySummaryData?.members || []).find((m) => String(m?._id) === String(relId)) : null;
+                const displayId = found?.customerId || found?._id || relId;
+                const key = relId || idx;
+                return (
+                  <div key={key} className="py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{name}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                        ID: {displayId || 'N/A'}
+                      </p>
+                      {(relationType || contact) && (
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                          {relationType ? `${relationType}` : ''}{relationType && contact ? ' • ' : ''}{contact}
+                        </p>
+                      )}
+                    </div>
+                    <Users className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center text-sm text-gray-600 dark:text-gray-400 py-6">
+              No relations added yet. Use the button above to assign related Hajis.
+            </div>
+          )}
+        </div>
+
+        {/* Relation Picker Modal */}
+        {showRelationPicker && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full mx-4">
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Assign Relation Haji</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Search and pick a Haji to link.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRelationPicker(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={relationSearch}
+                  onChange={(e) => setRelationSearch(e.target.value)}
+                  placeholder="Search by name, mobile or ID"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Relation Type
+                  </label>
+                  <select
+                    value={selectedRelationType}
+                    onChange={(e) => setSelectedRelationType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                  >
+                    {relationTypeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                  {hajiListLoading && (
+                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">Loading hajis...</div>
+                  )}
+                  {!hajiListLoading && filteredHajiList.length === 0 && (
+                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">No hajis found.</div>
+                  )}
+                  {!hajiListLoading &&
+                    filteredHajiList.map((item) => {
+                      const idValue = item.customerId || item._id || item.id;
+                      const alreadyLinked = relationsState.some(
+                        (r) =>
+                          (r?._id || r?.id || r?.hajiId || r?.customerId || r) === idValue
+                      );
+                      return (
+                        <div
+                          key={idValue}
+                          className="flex items-center justify-between p-3 sm:p-4"
+                        >
+                    <div className="min-w-0">
+                            <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
+                              {item.name}
+                            </p>
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                              ID: {idValue || 'N/A'} • {item.mobile || item.phone || 'No phone'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleRelationSelect(item)}
+                            disabled={alreadyLinked || addRelationMutation.isPending}
+                            className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {alreadyLinked ? 'Added' : addRelationMutation.isPending ? 'Saving...' : 'Select'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderAccommodation = () => (
     <div className="space-y-4 sm:space-y-6">
       {/* Makkah Accommodation */}
@@ -1146,6 +1572,8 @@ const HajiDetails = () => {
         return renderFinancial();
       case 'documents':
         return renderDocuments();
+      case 'relations':
+        return renderRelations();
       default:
         return renderOverview();
     }

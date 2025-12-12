@@ -264,7 +264,10 @@ const AddUmrahHaji = () => {
     serviceType: 'umrah',
     serviceStatus: '',
     isActive: true,
-    manualSerialNumber: ''
+    manualSerialNumber: '',
+    pidNo: '',
+    ngSerialNo: '',
+    trackingNo: ''
   });
 
   // Location options derived from AllDivision.json
@@ -346,6 +349,9 @@ const AddUmrahHaji = () => {
       serviceStatus: umrahData.serviceStatus || '',
       isActive: umrahData.status ? umrahData.status === 'active' : true,
       manualSerialNumber: umrahData.manualSerialNumber || '',
+      pidNo: umrahData.pidNo || '',
+      ngSerialNo: umrahData.ngSerialNo || '',
+      trackingNo: umrahData.trackingNo || '',
       photo: photoUrl,
       passportCopy: passportUrl,
       nidCopy: nidUrl
@@ -848,6 +854,9 @@ const AddUmrahHaji = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         manualSerialNumber: formData.manualSerialNumber,
+        pidNo: formData.pidNo,
+        ngSerialNo: formData.ngSerialNo,
+        trackingNo: formData.trackingNo,
         fatherName: formData.fatherName,
         motherName: formData.motherName,
         spouseName: formData.spouseName,
@@ -1007,6 +1016,27 @@ const AddUmrahHaji = () => {
               name="nid" 
               value={formData.nid}
               onChange={handleInputChange}
+            />
+            <InputGroup 
+              label="PID No" 
+              name="pidNo" 
+              value={formData.pidNo}
+              onChange={handleInputChange}
+              placeholder="Enter PID Number"
+            />
+            <InputGroup 
+              label="NG Serial No" 
+              name="ngSerialNo" 
+              value={formData.ngSerialNo}
+              onChange={handleInputChange}
+              placeholder="Enter NG Serial Number"
+            />
+            <InputGroup 
+              label="Tracking No" 
+              name="trackingNo" 
+              value={formData.trackingNo}
+              onChange={handleInputChange}
+              placeholder="Enter Tracking Number (Check from PRP)"
             />
             <InputGroup 
               label="Date of Birth" 

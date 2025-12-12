@@ -213,6 +213,7 @@ const EditHaji = () => {
     division: '',
     district: '',
     upazila: '',
+    area: '',
     postCode: '',
     emergencyContact: '',
     emergencyPhone: '',
@@ -244,14 +245,17 @@ const EditHaji = () => {
     referenceBy: '',
     referenceHajiId: '',
     serviceType: 'hajj',
-    serviceStatus: 'প্রাক-নিবন্ধিত',
+    serviceStatus: 'আনপেইড',
     isActive: true,
     // Package/agent meta
     packageName: '',
     packageType: 'hajj',
     agent: '',
     agentContact: '',
-    manualSerialNumber: ''
+    manualSerialNumber: '',
+    pidNo: '',
+    ngSerialNo: '',
+    trackingNo: ''
   });
 
   // Load Haji data for edit mode
@@ -273,6 +277,7 @@ const EditHaji = () => {
         division: hajiData.division || '',
         district: hajiData.district || '',
         upazila: hajiData.upazila || '',
+        area: hajiData.area || '',
         postCode: hajiData.postCode || '',
         passportNumber: hajiData.passportNumber || '',
         passportType: hajiData.passportType || '',
@@ -310,6 +315,9 @@ const EditHaji = () => {
         serviceStatus: hajiData.serviceStatus || '',
         notes: hajiData.notes || '',
         manualSerialNumber: hajiData.manualSerialNumber || '',
+        pidNo: hajiData.pidNo || '',
+        ngSerialNo: hajiData.ngSerialNo || '',
+        trackingNo: hajiData.trackingNo || '',
         photo: photoUrl,
         passportCopy: passportUrl,
         nidCopy: nidUrl
@@ -746,6 +754,9 @@ const EditHaji = () => {
         firstName: formData.firstName || formData.name.split(' ')[0] || '',
         lastName: formData.lastName || formData.name.split(' ').slice(1).join(' ') || '',
         manualSerialNumber: formData.manualSerialNumber,
+        pidNo: formData.pidNo,
+        ngSerialNo: formData.ngSerialNo,
+        trackingNo: formData.trackingNo,
         mobile: formData.mobile || formData.phone,
         phone: formData.mobile || formData.phone,
         whatsappNo: formData.whatsappNo,
@@ -755,6 +766,7 @@ const EditHaji = () => {
         division: formData.division,
         district: formData.district,
         upazila: formData.upazila,
+        area: formData.area,
         postCode: formData.postCode,
 
         // Passport/NID and dates (hooks validate YYYY-MM-DD)
@@ -1058,6 +1070,27 @@ const EditHaji = () => {
                     value={formData.nidNumber}
                     onChange={handleInputChange}
                   />
+                  <InputGroup 
+                    label="PID No" 
+                    name="pidNo" 
+                    value={formData.pidNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter PID Number"
+                  />
+                  <InputGroup 
+                    label="NG Serial No" 
+                    name="ngSerialNo" 
+                    value={formData.ngSerialNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter NG Serial Number"
+                  />
+                  <InputGroup 
+                    label="Tracking No" 
+                    name="trackingNo" 
+                    value={formData.trackingNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter Tracking Number (Check from PRP)"
+                  />
                 </div>
               </FormSection>
 
@@ -1119,6 +1152,12 @@ const EditHaji = () => {
                     label="Upazila" 
                     name="upazila" 
                     value={formData.upazila}
+                    onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="Area" 
+                    name="area" 
+                    value={formData.area}
                     onChange={handleInputChange}
                   />
                   <InputGroup 

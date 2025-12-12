@@ -21,6 +21,7 @@ export const hajiKeys = {
   list: (filters) => ['haji', 'list', { filters }],
   details: () => ['haji', 'detail'],
   detail: (id) => ['haji', 'detail', id],
+  familySummary: (id) => ['haji', 'family-summary', id],
 };
 
 // List Haji with pagination and filters
@@ -65,6 +66,41 @@ export const useHaji = (id) => {
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
+  });
+};
+
+// Get family summary for a primary Haji
+export const useHajiFamilySummary = (id) => {
+  const axiosSecure = useAxiosSecure();
+  return useQuery({
+    queryKey: hajiKeys.familySummary(id),
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/haj-umrah/haji/${id}/family-summary`);
+      const data = response?.data;
+      if (data?.success) {
+        const payload = data.data || {};
+        return {
+          ...payload,
+          familyTotal: Number(payload.familyTotal || 0),
+          familyPaid: Number(payload.familyPaid || 0),
+          familyDue: Number(payload.familyDue || 0),
+          members: Array.isArray(payload.members)
+            ? payload.members.map((m) => ({
+                ...m,
+                totalAmount: Number(m?.totalAmount || 0),
+                paidAmount: Number(m?.paidAmount || 0),
+                due: Number(m?.due || 0),
+                displayPaidAmount: Number(m?.displayPaidAmount || 0),
+                displayDue: Number(m?.displayDue || 0),
+              }))
+            : [],
+        };
+      }
+      throw new Error(data?.message || 'Failed to load family summary');
+    },
+    enabled: !!id,
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
   });
 };
 
@@ -176,6 +212,56 @@ export const useUpdateHaji = () => {
     },
     onError: (error) => {
       const errorMessage = error?.response?.data?.message || error?.message || 'হাজি আপডেটে সমস্যা হয়েছে।';
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};
+
+// Add or update a relation for a primary Haji
+export const useAddHajiRelation = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ primaryId, relatedHajiId, relationType }) => {
+      if (!isValidMongoId(primaryId)) {
+        throw new Error('Invalid primary Haji ID');
+      }
+      if (!isValidMongoId(relatedHajiId)) {
+        throw new Error('Invalid related Haji ID');
+      }
+      const payload = {
+        relatedHajiId,
+        relationType: relationType || 'relative',
+      };
+      const response = await axiosSecure.post(`/haj-umrah/haji/${primaryId}/relations`, payload);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to add relation');
+    },
+    onSuccess: (_data, { primaryId, relatedHajiId }) => {
+      // Refresh primary details, family summary, list, and related haji detail
+      queryClient.invalidateQueries({ queryKey: hajiKeys.detail(primaryId) });
+      queryClient.invalidateQueries({ queryKey: hajiKeys.familySummary(primaryId) });
+      queryClient.invalidateQueries({ queryKey: hajiKeys.lists() });
+      if (relatedHajiId) {
+        queryClient.invalidateQueries({ queryKey: hajiKeys.detail(relatedHajiId) });
+      }
+      Swal.fire({
+        title: 'সফল!',
+        text: 'রিলেশন যুক্ত করা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'রিলেশন যুক্ত করতে সমস্যা হয়েছে।';
       Swal.fire({
         title: 'ত্রুটি!',
         text: errorMessage,
@@ -352,10 +438,12 @@ export default {
   hajiKeys,
   useHajiList,
   useHaji,
+  useHajiFamilySummary,
   useCreateHaji,
   useUpdateHaji,
   useDeleteHaji,
   useBulkCreateHaji,
+  useAddHajiRelation,
 };
 
 

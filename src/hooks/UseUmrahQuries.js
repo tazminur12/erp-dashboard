@@ -10,6 +10,9 @@ const isValidYmdDate = (value) => {
   return !isNaN(date.getTime());
 };
 
+// Utility: Validate MongoDB ObjectId (24-char hex string)
+export const isValidMongoId = (id) => typeof id === 'string' && /^[0-9a-f]{24}$/i.test(id);
+
 export const umrahKeys = {
   all: ['umrah'],
   lists: () => ['umrah', 'list'],
@@ -44,11 +47,40 @@ export const useUmrah = (id) => {
       if (data?.success) {
         // Ensure numeric fields are numbers (backend already sends numbers, but normalize defensively)
         const payload = data.data || {};
+        const displayTotal = Number(
+          payload.displayTotalAmount ??
+            payload.familyTotal ??
+            payload.totalAmount ??
+            0
+        );
+        const displayPaid = Number(
+          payload.displayPaidAmount ??
+            payload.familyPaid ??
+            payload.paidAmount ??
+            0
+        );
+        const displayDue = Number(
+          payload.displayDue ??
+            payload.familyDue ??
+            payload.due ??
+            Math.max(displayTotal - displayPaid, 0)
+        );
         return {
           ...payload,
           totalAmount: Number(payload.totalAmount || 0),
           paidAmount: Number(payload.paidAmount || 0),
-          due: Number(payload.due || 0),
+          due: Number(
+            payload.due ||
+              Math.max(Number(payload.totalAmount || 0) - Number(payload.paidAmount || 0), 0)
+          ),
+          displayTotalAmount: displayTotal,
+          displayPaidAmount: displayPaid,
+          displayDue,
+          familyTotal: Number(payload.familyTotal || 0),
+          familyPaid: Number(payload.familyPaid || 0),
+          familyDue: Number.isFinite(payload.familyDue)
+            ? Number(payload.familyDue)
+            : Math.max(Number(payload.familyTotal || 0) - Number(payload.familyPaid || 0), 0),
         };
       }
       throw new Error(data?.message || 'Failed to load umrah');
@@ -73,6 +105,91 @@ export const useUmrahByIdOrCustomerId = (identifier) => {
     enabled: !!identifier,
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
+  });
+};
+
+// Get family summary for a primary Umrah
+export const useUmrahFamilySummary = (id) => {
+  const axiosSecure = useAxiosSecure();
+  return useQuery({
+    queryKey: ['umrah', 'family-summary', id],
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/haj-umrah/umrah/${id}/family-summary`);
+      const data = response?.data;
+      if (data?.success) {
+        const payload = data.data || {};
+        return {
+          ...payload,
+          familyTotal: Number(payload.familyTotal || 0),
+          familyPaid: Number(payload.familyPaid || 0),
+          familyDue: Number(payload.familyDue || 0),
+          members: Array.isArray(payload.members)
+            ? payload.members.map((m) => ({
+                ...m,
+                totalAmount: Number(m?.totalAmount || 0),
+                paidAmount: Number(m?.paidAmount || 0),
+                due: Number(m?.due || 0),
+                displayPaidAmount: Number(m?.displayPaidAmount || 0),
+                displayDue: Number(m?.displayDue || 0),
+              }))
+            : [],
+        };
+      }
+      throw new Error(data?.message || 'Failed to load family summary');
+    },
+    enabled: !!id,
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+  });
+};
+
+// Add or update a relation for a primary Umrah
+export const useAddUmrahRelation = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ primaryId, relatedUmrahId, relationType }) => {
+      if (!isValidMongoId(primaryId)) {
+        throw new Error('Invalid primary Umrah ID');
+      }
+      if (!isValidMongoId(relatedUmrahId)) {
+        throw new Error('Invalid related Umrah ID');
+      }
+      const payload = {
+        relatedUmrahId,
+        relationType: relationType || 'relative',
+      };
+      const response = await axiosSecure.post(`/haj-umrah/umrah/${primaryId}/relations`, payload);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to add umrah relation');
+    },
+    onSuccess: (_data, { primaryId, relatedUmrahId }) => {
+      // Refresh primary details, family summary, list, and related passenger detail
+      queryClient.invalidateQueries({ queryKey: umrahKeys.detail(primaryId) });
+      queryClient.invalidateQueries({ queryKey: ['umrah', 'family-summary', primaryId] });
+      queryClient.invalidateQueries({ queryKey: umrahKeys.lists() });
+      if (relatedUmrahId) {
+        queryClient.invalidateQueries({ queryKey: umrahKeys.detail(relatedUmrahId) });
+      }
+      Swal.fire({
+        title: 'সফল!',
+        text: 'রিলেশন যুক্ত করা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'রিলেশন যুক্ত করতে সমস্যা হয়েছে।';
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
   });
 };
 
@@ -322,6 +439,9 @@ export default {
   umrahKeys,
   useUmrahList,
   useUmrah,
+  useUmrahByIdOrCustomerId,
+  useUmrahFamilySummary,
+  useAddUmrahRelation,
   useCreateUmrah,
   useUpdateUmrah,
   useDeleteUmrah,

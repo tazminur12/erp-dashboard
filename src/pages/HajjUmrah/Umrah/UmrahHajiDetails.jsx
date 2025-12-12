@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -16,9 +16,10 @@ import {
   FileText,
   Package,
   Image as ImageIcon,
-  MessageCircle
+  MessageCircle,
+  Users
 } from 'lucide-react';
-import { useUmrah, useUpdateUmrah } from '../../../hooks/UseUmrahQuries';
+import { useUmrah, useUpdateUmrah, useUmrahList, useAddUmrahRelation } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
 
 const UmrahHajiDetails = () => {
@@ -30,6 +31,10 @@ const UmrahHajiDetails = () => {
   const [selectedPassengerType, setSelectedPassengerType] = useState('adult');
   const [isSendingDueSms, setIsSendingDueSms] = useState(false);
   const [dueSmsStatus, setDueSmsStatus] = useState(null);
+  const [showRelationPicker, setShowRelationPicker] = useState(false);
+  const [relationSearch, setRelationSearch] = useState('');
+  const [selectedRelationType, setSelectedRelationType] = useState('relative');
+  const [relationsState, setRelationsState] = useState([]);
 
   const { data: umrah, isLoading, error } = useUmrah(id);
   const area = umrah?.area ?? umrah?.doc?.area ?? null;
@@ -38,6 +43,36 @@ const UmrahHajiDetails = () => {
   const upazila = umrah?.upazila ?? umrah?.doc?.upazila ?? null;
   const { data: packagesResp } = usePackages({ status: 'Active', limit: 200, page: 1 });
   const packageList = packagesResp?.data || packagesResp?.packages || [];
+  const { data: umrahListResp, isLoading: umrahListLoading } = useUmrahList({ limit: 500, page: 1 });
+  const umrahList = umrahListResp?.data || umrahListResp?.umrah || umrahListResp?.pilgrims || umrahListResp?.list || [];
+
+  const addRelationMutation = useAddUmrahRelation();
+  const relationTypeOptions = [
+    { value: 'mother', label: 'Mother' },
+    { value: 'father', label: 'Father' },
+    { value: 'wife', label: 'Wife' },
+    { value: 'husband', label: 'Husband' },
+    { value: 'brother', label: 'Brother' },
+    { value: 'sister', label: 'Sister' },
+    { value: 'son', label: 'Son' },
+    { value: 'daughter', label: 'Daughter' },
+    { value: 'relative', label: 'Relative' },
+    { value: 'other', label: 'Other' }
+  ];
+
+  useEffect(() => {
+    if (!umrah) return;
+    const relations = Array.isArray(umrah?.relations)
+      ? umrah.relations
+      : Array.isArray(umrah?.relationWith)
+        ? umrah.relationWith
+        : Array.isArray(umrah?.relatedHajis)
+          ? umrah.relatedHajis
+          : Array.isArray(umrah?.relatedPassengers)
+            ? umrah.relatedPassengers
+            : [];
+    setRelationsState(relations);
+  }, [umrah]);
 
   // Mutation for updating umrah
   const updateUmrahMutation = useUpdateUmrah();
@@ -61,6 +96,13 @@ const UmrahHajiDetails = () => {
       console.error('Error assigning package:', error);
       // Error is already handled by the mutation hook
     }
+  };
+
+  const handleVerifyTracking = () => {
+    if (!umrah?.trackingNo) return;
+    const encoded = encodeURIComponent(umrah.trackingNo);
+    const url = `https://pilgrim.hajj.gov.bd/web/pilgrim-search?q=${encoded}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const getStatusBadge = (status, serviceStatus) => {
@@ -183,7 +225,8 @@ const UmrahHajiDetails = () => {
     { id: 'personal', label: 'Personal Info', icon: FileText },
     { id: 'package', label: 'Package Info', icon: Package },
     { id: 'financial', label: 'Financial', icon: CreditCard },
-    { id: 'documents', label: 'Documents', icon: ImageIcon }
+    { id: 'documents', label: 'Documents', icon: ImageIcon },
+    { id: 'relations', label: 'Relation With', icon: Users }
   ];
 
   const smsApiKey = import.meta.env.VITE_SMS_API_KEY;
@@ -300,7 +343,7 @@ const UmrahHajiDetails = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -317,6 +360,48 @@ const UmrahHajiDetails = () => {
               <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.manualSerialNumber || 'N/A'}</p>
             </div>
             <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.pidNo || 'N/A'}</p>
+            </div>
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.ngSerialNo || 'N/A'}</p>
+            </div>
+            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.trackingNo || 'N/A'}</p>
+            </div>
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600 dark:text-cyan-400" />
+              <button
+                type="button"
+                onClick={handleVerifyTracking}
+                disabled={!umrah.trackingNo}
+                className={`px-3 py-1.5 text-xs sm:text-sm rounded-md ${
+                  umrah.trackingNo
+                    ? 'bg-gradient-to-r from-cyan-500 to-emerald-500 text-white shadow-sm hover:from-cyan-600 hover:to-emerald-600 focus:ring-2 focus:ring-cyan-300 dark:focus:ring-cyan-700'
+                    : 'border border-gray-300 text-gray-400 cursor-not-allowed dark:border-gray-700 dark:text-gray-500'
+                }`}
+                title={umrah.trackingNo ? 'Verify tracking on pilgrim portal' : 'No tracking number'}
+              >
+                Verify
+              </button>
+            </div>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -483,6 +568,18 @@ const UmrahHajiDetails = () => {
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NID Number</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.nidNumber || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.pidNo || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.ngSerialNo || 'N/A'}</p>
+          </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.trackingNo || 'N/A'}</p>
           </div>
         </div>
       </div>
@@ -703,6 +800,267 @@ const UmrahHajiDetails = () => {
     </div>
   );
 
+  const renderRelations = () => {
+    const normalizeId = (value) => (value ? String(value) : null);
+    const findPassengerById = (idValue) => {
+      const target = normalizeId(idValue);
+      if (!target) return null;
+      const fromList = (umrahList || []).find(
+        (item) =>
+          normalizeId(item._id) === target ||
+          normalizeId(item.id) === target ||
+          normalizeId(item.customerId) === target
+      );
+      if (fromList) return fromList;
+      if (normalizeId(umrah?._id) === target || normalizeId(umrah?.customerId) === target) return umrah;
+      return null;
+    };
+
+    const resolveName = (relation) => {
+      if (!relation) return 'N/A';
+      if (typeof relation === 'string') return relation;
+      const relId =
+        relation.relatedUmrahId ||
+        relation.hajiId ||
+        relation._id ||
+        relation.id ||
+        relation.customerId;
+      const found = findPassengerById(relId);
+      const fallback =
+        relation.name ||
+        relation.hajiName ||
+        relation.passengerName ||
+        relation.relatedName ||
+        relation.customerName ||
+        relation.fullName ||
+        relation.relationWith;
+      return found?.name || fallback || 'Unknown Passenger';
+    };
+
+    const resolveRelationType = (relation) => {
+      if (!relation || typeof relation === 'string') return '';
+      return (
+        relation.relationType ||
+        relation.type ||
+        relation.relation ||
+        relation.label ||
+        relation.role ||
+        ''
+      );
+    };
+
+    const resolveContact = (relation) => {
+      if (!relation || typeof relation === 'string') return '';
+      const relId =
+        relation.relatedUmrahId ||
+        relation.hajiId ||
+        relation._id ||
+        relation.id ||
+        relation.customerId;
+      const found = findPassengerById(relId);
+      return (
+        relation.mobile ||
+        relation.phone ||
+        relation.contact ||
+        relation.contactNumber ||
+        found?.mobile ||
+        found?.phone ||
+        ''
+      );
+    };
+
+    const filteredUmrahList = (umrahList || []).filter((item) => {
+      const query = relationSearch.trim().toLowerCase();
+      if (!query) return true;
+      const name = (item.name || '').toLowerCase();
+      const mobile = (item.mobile || item.phone || '').toLowerCase();
+      const customerId = String(item.customerId || item._id || '').toLowerCase();
+      return name.includes(query) || mobile.includes(query) || customerId.includes(query);
+    });
+
+    const handleRelationSelect = async (selected) => {
+      if (!selected) return;
+      const existingIds = new Set(
+        relationsState.map((r) => r?._id || r?.id || r?.hajiId || r?.customerId || r?.relatedUmrahId || r)
+      );
+      const selectedId = selected._id || selected.id || selected.customerId;
+      if (existingIds.has(selectedId)) {
+        setShowRelationPicker(false);
+        return;
+      }
+      try {
+        await addRelationMutation.mutateAsync({
+          primaryId: id,
+          relatedUmrahId: selectedId,
+          relationType: selectedRelationType || 'relative'
+        });
+        const newRelation = {
+          relatedUmrahId: selectedId,
+          name: selected.name,
+          mobile: selected.mobile || selected.phone,
+          relationType: selectedRelationType || 'relative'
+        };
+        setRelationsState((prev) => [...prev, newRelation]);
+        setShowRelationPicker(false);
+        setSelectedRelationType('relative');
+      } catch (err) {
+        console.error('Relation add failed:', err);
+      }
+    };
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Relation With</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Assign or view linked Hajis/Umrah passengers.</p>
+          </div>
+          <button
+            onClick={() => setShowRelationPicker(true)}
+            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700"
+          >
+            Assign Relation
+          </button>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-3">Linked Passengers</h4>
+          {relationsState.length > 0 ? (
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {relationsState.map((relation, idx) => {
+                const name = resolveName(relation);
+                const relationType = resolveRelationType(relation);
+                const contact = resolveContact(relation);
+                const relId =
+                  relation?.relatedUmrahId ||
+                  relation?.hajiId ||
+                  relation?._id ||
+                  relation?.id ||
+                  relation?.customerId ||
+                  null;
+                const found = relId
+                  ? umrahList.find((item) => {
+                      const normalized = (val) => (val ? String(val) : null);
+                      return (
+                        normalized(item._id) === String(relId) ||
+                        normalized(item.id) === String(relId) ||
+                        normalized(item.customerId) === String(relId)
+                      );
+                    })
+                  : null;
+                const displayId = found?.customerId || found?._id || relId;
+                const key = relId || idx;
+                return (
+                  <div key={key} className="py-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{name}</p>
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">ID: {displayId || 'N/A'}</p>
+                      {(relationType || contact) && (
+                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                          {relationType ? `${relationType}` : ''}
+                          {relationType && contact ? ' • ' : ''}
+                          {contact}
+                        </p>
+                      )}
+                    </div>
+                    <Users className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center text-sm text-gray-600 dark:text-gray-400 py-6">
+              No relations added yet. Use the button above to assign related passengers.
+            </div>
+          )}
+        </div>
+
+        {showRelationPicker && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full mx-4">
+              <div className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Assign Relation</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Search and pick a passenger to link.</p>
+                  </div>
+                  <button
+                    onClick={() => setShowRelationPicker(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <input
+                  type="text"
+                  value={relationSearch}
+                  onChange={(e) => setRelationSearch(e.target.value)}
+                  placeholder="Search by name, mobile or ID"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                />
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Relation Type</label>
+                  <select
+                    value={selectedRelationType}
+                    onChange={(e) => setSelectedRelationType(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+                  >
+                    {relationTypeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
+                  {umrahListLoading && (
+                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">Loading passengers...</div>
+                  )}
+                  {!umrahListLoading && filteredUmrahList.length === 0 && (
+                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">No passengers found.</div>
+                  )}
+                  {!umrahListLoading &&
+                    filteredUmrahList.map((item) => {
+                      const idValue = item.customerId || item._id || item.id;
+                      const alreadyLinked = relationsState.some(
+                        (r) =>
+                          (r?.relatedUmrahId ||
+                            r?._id ||
+                            r?.id ||
+                            r?.hajiId ||
+                            r?.customerId ||
+                            r) === idValue
+                      );
+                      return (
+                        <div key={idValue} className="flex items-center justify-between p-3 sm:p-4">
+                          <div className="min-w-0">
+                            <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>
+                            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                              ID: {idValue || 'N/A'} • {item.mobile || item.phone || 'No phone'}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleRelationSelect(item)}
+                            disabled={alreadyLinked || addRelationMutation.isPending}
+                            className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {alreadyLinked ? 'Added' : addRelationMutation.isPending ? 'Saving...' : 'Select'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -715,6 +1073,8 @@ const UmrahHajiDetails = () => {
         return renderFinancial();
       case 'documents':
         return renderDocuments();
+      case 'relations':
+        return renderRelations();
       default:
         return renderOverview();
     }

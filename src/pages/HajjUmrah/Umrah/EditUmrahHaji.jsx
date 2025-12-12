@@ -251,7 +251,10 @@ const EditUmrahHaji = () => {
     serviceType: 'umrah',
     serviceStatus: '',
     isActive: true,
-    manualSerialNumber: ''
+    manualSerialNumber: '',
+    pidNo: '',
+    ngSerialNo: '',
+    trackingNo: ''
   });
 
   // Load Umrah data for edit mode
@@ -310,6 +313,9 @@ const EditUmrahHaji = () => {
         serviceStatus: umrahData.serviceStatus || '',
         isActive: umrahData.status ? umrahData.status === 'active' : true,
         manualSerialNumber: umrahData.manualSerialNumber || '',
+        pidNo: umrahData.pidNo || '',
+        ngSerialNo: umrahData.ngSerialNo || '',
+        trackingNo: umrahData.trackingNo || '',
         photo: umrahData.photo || umrahData.photoUrl || '',
         passportCopy: umrahData.passportCopy || umrahData.passportCopyUrl || '',
         nidCopy: umrahData.nidCopy || umrahData.nidCopyUrl || ''
@@ -751,6 +757,9 @@ const EditUmrahHaji = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         manualSerialNumber: formData.manualSerialNumber,
+        pidNo: formData.pidNo,
+        ngSerialNo: formData.ngSerialNo,
+        trackingNo: formData.trackingNo,
         fatherName: formData.fatherName,
         motherName: formData.motherName,
         spouseName: formData.spouseName,
@@ -1043,6 +1052,27 @@ const EditUmrahHaji = () => {
                     name="nidNumber" 
                     value={formData.nidNumber}
                     onChange={handleInputChange}
+                  />
+                  <InputGroup 
+                    label="PID No" 
+                    name="pidNo" 
+                    value={formData.pidNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter PID Number"
+                  />
+                  <InputGroup 
+                    label="NG Serial No" 
+                    name="ngSerialNo" 
+                    value={formData.ngSerialNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter NG Serial Number"
+                  />
+                  <InputGroup 
+                    label="Tracking No" 
+                    name="trackingNo" 
+                    value={formData.trackingNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter Tracking Number (Check from PRP)"
                   />
                 </div>
               </FormSection>

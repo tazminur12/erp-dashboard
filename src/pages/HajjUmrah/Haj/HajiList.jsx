@@ -892,24 +892,24 @@ const HajiList = () => {
           onDataProcessed={handleExcelDataProcessed}
           title="Upload Haji Data from Excel"
           acceptedFields={[
-            'name', 'mobile no', 'fathers name', 'mother\'s name', 'manual serial number', 'districts', 'upazila', 'area'
+            'name', 'mobile no', 'fathers name', 'mother\'s name', 'manual serial number', 'districts', 'upazila', 'area', 'pid no', 'ng serial no', 'tracking no'
           ]}
           requiredFields={['name', 'mobile no']}
           sampleData={[
             [
-              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Manual Serial Number', 'Districts', 'Upazila', 'Area'
+              'Name', 'Mobile no', 'Fathers name', 'Mother\'s Name', 'Manual Serial Number', 'Districts', 'Upazila', 'Area', 'PID No', 'NG Serial No', 'Tracking No'
             ],
             [
               'Md. Abdul Rahman', '+8801712345678', 'Md. Karim Uddin', 'Fatima Begum', 'MSN-001',
-              'Dhaka', 'Dhamrai', 'Area 1'
+              'Dhaka', 'Dhamrai', 'Area 1', 'PID-001', 'NG-001', 'TRK-001'
             ],
             [
               'Fatima Begum', '+8801712345679', 'Abdul Mannan', 'Ayesha Khatun', 'MSN-002',
-              'Chittagong', 'Kotwali', 'Area 2'
+              'Chittagong', 'Kotwali', 'Area 2', 'PID-002', 'NG-002', 'TRK-002'
             ],
             [
               'Md. Karim Uddin', '+8801712345680', 'Md. Rahim Uddin', 'Nasima Begum', 'MSN-003',
-              'Sylhet', 'Sylhet Sadar', 'Area 3'
+              'Sylhet', 'Sylhet Sadar', 'Area 3', 'PID-003', 'NG-003', 'TRK-003'
             ]
           ]}
         />
