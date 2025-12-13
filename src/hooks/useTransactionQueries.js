@@ -955,24 +955,46 @@ export const useSearchAgents = (searchTerm, enabled = true) => {
   const axiosSecure = useAxiosSecure();
   
   return useQuery({
-    queryKey: [...transactionKeys.agents(), 'search', searchTerm],
+    queryKey: [...transactionKeys.agents(), 'search', searchTerm || 'all'],
     queryFn: async () => {
-      if (!searchTerm?.trim()) return [];
-      
       const response = await axiosSecure.get('/api/haj-umrah/agents', { 
-        params: { search: searchTerm, limit: 20, page: 1 } 
+        params: { 
+          ...(searchTerm?.trim() ? { search: searchTerm } : {}),
+          limit: 1000, 
+          page: 1 
+        } 
       });
       
       if (response.data?.success) {
+        let agents = response.data.data || [];
+        
+        // If searchTerm is provided, filter on client side for better UX
+        if (searchTerm?.trim()) {
+          const normalizedSearchTerm = searchTerm.toLowerCase();
+          agents = agents.filter(agent => {
+            const tradeName = (agent.tradeName || '').toLowerCase();
+            const ownerName = (agent.ownerName || '').toLowerCase();
+            const contactNo = (agent.contactNo || '').toLowerCase();
+            const tradeLocation = (agent.tradeLocation || '').toLowerCase();
+            
+            return (
+              tradeName.includes(normalizedSearchTerm) ||
+              ownerName.includes(normalizedSearchTerm) ||
+              contactNo.includes(searchTerm) ||
+              tradeLocation.includes(normalizedSearchTerm)
+            );
+          });
+        }
+        
         // Add type identifier to agent data
-        return (response.data.data || []).map(agent => ({
+        return agents.map(agent => ({
           ...agent,
           _type: 'agent'
         }));
       }
       return [];
     },
-    enabled: enabled && !!searchTerm?.trim(),
+    enabled: enabled,
     staleTime: 2 * 60 * 1000,
     cacheTime: 5 * 60 * 1000,
   });
@@ -983,36 +1005,40 @@ export const useSearchVendors = (searchTerm, enabled = true) => {
   const axiosSecure = useAxiosSecure();
   
   return useQuery({
-    queryKey: [...transactionKeys.vendors(), 'search', searchTerm],
+    queryKey: [...transactionKeys.vendors(), 'search', searchTerm || 'all'],
     queryFn: async () => {
-      if (!searchTerm?.trim()) return [];
-      
       try {
         const response = await axiosSecure.get('/vendors', { 
-          params: { q: searchTerm, limit: 20, page: 1 } 
+          params: { 
+            ...(searchTerm?.trim() ? { q: searchTerm } : {}),
+            limit: 1000, 
+            page: 1 
+          } 
         });
         
         // Extract vendors array from response (same pattern as other vendor queries)
-        const vendorsData = response.data?.vendors || response.data || [];
+        let vendorsData = response.data?.vendors || response.data || [];
         
-        // Filter vendors based on search term if backend doesn't filter
-        const normalizedSearchTerm = searchTerm.toLowerCase();
-        const filteredVendors = vendorsData.filter(vendor => {
-          const tradeName = (vendor.tradeName || '').toLowerCase();
-          const ownerName = (vendor.ownerName || '').toLowerCase();
-          const contactNo = (vendor.contactNo || '').toLowerCase();
-          const tradeLocation = (vendor.tradeLocation || '').toLowerCase();
-          
-          return (
-            tradeName.includes(normalizedSearchTerm) ||
-            ownerName.includes(normalizedSearchTerm) ||
-            contactNo.includes(searchTerm) || // Don't lowercase phone numbers
-            tradeLocation.includes(normalizedSearchTerm)
-          );
-        });
+        // If searchTerm is provided, filter on client side for better UX
+        if (searchTerm?.trim()) {
+          const normalizedSearchTerm = searchTerm.toLowerCase();
+          vendorsData = vendorsData.filter(vendor => {
+            const tradeName = (vendor.tradeName || vendor.vendorName || vendor.name || '').toLowerCase();
+            const ownerName = (vendor.ownerName || '').toLowerCase();
+            const contactNo = (vendor.contactNo || '').toLowerCase();
+            const tradeLocation = (vendor.tradeLocation || '').toLowerCase();
+            
+            return (
+              tradeName.includes(normalizedSearchTerm) ||
+              ownerName.includes(normalizedSearchTerm) ||
+              contactNo.includes(searchTerm) || // Don't lowercase phone numbers
+              tradeLocation.includes(normalizedSearchTerm)
+            );
+          });
+        }
         
         // Add type identifier to vendor data
-        return filteredVendors.slice(0, 20).map(vendor => ({
+        return vendorsData.map(vendor => ({
           ...vendor,
           _type: 'vendor'
         }));
@@ -1021,7 +1047,7 @@ export const useSearchVendors = (searchTerm, enabled = true) => {
         return [];
       }
     },
-    enabled: enabled && !!searchTerm?.trim(),
+    enabled: enabled,
     staleTime: 2 * 60 * 1000,
     cacheTime: 5 * 60 * 1000,
   });

@@ -20,6 +20,7 @@ import { useCreateHaji, useUpdateHaji, useHaji } from '../../../hooks/UseHajiQue
 import Swal from 'sweetalert2';
 import { usePackages } from '../../../hooks/usePackageQueries';
 import { useAgents } from '../../../hooks/useAgentQueries';
+import useLicenseQueries from '../../../hooks/useLicenseQueries';
 import divisionData from '../../../jsondata/AllDivision.json';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
 
@@ -180,6 +181,7 @@ const AddHaji = () => {
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [licenses, setLicenses] = useState([]);
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -199,12 +201,14 @@ const AddHaji = () => {
   // Fetch Haji data for edit mode
   const { data: hajiData, isLoading: hajiLoading } = useHaji(hajiIdParam);
  
- // Fetch real packages and agents from backend
+ // Fetch real packages, agents, and licenses from backend
  const { data: packagesResponse, isLoading: packagesLoading } = usePackages({ customPackageType: 'Custom Hajj', limit: 1000 });
  const { data: agentsResponse, isLoading: agentsLoading } = useAgents(1, 1000, '');
+ const { useLicenses } = useLicenseQueries();
+ const { data: licensesResponse, isLoading: licensesLoading } = useLicenses();
   
 // Combined loading state
-const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.isPending || (editMode && hajiLoading) || packagesLoading || agentsLoading;
+const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.isPending || (editMode && hajiLoading) || packagesLoading || agentsLoading || licensesLoading;
   
   // Load Haji data for edit mode
   useEffect(() => {
@@ -245,6 +249,7 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
         packageType: hajiData.packageType || '',
         agent: hajiData.agent || '',
         agentContact: hajiData.agentContact || '',
+        licenseId: hajiData.licenseId || hajiData.license?._id || hajiData.license?.id || '',
         departureDate: hajiData.departureDate || '',
         returnDate: hajiData.returnDate || '',
         previousHajj: hajiData.previousHajj || false,
@@ -315,6 +320,7 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
     emergencyPhone: '',
     packageId: '',
     agentId: '',
+    licenseId: '',
     departureDate: '',
     returnDate: '',
     totalAmount: 0,
@@ -393,6 +399,20 @@ useEffect(() => {
     setAgents(normalized);
   }
 }, [agentsResponse]);
+
+// Load licenses from backend
+useEffect(() => {
+  if (licensesResponse) {
+    const list = Array.isArray(licensesResponse) ? licensesResponse : licensesResponse?.data || [];
+    const normalized = list.map(l => ({
+      id: l._id || l.id,
+      name: `${l.licenseNumber || ''} - ${l.licenseName || ''}`.trim(),
+      licenseNumber: l.licenseNumber || '',
+      licenseName: l.licenseName || ''
+    })).filter(opt => opt.id && opt.name);
+    setLicenses(normalized);
+  }
+}, [licensesResponse]);
 
 
   const handleInputChange = useCallback((e) => {
@@ -894,9 +914,10 @@ useEffect(() => {
         previousUmrah: formData.previousUmrah,
         specialRequirements: formData.specialRequirements,
 
-        // Package/agent meta
+        // Package/agent/license meta
         packageId: formData.packageId,
         agentId: formData.agentId,
+        licenseId: formData.licenseId,
         packageInfo: {
           packageName: packages.find(p => p.id === formData.packageId)?.name || '',
           packageType: 'hajj',
@@ -1244,6 +1265,13 @@ useEffect(() => {
               name="agentId" 
               value={formData.agentId}
               options={agents}
+              onChange={handleInputChange}
+            />
+            <SelectGroup 
+              label="License" 
+              name="licenseId" 
+              value={formData.licenseId}
+              options={licenses}
               onChange={handleInputChange}
             />
             <InputGroup 

@@ -80,6 +80,7 @@ const PackageCosting = React.lazy(() => import('./pages/HajjUmrah').then(module 
 const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.EditUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahHajiList })).catch(() => ({ default: () => <div>Component not found</div> })));
+const LicenseManagement = React.lazy(() => import('./pages/HajjUmrah/LicenseManagement'));
 
 // Air Ticketing pages
 const NewTicket = React.lazy(() => import('./pages/AirTicketing/NewTicket'));
@@ -543,6 +544,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <B2BSellList />
+          </Suspense>
+        )
+      },
+      {
+        path: "license-management",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <LicenseManagement />
           </Suspense>
         )
       }

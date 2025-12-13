@@ -17,10 +17,16 @@ import {
   Package,
   Image as ImageIcon,
   MessageCircle,
-  Users
+  Users,
+  Trash2,
+  Copy,
+  Receipt,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
-import { useUmrah, useUpdateUmrah, useUmrahList, useAddUmrahRelation } from '../../../hooks/UseUmrahQuries';
+import { useUmrah, useUpdateUmrah, useUmrahList, useAddUmrahRelation, useDeleteUmrahRelation, useUmrahTransactions } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
+import Swal from 'sweetalert2';
 
 const UmrahHajiDetails = () => {
   const { id } = useParams();
@@ -35,6 +41,12 @@ const UmrahHajiDetails = () => {
   const [relationSearch, setRelationSearch] = useState('');
   const [selectedRelationType, setSelectedRelationType] = useState('relative');
   const [relationsState, setRelationsState] = useState([]);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [transactionFilters, setTransactionFilters] = useState({
+    fromDate: '',
+    toDate: '',
+    transactionType: ''
+  });
 
   const { data: umrah, isLoading, error } = useUmrah(id);
   const area = umrah?.area ?? umrah?.doc?.area ?? null;
@@ -46,7 +58,54 @@ const UmrahHajiDetails = () => {
   const { data: umrahListResp, isLoading: umrahListLoading } = useUmrahList({ limit: 500, page: 1 });
   const umrahList = umrahListResp?.data || umrahListResp?.umrah || umrahListResp?.pilgrims || umrahListResp?.list || [];
 
+  // Load transaction history
+  const { data: transactionsData, isLoading: transactionsLoading } = useUmrahTransactions(
+    id,
+    {
+      page: transactionPage,
+      limit: 20,
+      ...transactionFilters
+    }
+  );
+  const transactions = transactionsData?.data || [];
+  const transactionSummary = transactionsData?.summary || {};
+  const transactionPagination = transactionsData?.pagination || {};
+
+  // Helper function to get package name from multiple possible locations
+  const getPackageName = (passenger) => {
+    if (!passenger) return 'N/A';
+    
+    // Check populated package object first
+    if (passenger.package?.packageName) {
+      return passenger.package.packageName;
+    }
+    
+    // Check packageInfo object
+    if (passenger.packageInfo?.packageName) {
+      return passenger.packageInfo.packageName;
+    }
+    
+    // Check flat packageName field
+    if (passenger.packageName) {
+      return passenger.packageName;
+    }
+    
+    // If we have a packageId, look it up from packageList
+    const packageId = passenger.packageId || passenger.packageInfo?.packageId || passenger.package?._id || passenger.package?.id;
+    if (packageId && packageList.length > 0) {
+      const foundPackage = packageList.find(
+        pkg => pkg._id === packageId || pkg.id === packageId || String(pkg._id) === String(packageId) || String(pkg.id) === String(packageId)
+      );
+      if (foundPackage?.packageName) {
+        return foundPackage.packageName;
+      }
+    }
+    
+    return 'N/A';
+  };
+
   const addRelationMutation = useAddUmrahRelation();
+  const deleteUmrahRelationMutation = useDeleteUmrahRelation();
   const relationTypeOptions = [
     { value: 'mother', label: 'Mother' },
     { value: 'father', label: 'Father' },
@@ -103,6 +162,36 @@ const UmrahHajiDetails = () => {
     const encoded = encodeURIComponent(umrah.trackingNo);
     const url = `https://pilgrim.hajj.gov.bd/web/pilgrim-search?q=${encoded}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCopyToClipboard = async (text, fieldName) => {
+    if (!text || text === 'N/A') return;
+    
+    try {
+      await navigator.clipboard.writeText(text);
+      const isDark = document.documentElement.classList.contains('dark');
+      Swal.fire({
+        title: 'কপি হয়েছে!',
+        text: `${fieldName} ক্লিপবোর্ডে কপি হয়েছে।`,
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB',
+        timer: 2000,
+        showConfirmButton: true,
+      });
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      const isDark = document.documentElement.classList.contains('dark');
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'কপি করা যায়নি। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+      });
+    }
   };
 
   const getStatusBadge = (status, serviceStatus) => {
@@ -226,7 +315,8 @@ const UmrahHajiDetails = () => {
     { id: 'package', label: 'Package Info', icon: Package },
     { id: 'financial', label: 'Financial', icon: CreditCard },
     { id: 'documents', label: 'Documents', icon: ImageIcon },
-    { id: 'relations', label: 'Relation With', icon: Users }
+    { id: 'relations', label: 'Relation With', icon: Users },
+    { id: 'transactions', label: 'Transaction History', icon: Receipt }
   ];
 
   const smsApiKey = import.meta.env.VITE_SMS_API_KEY;
@@ -313,13 +403,23 @@ const UmrahHajiDetails = () => {
             </div>
             <div className="flex-1 sm:hidden">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{umrah.name || 'N/A'}</h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{umrah.packageInfo?.packageName || umrah.packageName || 'Umrah'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{getPackageName(umrah) || 'Umrah'}</p>
+              {umrah.primaryHolderName && (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Assigned By: <span className="font-semibold">{umrah.primaryHolderName}</span>
+                </p>
+              )}
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <div className="hidden sm:block">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">{umrah.name || 'N/A'}</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{umrah.packageInfo?.packageName || umrah.packageName || 'Umrah'}</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">{getPackageName(umrah) || 'Umrah'}</p>
+              {umrah.primaryHolderName && (
+                <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
+                  Assigned By: <span className="font-semibold">{umrah.primaryHolderName}</span>
+                </p>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
               <div className="flex items-center space-x-2">
@@ -353,41 +453,76 @@ const UmrahHajiDetails = () => {
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
           </div>
         </div>
+        {umrah.primaryHolderName && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Assigned By</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.primaryHolderName}</p>
+              </div>
+              <User className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+            </div>
+          </div>
+        )}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.manualSerialNumber || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(umrah.manualSerialNumber, 'Manual Serial Number')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.manualSerialNumber || 'N/A'}
+              </button>
             </div>
-            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0 cursor-pointer hover:text-purple-700 dark:hover:text-purple-300" onClick={() => handleCopyToClipboard(umrah.manualSerialNumber, 'Manual Serial Number')} />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.pidNo || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(umrah.pidNo, 'PID No')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.pidNo || 'N/A'}
+              </button>
             </div>
-            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0 cursor-pointer hover:text-indigo-700 dark:hover:text-indigo-300" onClick={() => handleCopyToClipboard(umrah.pidNo, 'PID No')} />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.ngSerialNo || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(umrah.ngSerialNo, 'NG Serial No')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.ngSerialNo || 'N/A'}
+              </button>
             </div>
-            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400 flex-shrink-0 cursor-pointer hover:text-teal-700 dark:hover:text-teal-300" onClick={() => handleCopyToClipboard(umrah.ngSerialNo, 'NG Serial No')} />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{umrah.trackingNo || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(umrah.trackingNo, 'Tracking No')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.trackingNo || 'N/A'}
+              </button>
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
-              <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600 dark:text-cyan-400" />
+              <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600 dark:text-cyan-400 cursor-pointer hover:text-cyan-700 dark:hover:text-cyan-300" onClick={() => handleCopyToClipboard(umrah.trackingNo, 'Tracking No')} />
               <button
                 type="button"
                 onClick={handleVerifyTracking}
@@ -408,7 +543,7 @@ const UmrahHajiDetails = () => {
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{umrah.packageInfo?.packageName || umrah.packageName || 'N/A'}</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{getPackageName(umrah)}</p>
             </div>
             <Package className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
           </div>
@@ -497,7 +632,16 @@ const UmrahHajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{umrah.manualSerialNumber || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(umrah.manualSerialNumber, 'Manual Serial Number')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-words hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.manualSerialNumber || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(umrah.manualSerialNumber, 'Manual Serial Number')} />
+            </div>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
@@ -544,6 +688,18 @@ const UmrahHajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{upazila || 'N/A'}</p>
           </div>
         </div>
+        {umrah.primaryHolderName && (
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              <div>
+                <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Assigned By</label>
+                <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words font-semibold">
+                  {umrah.primaryHolderName}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
@@ -571,15 +727,42 @@ const UmrahHajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.pidNo || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(umrah.pidNo, 'PID No')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-all hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.pidNo || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(umrah.pidNo, 'PID No')} />
+            </div>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.ngSerialNo || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(umrah.ngSerialNo, 'NG Serial No')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-all hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.ngSerialNo || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(umrah.ngSerialNo, 'NG Serial No')} />
+            </div>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{umrah.trackingNo || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(umrah.trackingNo, 'Tracking No')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-all hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {umrah.trackingNo || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(umrah.trackingNo, 'Tracking No')} />
+            </div>
           </div>
         </div>
       </div>
@@ -597,7 +780,7 @@ const UmrahHajiDetails = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
-              <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{packageInfo.packageName || 'N/A'}</p>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{getPackageName(umrah)}</p>
             </div>
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package ID</label>
@@ -880,14 +1063,49 @@ const UmrahHajiDetails = () => {
 
     const handleRelationSelect = async (selected) => {
       if (!selected) return;
-      const existingIds = new Set(
-        relationsState.map((r) => r?._id || r?.id || r?.hajiId || r?.customerId || r?.relatedUmrahId || r)
-      );
-      const selectedId = selected._id || selected.id || selected.customerId;
-      if (existingIds.has(selectedId)) {
+      // Normalize IDs to strings for consistent comparison
+      const normalizeId = (val) => val ? String(val) : null;
+      
+      // Get all possible IDs from the selected item
+      const getItemIds = (it) => {
+        const ids = new Set();
+        if (it._id) ids.add(normalizeId(it._id));
+        if (it.id) ids.add(normalizeId(it.id));
+        if (it.customerId) ids.add(normalizeId(it.customerId));
+        return ids;
+      };
+      
+      // Get all possible IDs from a relation
+      const getRelationIds = (r) => {
+        if (!r) return new Set();
+        if (typeof r === 'string') {
+          return new Set([normalizeId(r)]);
+        }
+        const ids = new Set();
+        if (r._id) ids.add(normalizeId(r._id));
+        if (r.id) ids.add(normalizeId(r.id));
+        if (r.hajiId) ids.add(normalizeId(r.hajiId));
+        if (r.customerId) ids.add(normalizeId(r.customerId));
+        if (r.relatedUmrahId) ids.add(normalizeId(r.relatedUmrahId));
+        if (r.relatedHajiId) ids.add(normalizeId(r.relatedHajiId));
+        return ids;
+      };
+      
+      const selectedIds = getItemIds(selected);
+      const existingRelationIds = new Set();
+      relationsState.forEach((r) => {
+        const relIds = getRelationIds(r);
+        relIds.forEach(id => existingRelationIds.add(id));
+      });
+      
+      // Check if any selected ID already exists in relations
+      const alreadyExists = Array.from(selectedIds).some(selectedId => existingRelationIds.has(selectedId));
+      if (alreadyExists) {
         setShowRelationPicker(false);
         return;
       }
+      
+      const selectedId = normalizeId(selected._id || selected.id || selected.customerId);
       try {
         await addRelationMutation.mutateAsync({
           primaryId: id,
@@ -908,19 +1126,115 @@ const UmrahHajiDetails = () => {
       }
     };
 
+    const handleDeleteRelation = async (relatedId) => {
+      if (!relatedId) return;
+      
+      const normalizeId = (val) => val ? String(val) : null;
+      const relatedIdStr = normalizeId(relatedId);
+      const primaryIdStr = normalizeId(id);
+      
+      if (!relatedIdStr || !primaryIdStr) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'অবৈধ ID পাওয়া যায়নি।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      if (relatedIdStr === primaryIdStr) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'নিজের সাথে রিলেশন মুছে ফেলা যায় না।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      // Find the relation to get the name for confirmation
+      const relation = relationsState.find((r) => {
+        if (!r) return false;
+        if (typeof r === 'string') return normalizeId(r) === relatedIdStr;
+        const relId = normalizeId(
+          r.relatedUmrahId || 
+          r._id || 
+          r.id || 
+          r.hajiId || 
+          r.customerId
+        );
+        return relId === relatedIdStr;
+      });
+      const relationName = resolveName(relation) || 'এই প্যাসেঞ্জার';
+
+      Swal.fire({
+        title: 'নিশ্চিত করুন',
+        text: `আপনি কি ${relationName} এর সাথে রিলেশন মুছে ফেলতে চান?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+        cancelButtonText: 'বাতিল',
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#6B7280',
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            await deleteUmrahRelationMutation.mutateAsync({
+              primaryId: primaryIdStr,
+              relatedId: relatedIdStr,
+            });
+            // Optimistic update: remove from local state
+            setRelationsState((prev) =>
+              prev.filter((r) => {
+                if (!r) return false;
+                if (typeof r === 'string') return normalizeId(r) !== relatedIdStr;
+                const relId = normalizeId(
+                  r.relatedUmrahId || 
+                  r._id || 
+                  r.id || 
+                  r.hajiId || 
+                  r.customerId
+                );
+                return relId !== relatedIdStr;
+              })
+            );
+          } catch (err) {
+            console.error('Relation delete failed:', err);
+            // Error is already handled by the mutation hook
+          }
+        }
+      });
+    };
+
     return (
       <div className="space-y-4 sm:space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Relation With</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Assign or view linked Hajis/Umrah passengers.</p>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Relation With</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Assign or view linked Hajis/Umrah passengers.</p>
+            </div>
+            <button
+              onClick={() => setShowRelationPicker(true)}
+              className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700"
+            >
+              Assign Relation
+            </button>
           </div>
-          <button
-            onClick={() => setShowRelationPicker(true)}
-            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700"
-          >
-            Assign Relation
-          </button>
+          {umrah.primaryHolderName && (
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Assigned By</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{umrah.primaryHolderName}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
@@ -950,9 +1264,10 @@ const UmrahHajiDetails = () => {
                   : null;
                 const displayId = found?.customerId || found?._id || relId;
                 const key = relId || idx;
+                const isDeleting = deleteUmrahRelationMutation.isPending;
                 return (
                   <div key={key} className="py-3 flex items-center justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{name}</p>
                       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">ID: {displayId || 'N/A'}</p>
                       {(relationType || contact) && (
@@ -963,7 +1278,14 @@ const UmrahHajiDetails = () => {
                         </p>
                       )}
                     </div>
-                    <Users className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <button
+                      onClick={() => handleDeleteRelation(relId)}
+                      disabled={isDeleting}
+                      className="ml-3 p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Remove relation"
+                    >
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
                   </div>
                 );
               })}
@@ -1025,29 +1347,79 @@ const UmrahHajiDetails = () => {
                   {!umrahListLoading &&
                     filteredUmrahList.map((item) => {
                       const idValue = item.customerId || item._id || item.id;
-                      const alreadyLinked = relationsState.some(
-                        (r) =>
-                          (r?.relatedUmrahId ||
-                            r?._id ||
-                            r?.id ||
-                            r?.hajiId ||
-                            r?.customerId ||
-                            r) === idValue
-                      );
+                      // Normalize IDs to strings for comparison
+                      const normalizeId = (val) => val ? String(val) : null;
+                      
+                      // Get all possible IDs from the item
+                      const getItemIds = (it) => {
+                        const ids = new Set();
+                        if (it._id) ids.add(normalizeId(it._id));
+                        if (it.id) ids.add(normalizeId(it.id));
+                        if (it.customerId) ids.add(normalizeId(it.customerId));
+                        return ids;
+                      };
+                      
+                      // Get all possible IDs from a relation
+                      const getRelationIds = (r) => {
+                        if (!r) return new Set();
+                        if (typeof r === 'string') {
+                          return new Set([normalizeId(r)]);
+                        }
+                        const ids = new Set();
+                        if (r._id) ids.add(normalizeId(r._id));
+                        if (r.id) ids.add(normalizeId(r.id));
+                        if (r.hajiId) ids.add(normalizeId(r.hajiId));
+                        if (r.customerId) ids.add(normalizeId(r.customerId));
+                        if (r.relatedUmrahId) ids.add(normalizeId(r.relatedUmrahId));
+                        if (r.relatedHajiId) ids.add(normalizeId(r.relatedHajiId));
+                        return ids;
+                      };
+                      
+                      const itemIds = getItemIds(item);
+                      const currentUmrahId = normalizeId(id);
+                      const currentUmrahIds = new Set([
+                        normalizeId(umrah?._id),
+                        normalizeId(umrah?.id),
+                        normalizeId(umrah?.customerId)
+                      ].filter(Boolean));
+                      
+                      // Check if this item is the current Umrah (should not show as "Added")
+                      const isCurrentUmrah = Array.from(itemIds).some(id => currentUmrahIds.has(id));
+                      
+                      // Check if already linked by comparing all possible IDs
+                      const alreadyLinked = !isCurrentUmrah && relationsState.some((r) => {
+                        const relationIds = getRelationIds(r);
+                        // Check if any item ID matches any relation ID
+                        return Array.from(itemIds).some(itemId => relationIds.has(itemId));
+                      });
+                      
                       return (
                         <div key={idValue} className="flex items-center justify-between p-3 sm:p-4">
                           <div className="min-w-0">
-                            <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">{item.name}</p>
+                            <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
+                              {item.name}
+                              {alreadyLinked && (
+                                <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(Added)</span>
+                              )}
+                            </p>
                             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                               ID: {idValue || 'N/A'} • {item.mobile || item.phone || 'No phone'}
                             </p>
                           </div>
                           <button
                             onClick={() => handleRelationSelect(item)}
-                            disabled={alreadyLinked || addRelationMutation.isPending}
-                            className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={alreadyLinked || addRelationMutation.isPending || isCurrentUmrah}
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm ${
+                              alreadyLinked
+                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                : isCurrentUmrah
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : addRelationMutation.isPending
+                                ? 'bg-blue-400 text-white cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
-                            {alreadyLinked ? 'Added' : addRelationMutation.isPending ? 'Saving...' : 'Select'}
+                            {alreadyLinked ? 'Added' : isCurrentUmrah ? 'Current' : addRelationMutation.isPending ? 'Saving...' : 'Select'}
                           </button>
                         </div>
                       );
@@ -1057,6 +1429,205 @@ const UmrahHajiDetails = () => {
             </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  const renderTransactionHistory = () => {
+    const formatAmount = (amount) => {
+      return `৳${Number(amount || 0).toLocaleString()}`;
+    };
+
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      return new Date(date).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    };
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Transactions</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+              {transactionSummary.totalTransactions || 0}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Credit</p>
+            <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">
+              {formatAmount(transactionSummary.totalCredit)}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Debit</p>
+            <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
+              {formatAmount(transactionSummary.totalDebit)}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Net Amount</p>
+            <p className={`text-lg sm:text-xl font-bold ${
+              (transactionSummary.netAmount || 0) >= 0 
+                ? 'text-green-600 dark:text-green-400' 
+                : 'text-red-600 dark:text-red-400'
+            }`}>
+              {formatAmount(transactionSummary.netAmount)}
+            </p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">From Date</label>
+              <input
+                type="date"
+                value={transactionFilters.fromDate}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, fromDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">To Date</label>
+              <input
+                type="date"
+                value={transactionFilters.toDate}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, toDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Transaction Type</label>
+              <select
+                value={transactionFilters.transactionType}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, transactionType: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              >
+                <option value="">All Types</option>
+                <option value="credit">Credit</option>
+                <option value="debit">Debit</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setTransactionFilters({ fromDate: '', toDate: '', transactionType: '' });
+                  setTransactionPage(1);
+                }}
+                className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Transaction List */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Transaction History</h3>
+          {transactionsLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Loading transactions...</p>
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-8">
+              <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">No transactions found</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Date</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Type</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Amount</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Category</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Payment Method</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx) => (
+                      <tr key={tx._id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                          {formatDate(tx.date)}
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            tx.transactionType === 'credit'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                          }`}>
+                            {tx.transactionType === 'credit' ? (
+                              <ArrowUp className="w-3 h-3" />
+                            ) : (
+                              <ArrowDown className="w-3 h-3" />
+                            )}
+                            {tx.transactionType?.toUpperCase() || 'N/A'}
+                          </span>
+                        </td>
+                        <td className={`py-3 px-2 text-xs sm:text-sm font-semibold ${
+                          tx.transactionType === 'credit'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {tx.transactionType === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}
+                        </td>
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                          {tx.serviceCategory || 'N/A'}
+                          {tx.subCategory && (
+                            <span className="text-gray-500 dark:text-gray-500"> • {tx.subCategory}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 capitalize">
+                          {tx.paymentMethod || 'N/A'}
+                        </td>
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={tx.notes || ''}>
+                          {tx.notes || 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {transactionPagination.totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    Page {transactionPagination.page} of {transactionPagination.totalPages} ({transactionPagination.total} total)
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setTransactionPage(prev => Math.max(1, prev - 1))}
+                      disabled={transactionPagination.page <= 1}
+                      className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setTransactionPage(prev => Math.min(transactionPagination.totalPages, prev + 1))}
+                      disabled={transactionPagination.page >= transactionPagination.totalPages}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     );
   };
@@ -1075,6 +1646,8 @@ const UmrahHajiDetails = () => {
         return renderDocuments();
       case 'relations':
         return renderRelations();
+      case 'transactions':
+        return renderTransactionHistory();
       default:
         return renderOverview();
     }

@@ -379,12 +379,12 @@ const NewTransaction = () => {
   
   // Search hooks (after searchTerm state declaration)
   const { data: agentResults = [], isLoading: agentLoading } = useSearchAgents(
-    searchTerm,
-    selectedSearchType === 'agent' && !!searchTerm?.trim()
+    searchTerm || '',
+    selectedSearchType === 'agent'
   );
   const { data: vendorResults = [], isLoading: vendorLoading } = useSearchVendors(
-    searchTerm,
-    selectedSearchType === 'vendor' && !!searchTerm?.trim()
+    searchTerm || '',
+    selectedSearchType === 'vendor'
   );
 
   // Fetch agent packages when agent is selected
@@ -2561,15 +2561,37 @@ const NewTransaction = () => {
                               }`}
                             >
                               <div className="flex items-center space-x-3 sm:space-x-4">
-                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden flex-shrink-0 ${
                                   formData.customerId === (haji._id || haji.id)
                                     ? 'bg-blue-100 dark:bg-blue-800'
                                     : 'bg-green-100 dark:bg-green-800'
                                 }`}>
-                                  <span className="text-lg">🕋</span>
+                                  {(() => {
+                                    const photoUrl = haji.photo || haji.photoUrl || haji.image;
+                                    return photoUrl ? (
+                                      <img 
+                                        src={photoUrl} 
+                                        alt={haji.name || 'Haji'} 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null;
+                                  })()}
+                                  <div className={`w-full h-full rounded-full flex items-center justify-center ${
+                                    (haji.photo || haji.photoUrl || haji.image) ? 'hidden' : 'flex'
+                                  }`}>
+                                    <User className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                      formData.customerId === (haji._id || haji.id)
+                                        ? 'text-blue-600 dark:text-blue-400'
+                                        : 'text-green-600 dark:text-green-400'
+                                    }`} />
+                                  </div>
                                 </div>
                                 <div className="text-left min-w-0 flex-1">
-                                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base break-words">
                                     {haji.name}
                                   </h3>
                                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
@@ -2619,15 +2641,37 @@ const NewTransaction = () => {
                               }`}
                             >
                               <div className="flex items-center space-x-3 sm:space-x-4">
-                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full overflow-hidden flex-shrink-0 ${
                                   formData.customerId === (umrah._id || umrah.id)
                                     ? 'bg-blue-100 dark:bg-blue-800'
                                     : 'bg-purple-100 dark:bg-purple-800'
                                 }`}>
-                                  <span className="text-lg">🕌</span>
+                                  {(() => {
+                                    const photoUrl = umrah.photo || umrah.photoUrl || umrah.image;
+                                    return photoUrl ? (
+                                      <img 
+                                        src={photoUrl} 
+                                        alt={umrah.name || 'Umrah'} 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null;
+                                  })()}
+                                  <div className={`w-full h-full rounded-full flex items-center justify-center ${
+                                    (umrah.photo || umrah.photoUrl || umrah.image) ? 'hidden' : 'flex'
+                                  }`}>
+                                    <User className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                      formData.customerId === (umrah._id || umrah.id)
+                                        ? 'text-blue-600 dark:text-blue-400'
+                                        : 'text-purple-600 dark:text-purple-400'
+                                    }`} />
+                                  </div>
                                 </div>
                                 <div className="text-left min-w-0 flex-1">
-                                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                  <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base break-words">
                                     {umrah.name}
                                   </h3>
                                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
@@ -2697,7 +2741,9 @@ const NewTransaction = () => {
                             </div>
                           </button>
                         ))) : (
-                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন এজেন্ট পাওয়া যায়নি</div>
+                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                            {searchTerm ? 'কোন এজেন্ট পাওয়া যায়নি' : 'কোন এজেন্ট নেই'}
+                          </div>
                         )
                     ) : selectedSearchType === 'vendor' ? (
                         vendorResults.length > 0 ? (
@@ -2750,7 +2796,9 @@ const NewTransaction = () => {
                             </div>
                           </button>
                         ))) : (
-                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন ভেন্ডর পাওয়া যায়নি</div>
+                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                            {searchTerm ? 'কোন ভেন্ডর পাওয়া যায়নি' : 'কোন ভেন্ডর নেই'}
+                          </div>
                         )
                         ) : selectedSearchType === 'loans' ? (
                       loansSearch.length > 0 ? (

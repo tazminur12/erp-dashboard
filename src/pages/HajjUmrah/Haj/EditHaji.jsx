@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -26,6 +26,8 @@ import {
 import { useUpdateHaji, useHaji } from '../../../hooks/UseHajiQueries';
 import Swal from 'sweetalert2';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
+import useLicenseQueries from '../../../hooks/useLicenseQueries';
+import divisionData from '../../../jsondata/AllDivision.json';
 
 // Reusable components
 const FormSection = memo(({ title, icon: Icon, children }) => (
@@ -179,6 +181,7 @@ const EditHaji = () => {
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [licenses, setLicenses] = useState([]);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [passportUploading, setPassportUploading] = useState(false);
@@ -191,8 +194,12 @@ const EditHaji = () => {
   // Fetch Haji data for edit mode
   const { data: hajiData, isLoading: hajiLoading, error: hajiError } = useHaji(id);
   
+  // Fetch licenses from backend
+  const { useLicenses } = useLicenseQueries();
+  const { data: licensesResponse, isLoading: licensesLoading } = useLicenses();
+  
   // Combined loading state
-  const isLoading = loading || updateHajiMutation.isPending || hajiLoading;
+  const isLoading = loading || updateHajiMutation.isPending || hajiLoading || licensesLoading;
   
   const [formData, setFormData] = useState({
     name: '',
@@ -219,6 +226,7 @@ const EditHaji = () => {
     emergencyPhone: '',
     packageId: '',
     agentId: '',
+    licenseId: '',
     departureDate: '',
     returnDate: '',
     totalAmount: 0,
@@ -257,6 +265,23 @@ const EditHaji = () => {
     ngSerialNo: '',
     trackingNo: ''
   });
+
+  // Location options derived from AllDivision.json
+  const divisionOptions = useMemo(
+    () => (divisionData?.Bangladesh || []).map((d) => ({ value: d.Division, label: d.Division })),
+    []
+  );
+
+  const districtOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    return (division?.Districts || []).map((d) => ({ value: d.District, label: d.District }));
+  }, [formData.division]);
+
+  const upazilaOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    const district = (division?.Districts || []).find((dist) => dist.District === formData.district);
+    return (district?.Upazilas || []).map((u) => ({ value: u, label: u }));
+  }, [formData.division, formData.district]);
 
   // Load Haji data for edit mode
   useEffect(() => {
@@ -300,6 +325,9 @@ const EditHaji = () => {
         packageType: hajiData.packageType || '',
         agent: hajiData.agent || '',
         agentContact: hajiData.agentContact || '',
+        packageId: hajiData.packageId || hajiData.package?._id || hajiData.package?.id || '',
+        agentId: hajiData.agentId || hajiData.agent?._id || hajiData.agent?.id || '',
+        licenseId: hajiData.licenseId || hajiData.license?._id || hajiData.license?.id || '',
         departureDate: hajiData.departureDate || '',
         returnDate: hajiData.returnDate || '',
         previousHajj: hajiData.previousHajj || false,
@@ -358,14 +386,44 @@ const EditHaji = () => {
     setAgents(mockAgents);
   }, []);
 
+  // Load licenses from backend
+  useEffect(() => {
+    if (licensesResponse) {
+      const list = Array.isArray(licensesResponse) ? licensesResponse : licensesResponse?.data || [];
+      const normalized = list.map(l => ({
+        id: l._id || l.id,
+        name: `${l.licenseNumber || ''} - ${l.licenseName || ''}`.trim(),
+        licenseNumber: l.licenseNumber || '',
+        licenseName: l.licenseName || ''
+      })).filter(opt => opt.id && opt.name);
+      setLicenses(normalized);
+    }
+  }, [licensesResponse]);
+
 
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     const nextValue = type === 'checkbox' ? checked : value;
-    setFormData(prev => ({
-      ...prev,
-      [name]: nextValue
-    }));
+    
+    setFormData(prev => {
+      const updates = { [name]: nextValue };
+      
+      // Reset district and upazila when division changes
+      if (name === 'division') {
+        updates.district = '';
+        updates.upazila = '';
+      }
+      
+      // Reset upazila when district changes
+      if (name === 'district') {
+        updates.upazila = '';
+      }
+      
+      return {
+        ...prev,
+        ...updates
+      };
+    });
   }, []);
 
   const handleFileUpload = useCallback((fieldName) => (e) => {
@@ -809,6 +867,7 @@ const EditHaji = () => {
         // Package/agent meta
         packageId: formData.packageId,
         agentId: formData.agentId,
+        licenseId: formData.licenseId,
         packageInfo: {
           packageName: packages.find(p => p.id === formData.packageId)?.name || '',
           packageType: 'hajj',
@@ -1131,28 +1190,21 @@ const EditHaji = () => {
                     name="division" 
                     value={formData.division}
                     onChange={handleInputChange}
-                    options={[
-                      { value: 'Dhaka', label: 'Dhaka' },
-                      { value: 'Chittagong', label: 'Chittagong' },
-                      { value: 'Sylhet', label: 'Sylhet' },
-                      { value: 'Rajshahi', label: 'Rajshahi' },
-                      { value: 'Khulna', label: 'Khulna' },
-                      { value: 'Barisal', label: 'Barisal' },
-                      { value: 'Rangpur', label: 'Rangpur' },
-                      { value: 'Mymensingh', label: 'Mymensingh' }
-                    ]} 
+                    options={divisionOptions} 
                   />
-                  <InputGroup 
+                  <SelectGroup 
                     label="District" 
                     name="district" 
                     value={formData.district}
                     onChange={handleInputChange}
+                    options={districtOptions}
                   />
-                  <InputGroup 
+                  <SelectGroup 
                     label="Upazila" 
                     name="upazila" 
                     value={formData.upazila}
                     onChange={handleInputChange}
+                    options={upazilaOptions}
                   />
                   <InputGroup 
                     label="Area" 
@@ -1196,6 +1248,13 @@ const EditHaji = () => {
                     name="agentId" 
                     value={formData.agentId}
                     options={agents}
+                    onChange={handleInputChange}
+                  />
+                  <SelectGroup 
+                    label="License" 
+                    name="licenseId" 
+                    value={formData.licenseId}
+                    options={licenses}
                     onChange={handleInputChange}
                   />
                   <InputGroup 

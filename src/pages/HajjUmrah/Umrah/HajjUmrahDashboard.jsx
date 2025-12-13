@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -6,206 +6,46 @@ import {
   Package, 
   TrendingUp, 
   TrendingDown, 
-  DollarSign,
-  Calendar,
   MapPin,
-  Plane,
-  Building,
   UserCheck,
   AlertCircle,
   BarChart3,
-  PieChart,
   Activity,
-  Star,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye,
   Plus,
-  List,
-  Loader
+  Loader,
+  Building2,
+  Wallet,
+  Target,
+  Award
 } from 'lucide-react';
-// useCustomerQueries hook removed - functionality disabled
+import { useHajjUmrahDashboardSummary } from '../../../hooks/useHajjUmrahDashboardQueries';
 
 const HajjUmrahDashboard = () => {
-  // Customer data removed - using empty array
-  const customers = [];
-  const isLoading = false;
-  const error = null;
-  
-  // Calculate real statistics from customer data
-  const calculateStats = () => {
-    const hajjCustomers = customers.filter(customer => 
-      customer.customerType && customer.customerType.toLowerCase() === 'hajj'
-    );
-    const umrahCustomers = customers.filter(customer => 
-      customer.customerType && customer.customerType.toLowerCase() === 'umrah'
-    );
-    const activeCustomers = customers.filter(customer => 
-      customer.status === 'active' || customer.status === 'confirmed'
-    );
-    const paidCustomers = customers.filter(customer => 
-      customer.paymentStatus === 'paid'
-    );
-    
-    const totalRevenue = customers.reduce((sum, customer) => 
-      sum + (customer.paidAmount || 0), 0
-    );
-    
-    const pendingPayments = customers.reduce((sum, customer) => 
-      sum + ((customer.totalAmount || 0) - (customer.paidAmount || 0)), 0
-    );
-    
-    return {
-      totalCustomers: customers.length,
-      hajjCustomers: hajjCustomers.length,
-      umrahCustomers: umrahCustomers.length,
-      activeCustomers: activeCustomers.length,
-      paidCustomers: paidCustomers.length,
-      totalRevenue,
-      pendingPayments
-    };
-  };
-  
-  const stats = calculateStats();
-  
-  // Generate recent bookings from real customer data
-  const getRecentBookings = () => {
-    return customers.slice(0, 5).map((customer, index) => ({
-      id: customer.id || index + 1,
-      customerName: customer.name || 'N/A',
-      packageName: customer.packageInfo?.packageName || `${customer.customerType || 'Service'} Package`,
-      amount: customer.totalAmount || 0,
-      status: customer.status || 'pending',
-      date: customer.createdAt ? new Date(customer.createdAt).toLocaleDateString() : new Date().toLocaleDateString()
-    }));
-  };
-
-  // Generate package performance from real customer data
-  const getPackagePerformance = () => {
-    const hajjCustomers = customers.filter(customer => 
-      customer.customerType && customer.customerType.toLowerCase() === 'hajj'
-    );
-    const umrahCustomers = customers.filter(customer => 
-      customer.customerType && customer.customerType.toLowerCase() === 'umrah'
-    );
-    const otherCustomers = customers.filter(customer => 
-      !customer.customerType || 
-      (customer.customerType.toLowerCase() !== 'hajj' && customer.customerType.toLowerCase() !== 'umrah')
-    );
-
-    return [
-      {
-        id: 1,
-        name: 'Hajj Packages',
-        bookings: hajjCustomers.length,
-        capacity: 100,
-        revenue: hajjCustomers.reduce((sum, customer) => sum + (customer.totalAmount || 0), 0),
-        status: 'Active'
-      },
-      {
-        id: 2,
-        name: 'Umrah Packages',
-        bookings: umrahCustomers.length,
-        capacity: 150,
-        revenue: umrahCustomers.reduce((sum, customer) => sum + (customer.totalAmount || 0), 0),
-        status: 'Active'
-      },
-      {
-        id: 3,
-        name: 'Other Services',
-        bookings: otherCustomers.length,
-        capacity: 80,
-        revenue: otherCustomers.reduce((sum, customer) => sum + (customer.totalAmount || 0), 0),
-        status: 'Active'
-      }
-    ];
-  };
-
-  const [dashboardData, setDashboardData] = useState({
-    // Overview Stats - Now using real data
-    totalAgents: 45, // Keep mock data for agents
-    activePackages: 12, // Keep mock data for packages
-    totalBookings: stats.totalCustomers,
-    totalRevenue: stats.totalRevenue,
-    
-    
-    // Agent Performance
-    topAgents: [
-      {
-        id: 1,
-        name: 'Green Line Supplies',
-        location: 'Sylhet',
-        bookings: 45,
-        revenue: 8925000,
-        rating: 4.8
-      },
-      {
-        id: 2,
-        name: 'Nazmul Enterprise',
-        location: 'Chattogram',
-        bookings: 38,
-        revenue: 7230000,
-        rating: 4.6
-      },
-      {
-        id: 3,
-        name: 'Miraj Traders',
-        location: 'Dhaka',
-        bookings: 32,
-        revenue: 6120000,
-        rating: 4.5
-      }
-    ]
-  });
+  const { data: dashboardData, isLoading, error } = useHajjUmrahDashboardSummary();
 
   const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return '৳ ০';
     return new Intl.NumberFormat('bn-BD', {
       style: 'currency',
       currency: 'BDT',
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('bn-BD');
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed':
-      case 'Active':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-    }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'confirmed':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'pending':
-        return <Clock className="w-4 h-4" />;
-      case 'cancelled':
-        return <XCircle className="w-4 h-4" />;
-      default:
-        return <AlertCircle className="w-4 h-4" />;
-    }
+  const formatNumber = (num) => {
+    if (!num && num !== 0) return '০';
+    return new Intl.NumberFormat('bn-BD').format(num);
   };
 
   // Handle loading state
   if (isLoading) {
     return (
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-96">
           <div className="text-center">
-            <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Loading dashboard data...</p>
+            <Loader className="w-12 h-12 text-purple-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">ড্যাশবোর্ড ডেটা লোড হচ্ছে...</p>
           </div>
         </div>
       </div>
@@ -216,28 +56,34 @@ const HajjUmrahDashboard = () => {
   if (error) {
     return (
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="text-red-600 dark:text-red-400 mb-4">
-              <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <AlertCircle className="w-12 h-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Loading Data</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">ডেটা লোড করতে সমস্যা</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {error.message || 'Failed to load dashboard data. Please try again.'}
+              {error.message || 'ড্যাশবোর্ড ডেটা লোড করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'}
             </p>
             <button 
               onClick={() => window.location.reload()} 
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
-              Retry
+              আবার চেষ্টা করুন
             </button>
           </div>
         </div>
       </div>
     );
   }
+
+  // Extract data from API response
+  const overview = dashboardData?.overview || {};
+  const profitLoss = dashboardData?.profitLoss || {};
+  const agentProfitLoss = dashboardData?.agentProfitLoss || [];
+  const topAgentsByHaji = dashboardData?.topAgentsByHaji || [];
+  const topDistricts = dashboardData?.topDistricts || [];
+  const financialSummary = dashboardData?.financialSummary || {};
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -275,290 +121,407 @@ const HajjUmrahDashboard = () => {
         </div>
       </div>
 
-      {/* Key Metrics */}
+      {/* Overview Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট হাজি</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(overview.totalHaji || 0)}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">মোট গ্রাহক</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.totalCustomers}</p>
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+              <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 dark:text-green-400">+12%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-1">গত মাস থেকে</span>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট উমরাহ</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(overview.totalUmrah || 0)}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">হজ্জ গ্রাহক</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.hajjCustomers}</p>
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+              <UserCheck className="w-6 h-6 text-purple-600 dark:text-purple-400" />
             </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 dark:text-green-400">+8%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-1">গত মাস থেকে</span>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-              <UserCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট এজেন্ট</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(overview.totalAgents || 0)}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">উমরাহ গ্রাহক</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{stats.umrahCustomers}</p>
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 dark:text-green-400">+15%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-1">গত মাস থেকে</span>
           </div>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট যাত্রী</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatNumber(overview.totalPilgrims || 0)}</p>
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400">মোট আয়</p>
-              <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {formatCurrency(stats.totalRevenue)}
-              </p>
+            <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg flex items-center justify-center">
+              <Target className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
-          </div>
-          <div className="mt-4 flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-600 dark:text-green-400">+22%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-1">গত মাস থেকে</span>
           </div>
         </div>
       </div>
 
-      {/* Main Content Grid */}
+      {/* Profit/Loss Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Bookings */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-              <Activity className="w-5 h-5 mr-2 text-purple-600" />
-              সাম্প্রতিক বুকিং
-            </h2>
-            <Link
-              to="/hajj-umrah/package-list"
-              className="text-purple-600 hover:text-purple-700 text-sm font-medium flex items-center"
-            >
-              সব দেখুন
-              <Eye className="w-4 h-4 ml-1" />
-            </Link>
+        {/* Hajj Profit/Loss */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <Package className="w-5 h-5 mr-2 text-blue-600" />
+              হজ্জ লাভ/ক্ষতি
+            </h3>
+            {profitLoss.hajj?.isProfit ? (
+              <TrendingUp className="w-5 h-5 text-green-500" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-red-500" />
+            )}
           </div>
-          
-          <div className="space-y-4">
-            {getRecentBookings().map((booking) => (
-              <div key={booking.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">
-                    <UserCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900 dark:text-white">{booking.customerName}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{booking.packageName}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">{formatDate(booking.date)}</p>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট আয়:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(profitLoss.hajj?.totalRevenue || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট খরচ:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(profitLoss.hajj?.totalCost || 0)}</span>
+            </div>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">নিট লাভ/ক্ষতি:</span>
+                <span className={`font-bold text-lg ${profitLoss.hajj?.isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(profitLoss.hajj?.profitLoss || 0)}
+                </span>
+              </div>
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              প্যাকেজ সংখ্যা: {formatNumber(profitLoss.hajj?.packageCount || 0)}
+            </div>
+          </div>
+        </div>
+
+        {/* Umrah Profit/Loss */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <UserCheck className="w-5 h-5 mr-2 text-purple-600" />
+              উমরাহ লাভ/ক্ষতি
+            </h3>
+            {profitLoss.umrah?.isProfit ? (
+              <TrendingUp className="w-5 h-5 text-green-500" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-red-500" />
+            )}
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট আয়:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(profitLoss.umrah?.totalRevenue || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট খরচ:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(profitLoss.umrah?.totalCost || 0)}</span>
+            </div>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">নিট লাভ/ক্ষতি:</span>
+                <span className={`font-bold text-lg ${profitLoss.umrah?.isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(profitLoss.umrah?.profitLoss || 0)}
+                </span>
+              </div>
+            </div>
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              প্যাকেজ সংখ্যা: {formatNumber(profitLoss.umrah?.packageCount || 0)}
+            </div>
+          </div>
+        </div>
+
+        {/* Combined Profit/Loss */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <BarChart3 className="w-5 h-5 mr-2 text-green-600" />
+              মোট লাভ/ক্ষতি
+            </h3>
+            {profitLoss.combined?.isProfit ? (
+              <TrendingUp className="w-5 h-5 text-green-500" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-red-500" />
+            )}
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট আয়:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(profitLoss.combined?.totalRevenue || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট খরচ:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(profitLoss.combined?.totalCost || 0)}</span>
+            </div>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">নিট লাভ/ক্ষতি:</span>
+                <span className={`font-bold text-lg ${profitLoss.combined?.isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(profitLoss.combined?.profitLoss || 0)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Financial Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Haji Financial */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <Wallet className="w-5 h-5 mr-2 text-blue-600" />
+            হাজি আর্থিক সারাংশ
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট পরিমাণ:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(financialSummary.haji?.totalAmount || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট প্রদত্ত:</span>
+              <span className="font-semibold text-green-600">{formatCurrency(financialSummary.haji?.totalPaid || 0)}</span>
+            </div>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">মোট বকেয়া:</span>
+                <span className="font-bold text-lg text-red-600">{formatCurrency(financialSummary.haji?.totalDue || 0)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Umrah Financial */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <Wallet className="w-5 h-5 mr-2 text-purple-600" />
+            উমরাহ আর্থিক সারাংশ
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট পরিমাণ:</span>
+              <span className="font-semibold text-gray-900 dark:text-white">{formatCurrency(financialSummary.umrah?.totalAmount || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট প্রদত্ত:</span>
+              <span className="font-semibold text-green-600">{formatCurrency(financialSummary.umrah?.totalPaid || 0)}</span>
+            </div>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">মোট বকেয়া:</span>
+                <span className="font-bold text-lg text-red-600">{formatCurrency(financialSummary.umrah?.totalDue || 0)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Agents Financial */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
+            <Building2 className="w-5 h-5 mr-2 text-green-600" />
+            এজেন্ট আর্থিক সারাংশ
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">মোট বকেয়া:</span>
+              <span className="font-bold text-lg text-red-600">{formatCurrency(financialSummary.agents?.totalDue || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">হজ্জ বকেয়া:</span>
+              <span className="font-semibold text-orange-600">{formatCurrency(financialSummary.agents?.hajDue || 0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600 dark:text-gray-400">উমরাহ বকেয়া:</span>
+              <span className="font-semibold text-purple-600">{formatCurrency(financialSummary.agents?.umrahDue || 0)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Agents by Haji */}
+      {topAgentsByHaji.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+            <Award className="w-5 h-5 mr-2 text-purple-600" />
+            হাজি সংখ্যা অনুযায়ী শীর্ষ এজেন্ট
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {topAgentsByHaji.slice(0, 9).map((agent, index) => (
+              <div key={agent.agentId || index} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                      {index + 1}
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{agent.agentName || 'Unknown'}</h3>
+                    </div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-gray-900 dark:text-white">{formatCurrency(booking.amount)}</p>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                    {getStatusIcon(booking.status)}
-                    <span className="ml-1 capitalize">{booking.status}</span>
-                  </span>
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 dark:text-gray-400">মোট হাজি</p>
+                  <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(agent.hajiCount || 0)}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Quick Actions */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+      {/* Agent Profit/Loss Table */}
+      {agentProfitLoss.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
             <BarChart3 className="w-5 h-5 mr-2 text-purple-600" />
-            দ্রুত অ্যাকশন
+            এজেন্ট অনুযায়ী লাভ/ক্ষতি
           </h2>
-          
-          <div className="space-y-3">
-            <Link
-              to="/hajj-umrah/agent"
-              className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-            >
-              <Users className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-3" />
-              <span className="text-blue-700 dark:text-blue-300 font-medium">এজেন্ট তালিকা</span>
-            </Link>
-            
-            <Link
-              to="/hajj-umrah/package-list"
-              className="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-            >
-              <Package className="w-5 h-5 text-purple-600 dark:text-purple-400 mr-3" />
-              <span className="text-purple-700 dark:text-purple-300 font-medium">প্যাকেজ তালিকা</span>
-            </Link>
-            
-            <Link
-              to="/hajj-umrah/agent/add"
-              className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-            >
-              <Plus className="w-5 h-5 text-green-600 dark:text-green-400 mr-3" />
-              <span className="text-green-700 dark:text-green-300 font-medium">নতুন এজেন্ট</span>
-            </Link>
-            
-            <Link
-              to="/hajj-umrah/package-creation"
-              className="flex items-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
-            >
-              <Plus className="w-5 h-5 text-orange-600 dark:text-orange-400 mr-3" />
-              <span className="text-orange-700 dark:text-orange-300 font-medium">নতুন প্যাকেজ</span>
-            </Link>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700/50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    এজেন্ট নাম
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    মোট আয়
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    মোট খরচ
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    লাভ/ক্ষতি
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    প্যাকেজ
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {agentProfitLoss.slice(0, 10).map((agent, index) => (
+                  <tr key={agent.agentId || index} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mr-3">
+                          <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {agent.agentName || 'Unknown'}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {formatCurrency(agent.totalRevenue || 0)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {formatCurrency(agent.totalCost || 0)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-sm font-semibold ${(agent.profitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(agent.profitLoss || 0)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                      {formatNumber(agent.packageCount || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Package Performance */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-          <PieChart className="w-5 h-5 mr-2 text-purple-600" />
-          প্যাকেজ পারফরমেন্স
-        </h2>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700/50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  প্যাকেজ নাম
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  বুকিং
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  আয়
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  স্ট্যাটাস
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  অ্যাকশন
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {getPackagePerformance().map((pkg) => (
-                <tr key={pkg.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mr-3">
-                        <Package className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {pkg.name}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {pkg.bookings}/{pkg.capacity} যাত্রী
-                        </div>
-                      </div>
+      {/* Top Districts */}
+      {topDistricts.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+            <MapPin className="w-5 h-5 mr-2 text-purple-600" />
+            জেলা অনুযায়ী শীর্ষ স্থান
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {topDistricts.slice(0, 12).map((district, index) => (
+              <div key={district.district || index} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 text-purple-600 mr-2" />
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{district.district || 'Unknown'}</h3>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">হাজি:</span>
+                    <span className="text-sm font-semibold text-blue-600">{formatNumber(district.hajiCount || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">উমরাহ:</span>
+                    <span className="text-sm font-semibold text-purple-600">{formatNumber(district.umrahCount || 0)}</span>
+                  </div>
+                  <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex justify-between">
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">মোট:</span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{formatNumber(district.totalCount || 0)}</span>
                     </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-3">
-                        <div
-                          className="bg-purple-600 h-2 rounded-full"
-                          style={{ width: `${(pkg.bookings / pkg.capacity) * 100}%` }}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-900 dark:text-white">
-                        {Math.round((pkg.bookings / pkg.capacity) * 100)}%
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(pkg.revenue)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(pkg.status)}`}>
-                      {pkg.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Link
-                      to="/hajj-umrah/package-list"
-                      className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Top Agents */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+      {/* Quick Actions */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-          <Star className="w-5 h-5 mr-2 text-purple-600" />
-          শীর্ষ এজেন্ট
+          <Activity className="w-5 h-5 mr-2 text-purple-600" />
+          দ্রুত অ্যাকশন
         </h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {dashboardData.topAgents.map((agent, index) => (
-            <div key={agent.id} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                    {index + 1}
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{agent.name}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      {agent.location}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center text-yellow-500">
-                  <Star className="w-4 h-4 fill-current" />
-                  <span className="ml-1 text-sm font-medium">{agent.rating}</span>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">বুকিং</p>
-                  <p className="text-lg font-bold text-gray-900 dark:text-white">{agent.bookings}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">আয়</p>
-                  <p className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                    {formatCurrency(agent.revenue)}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Link
+            to="/hajj-umrah/agent"
+            className="flex items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            <Users className="w-5 h-5 text-blue-600 dark:text-blue-400 mr-3" />
+            <span className="text-blue-700 dark:text-blue-300 font-medium">এজেন্ট তালিকা</span>
+          </Link>
+          
+          <Link
+            to="/hajj-umrah/package-list"
+            className="flex items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+          >
+            <Package className="w-5 h-5 text-purple-600 dark:text-purple-400 mr-3" />
+            <span className="text-purple-700 dark:text-purple-300 font-medium">প্যাকেজ তালিকা</span>
+          </Link>
+          
+          <Link
+            to="/hajj-umrah/agent/add"
+            className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+          >
+            <Plus className="w-5 h-5 text-green-600 dark:text-green-400 mr-3" />
+            <span className="text-green-700 dark:text-green-300 font-medium">নতুন এজেন্ট</span>
+          </Link>
+          
+          <Link
+            to="/hajj-umrah/package-creation"
+            className="flex items-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+          >
+            <Plus className="w-5 h-5 text-orange-600 dark:text-orange-400 mr-3" />
+            <span className="text-orange-700 dark:text-orange-300 font-medium">নতুন প্যাকেজ</span>
+          </Link>
         </div>
       </div>
     </div>

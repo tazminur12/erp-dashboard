@@ -21,11 +21,19 @@ import {
   MessageCircle,
   Package,
   Users,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Trash2,
+  Copy,
+  Shield,
+  Receipt,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
-import { useHaji, useHajiList, useUpdateHaji, useAddHajiRelation, useHajiFamilySummary } from '../../../hooks/UseHajiQueries';
+import { useHaji, useHajiList, useUpdateHaji, useAddHajiRelation, useDeleteHajiRelation, useHajiFamilySummary, useHajiTransactions } from '../../../hooks/UseHajiQueries';
 import { useUmrah, useUpdateUmrah } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
+import useLicenseQueries from '../../../hooks/useLicenseQueries';
+import Swal from 'sweetalert2';
 
 const HajiDetails = () => {
   const { id } = useParams();
@@ -41,6 +49,12 @@ const HajiDetails = () => {
   const [relationsState, setRelationsState] = useState([]);
   const [isSendingDueSms, setIsSendingDueSms] = useState(false);
   const [dueSmsStatus, setDueSmsStatus] = useState(null);
+  const [transactionPage, setTransactionPage] = useState(1);
+  const [transactionFilters, setTransactionFilters] = useState({
+    fromDate: '',
+    toDate: '',
+    transactionType: ''
+  });
 
   // Determine if this is a Haji or Umrah based on query parameter
   const isUmrah = searchParams.get('type') === 'umrah';
@@ -59,9 +73,88 @@ const HajiDetails = () => {
   const { data: packagesResp } = usePackages({ status: 'Active', limit: 200, page: 1 });
   const packageList = packagesResp?.data || packagesResp?.packages || [];
 
+  // Load licenses for display
+  const { useLicenses } = useLicenseQueries();
+  const { data: licensesResponse } = useLicenses();
+  const licenseList = Array.isArray(licensesResponse) ? licensesResponse : licensesResponse?.data || [];
+
   // Load haji list for relation picker (large page for suggestions)
   const { data: hajiListResp, isLoading: hajiListLoading } = useHajiList({ limit: 500, page: 1 });
   const hajiList = hajiListResp?.data || hajiListResp?.haji || hajiListResp?.hajis || hajiListResp?.list || [];
+
+  // Load transaction history (only for Haji, not Umrah)
+  const { data: transactionsData, isLoading: transactionsLoading } = useHajiTransactions(
+    !isUmrah ? id : null,
+    {
+      page: transactionPage,
+      limit: 20,
+      ...transactionFilters
+    }
+  );
+  const transactions = transactionsData?.data || [];
+  const transactionSummary = transactionsData?.summary || {};
+  const transactionPagination = transactionsData?.pagination || {};
+
+  // Helper function to get package name from multiple possible locations
+  const getPackageName = (passenger) => {
+    if (!passenger) return 'N/A';
+    
+    // Check populated package object first
+    if (passenger.package?.packageName) {
+      return passenger.package.packageName;
+    }
+    
+    // Check packageInfo object
+    if (passenger.packageInfo?.packageName) {
+      return passenger.packageInfo.packageName;
+    }
+    
+    // Check flat packageName field
+    if (passenger.packageName) {
+      return passenger.packageName;
+    }
+    
+    // If we have a packageId, look it up from packageList
+    const packageId = passenger.packageId || passenger.packageInfo?.packageId || passenger.package?._id || passenger.package?.id;
+    if (packageId && packageList.length > 0) {
+      const foundPackage = packageList.find(
+        pkg => pkg._id === packageId || pkg.id === packageId || String(pkg._id) === String(packageId) || String(pkg.id) === String(packageId)
+      );
+      if (foundPackage?.packageName) {
+        return foundPackage.packageName;
+      }
+    }
+    
+    return 'N/A';
+  };
+
+  // Helper function to get license name from multiple possible locations
+  const getLicenseName = (passenger) => {
+    if (!passenger) return 'N/A';
+    
+    // Check populated license object first
+    if (passenger.license?.licenseName && passenger.license?.licenseNumber) {
+      return `${passenger.license.licenseNumber} - ${passenger.license.licenseName}`;
+    }
+    
+    // Check flat license fields
+    if (passenger.licenseName && passenger.licenseNumber) {
+      return `${passenger.licenseNumber} - ${passenger.licenseName}`;
+    }
+    
+    // If we have a licenseId, look it up from licenseList
+    const licenseId = passenger.licenseId || passenger.license?._id || passenger.license?.id;
+    if (licenseId && licenseList.length > 0) {
+      const foundLicense = licenseList.find(
+        lic => lic._id === licenseId || lic.id === licenseId || String(lic._id) === String(licenseId) || String(lic.id) === String(licenseId)
+      );
+      if (foundLicense?.licenseNumber && foundLicense?.licenseName) {
+        return `${foundLicense.licenseNumber} - ${foundLicense.licenseName}`;
+      }
+    }
+    
+    return 'N/A';
+  };
 
   // Family summary (only meaningful for Haji)
   const { data: familySummaryData } = useHajiFamilySummary(!isUmrah ? id : undefined);
@@ -96,6 +189,36 @@ const HajiDetails = () => {
     const encoded = encodeURIComponent(haji.trackingNo);
     const url = `https://pilgrim.hajj.gov.bd/web/pilgrim-search?q=${encoded}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleCopyToClipboard = async (text, fieldName) => {
+    if (!text || text === 'N/A') return;
+    
+    try {
+      await navigator.clipboard.writeText(text);
+      const isDark = document.documentElement.classList.contains('dark');
+      Swal.fire({
+        title: 'কপি হয়েছে!',
+        text: `${fieldName} ক্লিপবোর্ডে কপি হয়েছে।`,
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+        background: isDark ? '#1F2937' : '#F9FAFB',
+        timer: 2000,
+        showConfirmButton: true,
+      });
+    } catch (err) {
+      console.error('Clipboard copy failed:', err);
+      const isDark = document.documentElement.classList.contains('dark');
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'কপি করা যায়নি। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+      });
+    }
   };
 
   const getStatusBadge = (status, serviceStatus) => {
@@ -192,6 +315,7 @@ const HajiDetails = () => {
   }, [haji]);
 
   const addRelationMutation = useAddHajiRelation();
+  const deleteHajiRelationMutation = useDeleteHajiRelation();
   const relationTypeOptions = [
     { value: 'mother', label: 'Mother' },
     { value: 'father', label: 'Father' },
@@ -277,7 +401,8 @@ const HajiDetails = () => {
     { id: 'package', label: 'Package Info', icon: Package },
     { id: 'financial', label: 'Financial', icon: CreditCard },
     { id: 'documents', label: 'Documents', icon: ImageIcon },
-    { id: 'relations', label: 'Relation With', icon: Users }
+    { id: 'relations', label: 'Relation With', icon: Users },
+    { id: 'transactions', label: 'Transaction History', icon: Receipt }
   ];
 
   // Navigate to the Haji list for linking relations
@@ -359,7 +484,12 @@ const HajiDetails = () => {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">
                 {haji.name || 'N/A'}
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{haji.packageInfo?.packageName || haji.packageName || 'Haj'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{getPackageName(haji) || 'Haj'}</p>
+              {haji.primaryHolderName && (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Assigned With: <span className="font-semibold">{haji.primaryHolderName}</span>
+                </p>
+              )}
             </div>
           </div>
           <div className="flex-1 min-w-0">
@@ -367,7 +497,12 @@ const HajiDetails = () => {
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 {haji.name || 'N/A'}
               </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{haji.packageInfo?.packageName || haji.packageName || 'Haj'}</p>
+              <p className="text-gray-600 dark:text-gray-400 mb-2">{getPackageName(haji) || 'Haj'}</p>
+              {haji.primaryHolderName && (
+                <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
+                  Assigned With: <span className="font-semibold">{haji.primaryHolderName}</span>
+                </p>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-6">
               <div className="flex items-center space-x-2">
@@ -402,41 +537,76 @@ const HajiDetails = () => {
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
           </div>
         </div>
+        {haji.primaryHolderName && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Assigned With</p>
+                <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.primaryHolderName}</p>
+              </div>
+              <User className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+            </div>
+          </div>
+        )}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.manualSerialNumber || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.manualSerialNumber || 'N/A'}
+              </button>
             </div>
-            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
+            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0 cursor-pointer hover:text-purple-700 dark:hover:text-purple-300" onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')} />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.pidNo || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.pidNo || 'N/A'}
+              </button>
             </div>
-            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0 cursor-pointer hover:text-indigo-700 dark:hover:text-indigo-300" onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')} />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.ngSerialNo || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.ngSerialNo || 'N/A'}
+              </button>
             </div>
-            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400 flex-shrink-0" />
+            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400 flex-shrink-0 cursor-pointer hover:text-teal-700 dark:hover:text-teal-300" onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')} />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.trackingNo || 'N/A'}</p>
+              <button
+                onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')}
+                className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.trackingNo || 'N/A'}
+              </button>
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
-              <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600 dark:text-cyan-400" />
+              <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600 dark:text-cyan-400 cursor-pointer hover:text-cyan-700 dark:hover:text-cyan-300" onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')} />
               <button
                 type="button"
                 onClick={handleVerifyTracking}
@@ -457,9 +627,18 @@ const HajiDetails = () => {
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{haji.packageInfo?.packageName || haji.packageName || 'N/A'}</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{getPackageName(haji)}</p>
             </div>
             <Plane className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">License</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{getLicenseName(haji)}</p>
+            </div>
+            <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -560,7 +739,16 @@ const HajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.manualSerialNumber || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-words hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.manualSerialNumber || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')} />
+            </div>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
@@ -615,7 +803,7 @@ const HajiDetails = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.packageInfo?.packageName || haji.packageName || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{getPackageName(haji)}</p>
             </div>
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Status</label>
@@ -723,15 +911,42 @@ const HajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">PID No</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.pidNo || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-all hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.pidNo || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')} />
+            </div>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NG Serial No</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.ngSerialNo || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-all hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.ngSerialNo || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')} />
+            </div>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.trackingNo || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')}
+                className="text-sm sm:text-base text-gray-900 dark:text-white break-all hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left flex-1"
+                title="কপি করতে ক্লিক করুন"
+              >
+                {haji.trackingNo || 'N/A'}
+              </button>
+              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')} />
+            </div>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Passport First Name</label>
@@ -758,7 +973,7 @@ const HajiDetails = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
-              <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{packageInfo.packageName || haji.packageName || 'N/A'}</p>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{getPackageName(haji)}</p>
             </div>
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package ID</label>
@@ -787,6 +1002,10 @@ const HajiDetails = () => {
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Agent Contact</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.agentContact || 'N/A'}</p>
+            </div>
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">License</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{getLicenseName(haji)}</p>
             </div>
             <div>
               <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Departure Date</label>
@@ -921,7 +1140,7 @@ const HajiDetails = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.packageInfo?.packageName || haji.packageName || 'N/A'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{getPackageName(haji)}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Type</label>
@@ -970,6 +1189,39 @@ const HajiDetails = () => {
               {haji.createdAt ? new Date(haji.createdAt).toLocaleString() : 'N/A'}
             </p>
           </div>
+          <div>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Assigned With</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">
+              {(() => {
+                const assignedBy = 
+                  haji?.assignedBy?.name || 
+                  haji?.assignedBy?.email ||
+                  haji?.assignedBy ||
+                  haji?.createdBy?.name ||
+                  haji?.createdBy?.email ||
+                  haji?.createdBy ||
+                  haji?.createdByUser?.name ||
+                  haji?.createdByUser?.email ||
+                  haji?.createdByUser ||
+                  haji?.assignedByUser?.name ||
+                  haji?.assignedByUser?.email ||
+                  haji?.assignedByUser ||
+                  haji?.user?.name ||
+                  haji?.user?.email ||
+                  haji?.user ||
+                  'N/A';
+                return typeof assignedBy === 'object' ? (assignedBy.name || assignedBy.email || 'N/A') : assignedBy;
+              })()}
+            </p>
+          </div>
+          {haji.primaryHolderName && (
+            <div>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Assigned With</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words font-semibold">
+                {haji.primaryHolderName}
+              </p>
+            </div>
+          )}
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Updated At</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">
@@ -1206,10 +1458,16 @@ const HajiDetails = () => {
 
     const handleRelationSelect = async (selected) => {
       if (!selected) return;
+      // Normalize IDs to strings for consistent comparison
+      const normalizeId = (val) => val ? String(val) : null;
       const existingIds = new Set(
-        relationsState.map((r) => r?._id || r?.id || r?.hajiId || r?.customerId || r)
+        relationsState.map((r) => {
+          if (!r) return null;
+          if (typeof r === 'string') return normalizeId(r);
+          return normalizeId(r._id || r.id || r.hajiId || r.customerId || r.relatedHajiId);
+        }).filter(Boolean)
       );
-      const selectedId = selected._id || selected.id || selected.customerId;
+      const selectedId = normalizeId(selected._id || selected.id || selected.customerId);
       if (existingIds.has(selectedId)) {
         setShowRelationPicker(false);
         return;
@@ -1235,19 +1493,117 @@ const HajiDetails = () => {
       }
     };
 
+    const handleDeleteRelation = async (relatedId) => {
+      if (!relatedId) return;
+      
+      const normalizeId = (val) => val ? String(val) : null;
+      const relatedIdStr = normalizeId(relatedId);
+      const primaryIdStr = normalizeId(id);
+      
+      if (!relatedIdStr || !primaryIdStr) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'অবৈধ ID পাওয়া যায়নি।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      if (relatedIdStr === primaryIdStr) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: 'নিজের সাথে রিলেশন মুছে ফেলা যায় না।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+        return;
+      }
+
+      // Find the relation to get the name for confirmation
+      const relation = relationsState.find((r) => {
+        if (!r) return false;
+        if (typeof r === 'string') return normalizeId(r) === relatedIdStr;
+        const relId = normalizeId(
+          r.relatedHajiId || 
+          r.relatedUmrahId || 
+          r._id || 
+          r.id || 
+          r.hajiId || 
+          r.customerId
+        );
+        return relId === relatedIdStr;
+      });
+      const relationName = resolveName(relation) || 'এই হাজি';
+
+      Swal.fire({
+        title: 'নিশ্চিত করুন',
+        text: `আপনি কি ${relationName} এর সাথে রিলেশন মুছে ফেলতে চান?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+        cancelButtonText: 'বাতিল',
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#6B7280',
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          try {
+            await deleteHajiRelationMutation.mutateAsync({
+              primaryId: primaryIdStr,
+              relatedId: relatedIdStr,
+            });
+            // Optimistic update: remove from local state
+            setRelationsState((prev) =>
+              prev.filter((r) => {
+                if (!r) return false;
+                if (typeof r === 'string') return normalizeId(r) !== relatedIdStr;
+                const relId = normalizeId(
+                  r.relatedHajiId || 
+                  r.relatedUmrahId || 
+                  r._id || 
+                  r.id || 
+                  r.hajiId || 
+                  r.customerId
+                );
+                return relId !== relatedIdStr;
+              })
+            );
+          } catch (err) {
+            console.error('Relation delete failed:', err);
+            // Error is already handled by the mutation hook
+          }
+        }
+      });
+    };
+
     return (
       <div className="space-y-4 sm:space-y-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Relation With</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Assign or view linked Hajis for this profile.</p>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Relation With</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Assign or view linked Hajis for this profile.</p>
+            </div>
+            <button
+              onClick={() => setShowRelationPicker(true)}
+              className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700"
+            >
+              Assign Relation Haji
+            </button>
           </div>
-          <button
-            onClick={() => setShowRelationPicker(true)}
-            className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700"
-          >
-            Assign Relation Haji
-          </button>
+          {haji.primaryHolderName && (
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Assigned By</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{haji.primaryHolderName}</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Family summary (from backend aggregation) */}
@@ -1284,6 +1640,7 @@ const HajiDetails = () => {
                 const contact = resolveContact(relation);
                 const relId =
                   relation?.relatedHajiId ||
+                  relation?.relatedUmrahId ||
                   relation?.hajiId ||
                   relation?._id ||
                   relation?.id ||
@@ -1299,9 +1656,10 @@ const HajiDetails = () => {
                 }) || (familySummaryData?.members || []).find((m) => String(m?._id) === String(relId)) : null;
                 const displayId = found?.customerId || found?._id || relId;
                 const key = relId || idx;
+                const isDeleting = deleteHajiRelationMutation.isPending;
                 return (
                   <div key={key} className="py-3 flex items-center justify-between">
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{name}</p>
                       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
                         ID: {displayId || 'N/A'}
@@ -1312,7 +1670,14 @@ const HajiDetails = () => {
                         </p>
                       )}
                     </div>
-                    <Users className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <button
+                      onClick={() => handleDeleteRelation(relId)}
+                      disabled={isDeleting}
+                      className="ml-3 p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Remove relation"
+                    >
+                      <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
                   </div>
                 );
               })}
@@ -1377,10 +1742,52 @@ const HajiDetails = () => {
                   {!hajiListLoading &&
                     filteredHajiList.map((item) => {
                       const idValue = item.customerId || item._id || item.id;
-                      const alreadyLinked = relationsState.some(
-                        (r) =>
-                          (r?._id || r?.id || r?.hajiId || r?.customerId || r) === idValue
-                      );
+                      // Normalize IDs to strings for comparison
+                      const normalizeId = (val) => val ? String(val) : null;
+                      
+                      // Get all possible IDs from the item
+                      const getItemIds = (it) => {
+                        const ids = new Set();
+                        if (it._id) ids.add(normalizeId(it._id));
+                        if (it.id) ids.add(normalizeId(it.id));
+                        if (it.customerId) ids.add(normalizeId(it.customerId));
+                        return ids;
+                      };
+                      
+                      // Get all possible IDs from a relation
+                      const getRelationIds = (r) => {
+                        if (!r) return new Set();
+                        if (typeof r === 'string') {
+                          return new Set([normalizeId(r)]);
+                        }
+                        const ids = new Set();
+                        if (r._id) ids.add(normalizeId(r._id));
+                        if (r.id) ids.add(normalizeId(r.id));
+                        if (r.hajiId) ids.add(normalizeId(r.hajiId));
+                        if (r.customerId) ids.add(normalizeId(r.customerId));
+                        if (r.relatedHajiId) ids.add(normalizeId(r.relatedHajiId));
+                        if (r.relatedUmrahId) ids.add(normalizeId(r.relatedUmrahId));
+                        return ids;
+                      };
+                      
+                      const itemIds = getItemIds(item);
+                      const currentHajiId = normalizeId(id);
+                      const currentHajiIds = new Set([
+                        normalizeId(haji?._id),
+                        normalizeId(haji?.id),
+                        normalizeId(haji?.customerId)
+                      ].filter(Boolean));
+                      
+                      // Check if this item is the current Haji (should not show as "Added")
+                      const isCurrentHaji = Array.from(itemIds).some(id => currentHajiIds.has(id));
+                      
+                      // Check if already linked by comparing all possible IDs
+                      const alreadyLinked = !isCurrentHaji && relationsState.some((r) => {
+                        const relationIds = getRelationIds(r);
+                        // Check if any item ID matches any relation ID
+                        return Array.from(itemIds).some(itemId => relationIds.has(itemId));
+                      });
+                      
                       return (
                         <div
                           key={idValue}
@@ -1389,6 +1796,9 @@ const HajiDetails = () => {
                     <div className="min-w-0">
                             <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
                               {item.name}
+                              {alreadyLinked && (
+                                <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(Added)</span>
+                              )}
                             </p>
                             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                               ID: {idValue || 'N/A'} • {item.mobile || item.phone || 'No phone'}
@@ -1396,10 +1806,18 @@ const HajiDetails = () => {
                           </div>
                           <button
                             onClick={() => handleRelationSelect(item)}
-                            disabled={alreadyLinked || addRelationMutation.isPending}
-                            className="px-3 sm:px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={alreadyLinked || addRelationMutation.isPending || isCurrentHaji}
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm ${
+                              alreadyLinked
+                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                : isCurrentHaji
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : addRelationMutation.isPending
+                                ? 'bg-blue-400 text-white cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            } disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
-                            {alreadyLinked ? 'Added' : addRelationMutation.isPending ? 'Saving...' : 'Select'}
+                            {alreadyLinked ? 'Added' : isCurrentHaji ? 'Current' : addRelationMutation.isPending ? 'Saving...' : 'Select'}
                           </button>
                         </div>
                       );
@@ -1560,6 +1978,214 @@ const HajiDetails = () => {
     </div>
   );
 
+  const renderTransactionHistory = () => {
+    if (isUmrah) {
+      return (
+        <div className="p-6 text-center">
+          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-400">Transaction history is only available for Haji profiles.</p>
+        </div>
+      );
+    }
+
+    const formatAmount = (amount) => {
+      return `৳${Number(amount || 0).toLocaleString()}`;
+    };
+
+    const formatDate = (date) => {
+      if (!date) return 'N/A';
+      return new Date(date).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+    };
+
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Transactions</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+              {transactionSummary.totalTransactions || 0}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Credit</p>
+            <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">
+              {formatAmount(transactionSummary.totalCredit)}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Debit</p>
+            <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
+              {formatAmount(transactionSummary.totalDebit)}
+            </p>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Net Amount</p>
+            <p className={`text-lg sm:text-xl font-bold ${
+              (transactionSummary.netAmount || 0) >= 0 
+                ? 'text-green-600 dark:text-green-400' 
+                : 'text-red-600 dark:text-red-400'
+            }`}>
+              {formatAmount(transactionSummary.netAmount)}
+            </p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+            <div>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">From Date</label>
+              <input
+                type="date"
+                value={transactionFilters.fromDate}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, fromDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">To Date</label>
+              <input
+                type="date"
+                value={transactionFilters.toDate}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, toDate: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Transaction Type</label>
+              <select
+                value={transactionFilters.transactionType}
+                onChange={(e) => setTransactionFilters({ ...transactionFilters, transactionType: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
+              >
+                <option value="">All Types</option>
+                <option value="credit">Credit</option>
+                <option value="debit">Debit</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  setTransactionFilters({ fromDate: '', toDate: '', transactionType: '' });
+                  setTransactionPage(1);
+                }}
+                className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Transaction List */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Transaction History</h3>
+          {transactionsLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Loading transactions...</p>
+            </div>
+          ) : transactions.length === 0 ? (
+            <div className="text-center py-8">
+              <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">No transactions found</p>
+            </div>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Date</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Type</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Amount</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Category</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Payment Method</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((tx) => (
+                      <tr key={tx._id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-900 dark:text-white">
+                          {formatDate(tx.date)}
+                        </td>
+                        <td className="py-3 px-2">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                            tx.transactionType === 'credit'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                          }`}>
+                            {tx.transactionType === 'credit' ? (
+                              <ArrowUp className="w-3 h-3" />
+                            ) : (
+                              <ArrowDown className="w-3 h-3" />
+                            )}
+                            {tx.transactionType?.toUpperCase() || 'N/A'}
+                          </span>
+                        </td>
+                        <td className={`py-3 px-2 text-xs sm:text-sm font-semibold ${
+                          tx.transactionType === 'credit'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {tx.transactionType === 'credit' ? '+' : '-'}{formatAmount(tx.amount)}
+                        </td>
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                          {tx.serviceCategory || 'N/A'}
+                          {tx.subCategory && (
+                            <span className="text-gray-500 dark:text-gray-500"> • {tx.subCategory}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 capitalize">
+                          {tx.paymentMethod || 'N/A'}
+                        </td>
+                        <td className="py-3 px-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate" title={tx.notes || ''}>
+                          {tx.notes || 'N/A'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {transactionPagination.totalPages > 1 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    Page {transactionPagination.page} of {transactionPagination.totalPages} ({transactionPagination.total} total)
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setTransactionPage(prev => Math.max(1, prev - 1))}
+                      disabled={transactionPagination.page <= 1}
+                      className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() => setTransactionPage(prev => Math.min(transactionPagination.totalPages, prev + 1))}
+                      disabled={transactionPagination.page >= transactionPagination.totalPages}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview':
@@ -1574,6 +2200,8 @@ const HajiDetails = () => {
         return renderDocuments();
       case 'relations':
         return renderRelations();
+      case 'transactions':
+        return renderTransactionHistory();
       default:
         return renderOverview();
     }

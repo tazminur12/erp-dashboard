@@ -81,6 +81,8 @@ export const useUmrah = (id) => {
           familyDue: Number.isFinite(payload.familyDue)
             ? Number(payload.familyDue)
             : Math.max(Number(payload.familyTotal || 0) - Number(payload.familyPaid || 0), 0),
+          // Include primaryHolderName if available (for dependent Umrahs)
+          ...(payload.primaryHolderName ? { primaryHolderName: payload.primaryHolderName } : {}),
         };
       }
       throw new Error(data?.message || 'Failed to load umrah');
@@ -182,6 +184,55 @@ export const useAddUmrahRelation = () => {
     },
     onError: (error) => {
       const errorMessage = error?.response?.data?.message || error?.message || 'রিলেশন যুক্ত করতে সমস্যা হয়েছে।';
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};
+
+// Delete relation for a primary Umrah
+export const useDeleteUmrahRelation = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ primaryId, relatedId }) => {
+      if (!isValidMongoId(primaryId)) {
+        throw new Error('Invalid primary Umrah ID');
+      }
+      if (!isValidMongoId(relatedId)) {
+        throw new Error('Invalid related Umrah ID');
+      }
+      if (String(primaryId) === String(relatedId)) {
+        throw new Error('Cannot delete relation to itself');
+      }
+      const response = await axiosSecure.delete(`/haj-umrah/umrah/${primaryId}/relations/${relatedId}`);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to delete umrah relation');
+    },
+    onSuccess: (_data, { primaryId, relatedId }) => {
+      // Refresh primary details, family summary, list, and related umrah detail
+      queryClient.invalidateQueries({ queryKey: umrahKeys.detail(primaryId) });
+      queryClient.invalidateQueries({ queryKey: ['umrah', 'family-summary', primaryId] });
+      queryClient.invalidateQueries({ queryKey: umrahKeys.lists() });
+      if (relatedId) {
+        queryClient.invalidateQueries({ queryKey: umrahKeys.detail(relatedId) });
+      }
+      Swal.fire({
+        title: 'সফল!',
+        text: 'রিলেশন মুছে ফেলা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'রিলেশন মুছতে সমস্যা হয়েছে।';
       Swal.fire({
         title: 'ত্রুটি!',
         text: errorMessage,
@@ -435,6 +486,23 @@ export const useBulkCreateUmrah = () => {
   });
 };
 
+// Get Umrah transaction history
+export const useUmrahTransactions = (id, params = {}) => {
+  const axiosSecure = useAxiosSecure();
+  return useQuery({
+    queryKey: ['umrah', 'transactions', id, params],
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/haj-umrah/umrah/${id}/transactions`, { params });
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to load transaction history');
+    },
+    enabled: !!id,
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+  });
+};
+
 export default {
   umrahKeys,
   useUmrahList,
@@ -442,10 +510,12 @@ export default {
   useUmrahByIdOrCustomerId,
   useUmrahFamilySummary,
   useAddUmrahRelation,
+  useDeleteUmrahRelation,
   useCreateUmrah,
   useUpdateUmrah,
   useDeleteUmrah,
   useBulkCreateUmrah,
+  useUmrahTransactions,
 };
 
 

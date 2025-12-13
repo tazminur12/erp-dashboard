@@ -130,11 +130,12 @@ export const navigation = [
         icon: Users,
         children: [
           { name: 'Haji List', href: '/hajj-umrah/haji-list', icon: List },
-          { name: 'Add New Haji', href: '/hajj-umrah/haji/add', icon: Plus }
+          { name: 'Add New Haji', href: '/hajj-umrah/haji/add', icon: Plus },
+          { name: 'License Management', href: '/hajj-umrah/license-management', icon: Eye }
         ]
       },
       {
-        name: 'Umrah Haji',
+        name: 'Umrah',
         icon: Users,
         children: [
           { name: 'Umrah Haji List', href: '/umrah/haji-list', icon: List },

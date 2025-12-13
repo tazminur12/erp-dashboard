@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -24,6 +24,7 @@ import { usePackages } from '../../../hooks/usePackageQueries';
 import { useAgents } from '../../../hooks/useAgentQueries';
 import Swal from 'sweetalert2';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
+import divisionData from '../../../jsondata/AllDivision.json';
 
 // Reusable components
 const FormSection = memo(({ title, icon: Icon, children }) => (
@@ -257,6 +258,23 @@ const EditUmrahHaji = () => {
     trackingNo: ''
   });
 
+  // Location options derived from AllDivision.json
+  const divisionOptions = useMemo(
+    () => (divisionData?.Bangladesh || []).map((d) => ({ value: d.Division, label: d.Division })),
+    []
+  );
+
+  const districtOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    return (division?.Districts || []).map((d) => ({ value: d.District, label: d.District }));
+  }, [formData.division]);
+
+  const upazilaOptions = useMemo(() => {
+    const division = (divisionData?.Bangladesh || []).find((d) => d.Division === formData.division);
+    const district = (division?.Districts || []).find((dist) => dist.District === formData.district);
+    return (district?.Upazilas || []).map((u) => ({ value: u, label: u }));
+  }, [formData.division, formData.district]);
+
   // Load Umrah data for edit mode
   useEffect(() => {
     if (umrahData) {
@@ -373,10 +391,26 @@ const EditUmrahHaji = () => {
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
     const nextValue = type === 'checkbox' ? checked : value;
-    setFormData(prev => ({
-      ...prev,
-      [name]: nextValue
-    }));
+    
+    setFormData(prev => {
+      const updates = { [name]: nextValue };
+      
+      // Reset district and upazila when division changes
+      if (name === 'division') {
+        updates.district = '';
+        updates.upazila = '';
+      }
+      
+      // Reset upazila when district changes
+      if (name === 'district') {
+        updates.upazila = '';
+      }
+      
+      return {
+        ...prev,
+        ...updates
+      };
+    });
   }, []);
 
   const handleFileUpload = useCallback((fieldName) => (e) => {
@@ -1114,28 +1148,21 @@ const EditUmrahHaji = () => {
                     name="division" 
                     value={formData.division}
                     onChange={handleInputChange}
-                    options={[
-                      { value: 'Dhaka', label: 'Dhaka' },
-                      { value: 'Chittagong', label: 'Chittagong' },
-                      { value: 'Sylhet', label: 'Sylhet' },
-                      { value: 'Rajshahi', label: 'Rajshahi' },
-                      { value: 'Khulna', label: 'Khulna' },
-                      { value: 'Barisal', label: 'Barisal' },
-                      { value: 'Rangpur', label: 'Rangpur' },
-                      { value: 'Mymensingh', label: 'Mymensingh' }
-                    ]} 
+                    options={divisionOptions} 
                   />
-                  <InputGroup 
+                  <SelectGroup 
                     label="District" 
                     name="district" 
                     value={formData.district}
                     onChange={handleInputChange}
+                    options={districtOptions}
                   />
-                  <InputGroup 
+                  <SelectGroup 
                     label="Upazila" 
                     name="upazila" 
                     value={formData.upazila}
                     onChange={handleInputChange}
+                    options={upazilaOptions}
                   />
                   <InputGroup 
                     label="Post Code" 

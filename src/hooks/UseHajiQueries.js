@@ -59,6 +59,8 @@ export const useHaji = (id) => {
           due: Number(payload.due || 0),
           ...(typeof payload.hajjDue === 'number' ? { hajjDue: Math.max(payload.hajjDue, 0) } : {}),
           ...(typeof payload.umrahDue === 'number' ? { umrahDue: Math.max(payload.umrahDue, 0) } : {}),
+          // Include primaryHolderName if available (for dependent Hajis)
+          ...(payload.primaryHolderName ? { primaryHolderName: payload.primaryHolderName } : {}),
         };
       }
       throw new Error(data?.message || 'Failed to load haji');
@@ -273,6 +275,55 @@ export const useAddHajiRelation = () => {
   });
 };
 
+// Delete relation for a primary Haji
+export const useDeleteHajiRelation = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ primaryId, relatedId }) => {
+      if (!isValidMongoId(primaryId)) {
+        throw new Error('Invalid primary Haji ID');
+      }
+      if (!isValidMongoId(relatedId)) {
+        throw new Error('Invalid related Haji ID');
+      }
+      if (String(primaryId) === String(relatedId)) {
+        throw new Error('Cannot delete relation to itself');
+      }
+      const response = await axiosSecure.delete(`/haj-umrah/haji/${primaryId}/relations/${relatedId}`);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to delete relation');
+    },
+    onSuccess: (_data, { primaryId, relatedId }) => {
+      // Refresh primary details, family summary, list, and related haji detail
+      queryClient.invalidateQueries({ queryKey: hajiKeys.detail(primaryId) });
+      queryClient.invalidateQueries({ queryKey: hajiKeys.familySummary(primaryId) });
+      queryClient.invalidateQueries({ queryKey: hajiKeys.lists() });
+      if (relatedId) {
+        queryClient.invalidateQueries({ queryKey: hajiKeys.detail(relatedId) });
+      }
+      Swal.fire({
+        title: 'সফল!',
+        text: 'রিলেশন মুছে ফেলা হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    },
+    onError: (error) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'রিলেশন মুছতে সমস্যা হয়েছে।';
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    },
+  });
+};
+
 // ✅ CORRECTED useDeleteHaji hook:
 export const useDeleteHaji = () => {
   const axiosSecure = useAxiosSecure();
@@ -434,6 +485,23 @@ export const useBulkCreateHaji = () => {
   });
 };
 
+// Get Haji transaction history
+export const useHajiTransactions = (id, params = {}) => {
+  const axiosSecure = useAxiosSecure();
+  return useQuery({
+    queryKey: ['haji', 'transactions', id, params],
+    queryFn: async () => {
+      const response = await axiosSecure.get(`/haj-umrah/haji/${id}/transactions`, { params });
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to load transaction history');
+    },
+    enabled: !!id,
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+  });
+};
+
 export default {
   hajiKeys,
   useHajiList,
@@ -444,6 +512,8 @@ export default {
   useDeleteHaji,
   useBulkCreateHaji,
   useAddHajiRelation,
+  useDeleteHajiRelation,
+  useHajiTransactions,
 };
 
 

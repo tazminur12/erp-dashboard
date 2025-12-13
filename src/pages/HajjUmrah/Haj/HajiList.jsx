@@ -24,6 +24,7 @@ import FilterBar from '../../../components/common/FilterBar';
 import Modal from '../../../components/common/Modal';
 import ExcelUploader from '../../../components/common/ExcelUploader';
 import { useHajiList, useDeleteHaji, useBulkCreateHaji } from '../../../hooks/UseHajiQueries';
+import { usePackages } from '../../../hooks/usePackageQueries';
 import Swal from 'sweetalert2';
 
 const HajiList = () => {
@@ -54,6 +55,10 @@ const HajiList = () => {
   // Get total count from API response pagination (if available) or use hajis.length
   // Backend returns pagination.total which has the total count
   const totalHajis = hajiData?.pagination?.total || hajis.length;
+
+  // Load packages for package name lookup
+  const { data: packagesResp } = usePackages({ status: 'Active', limit: 200, page: 1 });
+  const packageList = packagesResp?.data || packagesResp?.packages || [];
   
   // Debug: Log counts to verify
   useEffect(() => {
@@ -356,6 +361,43 @@ const HajiList = () => {
     );
   };
 
+  // Helper function to get package name from multiple possible locations
+  const getPackageName = (haji) => {
+    if (!haji) return 'N/A';
+    
+    // Check populated package object first
+    if (haji.package?.packageName) {
+      return haji.package.packageName;
+    }
+    
+    // Check packageInfo object
+    if (haji.packageInfo?.packageName) {
+      return haji.packageInfo.packageName;
+    }
+    
+    // Check flat packageName field
+    if (haji.packageName) {
+      return haji.packageName;
+    }
+    
+    // If we have a packageId, look it up from packageList
+    const packageId = haji.packageId || haji.packageInfo?.packageId || haji.package?._id || haji.package?.id;
+    if (packageId && packageList.length > 0) {
+      const foundPackage = packageList.find(
+        pkg => pkg._id === packageId || pkg.id === packageId || String(pkg._id) === String(packageId) || String(pkg.id) === String(packageId)
+      );
+      if (foundPackage?.packageName) {
+        return foundPackage.packageName;
+      }
+      // Also check for 'name' field as fallback
+      if (foundPackage?.name) {
+        return foundPackage.name;
+      }
+    }
+    
+    return 'N/A';
+  };
+
   const selectableHajis = useMemo(
     () => filteredHajis.filter(h => h._id),
     [filteredHajis]
@@ -474,8 +516,7 @@ const HajiList = () => {
       sortable: true,
       render: (value, haji) => (
         <div className="text-sm">
-          <div className="font-medium text-gray-900 dark:text-white">{haji.packageName || 'N/A'}</div>
-          <div className="text-gray-500 dark:text-gray-400">{haji.referenceBy || 'N/A'}</div>
+          <div className="font-medium text-gray-900 dark:text-white">{getPackageName(haji)}</div>
         </div>
       )
     },
