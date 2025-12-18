@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import DatePicker from 'react-datepicker';
+import { Helmet } from 'react-helmet-async';
 import 'react-datepicker/dist/react-datepicker.css';
 import { 
   User, 
@@ -14,7 +15,8 @@ import {
   Search,
   X,
   MessageCircle,
-  Wand2
+  Wand2,
+  Upload
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -81,6 +83,12 @@ const NewPassenger = () => {
   const [imageUploading, setImageUploading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState('');
   const [uploadedImageData, setUploadedImageData] = useState(null);
+  
+  // Document upload states
+  const [passportCopyUploading, setPassportCopyUploading] = useState(false);
+  const [passportCopyPreview, setPassportCopyPreview] = useState(null);
+  const [nidCopyUploading, setNidCopyUploading] = useState(false);
+  const [nidCopyPreview, setNidCopyPreview] = useState(null);
   
   // Date states for DatePicker
   const [issueDate, setIssueDate] = useState(null);
@@ -365,6 +373,134 @@ const NewPassenger = () => {
     });
   };
 
+  // Upload Passport Copy to Cloudinary
+  const uploadPassportCopy = useCallback(async (file) => {
+    try {
+      if (!validateCloudinaryConfig()) {
+        throw new Error('Cloudinary configuration is incomplete.');
+      }
+      setPassportCopyUploading(true);
+
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('File size must be less than 5MB');
+      }
+
+      // Show preview for images
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => setPassportCopyPreview(e.target.result);
+        reader.readAsDataURL(file);
+      }
+
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'air-passengers/passport');
+
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'Upload failed');
+      }
+
+      const result = await response.json();
+      setFormData(prev => ({ ...prev, passportCopy: result.secure_url }));
+
+      Swal.fire({
+        title: 'সফল!',
+        text: 'পাসপোর্ট কপি আপলোড হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    } catch (error) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.message || 'ফাইল আপলোড করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      setPassportCopyPreview(null);
+    } finally {
+      setPassportCopyUploading(false);
+    }
+  }, []);
+
+  // Upload NID Copy to Cloudinary
+  const uploadNidCopy = useCallback(async (file) => {
+    try {
+      if (!validateCloudinaryConfig()) {
+        throw new Error('Cloudinary configuration is incomplete.');
+      }
+      setNidCopyUploading(true);
+
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('File size must be less than 5MB');
+      }
+
+      // Show preview for images
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (e) => setNidCopyPreview(e.target.result);
+        reader.readAsDataURL(file);
+      }
+
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'air-passengers/nid');
+
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || 'Upload failed');
+      }
+
+      const result = await response.json();
+      setFormData(prev => ({ ...prev, nidCopy: result.secure_url }));
+
+      Swal.fire({
+        title: 'সফল!',
+        text: 'NID কপি আপলোড হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+    } catch (error) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.message || 'ফাইল আপলোড করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      setNidCopyPreview(null);
+    } finally {
+      setNidCopyUploading(false);
+    }
+  }, []);
+
+  // Remove passport copy
+  const handleRemovePassportCopy = () => {
+    setPassportCopyPreview(null);
+    setFormData(prev => ({ ...prev, passportCopy: null }));
+  };
+
+  // Remove NID copy
+  const handleRemoveNidCopy = () => {
+    setNidCopyPreview(null);
+    setFormData(prev => ({ ...prev, nidCopy: null }));
+  };
+
   // Select reference customer
   const selectReferenceCustomer = (customer) => {
     setFormData(prev => ({
@@ -537,7 +673,11 @@ const NewPassenger = () => {
       // Additional information
       notes: formData.notes || null,
       referenceBy: formData.referenceBy || null,
-      referenceCustomerId: formData.referenceCustomerId || null
+      referenceCustomerId: formData.referenceCustomerId || null,
+      
+      // Document uploads
+      passportCopy: formData.passportCopy || null,
+      nidCopy: formData.nidCopy || null
     };
     
     // Create customer via API using the hook
@@ -578,7 +718,9 @@ const NewPassenger = () => {
           isActive: true,
           notes: '',
           referenceBy: '',
-          referenceCustomerId: ''
+          referenceCustomerId: '',
+          passportCopy: null,
+          nidCopy: null
         });
         setImagePreview(null);
         setUploadedImageUrl('');
@@ -591,6 +733,10 @@ const NewPassenger = () => {
         setIssueDate(null);
         setExpiryDate(null);
         setDateOfBirth(null);
+        
+        // Reset document previews
+        setPassportCopyPreview(null);
+        setNidCopyPreview(null);
       },
       onError: () => {
         // Error is already handled by the hook's onError callback
@@ -718,6 +864,9 @@ const NewPassenger = () => {
           font-weight: bold;
         }
       `}</style>
+      <Helmet>
+        <title>New Air Passenger</title>
+      </Helmet>
       
       <div className={`min-h-screen p-2 lg:p-4 transition-colors duration-300 ${
         isDark 
@@ -1484,11 +1633,201 @@ const NewPassenger = () => {
             </div>
           </div>
 
+          {/* Document Upload Section */}
+          <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
+              : 'bg-white border-gray-100'
+          }`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl">
+                <Upload className="w-6 h-6 text-white" />
+              </div>
+              <h2 className={`text-2xl font-bold transition-colors duration-300 ${
+                isDark ? 'text-white' : 'text-gray-800'
+              }`}>Document Upload</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Photo Upload */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Photo
+                </label>
+                <div className={`border-2 border-dashed rounded-xl p-4 ${
+                  isDark ? 'border-gray-600' : 'border-gray-300'
+                }`}>
+                  {imageUploading ? (
+                    <div className="flex flex-col items-center justify-center space-y-2 py-4">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Uploading...</span>
+                    </div>
+                  ) : imagePreview || formData.customerImage ? (
+                    <div className="flex flex-col items-center space-y-3">
+                      <img 
+                        src={imagePreview || formData.customerImage} 
+                        alt="Profile Photo"
+                        className="max-h-48 max-w-full rounded-lg object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="flex items-center space-x-2 px-3 py-1 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center cursor-pointer py-4">
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Click to upload photo
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        JPG, PNG (max 5MB)
+                      </span>
+                      <input
+                        type="file"
+                        name="customerImage"
+                        accept=".jpg,.jpeg,.png"
+                        onChange={handleInputChange}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Passport Copy Upload */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Passport Copy
+                </label>
+                <div className={`border-2 border-dashed rounded-xl p-4 ${
+                  isDark ? 'border-gray-600' : 'border-gray-300'
+                }`}>
+                  {passportCopyUploading ? (
+                    <div className="flex flex-col items-center justify-center space-y-2 py-4">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Uploading...</span>
+                    </div>
+                  ) : passportCopyPreview || formData.passportCopy ? (
+                    <div className="flex flex-col items-center space-y-3">
+                      {(passportCopyPreview || formData.passportCopy)?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || (passportCopyPreview && passportCopyPreview.startsWith('data:image')) ? (
+                        <img 
+                          src={passportCopyPreview || formData.passportCopy} 
+                          alt="Passport Copy"
+                          className="max-h-48 max-w-full rounded-lg object-contain"
+                        />
+                      ) : (
+                        <div className="flex items-center space-x-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                          <FileText className="w-8 h-8 text-red-500" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            Passport Copy Uploaded
+                          </span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleRemovePassportCopy}
+                        className="flex items-center space-x-2 px-3 py-1 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center cursor-pointer py-4">
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Click to upload passport copy
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        PDF, JPG, PNG (max 5MB)
+                      </span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => e.target.files[0] && uploadPassportCopy(e.target.files[0])}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* NID Copy Upload */}
+              <div className="space-y-2">
+                <label className={`block text-sm font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  NID Copy
+                </label>
+                <div className={`border-2 border-dashed rounded-xl p-4 ${
+                  isDark ? 'border-gray-600' : 'border-gray-300'
+                }`}>
+                  {nidCopyUploading ? (
+                    <div className="flex flex-col items-center justify-center space-y-2 py-4">
+                      <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Uploading...</span>
+                    </div>
+                  ) : nidCopyPreview || formData.nidCopy ? (
+                    <div className="flex flex-col items-center space-y-3">
+                      {(nidCopyPreview || formData.nidCopy)?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || (nidCopyPreview && nidCopyPreview.startsWith('data:image')) ? (
+                        <img 
+                          src={nidCopyPreview || formData.nidCopy} 
+                          alt="NID Copy"
+                          className="max-h-48 max-w-full rounded-lg object-contain"
+                        />
+                      ) : (
+                        <div className="flex items-center space-x-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                          <FileText className="w-8 h-8 text-red-500" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            NID Copy Uploaded
+                          </span>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleRemoveNidCopy}
+                        className="flex items-center space-x-2 px-3 py-1 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        <span>Remove</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center cursor-pointer py-4">
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        Click to upload NID copy
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                        PDF, JPG, PNG (max 5MB)
+                      </span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => e.target.files[0] && uploadNidCopy(e.target.files[0])}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Submit Button */}
           <div className="text-center">
             <button
               type="submit"
-              disabled={createAirCustomerMutation.isPending || isSubmitting || imageUploading}
+              disabled={createAirCustomerMutation.isPending || isSubmitting || imageUploading || passportCopyUploading || nidCopyUploading}
               className="w-full sm:w-auto group relative inline-flex items-center justify-center px-8 py-4 text-lg font-bold text-white bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 hover:from-blue-700 hover:via-purple-700 hover:to-green-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {(createAirCustomerMutation.isPending || isSubmitting) ? (

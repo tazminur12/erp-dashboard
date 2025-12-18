@@ -150,7 +150,7 @@ const OperatingExpenses = () => {
               <div>
                 <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">This Month</p>
                 <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                  ৳{(totalExpenses * 0.3).toLocaleString()}
+                  ৳{(totalExpenses).toLocaleString()}
                 </p>
               </div>
               <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
@@ -209,7 +209,6 @@ const OperatingExpenses = () => {
               <option value="last-month">Last Month</option>
               <option value="current-year">Current Year</option>
               <option value="last-year">Last Year</option>
-              <option value="custom">Custom Range</option>
             </select>
           </div>
         </div>
@@ -292,35 +291,6 @@ const OperatingExpenses = () => {
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div className={`mt-6 p-4 sm:p-6 rounded-xl shadow-lg border transition-colors duration-300 ${
-          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'
-        }`}>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <button className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">View Reports</span>
-            </button>
-            
-            <button className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
-              <Download className="w-5 h-5 text-green-600" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">Export Data</span>
-            </button>
-            
-            <button className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
-              <Calendar className="w-5 h-5 text-purple-600" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">Set Budget</span>
-            </button>
-            
-            <button className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-200">
-              <Eye className="w-5 h-5 text-orange-600" />
-              <span className="text-sm font-medium text-gray-900 dark:text-white">View Analytics</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

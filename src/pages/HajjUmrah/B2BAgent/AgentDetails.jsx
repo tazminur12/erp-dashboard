@@ -61,6 +61,13 @@ const formatCount = (value = 0) => {
 
 const formatPercentage = (value = 0) => `${(Number(value) || 0).toFixed(1)}%`;
 
+const formatProfitLoss = (profit = 0) => {
+  const numericValue = Number(profit) || 0;
+  const sign = numericValue >= 0 ? '+' : '-';
+  const absoluteValue = Math.abs(numericValue);
+  return `${sign}${formatCurrency(absoluteValue)}`;
+};
+
 const calculateProfitLoss = (pkg = {}) => {
   const totals = pkg.totals || {};
   const profitLossFromApi = pkg.profitLoss || {};
@@ -107,6 +114,9 @@ const AgentDetails = () => {
   // State for yearly packages section
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [expandedYears, setExpandedYears] = useState(new Set([new Date().getFullYear()]));
+  
+  // State for summary view filter
+  const [activeSummaryView, setActiveSummaryView] = useState('hajj'); // 'all', 'hajj', 'umrah'
   
   // React Query hook for fetching agent details
   const { data: agent, isLoading, error } = useAgent(id);
@@ -213,6 +223,10 @@ const transactionsData = {
         due = Math.max(billed - paid, 0);
       }
 
+      // Calculate profit/loss for this package
+      const profit = calculateProfitLoss(pkg);
+      const profitValue = profit.profitValue || 0;
+
       const isHajj =
         pkg.packageType === 'Hajj' ||
         pkg.packageType === 'হজ্জ' ||
@@ -224,11 +238,13 @@ const transactionsData = {
       acc[group].billed += billed;
       acc[group].paid += paid;
       acc[group].due += due;
+      acc[group].profit += profitValue;
 
       acc.overall.customers += assignedCount;
       acc.overall.billed += billed;
       acc.overall.paid += paid;
       acc.overall.due += due;
+      acc.overall.profit += profitValue;
 
       return acc;
     },
@@ -238,18 +254,21 @@ const transactionsData = {
         billed: 0,
         paid: 0,
         due: 0,
+        profit: 0,
       },
       hajj: {
         customers: customerCounts.hajCustomers,
         billed: 0,
         paid: 0,
         due: 0,
+        profit: 0,
       },
       umrah: {
         customers: customerCounts.umrahCustomers,
         billed: 0,
         paid: 0,
         due: 0,
+        profit: 0,
       },
     }
   );
@@ -272,6 +291,7 @@ const transactionsData = {
         packageSummary.overall.paid
       ),
       due: pickNumberFromObject(agent, ['totalDue', 'dueAmount', 'outstanding'], packageSummary.overall.due),
+      profit: packageSummary.overall.profit,
     },
     hajj: {
       customers: pickNumberFromObject(
@@ -290,6 +310,7 @@ const transactionsData = {
         packageSummary.hajj.paid
       ),
       due: pickNumberFromObject(agent, ['hajDue', 'hajjDue', 'totalHajjDue'], packageSummary.hajj.due),
+      profit: packageSummary.hajj.profit,
     },
     umrah: {
       customers: pickNumberFromObject(
@@ -308,6 +329,7 @@ const transactionsData = {
         packageSummary.umrah.paid
       ),
       due: pickNumberFromObject(agent, ['umrahDue', 'totalUmrahDue'], packageSummary.umrah.due),
+      profit: packageSummary.umrah.profit,
     },
   };
 
@@ -320,6 +342,12 @@ const transactionsData = {
         { label: 'Total Billed', value: formatCurrency(financialSummary.overall.billed), icon: DollarSign },
         { label: 'Total Paid', value: formatCurrency(financialSummary.overall.paid), icon: Wallet },
         { label: 'Total Dues', value: formatCurrency(financialSummary.overall.due), icon: Receipt },
+        { 
+          label: 'Profit/Loss', 
+          value: formatProfitLoss(financialSummary.overall.profit), 
+          icon: financialSummary.overall.profit >= 0 ? TrendingUp : TrendingDown,
+          isProfit: financialSummary.overall.profit >= 0
+        },
       ],
     },
     {
@@ -330,6 +358,12 @@ const transactionsData = {
         { label: 'Hajj Bill', value: formatCurrency(financialSummary.hajj.billed), icon: FileText },
         { label: 'Hajj Paid', value: formatCurrency(financialSummary.hajj.paid), icon: PiggyBank },
         { label: 'Hajj Dues', value: formatCurrency(financialSummary.hajj.due), icon: Calculator },
+        { 
+          label: 'Profit/Loss', 
+          value: formatProfitLoss(financialSummary.hajj.profit), 
+          icon: financialSummary.hajj.profit >= 0 ? TrendingUp : TrendingDown,
+          isProfit: financialSummary.hajj.profit >= 0
+        },
       ],
     },
     {
@@ -340,6 +374,12 @@ const transactionsData = {
         { label: 'Umrah Bill', value: formatCurrency(financialSummary.umrah.billed), icon: FileSpreadsheet },
         { label: 'Umrah Paid', value: formatCurrency(financialSummary.umrah.paid), icon: CreditCard },
         { label: 'Umrah Dues', value: formatCurrency(financialSummary.umrah.due), icon: AlertTriangle },
+        { 
+          label: 'Profit/Loss', 
+          value: formatProfitLoss(financialSummary.umrah.profit), 
+          icon: financialSummary.umrah.profit >= 0 ? TrendingUp : TrendingDown,
+          isProfit: financialSummary.umrah.profit >= 0
+        },
       ],
     },
   ];
@@ -511,45 +551,111 @@ const transactionsData = {
         <div className="space-y-4">
           {/* Summary Statistics Grid */}
           <div className="space-y-3">
-            {summaryRows.map((row) => (
-              <div key={row.id} className="space-y-2">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{row.title}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {row.items.map((item, index) => {
-                    const gradients = [
-                      'from-blue-500 to-blue-600',
-                      'from-emerald-500 to-emerald-600',
-                      'from-purple-500 to-purple-600',
-                      'from-amber-500 to-amber-600',
-                      'from-indigo-500 to-indigo-600',
-                      'from-rose-500 to-rose-600',
-                      'from-cyan-500 to-cyan-600',
-                      'from-lime-500 to-lime-600',
-                      'from-sky-500 to-sky-600',
-                      'from-fuchsia-500 to-fuchsia-600',
-                      'from-orange-500 to-orange-600',
-                      'from-teal-500 to-teal-600',
-                    ];
-                    const gradientClass = gradients[index % gradients.length];
-                    const IconComponent = item.icon;
-                    return (
-                      <div
-                        key={item.label}
-                        className={`bg-gradient-to-r ${gradientClass} rounded-lg p-3 text-white`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-xs opacity-90">{item.label}</p>
-                            <p className="text-lg font-semibold">{item.value}</p>
+            {/* Filter Buttons */}
+            <div className="flex items-center gap-3 mb-4">
+              <button
+                onClick={() => setActiveSummaryView('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  activeSummaryView === 'all'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                সব সারাংশ
+              </button>
+              <button
+                onClick={() => setActiveSummaryView('hajj')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  activeSummaryView === 'hajj'
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                হজ্জ সারাংশ
+              </button>
+              <button
+                onClick={() => setActiveSummaryView('umrah')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                  activeSummaryView === 'umrah'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                উমরাহ সারাংশ
+              </button>
+            </div>
+
+            {/* Filtered Summary Rows */}
+            {summaryRows
+              .filter((row) => {
+                if (activeSummaryView === 'all') return true;
+                if (activeSummaryView === 'hajj') return row.id === 'hajj';
+                if (activeSummaryView === 'umrah') return row.id === 'umrah';
+                return true;
+              })
+              .map((row) => (
+                <div key={row.id} className="space-y-2">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{row.title}</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                    {row.items.map((item, index) => {
+                      // Determine card colors based on label type
+                      let bgColor = '';
+                      let textColor = '';
+                      
+                      if (item.label === 'Profit/Loss') {
+                        // Net/Profit card - light blue background with dark blue text
+                        bgColor = item.isProfit 
+                          ? 'bg-blue-50 dark:bg-blue-900/20' 
+                          : 'bg-red-50 dark:bg-red-900/20';
+                        textColor = item.isProfit 
+                          ? 'text-blue-700 dark:text-blue-300' 
+                          : 'text-red-700 dark:text-red-300';
+                      } else if (item.label.includes('Paid') || item.label.includes('Credit')) {
+                        // Credit/Paid cards - light green background with dark green text
+                        bgColor = 'bg-green-50 dark:bg-green-900/20';
+                        textColor = 'text-green-700 dark:text-green-300';
+                      } else if (item.label.includes('Dues') || item.label.includes('Debit')) {
+                        // Debit/Dues cards - light red background with dark red text
+                        bgColor = 'bg-red-50 dark:bg-red-900/20';
+                        textColor = 'text-red-700 dark:text-red-300';
+                      } else if (item.label.includes('Billed') || item.label.includes('Bill')) {
+                        // Billed cards - light blue background with dark blue text
+                        bgColor = 'bg-blue-50 dark:bg-blue-900/20';
+                        textColor = 'text-blue-700 dark:text-blue-300';
+                      } else {
+                        // Default for other cards (Total Haji, etc.) - light purple/indigo
+                        bgColor = 'bg-purple-50 dark:bg-purple-900/20';
+                        textColor = 'text-purple-700 dark:text-purple-300';
+                      }
+                      
+                      // Get border color from text color
+                      const borderColor = textColor.includes('green') 
+                        ? 'border-green-200 dark:border-green-800'
+                        : textColor.includes('red')
+                        ? 'border-red-200 dark:border-red-800'
+                        : textColor.includes('blue')
+                        ? 'border-blue-200 dark:border-blue-800'
+                        : 'border-purple-200 dark:border-purple-800';
+                      
+                      const IconComponent = item.icon;
+                      return (
+                        <div
+                          key={item.label}
+                          className={`${bgColor} rounded-lg p-3 border ${borderColor}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className={`text-xs ${textColor} opacity-80`}>{item.label}</p>
+                              <p className={`text-lg font-semibold ${textColor}`}>{item.value}</p>
+                            </div>
+                            {IconComponent ? <IconComponent className={`w-6 h-6 ${textColor} opacity-70`} /> : null}
                           </div>
-                          {IconComponent ? <IconComponent className="w-6 h-6 opacity-80" /> : null}
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           {/* Main Content Grid */}

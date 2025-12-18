@@ -163,7 +163,8 @@ Each main section contains relevant sub-sections:
 - **Neutral**: Gray scale
 
 ### Typography
-- **Font**: Hind Siliguri (Bengali optimized)
+- **English Font**: Google Sans
+- **Bengali Font**: Kalpurush
 - **Sizes**: Responsive text sizing
 - **Weights**: 300, 400, 500, 600, 700
 
@@ -197,7 +198,7 @@ VITE_FIREBASE_PROJECT_ID=your-project-id
 ### TailwindCSS
 - **Dark Mode**: Class-based dark mode
 - **Custom Colors**: Extended color palette
-- **Custom Fonts**: Hind Siliguri integration
+- **Custom Fonts**: Google Sans & Kalpurush integration
 
 ## 🚀 Development
 

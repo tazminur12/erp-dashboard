@@ -1,5 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   ArrowDownCircle, 
@@ -183,6 +184,10 @@ const Details = () => {
 
   return (
     <main className="p-4 md:p-6 space-y-6 print:p-4">
+      <Helmet>
+        <title>Exchange Details - {exchange.id}</title>
+        <meta name="description" content="Complete information about the currency exchange transaction." />
+      </Helmet>
       {/* Header */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div className="flex items-center gap-4">

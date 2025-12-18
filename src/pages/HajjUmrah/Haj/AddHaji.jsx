@@ -1,5 +1,6 @@
 import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Save, 
@@ -967,6 +968,10 @@ useEffect(() => {
 
   return (
     <div className="p-6 space-y-6">
+       <Helmet>
+              <title>Add Haji</title>
+              <meta name="description" content="Add a new Haji to the system." />
+            </Helmet>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button

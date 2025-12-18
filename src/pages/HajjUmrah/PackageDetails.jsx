@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Edit, 
@@ -95,52 +96,23 @@ const PackageDetails = () => {
 
   const assignedPassengerCounts = getAssignedPassengerCounts();
 
-  // Profit & Loss summary (uses backend data when available, otherwise derives from totals)
+  // Profit & Loss summary (uses backend data when available)
   // Backend returns profitLoss object with: assignedPassengerCounts, originalPrices, costingPrices,
   // totalOriginalPrice, totalCostingPrice, profitOrLoss, passengerOriginalTotals, passengerCostingTotals, passengerProfit
-  const profitLossData = pkg?.profitLoss ? {
-    totalCost: pkg.profitLoss.totalCostingPrice || 0,
-    sellingPrice: pkg.profitLoss.totalOriginalPrice || 0,
-    profitLoss: pkg.profitLoss.profitOrLoss || 0,
-    profitLossPercentage: pkg.profitLoss.totalCostingPrice 
-      ? ((pkg.profitLoss.profitOrLoss || 0) / pkg.profitLoss.totalCostingPrice) * 100 
-      : 0,
-    isProfit: (pkg.profitLoss.profitOrLoss || 0) > 0,
-    isLoss: (pkg.profitLoss.profitOrLoss || 0) < 0,
-    // Additional backend data
-    assignedPassengerCounts: pkg.profitLoss.assignedPassengerCounts || { adult: 0, child: 0, infant: 0 },
-    originalPrices: pkg.profitLoss.originalPrices || { adult: 0, child: 0, infant: 0 },
-    costingPrices: pkg.profitLoss.costingPrices || { adult: 0, child: 0, infant: 0 },
-    passengerOriginalTotals: pkg.profitLoss.passengerOriginalTotals || { adult: 0, child: 0, infant: 0 },
-    passengerCostingTotals: pkg.profitLoss.passengerCostingTotals || { adult: 0, child: 0, infant: 0 },
-    passengerProfit: pkg.profitLoss.passengerProfit || { adult: 0, child: 0, infant: 0 }
-  } : (() => {
-    // Fallback calculation if backend profitLoss is not available
-    const totalCost = parseFloat(pkg?.totals?.grandTotal || pkg?.totals?.total || 0);
-    const sellingPrice = parseFloat(
-      pkg?.totalPrice ??
-      pkg?.totals?.totalBD ??
-      pkg?.totals?.grandTotal ??
-      pkg?.totals?.subtotal ??
-      0
-    ) || 0;
-    const profitLoss = sellingPrice - totalCost;
-    const profitLossPercentage = totalCost ? (profitLoss / totalCost) * 100 : 0;
-    return {
-      totalCost,
-      sellingPrice,
-      profitLoss,
-      profitLossPercentage,
-      isProfit: profitLoss > 0,
-      isLoss: profitLoss < 0,
-      assignedPassengerCounts: pkg?.assignedPassengerCounts || { adult: 0, child: 0, infant: 0 },
-      originalPrices: pkg?.totals?.passengerTotals || { adult: 0, child: 0, infant: 0 },
-      costingPrices: pkg?.totals?.costingPassengerTotals || { adult: 0, child: 0, infant: 0 },
-      passengerOriginalTotals: { adult: 0, child: 0, infant: 0 },
-      passengerCostingTotals: { adult: 0, child: 0, infant: 0 },
-      passengerProfit: { adult: 0, child: 0, infant: 0 }
-    };
-  })();
+  const profitLossData = pkg?.profitLoss || {
+    totalCostingPrice: 0,
+    totalOriginalPrice: 0,
+    profitOrLoss: 0,
+    profitLossPercentage: 0,
+    isProfit: false,
+    isLoss: false,
+    assignedPassengerCounts: { adult: 0, child: 0, infant: 0 },
+    originalPrices: { adult: 0, child: 0, infant: 0 },
+    costingPrices: { adult: 0, child: 0, infant: 0 },
+    passengerOriginalTotals: { adult: 0, child: 0, infant: 0 },
+    passengerCostingTotals: { adult: 0, child: 0, infant: 0 },
+    passengerProfit: { adult: 0, child: 0, infant: 0 }
+  };
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
@@ -200,7 +172,14 @@ const PackageDetails = () => {
   };
 
   const handleEdit = () => {
-    navigate(`/hajj-umrah/package-list/${id}/edit`);
+    const customType = pkg?.customPackageType || '';
+    if (customType.toLowerCase().includes('umrah')) {
+      navigate(`/umrah/umrah-package-list/${id}/edit`);
+    } else if (customType.toLowerCase().includes('haj') || customType.toLowerCase().includes('hajj')) {
+      navigate(`/hajj-umrah/haj-package-list/${id}/edit`);
+    } else {
+      navigate(`/hajj-umrah/package-list/${id}/edit`);
+    }
   };
 
   const handleDelete = () => {
@@ -259,6 +238,10 @@ const PackageDetails = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <Helmet>
+        <title>Package Details</title>
+        <meta name="description" content="View package details and manage settings." />
+      </Helmet>
       <style jsx>{`
         @media print {
           .no-print {
@@ -636,18 +619,6 @@ const PackageDetails = () => {
                       <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.transportFee)}</span>
                     </div>
                   )}
-                  {pkg.costs.visaFee !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">ভিসা ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.visaFee)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.insuranceFee !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">ইনস্যুরেন্স ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.insuranceFee)}</span>
-                    </div>
-                  )}
                   {pkg.costs.otherBdCosts !== undefined && (
                     <div className="flex items-center gap-x-3">
                       <span className="text-sm text-gray-600 dark:text-gray-400">অন্যান্য খরচ</span>
@@ -694,6 +665,98 @@ const PackageDetails = () => {
                   </div>
                 </div>
               )}
+
+              {/* Saudi Costs */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">সৌদি অংশ</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {(() => {
+                    const sarToBdtRate = parseFloat(pkg.sarToBdtRate) || 1;
+                    return (
+                      <>
+                        {pkg.costs.zamzamWater !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">জমজম পানি ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.zamzamWater) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.maktab !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">মক্তব ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.maktab) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.electronicsFee !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">ইলেকট্রনিক্স ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.electronicsFee) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.groundServiceFee !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">গ্রাউন্ড সার্ভিস ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.groundServiceFee) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.makkahRoute !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">মক্কা রুট ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.makkahRoute) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.baggage !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">ব্যাগেজ ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.baggage) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.serviceCharge !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">সার্ভিস চার্জ ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.serviceCharge) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.monazzem !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">মোনাজ্জেম ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.monazzem) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.food !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">খাবার</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.food) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.ziyaraFee !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">জিয়ারা ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.ziyaraFee) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.campFee !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">ক্যাম্প ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.campFee) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.visaFee !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">ভিসা ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.visaFee) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                        {pkg.costs.insuranceFee !== undefined && (
+                          <div className="flex items-center gap-x-3">
+                            <span className="text-sm text-gray-600 dark:text-gray-400">ইনস্যুরেন্স ফি</span>
+                            <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency((parseFloat(pkg.costs.insuranceFee) || 0) * sarToBdtRate)}</span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
 
               {/* Hotel Costs */}
               {(pkg.costs.hotelDetails || 
@@ -782,73 +845,6 @@ const PackageDetails = () => {
                   </div>
                 </div>
               )}
-
-              {/* Saudi Costs */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">সৌদি অংশ</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {pkg.costs.zamzamWater !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">জমজম পানি ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.zamzamWater)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.maktab !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">মক্তব ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.maktab)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.electronicsFee !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">ইলেকট্রনিক্স ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.electronicsFee)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.groundServiceFee !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">গ্রাউন্ড সার্ভিস ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.groundServiceFee)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.makkahRoute !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">মক্কা রুট ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.makkahRoute)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.baggage !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">ব্যাগেজ ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.baggage)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.serviceCharge !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">সার্ভিস চার্জ ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.serviceCharge)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.monazzem !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">মোনাজ্জেম ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.monazzem)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.food !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">খাবার</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.food)}</span>
-                    </div>
-                  )}
-                  {pkg.costs.ziyaraFee !== undefined && (
-                    <div className="flex items-center gap-x-3">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">জিয়ারা ফি</span>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{formatCurrency(pkg.costs.ziyaraFee)}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
@@ -985,7 +981,16 @@ const PackageDetails = () => {
                   Profit & Loss
                 </h2>
                 <button
-                  onClick={() => navigate(`/hajj-umrah/package-list/${id}/costing`)}
+                  onClick={() => {
+                    const customType = pkg?.customPackageType || '';
+                    if (customType.toLowerCase().includes('umrah')) {
+                      navigate(`/umrah/umrah-package-list/${id}/costing`);
+                    } else if (customType.toLowerCase().includes('haj') || customType.toLowerCase().includes('hajj')) {
+                      navigate(`/hajj-umrah/haj-package-list/${id}/costing`);
+                    } else {
+                      navigate(`/hajj-umrah/package-list/${id}/costing`);
+                    }
+                  }}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors shadow-sm"
                 >
                   <Plus className="w-4 h-4" />
@@ -1044,7 +1049,7 @@ const PackageDetails = () => {
                         ? 'text-red-700 dark:text-red-400'
                         : 'text-gray-900 dark:text-white'
                     }`}>
-                      {profitLossData.isProfit ? '+' : ''}{formatCurrency(profitLossData.profitLoss)}
+                      {profitLossData.isProfit ? '+' : ''}{formatCurrency(profitLossData.profitOrLoss)}
                     </p>
                     {profitLossData.profitLossPercentage !== 0 && (
                       <p className={`mt-1 text-sm font-semibold flex items-center ${
@@ -1077,6 +1082,175 @@ const PackageDetails = () => {
                     ) : (
                       <Calculator className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                     )}
+                  </div>
+                </div>
+
+                {/* Per-Passenger-Type Breakdown */}
+                <div className="mt-6 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    যাত্রীর ধরন অনুযায়ী বিস্তারিত (Per Passenger Type Breakdown)
+                  </h3>
+                  
+                  {/* Adult Breakdown */}
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                      <h4 className="text-base font-bold text-blue-700 dark:text-blue-400 flex items-center">
+                        <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                        Adult (প্রাপ্তবয়স্ক)
+                      </h4>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {profitLossData.assignedPassengerCounts?.adult || 0} জন
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Original Price</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.originalPrices?.adult || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Costing Price</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.costingPrices?.adult || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Original Total</p>
+                        <p className="font-semibold text-blue-600 dark:text-blue-400">
+                          {formatCurrency(profitLossData.passengerOriginalTotals?.adult || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Costing Total</p>
+                        <p className="font-semibold text-blue-600 dark:text-blue-400">
+                          {formatCurrency(profitLossData.passengerCostingTotals?.adult || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Profit/Loss:</span>
+                        <span className={`text-base font-bold ${
+                          (profitLossData.passengerProfit?.adult || 0) > 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : (profitLossData.passengerProfit?.adult || 0) < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-600 dark:text-gray-400'
+                        }`}>
+                          {(profitLossData.passengerProfit?.adult || 0) > 0 ? '+' : ''}
+                          {formatCurrency(profitLossData.passengerProfit?.adult || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Child Breakdown */}
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-green-200 dark:border-green-800">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                      <h4 className="text-base font-bold text-green-700 dark:text-green-400 flex items-center">
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        Child (শিশু)
+                      </h4>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {profitLossData.assignedPassengerCounts?.child || 0} জন
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Original Price</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.originalPrices?.child || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Costing Price</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.costingPrices?.child || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Original Total</p>
+                        <p className="font-semibold text-green-600 dark:text-green-400">
+                          {formatCurrency(profitLossData.passengerOriginalTotals?.child || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Costing Total</p>
+                        <p className="font-semibold text-green-600 dark:text-green-400">
+                          {formatCurrency(profitLossData.passengerCostingTotals?.child || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Profit/Loss:</span>
+                        <span className={`text-base font-bold ${
+                          (profitLossData.passengerProfit?.child || 0) > 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : (profitLossData.passengerProfit?.child || 0) < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-600 dark:text-gray-400'
+                        }`}>
+                          {(profitLossData.passengerProfit?.child || 0) > 0 ? '+' : ''}
+                          {formatCurrency(profitLossData.passengerProfit?.child || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Infant Breakdown */}
+                  <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm border border-orange-200 dark:border-orange-800">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200 dark:border-gray-600">
+                      <h4 className="text-base font-bold text-orange-700 dark:text-orange-400 flex items-center">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                        Infant (শিশু)
+                      </h4>
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {profitLossData.assignedPassengerCounts?.infant || 0} জন
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Original Price</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.originalPrices?.infant || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Costing Price</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">
+                          {formatCurrency(profitLossData.costingPrices?.infant || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Original Total</p>
+                        <p className="font-semibold text-orange-600 dark:text-orange-400">
+                          {formatCurrency(profitLossData.passengerOriginalTotals?.infant || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600 dark:text-gray-400 mb-1">Costing Total</p>
+                        <p className="font-semibold text-orange-600 dark:text-orange-400">
+                          {formatCurrency(profitLossData.passengerCostingTotals?.infant || 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Profit/Loss:</span>
+                        <span className={`text-base font-bold ${
+                          (profitLossData.passengerProfit?.infant || 0) > 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : (profitLossData.passengerProfit?.infant || 0) < 0
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-600 dark:text-gray-400'
+                        }`}>
+                          {(profitLossData.passengerProfit?.infant || 0) > 0 ? '+' : ''}
+                          {formatCurrency(profitLossData.passengerProfit?.infant || 0)}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

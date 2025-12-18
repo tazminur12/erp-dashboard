@@ -34,6 +34,7 @@ import { useUmrah, useUpdateUmrah } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
 import useLicenseQueries from '../../../hooks/useLicenseQueries';
 import Swal from 'sweetalert2';
+import { Helmet } from 'react-helmet-async';
 
 const HajiDetails = () => {
   const { id } = useParams();
@@ -423,7 +424,13 @@ const HajiDetails = () => {
 
   if (error) {
     return (
+      
       <div className="p-6 text-center">
+         <Helmet>
+                <title>Haji List</title>
+                <meta name="description" content="Manage all registered Haji including their details, status, and payments." />
+              </Helmet>
+        
         <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">ডেটা লোড করতে ত্রুটি</h2>
         <p className="text-gray-600 dark:text-gray-400 mb-4">

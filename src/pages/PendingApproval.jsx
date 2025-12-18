@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase/config';
 
@@ -42,6 +43,10 @@ const PendingApproval = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+      <Helmet>
+        <title>Pending Approval User</title>
+        <meta name="description" content="Your account is awaiting role setup." />
+      </Helmet>
       <div className="max-w-2xl w-full">
         {/* Header */}
         <div className="text-center mb-8">

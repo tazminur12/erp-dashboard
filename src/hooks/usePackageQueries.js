@@ -30,37 +30,69 @@ const normalizePassengerTotals = (totals = {}) => {
 };
 
 const normalizeProfitLoss = (pkg = {}) => {
-  const totals = pkg.totals || {};
   const profitLossFromApi = pkg.profitLoss || {};
+  const assignedCounts = pkg.assignedPassengerCounts || { adult: 0, child: 0, infant: 0 };
+  const totals = pkg.totals || {};
+  
+  // Use backend calculated values if available
+  const totalOriginalPrice = toNumeric(profitLossFromApi.totalOriginalPrice) ?? 0;
+  const totalCostingPrice = toNumeric(profitLossFromApi.totalCostingPrice) ?? 0;
+  const profitOrLoss = toNumeric(profitLossFromApi.profitOrLoss) ?? (totalOriginalPrice - totalCostingPrice);
+  
+  // Get per-passenger-type data from backend
+  const originalPrices = profitLossFromApi.originalPrices || totals.passengerTotals || { adult: 0, child: 0, infant: 0 };
+  const costingPrices = profitLossFromApi.costingPrices || totals.costingPassengerTotals || { adult: 0, child: 0, infant: 0 };
+  const passengerOriginalTotals = profitLossFromApi.passengerOriginalTotals || {
+    adult: (assignedCounts.adult || 0) * (toNumeric(originalPrices.adult) || 0),
+    child: (assignedCounts.child || 0) * (toNumeric(originalPrices.child) || 0),
+    infant: (assignedCounts.infant || 0) * (toNumeric(originalPrices.infant) || 0)
+  };
+  const passengerCostingTotals = profitLossFromApi.passengerCostingTotals || {
+    adult: (assignedCounts.adult || 0) * (toNumeric(costingPrices.adult) || 0),
+    child: (assignedCounts.child || 0) * (toNumeric(costingPrices.child) || 0),
+    infant: (assignedCounts.infant || 0) * (toNumeric(costingPrices.infant) || 0)
+  };
+  const passengerProfit = profitLossFromApi.passengerProfit || {
+    adult: (toNumeric(passengerOriginalTotals.adult) || 0) - (toNumeric(passengerCostingTotals.adult) || 0),
+    child: (toNumeric(passengerOriginalTotals.child) || 0) - (toNumeric(passengerCostingTotals.child) || 0),
+    infant: (toNumeric(passengerOriginalTotals.infant) || 0) - (toNumeric(passengerCostingTotals.infant) || 0)
+  };
 
-  const costingPrice =
-    toNumeric(profitLossFromApi.costingPrice) ??
-    toNumeric(totals.costingPrice) ??
-    toNumeric(totals.grandTotal) ??
-    0;
-
-  const packagePrice =
-    toNumeric(profitLossFromApi.packagePrice) ??
-    toNumeric(pkg.totalPrice) ??
-    toNumeric(totals.packagePrice) ??
-    toNumeric(totals.subtotal) ??
-    toNumeric(totals.grandTotal) ??
-    0;
-
-  const profitValue =
-    toNumeric(profitLossFromApi.profitOrLoss) ??
-    toNumeric(profitLossFromApi.profitLoss) ??
-    (packagePrice - costingPrice);
-
-  const percentage = packagePrice ? (profitValue / packagePrice) * 100 : 0;
+  const percentage = totalOriginalPrice ? (profitOrLoss / totalOriginalPrice) * 100 : 0;
 
   return {
-    costingPrice,
-    packagePrice,
-    profitLoss: profitValue,
+    totalCostingPrice,
+    totalOriginalPrice,
+    profitOrLoss,
     profitLossPercentage: percentage,
-    isProfit: profitValue > 0,
-    isLoss: profitValue < 0,
+    isProfit: profitOrLoss > 0,
+    isLoss: profitOrLoss < 0,
+    assignedPassengerCounts: assignedCounts,
+    originalPrices: {
+      adult: toNumeric(originalPrices.adult) || 0,
+      child: toNumeric(originalPrices.child) || 0,
+      infant: toNumeric(originalPrices.infant) || 0
+    },
+    costingPrices: {
+      adult: toNumeric(costingPrices.adult) || 0,
+      child: toNumeric(costingPrices.child) || 0,
+      infant: toNumeric(costingPrices.infant) || 0
+    },
+    passengerOriginalTotals: {
+      adult: toNumeric(passengerOriginalTotals.adult) || 0,
+      child: toNumeric(passengerOriginalTotals.child) || 0,
+      infant: toNumeric(passengerOriginalTotals.infant) || 0
+    },
+    passengerCostingTotals: {
+      adult: toNumeric(passengerCostingTotals.adult) || 0,
+      child: toNumeric(passengerCostingTotals.child) || 0,
+      infant: toNumeric(passengerCostingTotals.infant) || 0
+    },
+    passengerProfit: {
+      adult: toNumeric(passengerProfit.adult) || 0,
+      child: toNumeric(passengerProfit.child) || 0,
+      infant: toNumeric(passengerProfit.infant) || 0
+    }
   };
 };
 
@@ -133,9 +165,48 @@ export const usePackage = (id) => {
       if (data?.success) {
         const pkg = data?.data || {};
         
-        // Backend now returns profitLoss object directly, use it if available
-        // Otherwise fall back to calculating it
-        const profitLossData = pkg.profitLoss || normalizeProfitLoss(pkg);
+        // Backend returns profitLoss object with all calculated values
+        // Use it directly if available, otherwise normalize it
+        const profitLossData = pkg.profitLoss ? {
+          totalCostingPrice: toNumeric(pkg.profitLoss.totalCostingPrice) || 0,
+          totalOriginalPrice: toNumeric(pkg.profitLoss.totalOriginalPrice) || 0,
+          profitOrLoss: toNumeric(pkg.profitLoss.profitOrLoss) || 0,
+          profitLossPercentage: pkg.profitLoss.totalOriginalPrice 
+            ? ((toNumeric(pkg.profitLoss.profitOrLoss) || 0) / (toNumeric(pkg.profitLoss.totalOriginalPrice) || 1)) * 100 
+            : 0,
+          isProfit: (toNumeric(pkg.profitLoss.profitOrLoss) || 0) > 0,
+          isLoss: (toNumeric(pkg.profitLoss.profitOrLoss) || 0) < 0,
+          assignedPassengerCounts: pkg.profitLoss.assignedPassengerCounts || {
+            adult: 0,
+            child: 0,
+            infant: 0
+          },
+          originalPrices: {
+            adult: toNumeric(pkg.profitLoss.originalPrices?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.originalPrices?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.originalPrices?.infant) || 0
+          },
+          costingPrices: {
+            adult: toNumeric(pkg.profitLoss.costingPrices?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.costingPrices?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.costingPrices?.infant) || 0
+          },
+          passengerOriginalTotals: {
+            adult: toNumeric(pkg.profitLoss.passengerOriginalTotals?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.passengerOriginalTotals?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.passengerOriginalTotals?.infant) || 0
+          },
+          passengerCostingTotals: {
+            adult: toNumeric(pkg.profitLoss.passengerCostingTotals?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.passengerCostingTotals?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.passengerCostingTotals?.infant) || 0
+          },
+          passengerProfit: {
+            adult: toNumeric(pkg.profitLoss.passengerProfit?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.passengerProfit?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.passengerProfit?.infant) || 0
+          }
+        } : normalizeProfitLoss(pkg);
         
         return {
           ...pkg,
@@ -318,15 +389,82 @@ export const useUpdatePackageCosting = () => {
       
       const response = await axiosSecure.post(`/haj-umrah/packages/${id}/costing`, dataWithoutTotalPrice);
       const data = response?.data;
-      if (data?.success) return data;
+      if (data?.success) {
+        const pkg = data?.data || {};
+        
+        // Backend returns profitLoss object with all calculated values
+        // Normalize it similar to usePackage hook
+        const profitLossData = pkg.profitLoss ? {
+          totalCostingPrice: toNumeric(pkg.profitLoss.totalCostingPrice) || 0,
+          totalOriginalPrice: toNumeric(pkg.profitLoss.totalOriginalPrice) || 0,
+          profitOrLoss: toNumeric(pkg.profitLoss.profitOrLoss) || 0,
+          profitLossPercentage: pkg.profitLoss.totalOriginalPrice 
+            ? ((toNumeric(pkg.profitLoss.profitOrLoss) || 0) / (toNumeric(pkg.profitLoss.totalOriginalPrice) || 1)) * 100 
+            : 0,
+          isProfit: (toNumeric(pkg.profitLoss.profitOrLoss) || 0) > 0,
+          isLoss: (toNumeric(pkg.profitLoss.profitOrLoss) || 0) < 0,
+          assignedPassengerCounts: pkg.profitLoss.assignedPassengerCounts || {
+            adult: 0,
+            child: 0,
+            infant: 0
+          },
+          originalPrices: {
+            adult: toNumeric(pkg.profitLoss.originalPrices?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.originalPrices?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.originalPrices?.infant) || 0
+          },
+          costingPrices: {
+            adult: toNumeric(pkg.profitLoss.costingPrices?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.costingPrices?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.costingPrices?.infant) || 0
+          },
+          passengerOriginalTotals: {
+            adult: toNumeric(pkg.profitLoss.passengerOriginalTotals?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.passengerOriginalTotals?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.passengerOriginalTotals?.infant) || 0
+          },
+          passengerCostingTotals: {
+            adult: toNumeric(pkg.profitLoss.passengerCostingTotals?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.passengerCostingTotals?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.passengerCostingTotals?.infant) || 0
+          },
+          passengerProfit: {
+            adult: toNumeric(pkg.profitLoss.passengerProfit?.adult) || 0,
+            child: toNumeric(pkg.profitLoss.passengerProfit?.child) || 0,
+            infant: toNumeric(pkg.profitLoss.passengerProfit?.infant) || 0
+          }
+        } : normalizeProfitLoss(pkg);
+        
+        // Return normalized package data
+        return {
+          ...data,
+          data: {
+            ...pkg,
+            totals: normalizePassengerTotals(pkg.totals),
+            assignedPassengerCounts: pkg.assignedPassengerCounts || {
+              adult: 0,
+              child: 0,
+              infant: 0
+            },
+            profitLoss: profitLossData
+          }
+        };
+      }
       throw new Error(data?.message || 'Failed to add/update package costing');
     },
     onSuccess: (data, { id }) => {
+      // Invalidate queries to refetch fresh data
       queryClient.invalidateQueries({ queryKey: packageKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: packageKeys.lists() });
+      
+      // Update the cache with the normalized response data
       if (data?.data) {
-        queryClient.setQueryData(packageKeys.detail(id), data.data);
+        queryClient.setQueryData(packageKeys.detail(id), (oldData) => {
+          // Merge with existing data if available, otherwise use new data
+          return data.data;
+        });
       }
+      
       Swal.fire({
         title: 'সফল!',
         text: data?.message || 'প্যাকেজ খরচ সফলভাবে সংরক্ষণ করা হয়েছে।',

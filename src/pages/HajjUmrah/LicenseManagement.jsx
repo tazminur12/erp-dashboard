@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Search, Edit, Trash2, Shield } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import DataTable from '../../components/common/DataTable';
 import useLicenseQueries from '../../hooks/useLicenseQueries';
@@ -239,6 +240,10 @@ const LicenseManagement = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <Helmet>
+        <title>License Management</title>
+        <meta name="description" content="Manage all licenses." />
+      </Helmet>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">License Management</h1>

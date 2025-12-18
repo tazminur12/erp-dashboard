@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { ArrowLeft } from 'lucide-react';
 import { useExchange, useUpdateExchange } from '../../hooks/useMoneyExchangeQueries';
 
@@ -170,6 +171,11 @@ const EditExchange = () => {
 
   return (
     <main className="p-4 md:p-6 space-y-6">
+      <Helmet>
+        <title>Edit Currency Exchange - {exchangeData.id}</title>
+        <meta name="description" content="Update the details of an existing currency exchange transaction." />
+      </Helmet>
+      {/* Header */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <button

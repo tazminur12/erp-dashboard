@@ -8,7 +8,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        'sans': ['Hind Siliguri', 'sans-serif'],
+        'sans': ['Kalpurush', 'Google Sans', 'sans-serif'],
+        'english': ['Google Sans', 'sans-serif'],
+        'bengali': ['Kalpurush', 'Noto Sans Bengali', 'SolaimanLipi', 'Bangla', 'Arial', 'sans-serif'],
       },
     },
   },

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   Plus, 
   Search, 
@@ -548,6 +549,10 @@ const UmrahHajiList = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <Helmet>
+        <title>Umrah Haji List</title>
+        <meta name="description" content="Manage all registered Umrah Haji List" />
+      </Helmet>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Umrah Haji List</h1>

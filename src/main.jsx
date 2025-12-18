@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -45,6 +46,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard/Dashboard'));
 // Transaction pages
 const TransactionsList = React.lazy(() => import ('./pages/Transactions/TransactionsList'))
 const NewTransaction = React.lazy(() => import('./pages/Transactions/NewTransaction'));
+const TodayTransactions = React.lazy(() => import('./pages/Transactions/TodayTransactions'));
 
 // Vendor pages
 const VendorDashboard = React.lazy(() => import('./pages/Vendors/VendorDashboard'));
@@ -62,6 +64,7 @@ const EditHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/EditHaji'));
 const UmrahHajiDetails = React.lazy(() => import('./pages/HajjUmrah/Umrah/UmrahHajiDetails'));
 const AddHaji = React.lazy(() => import('./pages/HajjUmrah/Haj/AddHaji'));
 const Agent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.Agent })).catch(() => ({ default: () => <div>Component not found</div> })));
+const AgentPackageList = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageList'));
 const AgentPackageCreation = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageCreation'));
 const AgentPackageDetails = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageDetails'));
 const AgentPackageEdit = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/AgentPackageEdit'));
@@ -71,23 +74,31 @@ const AddAgent = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ 
 const EditB2BAgent = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/EditAgent'));
 const B2BSellPage = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/B2BSellPage'));
 const B2BSellList = React.lazy(() => import('./pages/HajjUmrah/B2BAgent/B2BSellList'));
-const PackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCreation })).catch(() => ({ default: () => <div>Component not found</div> })));
-const PackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageList })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageDetails = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageDetails })).catch(() => ({ default: () => <div>Component not found</div> })));
-const PackageEdit = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageEdit })).catch(() => ({ default: () => <div>Component not found</div> })));
 const PackageCustomersList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCustomersList })).catch(() => ({ default: () => <div>Component not found</div> })));
-const PackageCosting = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.PackageCosting })).catch(() => ({ default: () => <div>Component not found</div> })));
+const HajPackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajPackageList })).catch(() => ({ default: () => <div>Component not found</div> })));
+const HajPackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajPackageCreation })).catch(() => ({ default: () => <div>Component not found</div> })));
+const HajPackageCosting = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajPackageCosting })).catch(() => ({ default: () => <div>Component not found</div> })));
+const HajPackageEdit = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.HajPackageEdit })).catch(() => ({ default: () => <div>Component not found</div> })));
 const AddUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.AddUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const EditUmrahHaji = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.EditUmrahHaji })).catch(() => ({ default: () => <div>Component not found</div> })));
 const UmrahHajiList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahHajiList })).catch(() => ({ default: () => <div>Component not found</div> })));
+const UmrahPackageList = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahPackageList })).catch(() => ({ default: () => <div>Component not found</div> })));
+const UmrahPackageCreation = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahPackageCreation })).catch(() => ({ default: () => <div>Component not found</div> })));
+const UmrahPackageCosting = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahPackageCosting })).catch(() => ({ default: () => <div>Component not found</div> })));
+const UmrahPackageEdit = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahPackageEdit })).catch(() => ({ default: () => <div>Component not found</div> })));
 const LicenseManagement = React.lazy(() => import('./pages/HajjUmrah/LicenseManagement'));
 
 // Air Ticketing pages
+const AirTicketDashboard = React.lazy(() => import('./pages/AirTicketing/Dashboard'));
 const NewTicket = React.lazy(() => import('./pages/AirTicketing/NewTicket'));
 const TicketList = React.lazy(() => import('./pages/AirTicketing/TicketList'));
+const TicketEdit = React.lazy(() => import('./pages/AirTicketing/TicketEdit'));
+const TicketDetails = React.lazy(() => import('./pages/AirTicketing/TicketDetails'));
 const TicketInvoice = React.lazy(() => import('./pages/AirTicketing/TicketInvoice'));
 const PassengerList = React.lazy(() => import('./pages/AirTicketing/PassengerList'));
 const NewPassenger = React.lazy(() => import('./pages/AirTicketing/NewPassenger'));
+const PassengerEdit = React.lazy(() => import('./pages/AirTicketing/PassengerEdit'));
 const PassengerDetails = React.lazy(() => import('./pages/AirTicketing/PassengerDetails'));
 const AgentList = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AgentList'));
 const AirAgentAdd = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentAdd'));
@@ -106,6 +117,7 @@ const VisaPayment = React.lazy(() => import('./pages/VisaProcessing').then(modul
 const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaDocuments })).catch(() => ({ default: () => <div>Component not found</div> })));
 
 // Loan pages (direct file imports to surface real errors and avoid masking with catch)
+const LoanDashboard = React.lazy(() => import('./pages/Loan/Dashboard'));
 const LoanList = React.lazy(() => import('./pages/Loan/LoanList'));
 const LoanDetails = React.lazy(() => import('./pages/Loan/LoanDetails'));
 const NewLoanReceiving = React.lazy(() => import('./pages/Loan/NewLoanReceiving'));
@@ -292,6 +304,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "today",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TodayTransactions />
+          </Suspense>
+        )
+      },
+      {
         path: "new",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -460,6 +480,22 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "agent-packages",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentPackageList />
+          </Suspense>
+        )
+      },
+      {
+        path: "agent-packages/create",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AgentPackageCreation />
+          </Suspense>
+        )
+      },
+      {
         path: "agent-packages/:id",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -484,22 +520,6 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: "package-creation",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <PackageCreation />
-          </Suspense>
-        )
-      },
-      {
-        path: "package-list",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <PackageList />
-          </Suspense>
-        )
-      },
-      {
         path: "package-list/:id",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -508,26 +528,10 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: "package-list/:id/costing",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <PackageCosting />
-          </Suspense>
-        )
-      },
-      {
         path: "package-list/:id/customers",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <PackageCustomersList />
-          </Suspense>
-        )
-      },
-      {
-        path: "package-list/:id/edit",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <PackageEdit />
           </Suspense>
         )
       },
@@ -552,6 +556,38 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <LicenseManagement />
+          </Suspense>
+        )
+      },
+      {
+        path: "haj-package-list",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajPackageList />
+          </Suspense>
+        )
+      },
+      {
+        path: "haj-package-creation",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajPackageCreation />
+          </Suspense>
+        )
+      },
+      {
+        path: "haj-package-list/:id/costing",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajPackageCosting />
+          </Suspense>
+        )
+      },
+      {
+        path: "haj-package-list/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HajPackageEdit />
           </Suspense>
         )
       }
@@ -597,6 +633,38 @@ const router = createBrowserRouter([
           </Suspense>
         )
       },
+      {
+        path: "umrah-package-list",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <UmrahPackageList />
+          </Suspense>
+        )
+      },
+      {
+        path: "umrah-package-creation",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <UmrahPackageCreation />
+          </Suspense>
+        )
+      },
+      {
+        path: "umrah-package-list/:id/costing",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <UmrahPackageCosting />
+          </Suspense>
+        )
+      },
+      {
+        path: "umrah-package-list/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <UmrahPackageEdit />
+          </Suspense>
+        )
+      }
     ]
   },
   {
@@ -611,7 +679,15 @@ const router = createBrowserRouter([
         index: true,
         element: (
           <Suspense fallback={<LoadingSpinner />}>
-            <TicketList />
+            <AirTicketDashboard />
+          </Suspense>
+        )
+      },
+      {
+        path: "dashboard",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AirTicketDashboard />
           </Suspense>
         )
       },
@@ -620,6 +696,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <NewTicket />
+          </Suspense>
+        )
+      },
+      {
+        path: "edit-ticket/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TicketEdit />
           </Suspense>
         )
       },
@@ -633,10 +717,26 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "passengers/edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PassengerEdit />
+          </Suspense>
+        )
+      },
+      {
         path: "tickets",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <TicketList />
+          </Suspense>
+        )
+      },
+      {
+        path: "tickets/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TicketDetails />
           </Suspense>
         )
       },
@@ -790,6 +890,14 @@ const router = createBrowserRouter([
       </ThemeProvider>
     ),
     children: [
+      {
+        path: "dashboard",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <LoanDashboard />
+          </Suspense>
+        )
+      },
       {
         index: true,
         element: (
@@ -1478,12 +1586,15 @@ const router = createBrowserRouter([
 });
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  
+<React.StrictMode>
+  <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <RouterProvider router={router} />
         <ReactQueryDevtools initialIsOpen={false} />
       </AuthProvider>
     </QueryClientProvider>
-  </React.StrictMode>,
+  </HelmetProvider>
+</React.StrictMode>,
 );

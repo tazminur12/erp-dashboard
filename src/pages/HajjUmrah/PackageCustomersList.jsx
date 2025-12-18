@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import {
   ArrowLeft,
   Users,
@@ -250,6 +251,10 @@ const PackageCustomersList = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-6 px-4">
+      <Helmet>
+        <title>Package Customers List</title>
+        <meta name="description" content="View and manage customers assigned to this package." />
+      </Helmet>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">

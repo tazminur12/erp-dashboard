@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Users, 
-  Plane, 
-  Building, 
-  Wallet, 
-  Calculator, 
-  FileText, 
-  Receipt, 
-  Globe, 
-  TrendingUp, 
-  TrendingDown, 
-  BarChart3, 
-  Home, 
-  PiggyBank, 
+import {
+  Users,
+  Plane,
+  Building,
+  Wallet,
+  Calculator,
+  FileText,
+  Receipt,
+  Globe,
+  TrendingUp,
+  TrendingDown,
+  BarChart3,
+  Home,
+  PiggyBank,
   User,
   Package,
   Settings,
@@ -37,48 +37,54 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { useDashboardSummary, useCategoriesSummary, useTransactionsStats } from '../hooks/DashboardQueries';
+import { useHajjUmrahDashboardSummary } from '../hooks/useHajjUmrahDashboardQueries';
+import { useAirTicketDashboardSummary } from '../hooks/useAirTicketQueries';
 import { useTransactionCategories } from '../hooks/useTransactionQueries';
+import { useAccountQueries } from '../hooks/useAccountQueries';
 import { getAllSubCategories } from '../utils/categoryUtils';
 
 const ProfessionalDashboard = () => {
   const [dateRange, setDateRange] = useState({ fromDate: '', toDate: '' });
   const [showDateFilter, setShowDateFilter] = useState(false);
-  
+  const { useBankAccount } = useAccountQueries();
+
   // Fetch dashboard summary data
-  const { 
-    data: dashboardSummary, 
-    isLoading: isSummaryLoading, 
+  const {
+    data: dashboardSummary,
+    isLoading: isSummaryLoading,
     error: summaryError,
     refetch: refetchSummary
   } = useDashboardSummary({
     fromDate: dateRange.fromDate || undefined,
     toDate: dateRange.toDate || undefined,
   });
-  
+
   // Fetch categories summary data
-  const { 
-    data: categoriesSummary, 
-    isLoading: isCategoriesLoading, 
-    error: categoriesError 
+  const {
+    data: categoriesSummary,
+    isLoading: isCategoriesLoading,
+    error: categoriesError
   } = useCategoriesSummary({
     fromDate: dateRange.fromDate || undefined,
     toDate: dateRange.toDate || undefined,
   });
-  
+
   // Fetch transactions stats grouped by category and subcategory
-  const { 
-    data: transactionsStats, 
-    isLoading: isStatsLoading, 
-    error: statsError 
+  const {
+    data: transactionsStats,
+    isLoading: isStatsLoading,
+    error: statsError
   } = useTransactionsStats({
     groupBy: 'category,subcategory',
     fromDate: dateRange.fromDate || undefined,
     toDate: dateRange.toDate || undefined,
   });
-  
+
   // Fetch categories for ID to name mapping
   const { data: apiCategories = [] } = useTransactionCategories();
-  
+
+  const { data: huDashboardData, isLoading: isHUloading, error: huError } = useHajjUmrahDashboardSummary();
+
   // Extract data from dashboard summary
   const summary = dashboardSummary?.data || {};
   const grandTotals = dashboardSummary?.grandTotals || {};
@@ -92,14 +98,47 @@ const ProfessionalDashboard = () => {
   const farm = summary.farm || {};
   const recentActivity = summary.recentActivity || {};
 
+  const huOverview = huDashboardData?.overview || {};
+  const huProfitLoss = huDashboardData?.profitLoss || {};
+
+  const { data: airDashboardData, isLoading: isAirLoading, error: airError } = useAirTicketDashboardSummary({
+    dateFrom: dateRange.fromDate || undefined,
+    dateTo: dateRange.toDate || undefined,
+  });
+  const airTotals = airDashboardData?.totals || {};
+  const airFinancials = airDashboardData?.financials || {};
+
+  // Cash balance (similar to TodayTransactions)
+  const {
+    data: cashAccount,
+    isLoading: isCashLoading,
+    error: cashError,
+  } = useBankAccount('691349c9dd00549f2b8fccab');
+
+  const currentBalanceDisplay = React.useMemo(() => {
+    if (isCashLoading) return '...';
+    if (cashError || !cashAccount) return '—';
+    return `${cashAccount.currency || 'BDT'} ${Number(
+      cashAccount.currentBalance || 0
+    ).toLocaleString('bn-BD')}`;
+  }, [isCashLoading, cashError, cashAccount]);
+
   // Format currency
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'BDT',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount || 0);
+    try {
+      return new Intl.NumberFormat('bn-BD', {
+        style: 'currency',
+        currency: 'BDT',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount || 0);
+    } catch {
+      return `৳ ${Number(amount || 0).toLocaleString('bn-BD')}`;
+    }
+  };
+
+  const formatPercentBn = (value) => {
+    return `${Number(value || 0).toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   };
 
   // Format date
@@ -107,10 +146,10 @@ const ProfessionalDashboard = () => {
     if (!dateString) return '-';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('bn-BD', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
+      return date.toLocaleDateString('bn-BD', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
       });
     } catch {
       return dateString;
@@ -315,87 +354,230 @@ const ProfessionalDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header Section */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                ERP ব্যবস্থাপনা সিস্টেম
-              </h1>
-              <p className="text-xl text-blue-100 mb-8">
-                সমন্বিত ব্যবসায়িক প্রক্রিয়া এবং সম্পদ ব্যবস্থাপনা
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowDateFilter(!showDateFilter)}
-                className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 hover:bg-white/30 transition-colors flex items-center space-x-2"
-              >
-                <Filter className="w-4 h-4" />
-                <span>ফিল্টার</span>
-              </button>
-              <button
-                onClick={() => refetchSummary()}
-                className="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2 hover:bg-white/30 transition-colors flex items-center space-x-2"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>রিফ্রেশ</span>
-              </button>
-            </div>
-          </div>
+      {/* Header Section - সামগ্রিক সারাংশ */}
 
-          {/* Date Filter */}
-          {showDateFilter && (
-            <div className="mt-6 bg-white/10 backdrop-blur-sm rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-blue-100 mb-2">শুরু তারিখ</label>
-                  <input
-                    type="date"
-                    value={dateRange.fromDate}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, fromDate: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50"
-                  />
+      {/* Grand Totals Summary pinned under header */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+            <div>
+              <h2 className="text-3xl md:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+                এক নজরে ব্যবসায়িক হালনাগাদ
+              </h2>
+            
+              <div className="mt-6 grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    মোট আয়
+                  </p>
+                  <p className="text-2xl font-semibold text-green-600">
+                    {formatCurrency(grandTotals.totalRevenue || 0)}
+                  </p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-blue-100 mb-2">শেষ তারিখ</label>
-                  <input
-                    type="date"
-                    value={dateRange.toDate}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, toDate: e.target.value }))}
-                    className="w-full px-3 py-2 rounded-lg bg-white/20 border border-white/30 text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-white/50"
-                  />
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    মোট ব্যয়
+                  </p>
+                  <p className="text-2xl font-semibold text-red-600">
+                    {formatCurrency(grandTotals.totalExpenses || 0)}
+                  </p>
                 </div>
-                <div className="flex items-end">
-                  <button
-                    onClick={() => setDateRange({ fromDate: '', toDate: '' })}
-                    className="w-full px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors text-white"
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    মোট ডিউ
+                  </p>
+                  <p className="text-2xl font-semibold text-orange-600">
+                    {formatCurrency(grandTotals.totalDue || 0)}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    মোট সম্পদ
+                  </p>
+                  <p className="text-2xl font-semibold text-blue-600">
+                    {formatCurrency(grandTotals.totalAssets || 0)}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    নিট লাভ
+                  </p>
+                  <p
+                    className={`text-2xl font-semibold ${(grandTotals.netProfit || 0) >= 0
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                      }`}
                   >
-                    ফিল্টার সরান
-                  </button>
+                    {formatCurrency(grandTotals.netProfit || 0)}
+                  </p>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Quick Stats in Header */}
-          <div className="flex justify-center space-x-4 mt-8">
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-3">
-              <div className="text-sm text-blue-100">মোট আয়</div>
-              <div className="text-lg font-semibold">{formatCurrency(grandTotals.totalRevenue || 0)}</div>
+            <div className="w-full lg:w-auto lg:min-w-[300px]">
+              <div className="bg-blue-600/95 dark:bg-blue-700/95 rounded-2xl p-5 shadow-xl">
+                <p className="text-sm font-medium text-blue-100">
+                  বর্তমান ব্যালেন্স (Cash Balance)
+                </p>
+                <p className="mt-3 text-3xl font-extrabold text-white">
+                  {currentBalanceDisplay}
+                </p>
+                <p className="mt-2 text-xs text-blue-100/80">
+                  এই ব্যালেন্সটি নির্দিষ্ট ক্যাশ একাউন্ট থেকে নেওয়া হয়েছে
+                </p>
+              </div>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-3">
-              <div className="text-sm text-blue-100">মোট ব্যয়</div>
-              <div className="text-lg font-semibold">{formatCurrency(grandTotals.totalExpenses || 0)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              এয়ার টিকেটিং সারাংশ
+            </h3>
+
+            {airError && (
+              <span className="text-sm text-red-600 dark:text-red-400">
+                ডাটা লোড করতে সমস্যা হয়েছে
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট টিকেট</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {isAirLoading ? '...' : (airTotals.tickets || 0)}
+              </p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-3">
-              <div className="text-sm text-blue-100">নিট লাভ</div>
-              <div className="text-lg font-semibold">{formatCurrency(grandTotals.netProfit || 0)}</div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">সেগমেন্ট</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {isAirLoading ? '...' : (airTotals.segments || 0)}
+              </p>
             </div>
-            <div className="bg-white/20 backdrop-blur-sm rounded-lg px-6 py-3">
-              <div className="text-sm text-blue-100">মোট সম্পদ</div>
-              <div className="text-lg font-semibold">{formatCurrency(grandTotals.totalAssets || 0)}</div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট যাত্রী</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {isAirLoading
+                  ? '...'
+                  : (
+                    (airTotals.passengers?.adults || 0) +
+                    (airTotals.passengers?.children || 0) +
+                    (airTotals.passengers?.infants || 0)
+                  )}
+              </p>
+
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                এডাল্ট {airTotals.passengers?.adults || 0},
+                চিলড্রেন {airTotals.passengers?.children || 0},
+                ইনফ্যান্ট {airTotals.passengers?.infants || 0}
+              </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">নেট প্রফিট</p>
+              <p className="text-2xl font-bold text-green-600">
+                {isAirLoading
+                  ? formatCurrency(0)
+                  : formatCurrency(airFinancials.profit || 0)}
+              </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                এভারেজ প্রতি টিকেট
+              </p>
+              <p className="text-2xl font-bold text-blue-600">
+                {isAirLoading
+                  ? formatCurrency(0)
+                  : formatCurrency(airTotals.averageProfitPerTicket || 0)}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">/টিকেট</p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">রাজস্ব</p>
+              <p className="text-2xl font-bold text-indigo-600">
+                {isAirLoading
+                  ? formatCurrency(0)
+                  : formatCurrency(airFinancials.revenue || 0)}
+              </p>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">নেট মার্জিন</p>
+              <p className="text-2xl font-bold text-orange-600">
+                {isAirLoading
+                  ? formatPercentBn(0)
+                  : formatPercentBn(airFinancials.netMarginPct || 0)}
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">হজ্জ ও উমরাহ সারাংশ</h3>
+            {huError && (
+              <span className="text-sm text-red-600 dark:text-red-400">ডাটা লোড করতে সমস্যা হয়েছে</span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">মোট হাজি</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {isHUloading ? '...' : (huOverview.totalHaji || 0)}
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">মোট উমরাহ</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {isHUloading ? '...' : (huOverview.totalUmrah || 0)}
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+                <User className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">মোট আয়</p>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
+                  {isHUloading ? formatCurrency(0) : formatCurrency(huProfitLoss.combined?.totalRevenue || 0)}
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-green-600" />
+              </div>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">মোট লাভ/ক্ষতি</p>
+                <p className={`text-xl font-bold ${huProfitLoss.combined?.isProfit ? 'text-green-600' : 'text-red-600'}`}>
+                  {isHUloading ? formatCurrency(0) : formatCurrency(huProfitLoss.combined?.profitLoss || 0)}
+                </p>
+              </div>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${huProfitLoss.combined?.isProfit ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'}`}>
+                {huProfitLoss.combined?.isProfit ? (
+                  <TrendingUp className="w-5 h-5 text-green-600" />
+                ) : (
+                  <TrendingDown className="w-5 h-5 text-red-600" />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1012,8 +1194,8 @@ const ProfessionalDashboard = () => {
                   </thead>
                   <tbody>
                     {categoriesSummary.categories.map((category, index) => (
-                      <tr 
-                        key={index} 
+                      <tr
+                        key={index}
                         className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                       >
                         <td className="py-3 px-4">
@@ -1032,11 +1214,10 @@ const ProfessionalDashboard = () => {
                           </span>
                         </td>
                         <td className="text-right py-3 px-4">
-                          <span className={`font-bold ${
-                            category.netAmount >= 0 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
+                          <span className={`font-bold ${category.netAmount >= 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                            }`}>
                             {formatCurrency(category.netAmount)}
                           </span>
                         </td>
@@ -1058,11 +1239,10 @@ const ProfessionalDashboard = () => {
                           </span>
                         </td>
                         <td className="text-right py-4 px-4">
-                          <span className={`font-bold text-lg ${
-                            categoriesSummary.grandTotal.netAmount >= 0 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
+                          <span className={`font-bold text-lg ${categoriesSummary.grandTotal.netAmount >= 0
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
+                            }`}>
                             {formatCurrency(categoriesSummary.grandTotal.netAmount)}
                           </span>
                         </td>
@@ -1117,11 +1297,10 @@ const ProfessionalDashboard = () => {
                       </div>
                       <div className="text-center">
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">নিট পরিমাণ</p>
-                        <p className={`text-2xl font-bold ${
-                          transactionsStats.totals.netAmount >= 0 
-                            ? 'text-green-600 dark:text-green-400' 
-                            : 'text-red-600 dark:text-red-400'
-                        }`}>
+                        <p className={`text-2xl font-bold ${transactionsStats.totals.netAmount >= 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                          }`}>
                           {formatCurrency(transactionsStats.totals.netAmount)}
                         </p>
                       </div>
@@ -1142,8 +1321,8 @@ const ProfessionalDashboard = () => {
                     </thead>
                     <tbody>
                       {transactionsStats.data.map((item, index) => (
-                        <tr 
-                          key={index} 
+                        <tr
+                          key={index}
                           className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                         >
                           <td className="py-3 px-4">
@@ -1167,11 +1346,10 @@ const ProfessionalDashboard = () => {
                             </span>
                           </td>
                           <td className="text-right py-3 px-4">
-                            <span className={`font-bold ${
-                              item.netAmount >= 0 
-                                ? 'text-green-600 dark:text-green-400' 
-                                : 'text-red-600 dark:text-red-400'
-                            }`}>
+                            <span className={`font-bold ${item.netAmount >= 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                              }`}>
                               {formatCurrency(item.netAmount)}
                             </span>
                           </td>
@@ -1272,35 +1450,6 @@ const ProfessionalDashboard = () => {
           </div>
         </div>
 
-        {/* Grand Totals Summary */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">সামগ্রিক সারাংশ</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">মোট আয়</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(grandTotals.totalRevenue || 0)}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">মোট ব্যয়</p>
-              <p className="text-2xl font-bold text-red-600">{formatCurrency(grandTotals.totalExpenses || 0)}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">মোট ডিউ</p>
-              <p className="text-2xl font-bold text-orange-600">{formatCurrency(grandTotals.totalDue || 0)}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">মোট সম্পদ</p>
-              <p className="text-2xl font-bold text-blue-600">{formatCurrency(grandTotals.totalAssets || 0)}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">নিট লাভ</p>
-              <p className={`text-2xl font-bold ${(grandTotals.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(grandTotals.netProfit || 0)}
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Business Modules Grid */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -1309,7 +1458,7 @@ const ProfessionalDashboard = () => {
               {businessModules.length} টি মডিউল উপলব্ধ
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {businessModules.map((module, index) => (
               <Link
@@ -1324,7 +1473,7 @@ const ProfessionalDashboard = () => {
                   <h3 className="text-lg font-semibold mb-2">{module.title}</h3>
                   <p className="text-white/90 text-sm">{module.description}</p>
                 </div>
-                
+
                 <div className="p-4">
                   <div className="space-y-2">
                     {module.routes.slice(0, 3).map((route, routeIndex) => (

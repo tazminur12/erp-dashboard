@@ -216,13 +216,45 @@ export const useAccountQueries = () => {
         if (options.page) params.append('page', options.page);
         if (options.limit) params.append('limit', options.limit);
         if (options.type) params.append('type', options.type);
-        if (options.startDate) params.append('startDate', options.startDate);
-        if (options.endDate) params.append('endDate', options.endDate);
+        if (options.fromDate) params.append('fromDate', options.fromDate);
+        if (options.toDate) params.append('toDate', options.toDate);
+        // Support legacy startDate/endDate for backward compatibility
+        if (options.startDate && !options.fromDate) params.append('fromDate', options.startDate);
+        if (options.endDate && !options.toDate) params.append('toDate', options.endDate);
         
         const queryString = params.toString();
         const url = queryString ? `/bank-accounts/${id}/transactions?${queryString}` : `/bank-accounts/${id}/transactions`;
         const response = await axiosSecure.get(url);
-        return response.data?.data || { transactions: [], pagination: {} };
+        
+        // Backend returns: { success: true, data: [...transactions], account: {...}, totals: {...}, pagination: {...} }
+        const responseData = response.data || {};
+        const transactions = Array.isArray(responseData.data) ? responseData.data : [];
+        const account = responseData.account || null;
+        const totals = responseData.totals || {};
+        const pagination = responseData.pagination || {};
+        
+        return {
+          account,
+          transactions,
+          summary: {
+            totalTransactions: pagination.total || 0,
+            totalCredit: totals.totalCredit || 0,
+            totalDebit: totals.totalDebit || 0,
+            totalTransferIn: totals.totalTransferIn || 0,
+            totalTransferOut: totals.totalTransferOut || 0,
+            netAmount: totals.net || 0,
+            lastTransactionDate: totals.lastTransactionDate || null
+          },
+          pagination: {
+            currentPage: pagination.page || 1,
+            totalPages: pagination.totalPages || 0,
+            totalCount: pagination.total || 0,
+            hasNext: (pagination.page || 1) < (pagination.totalPages || 0),
+            hasPrev: (pagination.page || 1) > 1,
+            limit: pagination.limit || 20
+          },
+          balanceHistory: [] // Not included in new API response
+        };
       },
       enabled: !!id,
       staleTime: 2 * 60 * 1000, // 2 minutes

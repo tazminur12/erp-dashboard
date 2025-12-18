@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { usePackage, useUpdatePackageCosting } from '../../hooks/usePackageQueries';
+import { usePackage, useUpdatePackageCosting } from '../../../hooks/usePackageQueries';
 
 const numberOrEmpty = (value) => {
   if (value === null || value === undefined || value === '') return '';
@@ -30,7 +30,7 @@ const getHotelDisplayName = (hotelType) => {
   return names[hotelType] || hotelType;
 };
 
-const PackageCosting = () => {
+const HajPackageCosting = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -70,6 +70,7 @@ const PackageCosting = () => {
       monazzem: '',
       food: '',
       ziyaraFee: '',
+      campFee: '',
       idCard: '',
       hajjKollan: '',
       trainFee: '',
@@ -238,12 +239,10 @@ const PackageCosting = () => {
       (parseFloat(costs.govtServiceCharge) || 0) +
       (parseFloat(costs.licenseFee) || 0) +
       (parseFloat(costs.transportFee) || 0) +
-      (parseFloat(costs.visaFee) || 0) +
-      (parseFloat(costs.insuranceFee) || 0) +
       (parseFloat(costs.otherBdCosts) || 0);
 
-    // Saudi costs that are directly in BDT (not multiplied with SAR)
-    const saudiCostsBDT =
+    // Saudi costs that need to be multiplied by SAR rate
+    const saudiCostsSAR =
       (parseFloat(costs.zamzamWater) || 0) +
       (parseFloat(costs.maktab) || 0) +
       (parseFloat(costs.electronicsFee) || 0) +
@@ -254,7 +253,11 @@ const PackageCosting = () => {
       (parseFloat(costs.monazzem) || 0) +
       (parseFloat(costs.food) || 0) +
       (parseFloat(costs.ziyaraFee) || 0) +
+      (parseFloat(costs.campFee) || 0) +
+      (parseFloat(costs.visaFee) || 0) +
+      (parseFloat(costs.insuranceFee) || 0) +
       (parseFloat(costs.otherSaudiCosts) || 0);
+    const saudiCostsBDT = saudiCostsSAR * sarToBdt;
 
     // Air fare is directly in BDT (not SAR)
     const airFareBDT =
@@ -274,8 +277,9 @@ const PackageCosting = () => {
     const totalBD = bdCosts + saudiCostsBDT + airFareBDT + saudiCostsBD;
     const grandTotal = Math.max(0, totalBD - discountAmount);
 
-    // Shared costs (BD portion stays as-is; only hotel SAR parts converted)
-    const passengerShared = bdCosts + saudiCostsBDT + hotelSar * sarToBdt;
+    // Shared costs (BD costs + Saudi costs that are NOT passenger-specific)
+    // NOTE: Hotel costs are passenger-specific, so they should NOT be in passengerShared
+    const passengerShared = bdCosts + saudiCostsBDT;
     const passengerTotals = {
       adult:
         passengerShared +
@@ -321,6 +325,11 @@ const PackageCosting = () => {
       total: costCalc.totalBD.toFixed(2),
       totalBD: costCalc.totalBD.toFixed(2),
       grandTotal: costCalc.grandTotal.toFixed(2),
+      passengerTotals: {
+        adult: costCalc.passengerTotals.adult.toFixed(2),
+        child: costCalc.passengerTotals.child.toFixed(2),
+        infant: costCalc.passengerTotals.infant.toFixed(2),
+      },
     }));
   }, [costCalc]);
 
@@ -398,20 +407,14 @@ const PackageCosting = () => {
     e.preventDefault();
     if (!id) return;
 
+    // Backend calculates costingPassengerTotals from costs
+    // We should NOT send totals.passengerTotals (backend preserves original)
+    // Backend will calculate and store costingPassengerTotals separately
     const payload = {
       sarToBdtRate: parseFloat(formData.sarToBdtRate) || 1,
       discount: parseFloat(formData.discount) || 0,
-      costs: parseNumbers({ ...costs, hotelDetails, airFareDetails }),
-      totals: {
-        total: totals.total === '' ? undefined : parseFloat(totals.total) || 0,
-        totalBD: totals.totalBD === '' ? undefined : parseFloat(totals.totalBD) || 0,
-        grandTotal: totals.grandTotal === '' ? undefined : parseFloat(totals.grandTotal) || 0,
-        passengerTotals: {
-          adult: parseFloat(totals.passengerTotals.adult) || 0,
-          child: parseFloat(totals.passengerTotals.child) || 0,
-          infant: parseFloat(totals.passengerTotals.infant) || 0,
-        },
-      },
+      costs: parseNumbers({ ...costs, hotelDetails, airFareDetails })
+      // totals are calculated by backend from costs
     };
 
     updateCostingMutation.mutate(
@@ -426,7 +429,7 @@ const PackageCosting = () => {
           });
         },
         onSuccess: () => {
-          navigate(`/hajj-umrah/package-list/${id}`);
+          navigate(`/hajj-umrah/haj-package-list`);
         },
       }
     );
@@ -483,14 +486,14 @@ const PackageCosting = () => {
             className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">প্যাকেজ তালিকায় ফিরুন</span>
+            <span className="text-sm font-medium">হজ্জ প্যাকেজ তালিকায় ফিরুন</span>
           </button>
           <div className="flex flex-col items-center gap-3">
             <div className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center shadow-lg">
               <Package className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">প্যাকেজ খরচ আপডেট</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">হজ্জ প্যাকেজ খরচ আপডেট</h1>
               <p className="text-gray-600 dark:text-gray-400">
                 {packageInfo.packageName} • {packageInfo.customPackageType || packageInfo.packageType || 'Package'}
               </p>
@@ -591,8 +594,6 @@ const PackageCosting = () => {
                       ['govtServiceCharge', 'সরকারি সার্ভিস চার্জ'],
                       ['licenseFee', 'লাইসেন্স চার্জ ফি'],
                       ['transportFee', 'যাতায়াত ফি'],
-                      ['visaFee', 'ভিসা ফি'],
-                      ['insuranceFee', 'ইনস্যুরেন্স ফি'],
                       ['otherBdCosts', 'অন্যান্য খরচ'],
                     ].map(([key, label]) => (
                       <div key={key}>
@@ -667,6 +668,9 @@ const PackageCosting = () => {
                       ['monazzem', 'মোনাজ্জেম ফি'],
                       ['food', 'খাবার'],
                       ['ziyaraFee', 'জিয়ারা ফি'],
+                      ['campFee', 'ক্যাম্প ফি'],
+                      ['visaFee', 'ভিসা ফি'],
+                      ['insuranceFee', 'ইনস্যুরেন্স ফি'],
                       ['otherSaudiCosts', 'অন্যান্য সৌদি খরচ'],
                     ].map(([key, label]) => (
                       <div key={key}>
@@ -765,8 +769,8 @@ const PackageCosting = () => {
                               return null;
                             })}
                             {(() => {
-                              const rate = parseFloat(formData.sarToBdtRate) || 1;
-                              const otherCosts = costCalc.bdCosts + costCalc.saudiCostsBDT + costCalc.airFareBDT + costCalc.hotelSar * rate;
+                              // Other costs (shared) = BD costs + Saudi costs (excluding passenger-specific items like air fare and hotels)
+                              const otherCosts = costCalc.bdCosts + costCalc.saudiCostsBDT;
                               if (otherCosts > 0) {
                                 return (
                                   <div className="flex justify-between items-center">
@@ -938,4 +942,4 @@ const PackageCosting = () => {
   );
 };
 
-export default PackageCosting;
+export default HajPackageCosting;

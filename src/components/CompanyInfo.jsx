@@ -8,7 +8,7 @@ const CompanyInfo = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* About Company */}
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-200">আমার কোম্পানি সম্পর্কে</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white transition-colors duration-200">BIN Rashid Group ERP</h3>
             <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed transition-colors duration-200">
               আমরা হলাম বিস্তৃত ব্যবসায়িক সমাধানের শীর্ষস্থানীয় প্রদানকারী, 
               উদ্ভাবনী প্রযুক্তি এবং বিশেষজ্ঞ নির্দেশনার মাধ্যমে সংস্থাগুলিকে 

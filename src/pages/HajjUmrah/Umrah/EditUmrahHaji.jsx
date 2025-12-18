@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, memo, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Save, 
@@ -881,6 +882,11 @@ const EditUmrahHaji = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Helmet>
+        <title>Edit Umrah Haji</title>
+        <meta name="description" content="Edit Umrah Haji information for pilgrims." />
+      </Helmet>
+
       {/* Header Section */}
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1,35 +1,43 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { List, Search, Filter, Eye, Edit, Trash2, Package, Calculator, Download, Share2 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import { List, Search, Filter, Eye, Edit, Trash2, Package, Calculator, Download, Share2, Plus } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { usePackages, useDeletePackage } from '../../hooks/usePackageQueries';
-import { useHajiList } from '../../hooks/UseHajiQueries';
-import { useUmrahList } from '../../hooks/UseUmrahQuries';
+import { usePackages, useDeletePackage } from '../../../hooks/usePackageQueries';
+import { useHajiList } from '../../../hooks/UseHajiQueries';
 
-const PackageList = () => {
+const HajPackageList = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
 
   // Fetch packages using the hook
   const { data: packagesData, isLoading, refetch } = usePackages({});
   const deletePackageMutation = useDeletePackage();
 
-  // Fetch all customers to calculate bookings and revenue
+  // Fetch all haji customers to calculate bookings and revenue
   const { data: hajiData, isLoading: hajiLoading } = useHajiList({ limit: 10000 });
-  const { data: umrahData, isLoading: umrahLoading } = useUmrahList({ limit: 10000 });
 
-  const packages = packagesData?.data || [];
+  const allPackages = packagesData?.data || [];
   const allHajiCustomers = hajiData?.data || [];
-  const allUmrahCustomers = umrahData?.data || [];
+
+  // Filter only Haj packages
+  const hajPackages = allPackages.filter(pkg => {
+    const customType = pkg.customPackageType || '';
+    const packageType = pkg.packageType || '';
+    // Check if it's a Haj package (Custom Hajj, Haj, Hajj, etc.)
+    return customType.toLowerCase().includes('haj') || 
+           customType.toLowerCase().includes('hajj') ||
+           packageType.toLowerCase().includes('haj') ||
+           packageType.toLowerCase().includes('hajj');
+  });
 
   const handleView = (pkg) => {
     navigate(`/hajj-umrah/package-list/${pkg._id}`);
   };
 
   const handleEdit = (pkg) => {
-    navigate(`/hajj-umrah/package-list/${pkg._id}/edit`);
+    navigate(`/hajj-umrah/haj-package-list/${pkg._id}/edit`);
   };
 
   const handleDelete = (pkg) => {
@@ -69,27 +77,6 @@ const PackageList = () => {
     }
   };
 
-  const getTypeColor = (type) => {
-    // Remove "Custom " prefix if present
-    const cleanType = type?.replace(/^Custom\s+/i, '') || type;
-    
-    switch (cleanType) {
-      case 'Haj':
-      case 'Hajj':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
-      case 'Umrah':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
-    }
-  };
-
-  const getDisplayType = (type) => {
-    // Remove "Custom " prefix if present for display
-    if (!type) return 'Unknown';
-    return type.replace(/^Custom\s+/i, '');
-  };
-
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -98,66 +85,49 @@ const PackageList = () => {
     }).format(amount);
   };
 
-  const filteredPackages = packages.filter(pkg => {
+  const filteredPackages = hajPackages.filter(pkg => {
     const pkgName = pkg.packageName || pkg.name || '';
     const matchesSearch = pkgName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (pkg._id?.slice(-6) || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = selectedType === 'all' || 
-                       (pkg.customPackageType && selectedType === 'Haj') ||
-                       (pkg.packageType && selectedType.toLowerCase() === pkg.packageType.toLowerCase());
     const matchesStatus = selectedStatus === 'all' || 
                          (pkg.status && selectedStatus.toLowerCase() === pkg.status.toLowerCase());
     
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
-  const getBookingPercentage = (bookings, maxCapacity) => {
-    if (maxCapacity === 0) return 0;
-    return Math.round((bookings / maxCapacity) * 100);
-  };
-
-  // Calculate bookings and revenue for all packages
+  // Calculate bookings and revenue for Haj packages
   const { totalBookings, totalRevenue } = useMemo(() => {
     let bookings = 0;
     let revenue = 0;
 
-    // Combine all customers
-    const allCustomers = [...allHajiCustomers, ...allUmrahCustomers];
+    // Get all package IDs for Haj packages
+    const hajPackageIds = new Set(hajPackages.map(pkg => pkg._id));
 
-    // Group customers by package ID
-    const packageCustomersMap = new Map();
-
-    allCustomers.forEach(customer => {
-      // Check multiple possible fields for package assignment
+    // Filter customers that belong to Haj packages
+    allHajiCustomers.forEach(customer => {
       const packageId = customer.packageId || 
                        customer.packageInfo?.packageId || 
                        customer.packageInfo?._id;
 
-      if (packageId) {
-        if (!packageCustomersMap.has(packageId)) {
-          packageCustomersMap.set(packageId, []);
-        }
-        packageCustomersMap.get(packageId).push(customer);
+      if (packageId && hajPackageIds.has(packageId)) {
+        bookings += 1;
+        const totalAmount = parseFloat(customer.totalAmount) || 0;
+        revenue += totalAmount;
       }
     });
 
-    // Calculate totals across all packages
-    packageCustomersMap.forEach((customers) => {
-      bookings += customers.length;
-      customers.forEach(customer => {
-        const totalAmount = parseFloat(customer.totalAmount) || 0;
-        revenue += totalAmount;
-      });
-    });
-
     return { totalBookings: bookings, totalRevenue: revenue };
-  }, [allHajiCustomers, allUmrahCustomers]);
+  }, [hajPackages, allHajiCustomers]);
 
-  const totalPackages = packages.length;
-  const activePackages = packages.filter(p => p.status === 'Active' || p.status === 'Draft').length;
+  const totalPackages = hajPackages.length;
+  const activePackages = hajPackages.filter(p => p.status === 'Active' || p.status === 'Draft').length;
 
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
+      <Helmet>
+        <title>Hajj Package List</title>
+        <meta name="description" content="Manage all Hajj packages including their details, status, and bookings." />
+      </Helmet>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-3">
@@ -166,10 +136,10 @@ const PackageList = () => {
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-white">
-              হজ্জ ও উমরাহ প্যাকেজ তালিকা
+              হজ্জ প্যাকেজ তালিকা
             </h1>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-              সব প্যাকেজের তথ্য ও ব্যবস্থাপনা
+              সব হজ্জ প্যাকেজের তথ্য ও ব্যবস্থাপনা
             </p>
           </div>
         </div>
@@ -179,10 +149,10 @@ const PackageList = () => {
             <span className="text-sm sm:text-base">এক্সপোর্ট</span>
           </button>
           <button 
-            onClick={() => navigate('/hajj-umrah/package-creation')}
+            onClick={() => navigate('/hajj-umrah/haj-package-creation')}
             className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-colors w-full sm:w-auto"
           >
-            <Package className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
             <span className="text-sm sm:text-base">নতুন প্যাকেজ</span>
           </button>
         </div>
@@ -257,16 +227,6 @@ const PackageList = () => {
           
           <div className="flex flex-col sm:flex-row gap-3">
             <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-            >
-              <option value="all">সব ধরন</option>
-              <option value="Haj">হজ্জ</option>
-              <option value="Umrah">উমরাহ</option>
-            </select>
-            
-            <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="px-3 sm:px-4 py-2 text-sm sm:text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -287,7 +247,7 @@ const PackageList = () => {
       </div>
 
       {/* Loading State */}
-      {(isLoading || hajiLoading || umrahLoading) && (
+      {(isLoading || hajiLoading) && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
           <p className="mt-4 text-gray-600 dark:text-gray-400">প্যাকেজ লোড করা হচ্ছে...</p>
@@ -295,7 +255,7 @@ const PackageList = () => {
       )}
 
       {/* Packages Table */}
-      {!isLoading && !hajiLoading && !umrahLoading && (
+      {!isLoading && !hajiLoading && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -303,9 +263,6 @@ const PackageList = () => {
                 <tr>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     প্যাকেজ
-                  </th>
-                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                    ধরন
                   </th>
                   <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     বছর
@@ -330,11 +287,11 @@ const PackageList = () => {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredPackages.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center">
+                    <td colSpan="7" className="px-6 py-12 text-center">
                       <Package className="mx-auto h-12 w-12 text-gray-400" />
-                      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">কোন প্যাকেজ নেই</h3>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-white">কোন হজ্জ প্যাকেজ নেই</h3>
                       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                        এখনও কোন প্যাকেজ তৈরি করা হয়নি। একটি নতুন প্যাকেজ তৈরি করুন।
+                        এখনও কোন হজ্জ প্যাকেজ তৈরি করা হয়নি। একটি নতুন প্যাকেজ তৈরি করুন।
                       </p>
                     </td>
                   </tr>
@@ -357,11 +314,6 @@ const PackageList = () => {
                             </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(pkg.customPackageType || pkg.type || 'Unknown')}`}>
-                          {getDisplayType(pkg.customPackageType || pkg.type || 'Unknown')}
-                        </span>
                       </td>
                       <td className="px-3 sm:px-6 py-3 sm:py-4">
                         <span className="text-xs sm:text-sm text-gray-900 dark:text-white truncate block">
@@ -426,4 +378,4 @@ const PackageList = () => {
   );
 };
 
-export default PackageList;
+export default HajPackageList;

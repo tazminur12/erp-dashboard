@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Edit, 
@@ -19,7 +20,9 @@ import {
   Briefcase,
   Globe,
   CreditCard,
-  Plane
+  Plane,
+  Upload,
+  ExternalLink
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
@@ -74,6 +77,7 @@ const PassengerDetails = () => {
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'personal', label: 'Personal Info', icon: FileText },
     { id: 'passport', label: 'Passport Info', icon: FileText },
+    { id: 'documents', label: 'Documents', icon: Upload },
     { id: 'financial', label: 'Financial', icon: CreditCard },
     { id: 'additional', label: 'Additional Info', icon: Users }
   ];
@@ -481,6 +485,9 @@ const PassengerDetails = () => {
 
     return (
       <div className="space-y-4 sm:space-y-6">
+        <Helmet>
+          <title>{passenger.name || 'Passenger'} - Financial Details</title>
+        </Helmet>
         {/* Financial Overview Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg p-4 sm:p-6 border border-blue-200 dark:border-blue-800">
@@ -648,6 +655,133 @@ const PassengerDetails = () => {
     );
   };
 
+  const renderDocuments = () => (
+    <div className="space-y-4 sm:space-y-6">
+      {/* Documents Section */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center space-x-2">
+          <Upload className="w-5 h-5" />
+          <span>Uploaded Documents</span>
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+          {/* Photo */}
+          <div className="space-y-2">
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">Profile Photo</label>
+            <div className={`border-2 border-dashed rounded-xl p-4 ${
+              isDark ? 'border-gray-600' : 'border-gray-300'
+            }`}>
+              {passenger.customerImage ? (
+                <div className="flex flex-col items-center space-y-3">
+                  <img 
+                    src={passenger.customerImage} 
+                    alt="Profile Photo"
+                    className="max-h-48 max-w-full rounded-lg object-contain"
+                  />
+                  <a
+                    href={passenger.customerImage}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>View Full Size</span>
+                  </a>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-4 text-gray-400">
+                  <User className="w-12 h-12 mb-2" />
+                  <span className="text-sm">No photo uploaded</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Passport Copy */}
+          <div className="space-y-2">
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">Passport Copy</label>
+            <div className={`border-2 border-dashed rounded-xl p-4 ${
+              isDark ? 'border-gray-600' : 'border-gray-300'
+            }`}>
+              {passenger.passportCopy ? (
+                <div className="flex flex-col items-center space-y-3">
+                  {passenger.passportCopy.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                    <img 
+                      src={passenger.passportCopy} 
+                      alt="Passport Copy"
+                      className="max-h-48 max-w-full rounded-lg object-contain"
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                      <FileText className="w-8 h-8 text-red-500" />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        PDF Document
+                      </span>
+                    </div>
+                  )}
+                  <a
+                    href={passenger.passportCopy}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>View Document</span>
+                  </a>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-4 text-gray-400">
+                  <FileText className="w-12 h-12 mb-2" />
+                  <span className="text-sm">No passport copy uploaded</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* NID Copy */}
+          <div className="space-y-2">
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">NID Copy</label>
+            <div className={`border-2 border-dashed rounded-xl p-4 ${
+              isDark ? 'border-gray-600' : 'border-gray-300'
+            }`}>
+              {passenger.nidCopy ? (
+                <div className="flex flex-col items-center space-y-3">
+                  {passenger.nidCopy.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                    <img 
+                      src={passenger.nidCopy} 
+                      alt="NID Copy"
+                      className="max-h-48 max-w-full rounded-lg object-contain"
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-3 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                      <FileText className="w-8 h-8 text-red-500" />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        PDF Document
+                      </span>
+                    </div>
+                  )}
+                  <a
+                    href={passenger.nidCopy}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>View Document</span>
+                  </a>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center py-4 text-gray-400">
+                  <FileText className="w-12 h-12 mb-2" />
+                  <span className="text-sm">No NID copy uploaded</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderAdditionalInfo = () => (
     <div className="space-y-4 sm:space-y-6">
       {/* Additional Information */}
@@ -705,6 +839,8 @@ const PassengerDetails = () => {
         return renderPersonalInfo();
       case 'passport':
         return renderPassportInfo();
+      case 'documents':
+        return renderDocuments();
       case 'financial':
         return renderFinancialInfo();
       case 'additional':
@@ -742,21 +878,11 @@ const PassengerDetails = () => {
                 : 'border-gray-300 text-gray-700 hover:bg-gray-50'
             }`}
           >
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Share</span>
-          </button>
-          <button 
-            className={`flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 rounded-lg border transition-colors duration-200 text-sm sm:text-base ${
-              isDark 
-                ? 'border-gray-600 text-gray-300 hover:bg-gray-700' 
-                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Export</span>
           </button>
           <button 
-            onClick={() => navigate(`/air-ticketing/passengers`)}
+            onClick={() => navigate(`/air-ticketing/passengers/edit/${id}`)}
             className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
           >
             <Edit className="w-4 h-4" />

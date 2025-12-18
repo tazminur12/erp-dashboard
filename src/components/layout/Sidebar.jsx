@@ -225,8 +225,8 @@ const Sidebar = () => {
               <span className="text-white font-bold text-lg">E</span>
             </div>
             {!sidebarCollapsed && (
-              <span className="text-xl font-bold text-gray-900 dark:text-white">
-                ERP
+              <span className="text-xl font-bold text-gray-900 dark:text-white font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                Bin Rashid ERP 
               </span>
             )}
           </div>

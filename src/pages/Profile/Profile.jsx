@@ -17,6 +17,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import Swal from 'sweetalert2';
+import { CLOUDINARY_CONFIG } from '../../config/cloudinary';
 
 const Profile = () => {
   const { isDark } = useTheme();
@@ -25,6 +26,7 @@ const Profile = () => {
   
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     email: '',
@@ -86,6 +88,75 @@ const Profile = () => {
         ...prev,
         [name]: ''
       }));
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!CLOUDINARY_CONFIG.UPLOAD_PRESET || !CLOUDINARY_CONFIG.CLOUD_NAME) {
+      Swal.fire({
+        title: 'Error!',
+        text: 'Cloudinary configuration is missing',
+        icon: 'error',
+        confirmButtonColor: '#EF4444'
+      });
+      return;
+    }
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+
+    try {
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (data.secure_url) {
+        // Update profile with new image URL
+        const updatedData = { ...formData, photoURL: data.secure_url };
+        
+        // Save to backend
+        const updateResponse = await axiosSecure.patch(`/users/profile/${userProfile.email}`, {
+           photoURL: data.secure_url
+        });
+
+        if (updateResponse.data.success) {
+           await updateProfile({
+             ...userProfile,
+             photoURL: data.secure_url
+           });
+
+           setProfileData(prev => ({
+             ...prev,
+             avatar: data.secure_url
+           }));
+           
+           Swal.fire({
+             title: 'Success!',
+             text: 'Profile photo updated successfully',
+             icon: 'success',
+             timer: 1500,
+             showConfirmButton: false
+           });
+        }
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to upload image',
+        icon: 'error',
+        confirmButtonColor: '#EF4444'
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -226,12 +297,39 @@ const Profile = () => {
               <div className="p-6 text-center">
                 {/* Avatar */}
                 <div className="relative inline-block mb-4">
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                    {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white dark:border-gray-700 shadow-lg bg-gray-200">
+                    {profileData.avatar ? (
+                      <img 
+                        src={profileData.avatar} 
+                        alt={profileData.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                        {profileData.name ? profileData.name.charAt(0).toUpperCase() : 'U'}
+                      </div>
+                    )}
                   </div>
-                  <button className="absolute bottom-0 right-0 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-colors duration-200">
-                    <Camera className="w-4 h-4" />
-                  </button>
+                  <label 
+                    htmlFor="profile-upload"
+                    className={`absolute bottom-0 right-0 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 cursor-pointer shadow-md ${
+                      uploading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    {uploading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Camera className="w-4 h-4" />
+                    )}
+                    <input
+                      id="profile-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
 
                 {/* Basic Info */}

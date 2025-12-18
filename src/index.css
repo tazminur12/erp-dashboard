@@ -1,29 +1,107 @@
-/* Custom Font - Must come before @tailwind */
-@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap');
+/* Google Sans Font loaded from Google Fonts API */
+/* Kalpurush font loaded from HTML link tag */
 
 /* Tailwind CSS */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Font configuration for English and Bengali */
+@layer base {
+  /* Default: Kalpurush first for Bengali, Google Sans for English */
+  body {
+    font-family: 'Kalpurush', 'Google Sans', sans-serif;
+  }
+  
+  /* English text uses Google Sans only */
+  .font-english {
+    font-family: 'Google Sans', sans-serif !important;
+  }
+  
+  /* Bengali text uses Kalpurush */
+  .font-bengali {
+    font-family: 'Kalpurush', 'Noto Sans Bengali', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+  }
+  
+  /* Form elements - Kalpurush first for Bengali support */
+  input,
+  button,
+  select,
+  textarea {
+    font-family: 'Kalpurush', 'Google Sans', sans-serif;
+  }
+  
+  /* Code elements use Google Sans only */
+  code,
+  pre {
+    font-family: 'Google Sans', monospace !important;
+  }
+  
+  /* Navigation/Sidebar - All text uses Google Sans */
+  nav,
+  nav *,
+  nav span,
+  nav a,
+  nav button,
+  nav div {
+    font-family: 'Google Sans', 'Kalpurush', sans-serif !important;
+  }
+}
+
 /* Custom CSS for SweetAlert2 */
 .swal2-popup {
-  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+  font-family: 'Kalpurush', 'Google Sans', 'Noto Sans Bengali', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
 }
 
 .swal2-title {
-  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+  font-family: 'Kalpurush', 'Google Sans', 'Noto Sans Bengali', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
   font-weight: 600 !important;
 }
 
 .swal2-content {
-  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+  font-family: 'Kalpurush', 'Google Sans', 'Noto Sans Bengali', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
 }
 
 .swal2-confirm,
 .swal2-cancel {
-  font-family: 'Noto Sans Bengali', 'Hind Siliguri', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
+  font-family: 'Kalpurush', 'Google Sans', 'Noto Sans Bengali', 'SolaimanLipi', 'Bangla', Arial, sans-serif !important;
   font-weight: 500 !important;
+}
+
+/* Navigation/Sidebar Font - Google Sans ONLY for all navigation text */
+nav,
+nav *,
+nav span,
+nav a,
+nav button,
+nav div,
+nav li {
+  font-family: 'Google Sans', sans-serif !important;
+}
+
+/* Sidebar container and all its children */
+[class*="sidebar"],
+[class*="Sidebar"],
+[class*="sidebar"] *,
+[class*="Sidebar"] * {
+  font-family: 'Google Sans', sans-serif !important;
+}
+
+/* Specific sidebar scrollbar area */
+.sidebar-scrollbar,
+.sidebar-scrollbar *,
+.sidebar-scrollbar span,
+.sidebar-scrollbar a,
+.sidebar-scrollbar button,
+.sidebar-scrollbar div {
+  font-family: 'Google Sans', sans-serif !important;
+}
+
+/* Force Google Sans for all navigation menu items */
+nav > div > div > span,
+nav > div > a > span,
+nav > div > button > span {
+  font-family: 'Google Sans', sans-serif !important;
 }
 
 /* Custom Sidebar Scrollbar */
@@ -135,6 +213,8 @@
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+
 
 /* Better mobile touch targets */
 button, 

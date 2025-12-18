@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import {Helmet} from 'react-helmet-async';
 import { 
   CreditCard, 
   Save, 
@@ -29,7 +30,9 @@ import {
   Globe,
   MoreHorizontal,
   X,
-  Package
+  Plus,
+  Package,
+  MessageCircle
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -59,7 +62,7 @@ import { useHajiList } from '../../hooks/UseHajiQueries';
 import { useUmrahList } from '../../hooks/UseUmrahQuries';
 import { useLoans } from '../../hooks/useLoanQueries';
 import { useAgentPackageList } from '../../hooks/UseAgentPacakageQueries';
-import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
+import { generateSalmaReceiptPDF } from '../../utils/pdfGenerator';
 import Swal from 'sweetalert2';
 import { useFarmExpenses, useFarmIncomes } from '../../hooks/useFinanceQueries';
 import { useOpExCategories } from '../../hooks/useOperatingExpensenQuries';
@@ -171,7 +174,7 @@ const NewTransaction = () => {
     payload.append('sender_id', senderId);
 
     try {
-      const response = await fetch('https://api.sms.net.bd/sendsms', {
+      const response = await fetch('https://api.sms.net.bd/sendsm', {
         method: 'POST',
         body: payload
       });
@@ -187,6 +190,9 @@ const NewTransaction = () => {
     }
   };
 
+  // Last submitted transaction summary (for post-submission summary page)
+  const [submittedTransaction, setSubmittedTransaction] = useState(null);
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Step 1: Transaction Type
@@ -195,9 +201,11 @@ const NewTransaction = () => {
     // Step 2: Customer Selection (for credit/debit)
     customerType: 'customer', // 'customer', 'vendor', 'agent', 'haji', 'umrah'
     customerId: '',
+    uniqueId: '',
     customerName: '',
     customerPhone: '',
     customerEmail: '',
+    customerAddress: '',
     
     // Customer Bank Account Details
     customerBankAccount: {
@@ -374,6 +382,7 @@ const NewTransaction = () => {
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [expandedCategories, setExpandedCategories] = useState({});
   const [errors, setErrors] = useState({});
+  const [showHeader, setShowHeader] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [accountSearchTerm, setAccountSearchTerm] = useState('');
   
@@ -637,9 +646,8 @@ const NewTransaction = () => {
           { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
           { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
           { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
-          { number: 4, title: 'ইনভয়েস নির্বাচন', description: 'ইনভয়েস সিলেক্ট করুন' },
-          { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
-          { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+          { number: 4, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+          { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
         ];
       }
     }
@@ -683,9 +691,11 @@ const NewTransaction = () => {
     setFormData(prev => ({
       ...prev,
       customerId: (customer.id || customer.customerId) ? String(customer.id || customer.customerId) : '',
+      uniqueId: customer.uniqueId || customer.customerId || '',
       customerName: customer.name,
-      customerPhone: customer.mobile || customer.phone,
+      customerPhone: customer.mobile || customer.phone || customer.mobileNumber || customer.contactNo || '',
       customerEmail: customer.email,
+      customerAddress: customer.address || customer.fullAddress || '',
       customerType: resolvedType,
       // Store operating expense category ID for office expenses
       operatingExpenseCategoryId: resolvedType === 'office' ? String(customer.id || customer.customerId) : undefined,
@@ -720,9 +730,11 @@ const NewTransaction = () => {
     setFormData(prev => ({
       ...prev,
       customerId: agent._id || agent.id,
+      uniqueId: agent.uniqueId || agent.agentId || '',
       customerName: agent.tradeName || agent.ownerName || '',
-      customerPhone: agent.contactNo || '',
+      customerPhone: agent.contactNo || agent.phone || agent.mobile || agent.mobileNumber || '',
       customerEmail: '',
+      customerAddress: agent.address || agent.fullAddress || '',
       customerType: 'agent',
       // Store agent due amounts
       agentDueInfo: {
@@ -739,9 +751,11 @@ const NewTransaction = () => {
     setFormData(prev => ({
       ...prev,
       customerId: vendor._id || vendor.id,
+      uniqueId: vendor.uniqueId || vendor.vendorId || '',
       customerName: vendor.tradeName || vendor.vendorName || vendor.name || '',
-      customerPhone: vendor.contactNo || vendor.phone || '',
+      customerPhone: vendor.contactNo || vendor.phone || vendor.mobile || vendor.mobileNumber || '',
       customerEmail: vendor.email || '',
+      customerAddress: vendor.address || vendor.fullAddress || '',
       customerType: 'vendor',
       // Clear agent due info when selecting vendor
       agentDueInfo: null
@@ -755,7 +769,9 @@ const NewTransaction = () => {
       // Treat loan as a selectable party
       customerType: 'loan',
       customerId: (loan._id || loan.id || loan.loanId) ? String(loan._id || loan.id || loan.loanId) : '',
+      uniqueId: loan.uniqueId || loan.loanId || '',
       customerName: loan.customerName || loan.borrowerName || loan.fullName || loan.businessName || loan.tradeName || loan.ownerName || loan.name || 'Unknown',
+      customerAddress: loan.address || loan.fullAddress || '',
       loanInfo: {
         id: loan._id || loan.id || loan.loanId,
         name: loan.customerName || loan.borrowerName || loan.fullName || loan.businessName || loan.tradeName || loan.ownerName || loan.name || 'Unknown',
@@ -1001,57 +1017,86 @@ const NewTransaction = () => {
               }
             }
           }
+          // For credit non-agent, step 4 is skipped, so no validation needed here
           break;
         case 5:
-          // Invoice selection - only for non-agent customers
-          if (formData.customerType !== 'agent') {
+          // For credit non-agent: step 5 is payment method (step 4 is skipped)
+          // For credit agent: step 5 is invoice selection
+          if (formData.customerType === 'agent') {
+            // Invoice selection - only for agent customers (step 5 for agents)
             // Require invoice only when real API invoices are available
             if (!isUsingDemoInvoices) {
               if (!formData.selectedInvoice || !formData.invoiceId) {
                 newErrors.invoiceId = 'ইনভয়েস নির্বাচন করুন';
               }
             }
+          } else {
+            // For credit non-agent: step 5 is payment method validation
+            if (!formData.paymentMethod) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
+            } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
+            }
+            // Only validate amount if payment method is selected
+            if (formData.paymentMethod) {
+              if (!formData.paymentDetails.amount) {
+                newErrors.amount = 'পরিমাণ লিখুন';
+              } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
+                newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
+              }
+              // For non-agent credit transactions, destination account can fallback to business account
+              // If there is no business/account fallback available, require destination account explicitly
+              const hasAnyAccount = Array.isArray(accounts) && accounts.length > 0;
+              if (!hasAnyAccount && !formData.destinationAccount.id) {
+                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন (কোন ডিফল্ট একাউন্ট নেই)';
+              }
+              // Validate customer bank account details for bank transfer
+              if (formData.paymentMethod === 'bank-transfer') {
+                if (!formData.customerBankAccount.bankName) {
+                  newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+                }
+                if (!formData.customerBankAccount.accountNumber) {
+                  newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+                }
+              }
+            }
           }
           break;
         case 6:
-          if (!formData.paymentMethod) {
-            newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
-          } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
-            newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
-          }
-          // Only validate amount if payment method is selected
-          if (formData.paymentMethod) {
-            if (!formData.paymentDetails.amount) {
-              newErrors.amount = 'পরিমাণ লিখুন';
-            } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
-              newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
+          // For credit agent: step 6 is payment method validation
+          // For credit non-agent: step 6 is confirmation (no validation needed)
+          if (formData.customerType === 'agent') {
+            if (!formData.paymentMethod) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
+            } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
             }
-            // For non-agent credit transactions, destination account can fallback to business account
-            // So only require explicit destination/manager for agent flows
-            if (formData.customerType === 'agent') {
+            // Only validate amount if payment method is selected
+            if (formData.paymentMethod) {
+              if (!formData.paymentDetails.amount) {
+                newErrors.amount = 'পরিমাণ লিখুন';
+              } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
+                newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
+              }
+              // For agent credit transactions, require destination account and manager
               if (!formData.destinationAccount.id) {
                 newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
               }
               if (!formData.creditAccountManager.id) {
                 newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
               }
-            } else {
-              // If there is no business/account fallback available, require destination account explicitly
-              const hasAnyAccount = Array.isArray(accounts) && accounts.length > 0;
-              if (!hasAnyAccount && !formData.destinationAccount.id) {
-                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন (কোন ডিফল্ট একাউন্ট নেই)';
-              }
-            }
-            // Validate customer bank account details for bank transfer
-            if (formData.paymentMethod === 'bank-transfer') {
-              if (!formData.customerBankAccount.bankName) {
-                newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
-              }
-              if (!formData.customerBankAccount.accountNumber) {
-                newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+              // Validate customer bank account details for bank transfer
+              if (formData.paymentMethod === 'bank-transfer') {
+                if (!formData.customerBankAccount.bankName) {
+                  newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
+                }
+                if (!formData.customerBankAccount.accountNumber) {
+                  newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
+                }
               }
             }
           }
+          // For credit non-agent, step 6 is confirmation - no validation needed
           break;
         case 7:
           // Final confirmation step for agent transactions
@@ -1075,8 +1120,10 @@ const NewTransaction = () => {
         maxSteps = formData.customerType === 'agent' ? 7 : 6;
       }
       
-      // For agents, go to step 5 (payment method) from step 4
-      if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 4) {
+      // For credit non-agent, skip step 4 (invoice selection) and go directly to step 5 (payment method) from step 3
+      if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && currentStep === 3) {
+        setCurrentStep(5); // Skip step 4, go directly to payment method
+      } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 4) {
         setCurrentStep(5); // Go to payment method
       } else if (formData.transactionType === 'debit' && currentStep === 4) {
         // For debit, go directly to step 5 (confirmation) from step 4
@@ -1088,8 +1135,10 @@ const NewTransaction = () => {
   };
 
   const prevStep = () => {
-    // Special handling for agent: go back from step 5 to step 4
-    if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
+    // For credit non-agent, skip step 4 (invoice selection) and go back to step 3 (customer selection) from step 5
+    if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && currentStep === 5) {
+      setCurrentStep(3); // Skip step 4, go back to customer selection
+    } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
       setCurrentStep(4); // Go back to balance display
     } else if (formData.transactionType === 'debit' && currentStep === 5) {
       // For debit, go back from step 5 to step 4
@@ -1151,7 +1200,34 @@ const NewTransaction = () => {
       bankAccountTransferMutation.mutate(transferPayload, {
         onSuccess: (response) => {
           console.log('Transfer completed:', response);
-          
+
+          // Save submission summary for post-submission page
+          setSubmittedTransaction({
+            mode: 'transfer',
+            transactionId:
+              response?.transactionId ||
+              response?.data?.transactionId ||
+              response?.id ||
+              null,
+            transactionType: 'transfer',
+            amount: transferAmount,
+            date: new Date().toISOString().split('T')[0],
+            customerId: null,
+            customerName: null,
+            customerPhone: null,
+            customerEmail: null,
+            category: formData.category || null,
+            paymentMethod: 'bank-transfer',
+            paymentDetails: {
+              reference: transferPayload.reference,
+              notes: transferPayload.notes
+            },
+            notes: formData.transferNotes || '',
+            fromAccount: formData.debitAccount,
+            toAccount: formData.creditAccount,
+            accountManager: formData.accountManager || null
+          });
+
           // Reset form after successful submission
           resetForm();
         }
@@ -1220,14 +1296,29 @@ const NewTransaction = () => {
             },
             {
               onSuccess: () => {
-                Swal.fire({
-                  title: 'সফল!',
-                  text: 'পার্সোনাল ব্যয় এবং ব্যাংক ব্যালেন্স আপডেট হয়েছে',
-                  icon: 'success',
-                  confirmButtonText: 'ঠিক আছে',
-                  confirmButtonColor: '#10B981',
-                  background: isDark ? '#1F2937' : '#F9FAFB'
+                // Save submission summary for post-submission page
+                setSubmittedTransaction({
+                  mode: 'personal',
+                  transactionId: reference,
+                  transactionType: 'debit',
+                  amount: amountNum,
+                  date: formData.date,
+                  customerId: null,
+                  customerName: null,
+                  customerPhone: null,
+                  customerEmail: null,
+                  category: formData.category || null,
+                  paymentMethod: formData.paymentMethod || 'cash',
+                  paymentDetails: {
+                    ...formData.paymentDetails,
+                    reference
+                  },
+                  notes: formData.notes || '',
+                  fromAccount: formData.sourceAccount || null,
+                  toAccount: null,
+                  accountManager: formData.accountManager || null
                 });
+
                 resetForm();
               },
               onError: (error) => {
@@ -1433,6 +1524,7 @@ const NewTransaction = () => {
       customerName: formData.customerName || undefined,
       customerPhone: formData.customerPhone || undefined,
       customerEmail: formData.customerEmail || undefined,
+      customerAddress: formData.customerAddress || undefined,
       // Some backends use partyName for generic parties
       partyName: formData.customerName || undefined,
       // Pass meta to backend for better categorization (agent: hajj/umrah/others)
@@ -1499,6 +1591,27 @@ const NewTransaction = () => {
               amount,
               transactionId: txId
             });
+
+            // Save submission summary for post-submission page
+            setSubmittedTransaction({
+              mode: 'transaction',
+              transactionId: txId,
+              transactionType: unifiedTransactionData.transactionType,
+              amount,
+              date: unifiedTransactionData.date,
+              customerId: unifiedTransactionData.customerId,
+              customerName: unifiedTransactionData.customerName,
+              customerPhone: unifiedTransactionData.customerPhone,
+              customerEmail: unifiedTransactionData.customerEmail,
+              customerAddress: unifiedTransactionData.customerAddress || formData.customerAddress || '',
+              category: unifiedTransactionData.category,
+              paymentMethod: unifiedTransactionData.paymentMethod,
+              paymentDetails: unifiedTransactionData.paymentDetails,
+              notes: unifiedTransactionData.notes,
+              fromAccount: unifiedTransactionData.debitAccount,
+              toAccount: unifiedTransactionData.creditAccount,
+              accountManager: formData.accountManager || null
+            });
           },
           onError: (error) => {
             console.error('Transaction completion failed:', error);
@@ -1513,60 +1626,8 @@ const NewTransaction = () => {
           }
         });
 
-        // Reset form after successful submission
+        // Reset form after successful submission (summary is kept in submittedTransaction state)
         resetForm();
-
-        // Ask if user wants to download PDF
-        Swal.fire({
-          title: 'PDF ডাউনলোড করুন?',
-          text: 'আপনি কি লেনদেনের রিসিট PDF হিসেবে ডাউনলোড করতে চান?',
-          icon: 'question',
-          showCancelButton: true,
-          confirmButtonText: 'হ্যাঁ, ডাউনলোড করুন',
-          cancelButtonText: 'না, পরে করব',
-          confirmButtonColor: '#10B981',
-          cancelButtonColor: '#6B7280',
-          background: isDark ? '#1F2937' : '#F9FAFB',
-          customClass: {
-            title: 'text-blue-600 font-bold text-xl',
-            popup: 'rounded-2xl shadow-2xl'
-          }
-        }).then((result) => {
-          if (result.isConfirmed) {
-            // Generate PDF with the created transaction data
-            const pdfData = {
-              transactionId: response.transaction?.transactionId || `TXN-${Date.now()}`,
-              transactionType: formData.transactionType,
-              customerId: formData.customerId,
-              customerName: formData.customerName,
-              customerPhone: formData.customerPhone,
-              customerEmail: formData.customerEmail,
-              customerBankAccount: formData.customerBankAccount,
-              category: formData.category,
-              paymentMethod: formData.paymentMethod,
-              paymentDetails: formData.paymentDetails,
-              notes: formData.notes,
-              date: formData.date,
-              createdBy: userProfile?.email || 'unknown_user',
-              branchId: userProfile?.branchId || 'main_branch'
-            };
-            
-            generateTransactionPDF(pdfData, isDark).then(result => {
-              if (result.success) {
-                Swal.fire({
-                  title: 'সফল!',
-                  text: `PDF সফলভাবে ডাউনলোড হয়েছে: ${result.filename}`,
-                  icon: 'success',
-                  confirmButtonText: 'ঠিক আছে',
-                  confirmButtonColor: '#10B981',
-                  background: isDark ? '#1F2937' : '#F9FAFB'
-                });
-              }
-            }).catch(error => {
-              console.error('PDF generation error:', error);
-            });
-          }
-        });
       },
       onError: (error) => {
         console.error('Create transaction failed:', error);
@@ -1684,9 +1745,11 @@ const NewTransaction = () => {
         transactionId: `TXN-${Date.now()}`,
         transactionType: formData.transactionType,
         customerId: formData.customerId,
+        uniqueId: formData.uniqueId,
         customerName: formData.customerName,
         customerPhone: formData.customerPhone,
         customerEmail: formData.customerEmail,
+        customerAddress: formData.customerAddress,
         category: formData.category,
         paymentMethod: formData.paymentMethod,
         paymentDetails: formData.paymentDetails,
@@ -1697,12 +1760,12 @@ const NewTransaction = () => {
       };
 
       // Try to generate PDF with HTML rendering first
-      let result = await generateTransactionPDF(pdfData, isDark);
+      let result = await generateSalmaReceiptPDF(pdfData, isDark);
       
       // If HTML rendering fails, fallback to simple PDF
       if (!result.success) {
         console.log('HTML PDF generation failed, trying simple PDF...');
-        result = generateSimplePDF(pdfData);
+        result = generateSalmaReceiptPDF (pdfData);
       }
 
       // Close loading alert
@@ -1741,6 +1804,333 @@ const NewTransaction = () => {
         }
       });
     }
+  };
+
+  // Post-submission helpers
+  const handleNewTransaction = () => {
+    setSubmittedTransaction(null);
+    resetForm();
+  };
+
+  const handleDownloadReceipt = async (language = 'bn', showHeader = true) => {
+  if (!submittedTransaction) return;
+
+  try {
+    // Show loading alert
+    Swal.fire({
+      title: language === 'en' ? 'Generating PDF...' : 'PDF তৈরি হচ্ছে...',
+      text: language === 'en' ? 'Receipt is being prepared' : 'রিসিট তৈরি হচ্ছে',
+      icon: 'info',
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      background: isDark ? '#1F2937' : '#F9FAFB'
+    });
+
+    // Prepare PDF data with selected language
+    // Extract accountManager name - handle both object and direct name
+    const accountManagerName = submittedTransaction.accountManager?.name 
+      || (typeof submittedTransaction.accountManager === 'string' ? submittedTransaction.accountManager : '')
+      || submittedTransaction.accountManagerName 
+      || '';
+    
+    console.log('PDF Data - Account Manager:', {
+      accountManager: submittedTransaction.accountManager,
+      accountManagerName: accountManagerName
+    });
+    
+    // Extract address from multiple possible sources
+    let extractedAddress = '';
+    
+    // Priority 1: Top-level customerAddress
+    if (submittedTransaction.customerAddress && typeof submittedTransaction.customerAddress === 'string') {
+      const addr = submittedTransaction.customerAddress.trim();
+      if (addr && addr !== '[Full Address]') extractedAddress = addr;
+    }
+    
+    // Priority 2: Customer object
+    if (!extractedAddress && submittedTransaction.customer && typeof submittedTransaction.customer === 'object') {
+      const customerAddr = submittedTransaction.customer.address ||
+                          submittedTransaction.customer.fullAddress ||
+                          submittedTransaction.customer.customerAddress ||
+                          submittedTransaction.customer.location;
+      if (customerAddr && typeof customerAddr === 'string') {
+        const addr = customerAddr.trim();
+        if (addr && addr !== '[Full Address]') extractedAddress = addr;
+      }
+    }
+    
+    // Priority 3: Party object
+    if (!extractedAddress && submittedTransaction.party && typeof submittedTransaction.party === 'object') {
+      const partyAddr = submittedTransaction.party.address ||
+                        submittedTransaction.party.fullAddress ||
+                        submittedTransaction.party.location;
+      if (partyAddr && typeof partyAddr === 'string') {
+        const addr = partyAddr.trim();
+        if (addr && addr !== '[Full Address]') extractedAddress = addr;
+      }
+    }
+    
+    // Priority 4: FormData (for newly created transactions)
+    if (!extractedAddress && formData.customerAddress && typeof formData.customerAddress === 'string') {
+      const addr = formData.customerAddress.trim();
+      if (addr && addr !== '[Full Address]') extractedAddress = addr;
+    }
+    
+    const pdfData = {
+      transactionId: submittedTransaction.transactionId || `TXN-${Date.now()}`,
+      transactionType: submittedTransaction.transactionType,
+      customerId: submittedTransaction.customerId,
+      uniqueId: submittedTransaction.uniqueId,
+      customerName: submittedTransaction.customerName || '',
+      customerPhone: submittedTransaction.customerPhone || '',
+      customerEmail: submittedTransaction.customerEmail || '',
+      customerAddress: (extractedAddress && extractedAddress.trim() && extractedAddress !== '[Full Address]') ? extractedAddress.trim() : '[Full Address]',
+      category: submittedTransaction.category || '',
+      paymentMethod: submittedTransaction.paymentMethod || '',
+      bankName: submittedTransaction.paymentDetails?.bankName || '',
+      accountNumber: submittedTransaction.paymentDetails?.accountNumber || '',
+      accountManagerName: accountManagerName,
+      amount: submittedTransaction.amount || 0,
+      notes: submittedTransaction.notes || '',
+      date: submittedTransaction.date || new Date().toISOString().split('T')[0],
+      createdBy: userProfile?.email || 'unknown_user',
+      branchId: userProfile?.branchId || 'main_branch',
+      language: language // এটাই মূল — 'bn' অথবা 'en'
+    };
+
+    // Generate PDF using the updated generator (supports bn/en and showHeader)
+    const result = await generateSalmaReceiptPDF(pdfData, { language, showHeader });
+
+    Swal.close();
+
+    if (result.success) {
+      Swal.fire({
+        title: language === 'en' ? 'Success!' : 'সফল!',
+        text: language === 'en' 
+          ? `PDF downloaded successfully: ${result.filename}` 
+          : `PDF সফলভাবে ডাউনলোড হয়েছে`,
+        icon: 'success',
+        confirmButtonText: language === 'en' ? 'OK' : 'ঠিক আছে',
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+    } else {
+      throw new Error(result.error || 'PDF generation failed');
+    }
+  } catch (error) {
+    console.error('Receipt PDF download error:', error);
+    Swal.close();
+    Swal.fire({
+      title: language === 'en' ? 'Error!' : 'ত্রুটি!',
+      text: language === 'en' 
+        ? 'There was a problem generating the PDF' 
+        : 'PDF তৈরি করতে সমস্যা হয়েছে',
+      icon: 'error',
+      confirmButtonText: language === 'en' ? 'OK' : 'ঠিক আছে',
+      background: isDark ? '#1F2937' : '#FEF2F2'
+    });
+  }
+};
+
+  const handlePrintReceipt = async (language = 'bn', showHeader = true) => {
+    if (!submittedTransaction) return;
+
+    try {
+      // Show loading alert
+      Swal.fire({
+        title: language === 'en' ? 'Generating PDF...' : 'PDF তৈরি হচ্ছে...',
+        text: language === 'en' ? 'Receipt is being prepared' : 'রিসিট তৈরি হচ্ছে',
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+
+      // Prepare PDF data with selected language
+      // Extract accountManager name - handle both object and direct name
+      const accountManagerName = submittedTransaction.accountManager?.name 
+        || (typeof submittedTransaction.accountManager === 'string' ? submittedTransaction.accountManager : '')
+        || submittedTransaction.accountManagerName 
+        || '';
+      
+      // Extract address from multiple possible sources
+      let extractedAddress = '';
+      
+      // Priority 1: Top-level customerAddress
+      if (submittedTransaction.customerAddress && typeof submittedTransaction.customerAddress === 'string') {
+        const addr = submittedTransaction.customerAddress.trim();
+        if (addr && addr !== '[Full Address]') extractedAddress = addr;
+      }
+      
+      // Priority 2: Customer object
+      if (!extractedAddress && submittedTransaction.customer && typeof submittedTransaction.customer === 'object') {
+        const customerAddr = submittedTransaction.customer.address ||
+                            submittedTransaction.customer.fullAddress ||
+                            submittedTransaction.customer.customerAddress ||
+                            submittedTransaction.customer.location;
+        if (customerAddr && typeof customerAddr === 'string') {
+          const addr = customerAddr.trim();
+          if (addr && addr !== '[Full Address]') extractedAddress = addr;
+        }
+      }
+      
+      // Priority 3: Party object
+      if (!extractedAddress && submittedTransaction.party && typeof submittedTransaction.party === 'object') {
+        const partyAddr = submittedTransaction.party.address ||
+                          submittedTransaction.party.fullAddress ||
+                          submittedTransaction.party.location;
+        if (partyAddr && typeof partyAddr === 'string') {
+          const addr = partyAddr.trim();
+          if (addr && addr !== '[Full Address]') extractedAddress = addr;
+        }
+      }
+      
+      // Priority 4: FormData (for newly created transactions)
+      if (!extractedAddress && formData.customerAddress && typeof formData.customerAddress === 'string') {
+        const addr = formData.customerAddress.trim();
+        if (addr && addr !== '[Full Address]') extractedAddress = addr;
+      }
+      
+      const pdfData = {
+        transactionId: submittedTransaction.transactionId || `TXN-${Date.now()}`,
+        transactionType: submittedTransaction.transactionType,
+        customerId: submittedTransaction.customerId,
+        uniqueId: submittedTransaction.uniqueId,
+        customerName: submittedTransaction.customerName || '',
+        customerPhone: submittedTransaction.customerPhone || '',
+        customerEmail: submittedTransaction.customerEmail || '',
+        customerAddress: (extractedAddress && extractedAddress.trim() && extractedAddress !== '[Full Address]') ? extractedAddress.trim() : '[Full Address]',
+        category: submittedTransaction.category || '',
+        paymentMethod: submittedTransaction.paymentMethod || '',
+        bankName: submittedTransaction.paymentDetails?.bankName || '',
+        accountNumber: submittedTransaction.paymentDetails?.accountNumber || '',
+        accountManagerName: accountManagerName,
+        amount: submittedTransaction.amount || 0,
+        notes: submittedTransaction.notes || '',
+        date: submittedTransaction.date || new Date().toISOString().split('T')[0],
+        createdBy: userProfile?.email || 'unknown_user',
+        branchId: userProfile?.branchId || 'main_branch',
+        language: language
+      };
+
+      // Generate PDF without downloading
+      const result = await generateSalmaReceiptPDF(pdfData, { language, showHeader, download: false });
+
+      Swal.close();
+
+      if (result.success && result.pdf) {
+        // Get PDF as blob
+        const pdfBlob = result.pdf.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        
+        // Create hidden iframe to load PDF
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.src = pdfUrl;
+        
+        document.body.appendChild(iframe);
+        
+        // Wait for PDF to load in iframe, then print
+        iframe.onload = () => {
+          setTimeout(() => {
+            try {
+              // Focus the iframe and trigger print
+              iframe.contentWindow.focus();
+              iframe.contentWindow.print();
+              
+              // Clean up after print
+              setTimeout(() => {
+                document.body.removeChild(iframe);
+                URL.revokeObjectURL(pdfUrl);
+              }, 1000);
+            } catch (e) {
+              // If cross-origin or other error, try opening in new window
+              console.log('Iframe print failed, opening in new window:', e);
+              document.body.removeChild(iframe);
+              const printWindow = window.open(pdfUrl, '_blank');
+              if (printWindow) {
+                setTimeout(() => {
+                  printWindow.print();
+                  setTimeout(() => {
+                    URL.revokeObjectURL(pdfUrl);
+                  }, 1000);
+                }, 1000);
+              } else {
+                URL.revokeObjectURL(pdfUrl);
+                throw new Error('Popup blocked. Please allow popups for this site.');
+              }
+            }
+          }, 1000);
+        };
+        
+        // Fallback: if onload doesn't fire
+        setTimeout(() => {
+          if (iframe.parentNode) {
+            try {
+              iframe.contentWindow.print();
+              setTimeout(() => {
+                document.body.removeChild(iframe);
+                URL.revokeObjectURL(pdfUrl);
+              }, 1000);
+            } catch (e) {
+              // Fallback to new window
+              document.body.removeChild(iframe);
+              const printWindow = window.open(pdfUrl, '_blank');
+              if (printWindow) {
+                setTimeout(() => {
+                  printWindow.print();
+                  setTimeout(() => {
+                    URL.revokeObjectURL(pdfUrl);
+                  }, 1000);
+                }, 1000);
+              } else {
+                URL.revokeObjectURL(pdfUrl);
+              }
+            }
+          }
+        }, 3000);
+      } else {
+        throw new Error(result.error || 'PDF generation failed');
+      }
+    } catch (error) {
+      console.error('Receipt PDF print error:', error);
+      Swal.close();
+      Swal.fire({
+        title: language === 'en' ? 'Error!' : 'ত্রুটি!',
+        text: language === 'en' 
+          ? 'There was a problem generating the PDF' 
+          : 'PDF তৈরি করতে সমস্যা হয়েছে',
+        icon: 'error',
+        confirmButtonText: language === 'en' ? 'OK' : 'ঠিক আছে',
+        background: isDark ? '#1F2937' : '#FEF2F2'
+      });
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    if (typeof window === 'undefined' || !submittedTransaction) return;
+
+    const rawPhone = submittedTransaction.customerPhone || '';
+    const digitsOnly = String(rawPhone).replace(/\D/g, '');
+    const phone = digitsOnly || '';
+
+    const messageLines = [
+      'Transaction Receipt',
+      submittedTransaction.transactionId ? `ID: ${submittedTransaction.transactionId}` : '',
+      submittedTransaction.customerName ? `Customer: ${submittedTransaction.customerName}` : '',
+      submittedTransaction.amount ? `Amount: ৳${submittedTransaction.amount}` : '',
+      submittedTransaction.date ? `Date: ${submittedTransaction.date}` : '',
+    ].filter(Boolean);
+
+    const message = messageLines.join('\n');
+    const baseUrl = 'https://wa.me/';
+    const url = `${baseUrl}${phone}?text=${encodeURIComponent(message)}`;
+
+    window.open(url, '_blank');
   };
 
   // Filter customers based on selected type
@@ -1784,6 +2174,227 @@ const NewTransaction = () => {
     return balance;
   };
   const customerBalance = formData.customerId ? calculateCustomerBalance(formData.customerId) : 0;
+
+  // If a transaction has just been submitted, show submission summary page instead of the multi-step form
+  if (submittedTransaction) {
+    const {
+      transactionId,
+      transactionType,
+      amount,
+      date,
+      customerName,
+      customerPhone,
+      customerEmail,
+      category,
+      paymentMethod,
+      fromAccount,
+      toAccount,
+      mode
+    } = submittedTransaction;
+
+    return (
+      <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+          <Helmet>
+            <title>New Transaction</title>
+            <meta name="description" content="Create a new transaction in the system." />
+          </Helmet>
+        
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
+                  লেনদেন সফলভাবে সংরক্ষণ হয়েছে
+                </h1>
+                <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Submission summary &amp; actions (EN/BN) – Download, Print, WhatsApp, New Transaction
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary card */}
+          <div className={`mb-4 sm:mb-6 rounded-xl shadow-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} p-4 sm:p-6`}>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-blue-600" />
+              লেনদেনের সারসংক্ষেপ / Submission Summary
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 text-sm">
+                {transactionId && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Transaction ID:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{transactionId}</span>
+                  </div>
+                )}
+                {transactionType && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {transactionType === 'credit'
+                        ? 'ক্রেডিট (আয়)'
+                        : transactionType === 'debit'
+                        ? 'ডেবিট (ব্যয়)'
+                        : 'একাউন্ট টু একাউন্ট ট্রান্সফার'}
+                    </span>
+                  </div>
+                )}
+                {category && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">ক্যাটাগরি:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{category}</span>
+                  </div>
+                )}
+                {paymentMethod && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Payment Method:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{paymentMethod}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 text-sm">
+                {amount !== undefined && amount !== null && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">পরিমাণ:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">৳{amount}</span>
+                  </div>
+                )}
+                {date && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Date:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{date}</span>
+                  </div>
+                )}
+                {customerName && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Customer:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{customerName}</span>
+                  </div>
+                )}
+                {customerPhone && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Mobile:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">{customerPhone}</span>
+                  </div>
+                )}
+                {customerEmail && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">Email:</span>
+                    <span className="font-semibold text-gray-900 dark:text-white break-all">{customerEmail}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {(mode === 'transfer' || fromAccount || toAccount) && (
+              <div className="mt-4 pt-4 border-t border-dashed border-gray-300 dark:border-gray-700 text-sm grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {fromAccount && (
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white mb-1">From Account</p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      {fromAccount.name || fromAccount.bankName} ({fromAccount.accountNumber})
+                    </p>
+                  </div>
+                )}
+                {toAccount && (
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white mb-1">To Account</p>
+                    <p className="text-gray-700 dark:text-gray-300">
+                      {toAccount.name || toAccount.bankName} ({toAccount.accountNumber})
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Header Toggle */}
+          <div className={`mb-4 p-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showHeader}
+                onChange={(e) => setShowHeader(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              />
+              <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                Header দেখান (Logo, Title, Tagline)
+              </span>
+            </label>
+          </div>
+
+          {/* Action buttons */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Download buttons EN/BN */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => handleDownloadReceipt('en', showHeader)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold shadow-md transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  Download (EN)
+                </button>
+                <button
+                  onClick={() => handleDownloadReceipt('bn', showHeader)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold shadow-md transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                  ডাউনলোড (BN)
+                </button>
+              </div>
+
+              {/* Print buttons EN/BN */}
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={() => handlePrintReceipt('en', showHeader)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-800 text-white text-sm font-semibold shadow-md transition-all"
+                >
+                  <FileText className="w-4 h-4" />
+                  Print (EN)
+                </button>
+                <button
+                  onClick={() => handlePrintReceipt('bn', showHeader)}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold shadow-md transition-all"
+                >
+                  <FileText className="w-4 h-4" />
+                  প্রিন্ট (BN)
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-between">
+              {/* WhatsApp share */}
+              <button
+                onClick={handleShareWhatsApp}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-semibold shadow-md transition-all w-full sm:w-auto"
+              >
+                <MessageCircle className="w-4 h-4" />
+                Send by WhatsApp / WhatsApp এ শেয়ার করুন
+              </button>
+
+              {/* New transaction */}
+              <button
+                onClick={handleNewTransaction}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md transition-all w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                নতুন লেনদেন / New Transaction
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${
       isDark 
@@ -3039,7 +3650,8 @@ const NewTransaction = () => {
             </div>
           )}
           {/* Step 4: Agent Balance Display (for credit with agent) or Invoice Selection (for credit with customer) or Account Manager Selection (for transfer) or Payment Method (for debit) */}
-          {currentStep === 4 && (
+          {/* Skip step 4 for credit non-agent transactions - invoice selection is removed */}
+          {currentStep === 4 && !(formData.transactionType === 'credit' && formData.customerType !== 'agent') && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'credit' && formData.customerType === 'agent' ? (
                 // Agent Balance Display
@@ -3072,7 +3684,7 @@ const NewTransaction = () => {
                   </p>
                 </div>
               ) : (
-                // Credit: Invoice Selection
+                // Credit: Invoice Selection (only for agent, but this condition should not be reached)
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
                     ইনভয়েস নির্বাচন করুন
@@ -5186,15 +5798,6 @@ const NewTransaction = () => {
                     </button>
                     
                     <button
-                      onClick={generatePDF}
-                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span className="hidden sm:inline">PDF ডাউনলোড করুন</span>
-                      <span className="sm:hidden">PDF ডাউনলোড</span>
-                    </button>
-                    
-                    <button
                       onClick={() => {}} // SMS functionality
                       className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
                     >
@@ -5449,15 +6052,6 @@ const NewTransaction = () => {
                           </span>
                         </>
                       )}
-                    </button>
-                    
-                    <button
-                      onClick={generatePDF}
-                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span className="hidden sm:inline">PDF ডাউনলোড করুন</span>
-                      <span className="sm:hidden">PDF ডাউনলোড</span>
                     </button>
                     
                     <button
@@ -6067,14 +6661,7 @@ const NewTransaction = () => {
                     )}
                   </button>
                   
-                  <button
-                    onClick={generatePDF}
-                    className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span className="hidden sm:inline">PDF ডাউনলোড করুন</span>
-                    <span className="sm:hidden">PDF ডাউনলোড</span>
-                  </button>
+                 
                
                 </div>
               </div>

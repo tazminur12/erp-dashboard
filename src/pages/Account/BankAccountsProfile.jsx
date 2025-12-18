@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -28,25 +28,167 @@ import {
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import SmallStat from '../../components/common/SmallStat';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { generateBankStatementPDF } from '../../utils/bankpdf';
 import Swal from 'sweetalert2';
 
 // Transaction History Component
 const TransactionHistory = ({ accountId }) => {
   const { useBankAccountTransactions } = useAccountQueries();
   const [page, setPage] = useState(1);
+  const [dateRange, setDateRange] = useState(''); // 'today', 'week', 'monthly', 'yearly', 'custom'
   const [filters, setFilters] = useState({
     type: '',
-    startDate: '',
-    endDate: ''
+    fromDate: '',
+    toDate: ''
   });
+
+  // Calculate date range based on selection
+  const getDateRange = (range) => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    const toDate = today.toISOString().split('T')[0];
+
+    let fromDate = '';
+
+    switch (range) {
+      case 'today':
+        fromDate = today.toISOString().split('T')[0];
+        break;
+      case 'week':
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        weekAgo.setHours(0, 0, 0, 0);
+        fromDate = weekAgo.toISOString().split('T')[0];
+        break;
+      case 'monthly':
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(today.getMonth() - 1);
+        monthAgo.setHours(0, 0, 0, 0);
+        fromDate = monthAgo.toISOString().split('T')[0];
+        break;
+      case 'yearly':
+        const yearAgo = new Date(today);
+        yearAgo.setFullYear(today.getFullYear() - 1);
+        yearAgo.setHours(0, 0, 0, 0);
+        fromDate = yearAgo.toISOString().split('T')[0];
+        break;
+      case 'custom':
+        // Keep existing dates when custom is selected
+        return { fromDate: filters.fromDate, toDate: filters.toDate };
+      default:
+        return { fromDate: '', toDate: '' };
+    }
+
+    return { fromDate, toDate };
+  };
+
+  // Handle date range change
+  const handleDateRangeChange = (range) => {
+    setDateRange(range);
+    if (range === 'custom') {
+      // Keep existing dates, just show custom inputs
+      return;
+    }
+    const dates = getDateRange(range);
+    setFilters(prev => ({
+      ...prev,
+      fromDate: dates.fromDate,
+      toDate: dates.toDate
+    }));
+  };
+
+  // Handle custom date changes
+  const handleCustomDateChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const { data: transactionData, isLoading, error } = useBankAccountTransactions(accountId, {
     page,
     limit: 10,
     ...filters
   });
+
+  // Helper function to check if a string is a MongoDB ObjectId
+  const isObjectId = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    // MongoDB ObjectId is 24 hex characters
+    return /^[0-9a-fA-F]{24}$/.test(str);
+  };
+
+  // Helper function to get transaction description/purpose
+  const getTransactionDescription = (transaction) => {
+    // Check serviceCategory first (hajj, umrah, etc.)
+    if (transaction.serviceCategory) {
+      const category = String(transaction.serviceCategory).toLowerCase();
+      // Skip if it's an ObjectId
+      if (!isObjectId(category)) {
+        if (category === 'hajj') return 'Hajj';
+        if (category === 'umrah') return 'Umrah';
+        if (category === 'loan-giving') return 'Loan Giving';
+        if (category === 'loan-repayment') return 'Loan Repayment';
+        if (category === 'money-exchange') return 'Money Exchange';
+        if (category === 'air-ticketing') return 'Air Ticketing';
+        if (category === 'visa-processing') return 'Visa Processing';
+        // Return capitalized category name if it's not an ObjectId
+        return category.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+      }
+    }
+    
+    // Check meta.selectedOption (for agent transactions)
+    if (transaction.meta?.selectedOption) {
+      const option = String(transaction.meta.selectedOption).toLowerCase();
+      if (!isObjectId(option)) {
+        if (option === 'hajj') return 'Hajj';
+        if (option === 'umrah') return 'Umrah';
+        return option.charAt(0).toUpperCase() + option.slice(1);
+      }
+    }
+    
+    // Check category field
+    if (transaction.category) {
+      if (typeof transaction.category === 'string') {
+        // Skip if it's an ObjectId
+        if (!isObjectId(transaction.category)) {
+          return transaction.category;
+        }
+      } else if (typeof transaction.category === 'object') {
+        // If category is an object, try to get name
+        if (transaction.category.name) {
+          return transaction.category.name;
+        }
+        // If category has _id but not name, skip it
+        if (transaction.category._id && !transaction.category.name) {
+          // Skip ObjectId, continue to next check
+        }
+      }
+    }
+    
+    // Check notes if available
+    if (transaction.notes && transaction.notes.trim()) {
+      const notes = transaction.notes.trim();
+      // Skip if notes is just an ObjectId
+      if (!isObjectId(notes)) {
+        return notes.length > 50 
+          ? notes.substring(0, 50) + '...' 
+          : notes;
+      }
+    }
+    
+    // Check description field
+    if (transaction.description) {
+      const desc = String(transaction.description);
+      // Skip if description is an ObjectId
+      if (!isObjectId(desc)) {
+        return desc;
+      }
+    }
+    
+    // Default
+    return 'N/A';
+  };
 
   if (isLoading) {
     return (
@@ -65,56 +207,119 @@ const TransactionHistory = ({ accountId }) => {
     );
   }
 
-  const { transactions = [], pagination = {} } = transactionData;
+  const { transactions = [], pagination = {}, summary = {} } = transactionData || {};
 
   return (
     <div className="space-y-4">
+      {/* Summary Statistics */}
+      {summary && Object.keys(summary).length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <div>
+            <p className="text-xs text-gray-600 dark:text-gray-400">Total Transactions</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">{summary.totalTransactions || 0}</p>
+          </div>
+          <div>
+            <p className="text-xs text-green-600 dark:text-green-400">Total Credit</p>
+            <p className="text-lg font-semibold text-green-700 dark:text-green-300">
+              {summary.totalCredit?.toLocaleString() || '0'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-red-600 dark:text-red-400">Total Debit</p>
+            <p className="text-lg font-semibold text-red-700 dark:text-red-300">
+              {summary.totalDebit?.toLocaleString() || '0'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-purple-600 dark:text-purple-400">Transfer In</p>
+            <p className="text-lg font-semibold text-purple-700 dark:text-purple-300">
+              {summary.totalTransferIn?.toLocaleString() || '0'}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-orange-600 dark:text-orange-400">Transfer Out</p>
+            <p className="text-lg font-semibold text-orange-700 dark:text-orange-300">
+              {summary.totalTransferOut?.toLocaleString() || '0'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Type
-          </label>
-          <select
-            value={filters.type}
-            onChange={(e) => setFilters({...filters, type: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          >
-            <option value="">All Types</option>
-            <option value="credit">Credit</option>
-            <option value="debit">Debit</option>
-          </select>
+      <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Type
+            </label>
+            <select
+              value={filters.type}
+              onChange={(e) => setFilters({...filters, type: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Types</option>
+              <option value="credit">Credit</option>
+              <option value="debit">Debit</option>
+              <option value="transfer">Transfer</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Date Range
+            </label>
+            <select
+              value={dateRange}
+              onChange={(e) => handleDateRangeChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              <option value="">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Week</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="custom">Custom Date</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => {
+                setDateRange('');
+                setFilters({type: '', fromDate: '', toDate: ''});
+              }}
+              className="w-full px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-lg transition-colors duration-200"
+            >
+              Clear
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Start Date
-          </label>
-          <input
-            type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            End Date
-          </label>
-          <input
-            type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-          />
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={() => setFilters({type: '', startDate: '', endDate: ''})}
-            className="w-full px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-lg transition-colors duration-200"
-          >
-            Clear
-          </button>
-        </div>
+        
+        {/* Custom Date Inputs - Show only when Custom is selected */}
+        {dateRange === 'custom' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-300 dark:border-gray-600">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                From Date
+              </label>
+              <input
+                type="date"
+                value={filters.fromDate}
+                onChange={(e) => handleCustomDateChange('fromDate', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                To Date
+              </label>
+              <input
+                type="date"
+                value={filters.toDate}
+                onChange={(e) => handleCustomDateChange('toDate', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Transactions Table */}
@@ -129,10 +334,10 @@ const TransactionHistory = ({ accountId }) => {
                 Type
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Description
+                Amount
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                Amount
+                Description
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Reference
@@ -147,21 +352,27 @@ const TransactionHistory = ({ accountId }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`px-2 py-1 text-xs rounded-full ${
-                    transaction.transactionType === 'credit' 
+                    transaction.isTransfer
+                      ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
+                      : transaction.transactionType === 'credit' 
                       ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
                       : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
                   }`}>
-                    {transaction.transactionType}
+                    {transaction.isTransfer ? 'Transfer' : transaction.transactionType}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                  {transaction.description || transaction.notes}
-                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                  {transaction.paymentDetails?.amount?.toLocaleString()}
+                  {transaction.isTransfer
+                    ? transaction.transferDetails?.transferAmount?.toLocaleString() || '0'
+                    : transaction.paymentDetails?.amount?.toLocaleString() || transaction.amount?.toLocaleString() || '0'}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
+                  {getTransactionDescription(transaction)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {transaction.paymentDetails?.reference || transaction.transactionId}
+                  {transaction.isTransfer
+                    ? transaction.transferDetails?.reference || transaction.transactionId
+                    : transaction.paymentDetails?.reference || transaction.transactionId || 'N/A'}
                 </td>
               </tr>
             ))}
@@ -255,23 +466,37 @@ const BankAccountsProfile = () => {
     createdBy: 'SYSTEM',
     branchId: 'BRANCH001'
   });
-  const statementRef = useRef(null);
-  const { data: statementTransactionsData } = useBankAccountTransactions(id, { page: 1, limit: 50 });
+  const { data: statementTransactionsData } = useBankAccountTransactions(id, { 
+    page: 1, 
+    limit: 50,
+    includeBalanceHistory: true 
+  });
   const transactions = statementTransactionsData?.transactions ?? [];
+  const statementSummary = statementTransactionsData?.summary || {};
 
   const totals = useMemo(() => {
-    const deposits = transactions
-      .filter(tx => tx.transactionType === 'credit')
+    // Use summary data from API if available, otherwise calculate
+    const deposits = statementSummary.totalCredit || transactions
+      .filter(tx => !tx.isTransfer && tx.transactionType === 'credit')
       .reduce((sum, tx) => sum + (tx.paymentDetails?.amount || tx.amount || 0), 0);
-    const withdrawals = transactions
-      .filter(tx => tx.transactionType === 'debit')
+    
+    const withdrawals = statementSummary.totalDebit || transactions
+      .filter(tx => !tx.isTransfer && tx.transactionType === 'debit')
       .reduce((sum, tx) => sum + (tx.paymentDetails?.amount || tx.amount || 0), 0);
+
+    const transferIn = statementSummary.totalTransferIn || transactions
+      .filter(tx => tx.isTransfer && tx.transferDetails?.toAccountId?.toString() === id)
+      .reduce((sum, tx) => sum + (tx.transferDetails?.transferAmount || 0), 0);
+    
+    const transferOut = statementSummary.totalTransferOut || transactions
+      .filter(tx => tx.isTransfer && tx.transferDetails?.fromAccountId?.toString() === id)
+      .reduce((sum, tx) => sum + (tx.transferDetails?.transferAmount || 0), 0);
 
     const closingBalance = bankAccount?.currentBalance ?? 0;
-    const openingBalance = bankAccount?.initialBalance ?? (closingBalance - deposits + withdrawals);
+    const openingBalance = bankAccount?.initialBalance ?? (closingBalance - deposits - transferIn + withdrawals + transferOut);
 
     const sortedDates = transactions
-      .map(tx => new Date(tx.date))
+      .map(tx => new Date(tx.date || tx.createdAt))
       .filter(date => !Number.isNaN(date.getTime()))
       .sort((a, b) => a - b);
 
@@ -281,12 +506,14 @@ const BankAccountsProfile = () => {
     return {
       deposits,
       withdrawals,
+      transferIn,
+      transferOut,
       openingBalance,
       closingBalance,
       periodStart,
       periodEnd
     };
-  }, [transactions, bankAccount]);
+  }, [transactions, bankAccount, statementSummary, id]);
 
   const formatCurrency = (value) => {
     if (!bankAccount?.currency) {
@@ -345,47 +572,73 @@ const BankAccountsProfile = () => {
   };
 
   const handleDownloadStatement = async () => {
-    if (!statementRef.current || isGeneratingPdf) {
+    if (isGeneratingPdf || !bankAccount) {
       return;
     }
 
     try {
       setIsGeneratingPdf(true);
-      const canvas = await html2canvas(statementRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#FFFFFF'
+
+      // Prepare statement data
+      const statementData = {
+        bankAccount: {
+          bankName: bankAccount.bankName,
+          branchName: bankAccount.branchName,
+          accountHolder: bankAccount.accountHolder,
+          accountTitle: bankAccount.accountTitle,
+          accountNumber: bankAccount.accountNumber,
+          accountType: bankAccount.accountType,
+          customerId: bankAccount.customerId,
+          routingNumber: bankAccount.routingNumber,
+          currency: bankAccount.currency || 'BDT',
+          telephone: bankAccount.telephone,
+          address: bankAccount.address,
+          createdAt: bankAccount.createdAt
+        },
+        transactions: transactions.map(transaction => ({
+          _id: transaction._id,
+          date: transaction.date || transaction.createdAt,
+          transactionType: transaction.transactionType,
+          isTransfer: transaction.isTransfer,
+          amount: transaction.amount,
+          paymentDetails: transaction.paymentDetails,
+          transferDetails: transaction.transferDetails,
+          serviceCategory: transaction.serviceCategory,
+          meta: transaction.meta,
+          category: transaction.category,
+          description: transaction.description,
+          notes: transaction.notes,
+          balanceAfter: transaction.paymentDetails?.balanceAfter ?? transaction.balanceAfter
+        })),
+        totals: {
+          openingBalance: totals.openingBalance,
+          deposits: totals.deposits,
+          withdrawals: totals.withdrawals,
+          transferIn: totals.transferIn,
+          transferOut: totals.transferOut,
+          closingBalance: totals.closingBalance
+        },
+        periodStart: totals.periodStart,
+        periodEnd: totals.periodEnd
+      };
+
+      // Generate PDF
+      const result = await generateBankStatementPDF(statementData, {
+        download: true,
+        filename: `Bank_Statement_${bankAccount.accountNumber || id || 'account'}_${new Date().toISOString().split('T')[0]}.pdf`
       });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-      let position = 0;
 
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-
-      let heightLeft = pdfHeight;
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - pdfHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-        heightLeft -= pageHeight;
+      if (result.success) {
+        Swal.fire({
+          title: 'সফল!',
+          text: 'ব্যাংক স্টেটমেন্ট সফলভাবে ডাউনলোড হয়েছে।',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981'
+        });
+      } else {
+        throw new Error(result.error || 'PDF generation failed');
       }
-
-      const fileName = `bank-statement-${bankAccount?.accountNumber || id || 'account'}.pdf`;
-      pdf.save(fileName);
-
-      Swal.fire({
-        title: 'সফল!',
-        text: 'ব্যাংক স্টেটমেন্ট সফলভাবে ডাউনলোড হয়েছে।',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#10B981'
-      });
     } catch (error) {
       console.error('Statement generation failed:', error);
       Swal.fire({
@@ -473,151 +726,6 @@ const BankAccountsProfile = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-      <div
-        ref={statementRef}
-        style={{
-          position: 'absolute',
-          top: '-9999px',
-          left: '-9999px',
-          width: '794px',
-          padding: '32px',
-          backgroundColor: '#FFFFFF',
-          color: '#111827',
-          fontFamily: 'Inter, Arial, sans-serif',
-          boxShadow: '0 20px 45px rgba(15, 23, 42, 0.15)'
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {bankAccount?.logo ? (
-              <img src={bankAccount.logo} alt="Bank Logo" style={{ width: '72px', height: '72px', objectFit: 'contain' }} />
-            ) : (
-              <div style={{ width: '72px', height: '72px', borderRadius: '16px', background: '#E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-                {bankAccount?.bankName?.[0] || 'B'}
-              </div>
-            )}
-            <div>
-              <h1 style={{ fontSize: '22px', fontWeight: 700 }}>{bankAccount?.bankName || 'Bank Name'}</h1>
-              <p style={{ color: '#6B7280' }}>{bankAccount?.branchName || 'Branch Name'}</p>
-            </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ display: 'inline-block', padding: '6px 18px', borderRadius: '999px', background: '#13288F', color: '#FFFFFF', fontWeight: 600, fontSize: '14px' }}>
-              Bank Statement
-            </span>
-            <p style={{ marginTop: '8px', fontSize: '14px', color: '#6B7280' }}>
-              Generated on {formatDate(new Date())}
-            </p>
-          </div>
-        </div>
-
-        <hr style={{ margin: '24px 0', borderColor: '#E5E7EB' }} />
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '24px' }}>
-          <div style={{ padding: '16px', borderRadius: '12px', background: '#F9FAFB' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Account Holder</h2>
-            <p style={{ fontWeight: 600 }}>{bankAccount?.accountHolder || 'N/A'}</p>
-            <p style={{ color: '#6B7280', marginTop: '8px' }}>
-              Title: {bankAccount?.accountTitle || 'N/A'}
-              <br />
-              Created By: {bankAccount?.createdBy || 'N/A'}
-            </p>
-          </div>
-
-          <div style={{ padding: '16px', borderRadius: '12px', background: '#F9FAFB' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Account Details</h2>
-            <p style={{ fontWeight: 600 }}>Account Number: {bankAccount?.accountNumber || 'N/A'}</p>
-            <p style={{ marginTop: '6px' }}>Routing Number: {bankAccount?.routingNumber || 'N/A'}</p>
-            <p style={{ marginTop: '6px' }}>Branch ID: {bankAccount?.branchId || 'N/A'}</p>
-            <p style={{ marginTop: '6px', color: '#6B7280' }}>
-              Statement Period:{' '}
-              {totals.periodStart && totals.periodEnd
-                ? `${formatDate(totals.periodStart)} - ${formatDate(totals.periodEnd)}`
-                : 'N/A'}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ marginTop: '24px', padding: '16px', borderRadius: '12px', border: '1px solid #E5E7EB', background: '#FFFFFF' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Account Summary</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px' }}>
-            <div>
-              <p style={{ fontSize: '13px', color: '#6B7280' }}>Opening Balance</p>
-              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px' }}>{formatCurrency(totals.openingBalance)}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '13px', color: '#6B7280' }}>Deposits</p>
-              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px', color: '#059669' }}>{formatCurrency(totals.deposits)}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '13px', color: '#6B7280' }}>Withdrawals</p>
-              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px', color: '#DC2626' }}>{formatCurrency(totals.withdrawals)}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: '13px', color: '#6B7280' }}>Closing Balance</p>
-              <p style={{ fontSize: '18px', fontWeight: 700, marginTop: '4px' }}>{formatCurrency(totals.closingBalance)}</p>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Transaction Details</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', border: '1px solid #E5E7EB' }}>
-            <thead style={{ background: '#13288F', color: '#FFFFFF' }}>
-              <tr>
-                <th style={{ padding: '10px', textAlign: 'left' }}>Date</th>
-                <th style={{ padding: '10px', textAlign: 'left' }}>Description</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Withdrawals</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Deposits</th>
-                <th style={{ padding: '10px', textAlign: 'right' }}>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.length > 0 ? (
-                transactions.map((transaction) => {
-                  const amount = transaction.paymentDetails?.amount || transaction.amount || 0;
-                  const isCredit = transaction.transactionType === 'credit';
-                  const balance = transaction.paymentDetails?.balanceAfter ?? transaction.balanceAfter ?? null;
-
-                  return (
-                    <tr key={transaction._id} style={{ borderBottom: '1px solid #E5E7EB', background: '#FFFFFF' }}>
-                      <td style={{ padding: '10px' }}>{formatDate(transaction.date) || '—'}</td>
-                      <td style={{ padding: '10px' }}>{transaction.description || transaction.notes || '—'}</td>
-                      <td style={{ padding: '10px', textAlign: 'right', color: !isCredit ? '#DC2626' : '#111827' }}>
-                        {!isCredit ? formatCurrency(amount) : '—'}
-                      </td>
-                      <td style={{ padding: '10px', textAlign: 'right', color: isCredit ? '#059669' : '#111827' }}>
-                        {isCredit ? formatCurrency(amount) : '—'}
-                      </td>
-                      <td style={{ padding: '10px', textAlign: 'right' }}>
-                        {balance !== null ? formatCurrency(balance) : formatCurrency(totals.closingBalance)}
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={5} style={{ padding: '16px', textAlign: 'center', color: '#6B7280' }}>No transactions recorded.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <p style={{ fontSize: '13px', color: '#6B7280' }}>Prepared by</p>
-            <p style={{ fontWeight: 600, marginTop: '6px' }}>{bankAccount?.branchName || 'Branch Manager'}</p>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '13px', color: '#6B7280' }}>Authorized Signature</p>
-            <div style={{ marginTop: '12px', padding: '8px 16px', borderRadius: '999px', border: '1px dashed #9CA3AF', color: '#1F2937', fontWeight: 600, display: 'inline-block' }}>
-              {bankAccount?.bankName || 'Finance Department'}
-            </div>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '../../store/ui';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { signOutUser, getCurrentUser, onAuthStateChange } from '../../firebase/auth';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -21,6 +22,7 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
   const navigate = useNavigate();
   const { toggleMobileSidebar } = useUIStore();
   const { isDark, toggleTheme } = useTheme();
+  const { userProfile } = useAuth();
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
@@ -283,24 +285,53 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
               className="flex items-center space-x-2 p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200"
               onClick={() => setShowUserMenu(!showUserMenu)}
             >
-              <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 dark:border-gray-600">
+                {userProfile?.photoURL ? (
+                  <img 
+                    src={userProfile.photoURL} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                    <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  </div>
+                )}
               </div>
               <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
-                {isLoggedIn && userEmail ? userEmail.split('@')[0] : 'Admin User'}
+                {userProfile?.name || (isLoggedIn && userEmail ? userEmail.split('@')[0] : 'Admin User')}
               </span>
             </button>
             
             {/* User dropdown */}
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
                 <div className="py-1">
                   {isLoggedIn && userEmail && (
-                    <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700">
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Logged in as:</p>
-                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
-                        {userEmail}
-                      </p>
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 dark:border-gray-600 flex-shrink-0">
+                          {userProfile?.photoURL ? (
+                            <img 
+                              src={userProfile.photoURL} 
+                              alt="Profile" 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+                              <User className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {userProfile?.name || 'User'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {userEmail}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                   <Link

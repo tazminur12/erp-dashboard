@@ -1,5 +1,6 @@
 import React, { useState, useEffect, memo, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowLeft, 
   Save, 
@@ -930,6 +931,10 @@ const AddUmrahHaji = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <Helmet>
+        <title>{editMode ? 'Edit Umrah Haji' : 'Add New Umrah Haji'}</title>
+        <meta name="description" content={editMode ? 'Update Umrah pilgrim information' : 'Register a new Haji for Umrah'} />
+      </Helmet>
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button

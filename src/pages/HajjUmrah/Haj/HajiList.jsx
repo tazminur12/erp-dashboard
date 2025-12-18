@@ -26,6 +26,7 @@ import ExcelUploader from '../../../components/common/ExcelUploader';
 import { useHajiList, useDeleteHaji, useBulkCreateHaji } from '../../../hooks/UseHajiQueries';
 import { usePackages } from '../../../hooks/usePackageQueries';
 import Swal from 'sweetalert2';
+import { Helmet } from 'react-helmet-async';
 
 const HajiList = () => {
   const navigate = useNavigate();
@@ -650,6 +651,10 @@ const HajiList = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <Helmet>
+        <title>Haji List</title>
+        <meta name="description" content="Manage all registered Haji including their details, status, and payments." />
+      </Helmet>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>

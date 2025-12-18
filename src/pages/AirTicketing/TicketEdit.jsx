@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {Helmet} from 'react-helmet-async';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   Save, 
   ArrowLeft, 
@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
-import { useCreateAirTicket } from '../../hooks/useAirTicketQueries';
+import { useAirTicket, useUpdateAirTicket } from '../../hooks/useAirTicketQueries';
 
-const NewTicket = () => {
+const TicketEdit = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
   const axiosSecure = useAxiosSecure();
-  const createTicketMutation = useCreateAirTicket();
+  const { data: ticket, isLoading: ticketLoading, error: ticketError } = useAirTicket(id);
+  const updateTicketMutation = useUpdateAirTicket();
   const [formData, setFormData] = useState({
     customerId: '',
     customerName: '',
@@ -112,6 +114,90 @@ const NewTicket = () => {
   const [airlineLoading, setAirlineLoading] = useState(false);
   const [showAirlineDropdown, setShowAirlineDropdown] = useState(false);
   const [selectedAirlineId, setSelectedAirlineId] = useState('');
+
+  // Populate form when ticket data loads
+  useEffect(() => {
+    if (!ticket) return;
+
+    const toDateInput = (value) => {
+      if (!value) return '';
+      const dateObj = new Date(value);
+      if (Number.isNaN(dateObj.getTime())) return '';
+      return dateObj.toISOString().split('T')[0];
+    };
+
+    const normalizedSegments =
+      Array.isArray(ticket.segments) && ticket.segments.length > 0
+        ? ticket.segments.map((s) => ({
+            origin: s.origin || '',
+            destination: s.destination || '',
+            date: toDateInput(s.date || s.flightDate || s.departureDate),
+          }))
+        : [
+            { origin: '', destination: '', date: '' },
+            { origin: '', destination: '', date: '' },
+          ];
+
+    setFormData((prev) => ({
+      ...prev,
+      customerId: ticket.customerId || '',
+      customerName: ticket.customerName || '',
+      customerPhone: ticket.customerPhone || '',
+      tripType: ticket.tripType || 'oneway',
+      flightType: ticket.flightType || 'domestic',
+      date: toDateInput(ticket.date),
+      bookingId: ticket.bookingId || ticket._id || '',
+      gdsPnr: ticket.gdsPnr || '',
+      airlinePnr: ticket.airlinePnr || '',
+      airline: ticket.airline || '',
+      airlineId: ticket.airlineId || '',
+      origin: ticket.origin || '',
+      destination: ticket.destination || '',
+      flightDate: toDateInput(ticket.flightDate),
+      returnDate: toDateInput(ticket.returnDate),
+      segments: normalizedSegments,
+      agent: ticket.agent || '',
+      agentId: ticket.agentId || '',
+      purposeType: ticket.purposeType || '',
+      adultCount: Number(ticket.adultCount) || 0,
+      childCount: Number(ticket.childCount) || 0,
+      infantCount: Number(ticket.infantCount) || 0,
+      customerDeal: Number(ticket.customerDeal) || 0,
+      customerPaid: Number(ticket.customerPaid) || 0,
+      customerDue: Number(ticket.customerDue) || 0,
+      baseFare: Number(ticket.baseFare) || 0,
+      taxBD: Number(ticket.taxBD) || 0,
+      e5: Number(ticket.e5) || 0,
+      e7: Number(ticket.e7) || 0,
+      g8: Number(ticket.g8) || 0,
+      ow: Number(ticket.ow) || 0,
+      p7: Number(ticket.p7) || 0,
+      p8: Number(ticket.p8) || 0,
+      ts: Number(ticket.ts) || 0,
+      ut: Number(ticket.ut) || 0,
+      yq: Number(ticket.yq) || 0,
+      taxes: Number(ticket.taxes) || 0,
+      totalTaxes: Number(ticket.totalTaxes) || 0,
+      ait: Number(ticket.ait) || 0,
+      commissionRate: Number(ticket.commissionRate) || 0,
+      plb: Number(ticket.plb) || 0,
+      salmaAirServiceCharge: Number(ticket.salmaAirServiceCharge) || 0,
+      vendorServiceCharge: Number(ticket.vendorServiceCharge) || 0,
+      vendorAmount: Number(ticket.vendorAmount) || 0,
+      vendorPaidFh: Number(ticket.vendorPaidFh) || 0,
+      vendorDue: Number(ticket.vendorDue) || 0,
+      profit: Number(ticket.profit) || 0,
+      dueDate: toDateInput(ticket.dueDate),
+      status: ticket.status || 'pending',
+      segmentCount: Number(ticket.segmentCount) || normalizedSegments.length || 1,
+      flownSegment: Boolean(ticket.flownSegment),
+    }));
+
+    // Pre-fill search boxes so dropdowns stay closed
+    setCustomerQuery(ticket.customerName || ticket.customerId || '');
+    setAgentQuery(ticket.agent || '');
+    setAirlineQuery(ticket.airline || '');
+  }, [ticket]);
 
   const markTouched = (name) => setTouched(prev => ({ ...prev, [name]: true }));
 
@@ -534,89 +620,20 @@ const NewTicket = () => {
         flownSegment: formData.flownSegment || false,
       };
 
-      // Create ticket using mutation
-      await createTicketMutation.mutateAsync(ticketData);
+      // Update ticket using mutation
+      await updateTicketMutation.mutateAsync({
+        ticketId: id || formData.bookingId,
+        ticketData,
+      });
 
-      setSuccess('Booking saved successfully!');
-      
-      // Reset form after success
-      setTimeout(() => {
-        setFormData({
-          customerId: '',
-          customerName: '',
-          customerPhone: '',
-          tripType: 'oneway',
-          flightType: 'domestic',
-          date: '',
-          bookingId: '',
-          gdsPnr: '',
-          airlinePnr: '',
-          airline: '',
-          airlineId: '',
-          origin: '',
-          destination: '',
-          flightDate: '',
-          returnDate: '',
-          segments: [
-            { origin: '', destination: '', date: '' },
-            { origin: '', destination: '', date: '' }
-          ],
-          agent: '',
-          agentId: '',
-          purposeType: '',
-          adultCount: 0,
-          childCount: 0,
-          infantCount: 0,
-          customerDeal: 0,
-          customerPaid: 0,
-          customerDue: 0,
-          baseFare: 0,
-          taxBD: 0,
-          e5: 0,
-          e7: 0,
-          g8: 0,
-          ow: 0,
-          p7: 0,
-          p8: 0,
-          ts: 0,
-          ut: 0,
-          yq: 0,
-          taxes: 0,
-          totalTaxes: 0,
-          ait: 0,
-          commissionRate: 0,
-          plb: 0,
-          salmaAirServiceCharge: 0,
-          vendorServiceCharge: 0,
-          vendorAmount: 0,
-          vendorPaidFh: 0,
-          vendorDue: 0,
-          profit: 0,
-          dueDate: '',
-          status: 'pending',
-          segmentCount: 1,
-          flownSegment: false
-        });
-        setCustomerQuery('');
-        setCustomerResults([]);
-        setShowCustomerDropdown(false);
-        setAgentQuery('');
-        setAgentResults([]);
-        setShowAgentDropdown(false);
-        setSelectedAgentId('');
-        setAirlineQuery('');
-        setAirlineResults([]);
-        setShowAirlineDropdown(false);
-        setSelectedAirlineId('');
-        setSuccess('');
-        setTouched({});
-        setValidationErrors({});
-        // Navigate to ticket list after successful creation
-        navigate('/air-ticketing/tickets');
-      }, 2000);
+      setSuccess('Ticket updated successfully!');
+      setTouched({});
+      setValidationErrors({});
 
+      // Navigate to ticket list after successful update
+      navigate('/air-ticketing/tickets');
     } catch (error) {
-      setError(error.message || 'Failed to create ticket');
+      setError(error.message || 'Failed to update ticket');
     } finally {
       setLoading(false);
     }
@@ -664,11 +681,48 @@ const NewTicket = () => {
     });
   };
 
+  if (!id) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-center px-4">
+        <p className="text-red-600 dark:text-red-400 text-lg font-semibold mb-2">Ticket ID missing</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">Please navigate from the ticket list to edit.</p>
+        <button
+          onClick={() => navigate('/air-ticketing/tickets')}
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Back to tickets
+        </button>
+      </div>
+    );
+  }
+
+  if (ticketLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="text-gray-600 dark:text-gray-300">Loading ticket...</div>
+      </div>
+    );
+  }
+
+  if (ticketError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-center px-4">
+        <p className="text-red-600 dark:text-red-400 text-lg font-semibold mb-2">Failed to load ticket.</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-4">{ticketError.message || 'Something went wrong'}</p>
+        <button
+          onClick={() => navigate('/air-ticketing/tickets')}
+          className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Back to tickets
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <Helmet>
-        <title>New Air Ticket Booking</title>
-        <meta name="description" content="Create a new air ticket booking for customers." />
+        <title>Edit Ticket - Air Ticketing</title>
       </Helmet>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
@@ -682,10 +736,10 @@ const NewTicket = () => {
             </button>
             <div>
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                নতুন টিকিট বিক্রয়
+              টিকিট আপডেট করুন
               </h1>
               <p className="text-gray-600 dark:text-gray-400">
-                গ্রাহকের জন্য নতুন এয়ার টিকিট বুক করুন
+              বিদ্যমান এয়ার টিকিটের তথ্য সংশোধন করুন
               </p>
             </div>
           </div>
@@ -1667,18 +1721,18 @@ const NewTicket = () => {
 
               <button
                 type="submit"
-                disabled={loading || createTicketMutation.isPending}
+                disabled={loading || updateTicketMutation.isPending}
                 className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
               >
-                {(loading || createTicketMutation.isPending) ? (
+                {(loading || updateTicketMutation.isPending) ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    বুক হচ্ছে...
+                    আপডেট হচ্ছে...
                   </>
                 ) : (
                   <>
                     <Save className="w-5 h-5 mr-2" />
-                    টিকিট বুক করুন
+                    টিকিট আপডেট করুন
                   </>
                 )}
               </button>
@@ -1749,7 +1803,7 @@ const NewTicket = () => {
               }}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Confirm & Save
+              Confirm & Update
             </button>
           </ModalFooter>
         </Modal>
@@ -1758,4 +1812,4 @@ const NewTicket = () => {
   );
 };
 
-export default NewTicket;
+export default TicketEdit;

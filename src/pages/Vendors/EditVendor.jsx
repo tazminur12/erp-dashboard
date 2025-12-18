@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Building2, Save, RotateCcw, X, ArrowLeft } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { useNavigate, useParams } from 'react-router-dom';
 import useSecureAxios from '../../hooks/UseAxiosSecure.js';
 import Swal from 'sweetalert2';
@@ -209,6 +210,10 @@ const EditVendor = () => {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Helmet>
+        <title>Edit Vendor - {vendor.tradeName}</title>
+        <meta name="description" content={`Edit vendor profile for ${vendor.tradeName}.`} />
+      </Helmet>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <button

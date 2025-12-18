@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   ArrowDownCircle, 
   ArrowUpCircle, 
@@ -19,7 +20,7 @@ import {
   Plus
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { useExchanges, useDeleteExchange } from '../../hooks/useMoneyExchangeQueries';
+import { useExchanges, useDeleteExchange, useExchangeDashboard } from '../../hooks/useMoneyExchangeQueries';
 
 const List = () => {
   const navigate = useNavigate();
@@ -56,12 +57,35 @@ const List = () => {
     return f;
   }, [page, pageSize, filterType, filterCurrency, fromDate, toDate, searchTerm]);
 
+  const dashboardFilters = useMemo(() => {
+    const f = {};
+    if (filterCurrency !== 'all') {
+      f.currencyCode = filterCurrency;
+    }
+    if (fromDate) {
+      f.fromDate = fromDate;
+    }
+    if (toDate) {
+      f.toDate = toDate;
+    }
+    return f;
+  }, [filterCurrency, fromDate, toDate]);
+
   // Fetch exchanges from API
   const { data: exchangesData, isLoading, refetch } = useExchanges(filters);
+  const { data: dashboardData } = useExchangeDashboard(dashboardFilters);
   const deleteExchange = useDeleteExchange();
 
   const transactions = exchangesData?.data || [];
   const pagination = exchangesData?.pagination || { page: 1, limit: 10, total: 0, pages: 0 };
+  const dashboardSummary = dashboardData?.summary || {
+    totalRealizedProfitLoss: 0,
+    totalUnrealizedProfitLoss: 0,
+    totalPurchaseCost: 0,
+    totalSaleRevenue: 0,
+    totalCurrentReserveValue: 0,
+    totalCurrencies: 0,
+  };
 
   const formatCurrency = (amount, currency) => {
     return new Intl.NumberFormat('bn-BD-u-nu-latn', {
@@ -246,6 +270,10 @@ const List = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-4 sm:py-6 lg:py-8 px-3 sm:px-4 lg:px-6">
+      <Helmet>
+        <title>Currency Exchange List</title>
+        <meta name="description" content="View and manage all currency exchange transactions." />
+      </Helmet>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
@@ -300,9 +328,15 @@ const List = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-5 lg:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">নিট লাভ</p>
-                <p className="text-lg sm:text-xl lg:text-2xl font-bold text-blue-600 dark:text-blue-400 truncate">
-                  {formatCurrency(totalReceive - totalGive, 'BDT')}
+                <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">লাভ/ক্ষতি (রিয়েলাইজড)</p>
+                <p
+                  className={`text-lg sm:text-xl lg:text-2xl font-bold mt-1 ${
+                    dashboardSummary.totalRealizedProfitLoss >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-600 dark:text-red-400'
+                  } truncate`}
+                >
+                  {formatCurrency(dashboardSummary.totalRealizedProfitLoss, 'BDT')}
                 </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">

@@ -76,7 +76,8 @@ import {
   Megaphone,
   Laptop,
   RotateCcw,
-  ShoppingCart
+  ShoppingCart,
+  Calendar
 } from 'lucide-react';
 
 export const navigation = [
@@ -99,7 +100,8 @@ export const navigation = [
     icon: CreditCard,
     children: [
       { name: 'Transactions List', href: '/transactions/list', icon: List },
-      { name: 'New Transaction', href: '/transactions/new', icon: Plus }
+      { name: 'New Transaction', href: '/transactions/new', icon: Plus },
+      { name : 'Today Transaction', href: '/transactions/today', icon: Calendar }
     ]
   },
   {
@@ -131,7 +133,8 @@ export const navigation = [
         children: [
           { name: 'Haji List', href: '/hajj-umrah/haji-list', icon: List },
           { name: 'Add New Haji', href: '/hajj-umrah/haji/add', icon: Plus },
-          { name: 'License Management', href: '/hajj-umrah/license-management', icon: Eye }
+          { name: 'License Management', href: '/hajj-umrah/license-management', icon: Eye },
+          { name: 'Haj Package', href: '/hajj-umrah/haj-package-list', icon: List }
         ]
       },
       {
@@ -139,7 +142,8 @@ export const navigation = [
         icon: Users,
         children: [
           { name: 'Umrah Haji List', href: '/umrah/haji-list', icon: List },
-          { name: 'Add New Umrah Haji', href: '/umrah/haji/add', icon: Plus }
+          { name: 'Add New Umrah Haji', href: '/umrah/haji/add', icon: Plus },
+          { name: 'Umrah Package', href: '/umrah/umrah-package-list', icon: List }
         ]
       },
       {
@@ -148,17 +152,10 @@ export const navigation = [
         children: [
           { name: 'Hajj & Umrah Agent List', href: '/hajj-umrah/agent', icon: Users },
           { name: 'Create New Agent', href: '/hajj-umrah/agent/add', icon: Plus },
-          { name: 'B2B Sell', href: '/hajj-umrah/b2b-sell', icon: ShoppingCart },
-          { name: 'B2B Sell List', href: '/hajj-umrah/b2b-sell-list', icon: List }
-        ]
-      },
-      {
-        name: 'Package',
-        icon: Package,
-        children: [
-          { name: 'Package Overview', href: '/hajj-umrah/package-list', icon: List },
-          { name: 'Create Package', href: '/hajj-umrah/package-creation', icon: Plus }
-        ]
+          { name: 'Agent Package', href: '/hajj-umrah/agent-packages', icon: List }
+        //   { name: 'B2B Sell', href: '/hajj-umrah/b2b-sell', icon: ShoppingCart },
+        //   { name: 'B2B Sell List', href: '/hajj-umrah/b2b-sell-list', icon: List }
+         ]
       }
     ]
   },
@@ -166,12 +163,12 @@ export const navigation = [
     name: 'Air Ticketing',
     icon: Plane,
     children: [
-      { name: 'Dashboard', href: '/air-ticketing', icon: LayoutDashboard },
+      { name: 'Dashboard', href: '/air-ticketing/dashboard', icon: LayoutDashboard },
       { name: 'New Passenger', href: '/air-ticketing/new-passenger', icon: Plus },
       { name: 'Passenger List', href: '/air-ticketing/passengers', icon: Users },
       { name: 'New Ticket Sale', href: '/air-ticketing/new-ticket', icon: Plus },
       { name: 'Manage Booking', href: '/air-ticketing/tickets', icon: List },
-      { name: 'Ticket Invoice', href: '/air-ticketing/invoice', icon: FileText },
+      // { name: 'Ticket Invoice', href: '/air-ticketing/invoice', icon: FileText },
       { name: 'B2B Agent', href: '/air-ticketing/agent', icon: Users },
       {
         name: 'Old Ticketing Service',
@@ -193,13 +190,14 @@ export const navigation = [
       { name: 'Applicant Management', href: '/visa-processing/applicants', icon: Users },
       { name: 'Visa Tracking', href: '/visa-processing/tracking', icon: Search },
       { name: 'Payment', href: '/visa-processing/payment', icon: CreditCard },
-      { name: 'Documents', href: '/visa-processing/documents', icon: FileText },
+      // { name: 'Documents', href: '/visa-processing/documents', icon: FileText },
     ]
   },
   {
     name: 'Short Term Loans',
     icon: Calculator,
     children: [
+      { name: 'Dashboard', href: '/loan/dashboard', icon: LayoutDashboard },
       { name: 'Loan List', href: '/loan/list', icon: List },
     ]
   },
@@ -218,7 +216,7 @@ export const navigation = [
     ]
   },
   {
-    name: 'মিরাজ ইন্ডাস্ট্রিজ',
+    name: 'Miraj Industries',
     icon: Building,
     children: [
       { name: 'ড্যাশবোর্ড', href: '/miraj-industries/dashboard', icon: LayoutDashboard },

@@ -8,6 +8,7 @@ export const loanKeys = {
   list: (filters) => [...loanKeys.lists(), { filters }],
   details: () => [...loanKeys.all, 'detail'],
   detail: (loanId) => [...loanKeys.details(), loanId],
+  dashboard: (filters) => [...loanKeys.all, 'dashboard-summary', { filters }],
 };
 
 // List loans with optional filters: loanDirection, status
@@ -72,6 +73,34 @@ export const useLoan = (loanId) => {
       if (error?.response?.status === 404) return false;
       return failureCount < 2;
     },
+  });
+};
+
+// Loan dashboard summary (volume + profit/loss)
+// API: GET /loans/dashboard/summary
+export const useLoanDashboardSummary = (filters = {}) => {
+  const axiosSecure = useAxiosSecure();
+
+  // Remove empty filters so backend receives only meaningful params
+  const cleaned = Object.entries(filters).reduce((acc, [key, value]) => {
+    if (value !== undefined && value !== '') {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+
+  return useQuery({
+    queryKey: loanKeys.dashboard(cleaned),
+    queryFn: async () => {
+      const response = await axiosSecure.get('/loans/dashboard/summary', { params: cleaned });
+      if (response?.data?.success) {
+        return response.data.data;
+      }
+      throw new Error(response?.data?.message || 'Failed to load loan dashboard summary');
+    },
+    staleTime: 60 * 1000, // 1 minute
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -147,6 +176,7 @@ export default {
   useCreateGivingLoan,
   useCreateReceivingLoan,
   useUpdateLoan,
+  useLoanDashboardSummary,
 };
 
 

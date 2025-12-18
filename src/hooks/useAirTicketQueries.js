@@ -9,6 +9,7 @@ export const airTicketKeys = {
   list: (filters) => [...airTicketKeys.lists(), { filters }],
   details: () => [...airTicketKeys.all, 'detail'],
   detail: (id) => [...airTicketKeys.details(), id],
+  dashboard: (filters) => [...airTicketKeys.all, 'dashboard-summary', { filters }],
 };
 
 // Helper function to extract error message
@@ -95,6 +96,44 @@ export const useAirTickets = (params = {}) => {
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
     cacheTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+// Hook to fetch Air Ticketing dashboard summary (profit/loss, trends)
+// API: GET /api/air-ticketing/dashboard/summary
+// Returns: summary object with totals, breakdowns, top lists, recent tickets
+export const useAirTicketDashboardSummary = (filters = {}) => {
+  const axiosSecure = useAxiosSecure();
+
+  // Clean filters to avoid sending empty strings/undefined
+  const params = Object.entries(filters).reduce((acc, [key, value]) => {
+    if (value !== undefined && value !== '') {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+
+  return useQuery({
+    queryKey: airTicketKeys.dashboard(params),
+    queryFn: async () => {
+      try {
+        const response = await axiosSecure.get('/api/air-ticketing/dashboard/summary', {
+          params,
+        });
+
+        if (response.data.success) {
+          return response.data;
+        } else {
+          throw new Error(response.data.message || 'Failed to load air ticketing dashboard summary');
+        }
+      } catch (error) {
+        const errorMessage = extractErrorMessage(error);
+        throw new Error(errorMessage);
+      }
+    },
+    staleTime: 60 * 1000, // 1 minute
+    cacheTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 };
 

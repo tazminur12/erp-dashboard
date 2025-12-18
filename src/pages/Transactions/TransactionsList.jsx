@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { 
   CreditCard, 
   Search, 
@@ -28,7 +29,7 @@ import {
   useBulkDeleteTransactions,
   useTransactionCategories
 } from '../../hooks/useTransactionQueries';
-import { generateTransactionPDF, generateSimplePDF } from '../../utils/pdfGenerator';
+import { generateSalmaReceiptPDF } from '../../utils/pdfGenerator';
 import { getAllSubCategories } from '../../utils/categoryUtils';
 import useCategoryQueries from '../../hooks/useCategoryQueries';
 import Swal from 'sweetalert2';
@@ -225,12 +226,134 @@ const TransactionsList = () => {
 
   const getCustomerPhone = (t) => {
     if (isPersonalExpenseTxn(t)) return '';
+    
     // Handle money-exchange transactions
     if (t.partyType === 'money-exchange' || t.partyType === 'money_exchange') {
       const moneyExchangeInfo = t.moneyExchangeInfo || {};
       return moneyExchangeInfo.mobileNumber || t.party?.mobileNumber || t.partyPhone || '';
     }
-    return t.customerPhone || t.customer?.phone || t.party?.phone || t.party?.mobileNumber || '';
+
+    // Check top-level phone (saved from NewTransaction)
+    if (t.customerPhone) return t.customerPhone;
+
+    // Check customer object (using same logic as NewTransaction)
+    if (t.customer) {
+      return t.customer.mobile || t.customer.phone || t.customer.mobileNumber || t.customer.contactNo || '';
+    }
+
+    // Check party object
+    if (t.party) {
+      return t.party.mobile || t.party.phone || t.party.mobileNumber || t.party.contactNo || '';
+    }
+    
+    // Fallbacks
+    return t.partyPhone || '';
+  };
+
+  const getCustomerAddress = (t) => {
+    if (isPersonalExpenseTxn(t)) return '';
+    
+    // Check top-level address fields (multiple possible field names)
+    if (t.customerAddress && t.customerAddress.trim() && t.customerAddress !== '[Full Address]') {
+      return t.customerAddress;
+    }
+    if (t.address && t.address.trim() && t.address !== '[Full Address]') {
+      return t.address;
+    }
+    if (t.fullAddress && t.fullAddress.trim() && t.fullAddress !== '[Full Address]') {
+      return t.fullAddress;
+    }
+
+    // Check customer object (comprehensive field checking) - like HajiDetails.jsx
+    if (t.customer) {
+      const customerAddr = t.customer.address || 
+                           t.customer.fullAddress || 
+                           t.customer.customerAddress || 
+                           t.customer.location ||
+                           t.customer.permanentAddress ||
+                           t.customer.presentAddress ||
+                           t.customer.permanent_address ||
+                           t.customer.present_address ||
+                           '';
+      
+      // If no direct address, try to combine address parts (village, postOffice, etc.)
+      if (!customerAddr || customerAddr === '') {
+        const addressParts = [];
+        if (t.customer.village) addressParts.push(t.customer.village);
+        if (t.customer.postOffice) addressParts.push(t.customer.postOffice);
+        if (t.customer.upazila) addressParts.push(t.customer.upazila);
+        if (t.customer.thana) addressParts.push(t.customer.thana);
+        if (t.customer.district) addressParts.push(t.customer.district);
+        if (addressParts.length > 0) {
+          const combinedAddr = addressParts.join(', ');
+          if (combinedAddr && combinedAddr.trim() && combinedAddr !== '[Full Address]') {
+            return combinedAddr.trim();
+          }
+        }
+      } else if (customerAddr && customerAddr.trim() && customerAddr !== '[Full Address]') {
+        return customerAddr.trim();
+      }
+    }
+
+    // Check Haji/Umrah specific fields (like in HajiDetails.jsx line 865: haji.address)
+    if (t.haji && typeof t.haji === 'object') {
+      const hajiAddr = t.haji.address || 
+                       t.haji.fullAddress ||
+                       t.haji.location ||
+                       t.haji.permanentAddress ||
+                       t.haji.presentAddress ||
+                       '';
+      if (hajiAddr && hajiAddr.trim() && hajiAddr !== '[Full Address]') {
+        return hajiAddr.trim();
+      }
+    }
+    
+    if (t.umrah && typeof t.umrah === 'object') {
+      const umrahAddr = t.umrah.address || 
+                        t.umrah.fullAddress ||
+                        t.umrah.location ||
+                        t.umrah.permanentAddress ||
+                        t.umrah.presentAddress ||
+                        '';
+      if (umrahAddr && umrahAddr.trim() && umrahAddr !== '[Full Address]') {
+        return umrahAddr.trim();
+      }
+    }
+
+    // Check party object (comprehensive field checking)
+    if (t.party) {
+      const partyAddr = t.party.address || 
+                        t.party.fullAddress || 
+                        t.party.location ||
+                        t.party.permanentAddress ||
+                        t.party.presentAddress ||
+                        '';
+      if (partyAddr && partyAddr.trim() && partyAddr !== '[Full Address]') {
+        return partyAddr.trim();
+      }
+    }
+    
+    // Check vendor/agent specific fields
+    if (t.vendor) {
+      const vendorAddr = t.vendor.address || t.vendor.fullAddress || '';
+      if (vendorAddr && vendorAddr.trim() && vendorAddr !== '[Full Address]') {
+        return vendorAddr.trim();
+      }
+    }
+    
+    if (t.agent) {
+      const agentAddr = t.agent.address || t.agent.fullAddress || '';
+      if (agentAddr && agentAddr.trim() && agentAddr !== '[Full Address]') {
+        return agentAddr.trim();
+      }
+    }
+    
+    // Fallbacks
+    if (t.partyAddress && t.partyAddress.trim() && t.partyAddress !== '[Full Address]') {
+      return t.partyAddress;
+    }
+    
+    return '';
   };
 
   const subCategoryIndex = useMemo(() => {
@@ -417,7 +540,120 @@ const TransactionsList = () => {
     }
   };
 
-  const handleDownloadPDF = async (transaction) => {
+ const preparePDFData = (transaction) => {
+    // Extract address directly - check all possible locations
+    let address = '';
+    
+    // Priority 1: Top-level fields
+    if (transaction.customerAddress && typeof transaction.customerAddress === 'string') {
+      const addr = transaction.customerAddress.trim();
+      if (addr && addr !== '[Full Address]') address = addr;
+    }
+    
+    // Priority 2: Customer object (most common) - check all possible address fields
+    if (!address && transaction.customer && typeof transaction.customer === 'object') {
+      const customerAddr = transaction.customer.address || 
+                          transaction.customer.fullAddress || 
+                          transaction.customer.customerAddress || 
+                          transaction.customer.location ||
+                          transaction.customer.permanentAddress ||
+                          transaction.customer.presentAddress ||
+                          transaction.customer.permanent_address ||
+                          transaction.customer.present_address ||
+                          transaction.customer.village ||
+                          transaction.customer.postOffice ||
+                          transaction.customer.district ||
+                          transaction.customer.upazila ||
+                          transaction.customer.thana;
+      
+      // If multiple address fields exist, combine them
+      if (!customerAddr || customerAddr === '') {
+        const addressParts = [];
+        if (transaction.customer.village) addressParts.push(transaction.customer.village);
+        if (transaction.customer.postOffice) addressParts.push(transaction.customer.postOffice);
+        if (transaction.customer.upazila) addressParts.push(transaction.customer.upazila);
+        if (transaction.customer.thana) addressParts.push(transaction.customer.thana);
+        if (transaction.customer.district) addressParts.push(transaction.customer.district);
+        if (addressParts.length > 0) {
+          const combinedAddr = addressParts.join(', ');
+          if (combinedAddr && combinedAddr.trim() && combinedAddr !== '[Full Address]') {
+            address = combinedAddr.trim();
+          }
+        }
+      } else if (customerAddr && typeof customerAddr === 'string') {
+        const addr = customerAddr.trim();
+        if (addr && addr !== '[Full Address]') address = addr;
+      }
+    }
+    
+    // Priority 3: Haji/Umrah specific fields (like in HajiDetails.jsx)
+    if (!address && transaction.haji && typeof transaction.haji === 'object') {
+      const hajiAddr = transaction.haji.address || 
+                       transaction.haji.fullAddress ||
+                       transaction.haji.location ||
+                       transaction.haji.permanentAddress ||
+                       transaction.haji.presentAddress;
+      if (hajiAddr && typeof hajiAddr === 'string') {
+        const addr = hajiAddr.trim();
+        if (addr && addr !== '[Full Address]') address = addr;
+      }
+    }
+    
+    if (!address && transaction.umrah && typeof transaction.umrah === 'object') {
+      const umrahAddr = transaction.umrah.address || 
+                        transaction.umrah.fullAddress ||
+                        transaction.umrah.location ||
+                        transaction.umrah.permanentAddress ||
+                        transaction.umrah.presentAddress;
+      if (umrahAddr && typeof umrahAddr === 'string') {
+        const addr = umrahAddr.trim();
+        if (addr && addr !== '[Full Address]') address = addr;
+      }
+    }
+    
+    // Priority 4: Party object
+    if (!address && transaction.party && typeof transaction.party === 'object') {
+      const partyAddr = transaction.party.address || 
+                        transaction.party.fullAddress || 
+                        transaction.party.location ||
+                        transaction.party.permanentAddress ||
+                        transaction.party.presentAddress;
+      if (partyAddr && typeof partyAddr === 'string') {
+        const addr = partyAddr.trim();
+        if (addr && addr !== '[Full Address]') address = addr;
+      }
+    }
+    
+    // Priority 5: Other top-level fields
+    if (!address && transaction.address && typeof transaction.address === 'string') {
+      const addr = transaction.address.trim();
+      if (addr && addr !== '[Full Address]') address = addr;
+    }
+    if (!address && transaction.fullAddress && typeof transaction.fullAddress === 'string') {
+      const addr = transaction.fullAddress.trim();
+      if (addr && addr !== '[Full Address]') address = addr;
+    }
+    
+    return {
+      transactionId: transaction.transactionId || transaction._id,
+      transactionType: transaction.transactionType,
+      status: transaction.status,
+      customerId: transaction.customerId || transaction.customer?._id || transaction.customer?.id,
+      customerName: getCustomerName(transaction),
+      customerPhone: getCustomerPhone(transaction),
+      customerEmail: transaction.customerEmail || transaction.customer?.email || transaction.party?.email,
+      customerAddress: address || '[Full Address]',
+      category: getCategory(transaction),
+      paymentMethod: transaction.paymentMethod,
+      bankName: transaction.paymentDetails?.bankName || '[Bank Name]',
+      accountNumber: transaction.paymentDetails?.accountNumber || '[Acc No]',
+      date: transaction.date ? formatDate(transaction.date) : 'DD-MM-YYYY',
+      amount: transaction.paymentDetails?.amount || 0,
+      notes: transaction.notes || '',
+    };
+  };
+
+  const handleDownloadPDFBangla = async (transaction) => {
     try {
       // Show loading alert
       Swal.fire({
@@ -429,77 +665,78 @@ const TransactionsList = () => {
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
 
-      // Prepare transaction data for PDF with all available information
-      const pdfData = {
-        transactionId: transaction.transactionId || transaction._id,
-        transactionType: transaction.transactionType,
-        status: transaction.status,
-        customerId: transaction.customerId || transaction.customer?._id || transaction.customer?.id,
-        customerName: getCustomerName(transaction),
-        customerPhone: getCustomerPhone(transaction),
-        customerEmail: transaction.customerEmail || transaction.customer?.email || transaction.party?.email,
-        category: getCategory(transaction),
-        paymentMethod: transaction.paymentMethod,
-        paymentDetails: transaction.paymentDetails,
-        notes: transaction.notes,
-        date: transaction.date,
-        createdBy: userProfile?.email || userProfile?.name || 'System',
-        branchId: userProfile?.branchId || 'Main Branch',
-        // Include additional fields if available
-        invoiceId: transaction.invoiceId,
-        customer: transaction.customer,
-        party: transaction.party,
-        partyType: transaction.partyType,
-        debitAccount: transaction.debitAccount,
-        creditAccount: transaction.creditAccount,
-        sourceAccount: transaction.sourceAccount,
-        destinationAccount: transaction.destinationAccount,
-        customerBankAccount: transaction.customerBankAccount
-      };
+      const pdfData = preparePDFData(transaction);
 
-      // Try to generate PDF with HTML rendering first
-      let result = await generateTransactionPDF(pdfData, isDark);
-      
-      // If HTML rendering fails, fallback to simple PDF
-      if (!result.success) {
-        console.log('HTML PDF generation failed, trying simple PDF...');
-        result = generateSimplePDF(pdfData);
-      }
+      const result = await generateSalmaReceiptPDF(pdfData, {
+        language: 'bn',
+      });
 
-      // Close loading alert
       Swal.close();
 
       if (result.success) {
         Swal.fire({
           title: 'সফল!',
-          text: `PDF সফলভাবে ডাউনলোড হয়েছে: ${result.filename}`,
+          text: `PDF সফলভাবে ডাউনলোড হয়েছে`,
           icon: 'success',
           confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
           background: isDark ? '#1F2937' : '#F9FAFB',
-          customClass: {
-            title: 'text-green-600 font-bold text-xl',
-            popup: 'rounded-2xl shadow-2xl'
-          }
         });
       } else {
-        throw new Error(result.error || 'PDF generation failed');
+        throw new Error('PDF generation failed');
       }
     } catch (error) {
       console.error('PDF generation error:', error);
       Swal.close();
-      
       Swal.fire({
         title: 'ত্রুটি!',
-        text: `PDF তৈরি করতে সমস্যা হয়েছে: ${error.message}`,
+        text: `PDF তৈরি করতে সমস্যা হয়েছে`,
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#EF4444',
         background: isDark ? '#1F2937' : '#FEF2F2',
-        customClass: {
-          title: 'text-red-600 font-bold text-xl',
-          popup: 'rounded-2xl shadow-2xl'
-        }
+      });
+    }
+  };
+
+  const handleDownloadPDFEnglish = async (transaction) => {
+    try {
+      // Show loading alert
+      Swal.fire({
+        title: 'Generating PDF...',
+        text: `Generating receipt for ${transaction.transactionId}`,
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+
+      const pdfData = preparePDFData(transaction);
+
+      const result = await generateSalmaReceiptPDF(pdfData, {
+        language: 'en',
+      });
+
+      Swal.close();
+
+      if (result.success) {
+        Swal.fire({
+          title: 'Success!',
+          text: `PDF downloaded successfully`,
+          icon: 'success',
+          confirmButtonText: 'OK',
+          background: isDark ? '#1F2937' : '#F9FAFB',
+        });
+      } else {
+        throw new Error('PDF generation failed');
+      }
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      Swal.close();
+      Swal.fire({
+        title: 'Error!',
+        text: `Failed to generate PDF`,
+        icon: 'error',
+        confirmButtonText: 'OK',
+        background: isDark ? '#1F2937' : '#FEF2F2',
       });
     }
   };
@@ -716,6 +953,10 @@ const TransactionsList = () => {
         : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
     }`}>
       <div className="max-w-7xl mx-auto">
+        <Helmet>
+          <title>Transaction List</title>
+          <meta name="description" content="View and manage all transactions." />
+        </Helmet>
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -1166,13 +1407,6 @@ const TransactionsList = () => {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDownloadPDF(transaction)}
-                          className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300 p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
-                          title="PDF ডাউনলোড"
-                        >
-                          <Download className="w-4 h-4" />
-                        </button>
-                        <button
                           onClick={() => handleDeleteTransaction(transaction)}
                           className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
                           title="মুছে ফেলুন"
@@ -1429,11 +1663,18 @@ const TransactionsList = () => {
             
             <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
               <button
-                onClick={() => handleDownloadPDF(selectedTransaction)}
+                onClick={() => handleDownloadPDFBangla(selectedTransaction)}
                 className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all duration-200"
               >
                 <Download className="w-5 h-5" />
-                PDF ডাউনলোড
+                বাংলা PDF
+              </button>
+              <button
+                onClick={() => handleDownloadPDFEnglish(selectedTransaction)}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
+              >
+                <Download className="w-5 h-5" />
+                English PDF
               </button>
               <button
                 onClick={() => setShowTransactionModal(false)}

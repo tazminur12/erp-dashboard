@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, Upload, Loader2, Trash2, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import ExcelUploader from '../../components/common/ExcelUploader';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
 import Swal from 'sweetalert2';
@@ -93,6 +94,10 @@ const VendorList = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Helmet>
+        <title>Vendor List</title>
+        <meta name="description" content="Browse and manage the list of vendors." />
+      </Helmet>
       <div className="flex items-center justify-between flex-wrap gap-3">
       <div className="flex items-center space-x-3">
         <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">

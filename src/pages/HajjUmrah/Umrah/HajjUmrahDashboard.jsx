@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   LayoutDashboard, 
   Users, 
@@ -87,6 +88,10 @@ const HajjUmrahDashboard = () => {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
+      <Helmet>
+        <title>Hajj & Umrah Dashboard</title>
+        <meta name="description" content="Overview of Hajj and Umrah management." />
+      </Helmet>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-3">

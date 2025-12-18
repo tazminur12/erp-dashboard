@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   Building2, 
   FileText, 
@@ -1403,6 +1404,9 @@ const VendorBillGenerate = () => {
     
     return (
       <div className="space-y-6">
+        <Helmet>
+          <title>{typeLabel} Form</title>
+        </Helmet>
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Package className="w-5 h-5 text-purple-600" />

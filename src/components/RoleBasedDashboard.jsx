@@ -302,12 +302,7 @@ const RoleBasedDashboard = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             {showProfessionalView ? 'প্রফেশনাল ড্যাশবোর্ড' : 'রোল ভিত্তিক ড্যাশবোর্ড'}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {showProfessionalView 
-              ? 'সব ব্যবসায়িক মডিউলের সামগ্রিক দৃশ্য' 
-              : `${ROLE_DISPLAY_NAMES[userRole.role]} ব্যবহারকারীর জন্য কাস্টমাইজড ভিউ`
-            }
-          </p>
+         
         </div>
         <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
           <button

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { 
   Building2, Phone, User, MapPin, Calendar, CreditCard, FileText, ArrowLeft, Clock, Edit,
   DollarSign, TrendingUp, TrendingDown, Wallet, Receipt, AlertCircle, CheckCircle,
@@ -118,6 +119,10 @@ const VendorDetails = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Helmet>
+        <title>Vendor Details - {vendor.tradeName}</title>
+        <meta name="description" content={`Detailed information and financials for vendor ${vendor.tradeName}.`} />
+      </Helmet>
       {/* Header Section */}
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between flex-wrap gap-4">

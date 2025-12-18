@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useCreateExchange } from '../../hooks/useMoneyExchangeQueries';
+
 
 const CURRENCIES = [
   { code: 'USD', nameBn: 'মার্কিন ডলার' },
@@ -114,6 +116,10 @@ const NewExchange = () => {
 
   return (
     <main className="p-4 md:p-6 space-y-6">
+      <Helmet>
+        <title>New Currency Exchange</title>
+        <meta name="description" content="Create a new currency exchange transaction using the professional form." />
+      </Helmet>
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">নতুন মুদ্রা লেনদেন</h1>

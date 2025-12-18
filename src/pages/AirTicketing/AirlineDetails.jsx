@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -289,6 +290,10 @@ const AirlineDetails = () => {
 
     return (
     <div className="space-y-6">
+      <Helmet>
+        <title>Airline Details - {airline.name}</title>
+        <meta name="description" content="View the details of the airline." />
+      </Helmet>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {(airline.revenue || airline.profit) && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">

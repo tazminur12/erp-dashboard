@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import { Plus, Edit, Trash2, Search, Filter, Eye, Plane, Building, Phone, Mail, Globe, MapPin, Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -250,6 +251,10 @@ const AirlineList = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      <Helmet>
+        <title>Airline List</title>
+        <meta name="description" content="View and manage all airlines in the system." />
+      </Helmet>
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
