@@ -16,6 +16,7 @@ const PassengerList = () => {
   const [search, setSearch] = useState('');
   const [limit] = useState(50);
   const [localFilters, setLocalFilters] = useState({});
+  const [selectedIds, setSelectedIds] = useState([]);
   
   // Fetch air customers
   const { data: airCustomersData, isPending: isLoading, isError, error } = useAirCustomers({
@@ -56,7 +57,49 @@ const PassengerList = () => {
   const activeCount = useMemo(() => filteredCustomers.filter(c => c.isActive !== false).length, [filteredCustomers]);
   const dueCount = useMemo(() => filteredCustomers.filter(c => (c.totalDue || c.calculatedTotalDue || 0) > 0).length, [filteredCustomers]);
   
+  // Selection handlers
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = filteredCustomers.map(c => c.customerId || c._id);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id) => {
+    setSelectedIds(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(i => i !== id);
+      } else {
+        return [...prev, id];
+      }
+    });
+  };
+
   const columns = useMemo(() => ([
+    {
+      key: 'select',
+      header: (
+        <input
+          type="checkbox"
+          checked={filteredCustomers.length > 0 && selectedIds.length === filteredCustomers.length}
+          onChange={handleSelectAll}
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      ),
+      render: (_, item) => {
+        const id = item.customerId || item._id;
+        return (
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(id)}
+            onChange={() => handleSelectOne(id)}
+            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          />
+        );
+      }
+    },
     { 
       key: 'passenger', 
       header: 'Passenger', 
@@ -134,7 +177,7 @@ const PassengerList = () => {
         );
       }
     },
-  ]), []);
+  ]), [filteredCustomers, selectedIds]);
 
   const handleView = (item) => {
     const customerId = item.customerId || item._id;
@@ -160,6 +203,40 @@ const PassengerList = () => {
   const handleEdit = (item) => {
     const customerId = item.customerId || item._id;
     navigate(`/air-ticketing/passengers/edit/${customerId}`);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    const res = await Swal.fire({
+      title: 'Are you sure?',
+      text: `You are about to delete ${selectedIds.length} passengers. This cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete selected',
+      confirmButtonColor: '#ef4444'
+    });
+
+    if (res.isConfirmed) {
+      try {
+        // Sequentially delete to avoid overwhelming the server or hitting rate limits
+        // In a real app, you should have a bulk delete endpoint
+        let successCount = 0;
+        for (const id of selectedIds) {
+          try {
+            await deleteMutation.mutateAsync(id);
+            successCount++;
+          } catch (err) {
+            console.error(`Failed to delete customer ${id}`, err);
+          }
+        }
+        
+        setSelectedIds([]);
+        Swal.fire('Deleted!', `${successCount} passengers have been deleted.`, 'success');
+      } catch (err) {
+        Swal.fire('Error', 'An error occurred during deletion.', 'error');
+      }
+    }
   };
   
 
@@ -269,6 +346,40 @@ const PassengerList = () => {
           />
         </div>
       </div>
+
+      {/* Selected Items Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 dark:bg-blue-800 p-2 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-blue-900 dark:text-blue-100">
+                {selectedIds.length} items selected
+              </p>
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                Select all {totalPassengers} items across all pages?
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm flex items-center gap-2 transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Selected
+            </button>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">

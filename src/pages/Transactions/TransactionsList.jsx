@@ -58,6 +58,7 @@ const TransactionsList = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [editFormData, setEditFormData] = useState({});
+  const [showHeader, setShowHeader] = useState(true);
 
   // React Query hooks
   const { 
@@ -541,17 +542,73 @@ const TransactionsList = () => {
   };
 
  const preparePDFData = (transaction) => {
-    // Extract address directly - check all possible locations
-    let address = '';
+    // Extract Account Manager name - comprehensive extraction from all possible locations
+    let accountManagerName = '';
     
-    // Priority 1: Top-level fields
-    if (transaction.customerAddress && typeof transaction.customerAddress === 'string') {
-      const addr = transaction.customerAddress.trim();
-      if (addr && addr !== '[Full Address]') address = addr;
+    // Priority 1: Direct accountManager object with name
+    if (transaction.accountManager) {
+      if (typeof transaction.accountManager === 'string') {
+        accountManagerName = transaction.accountManager;
+      } else if (typeof transaction.accountManager === 'object') {
+        accountManagerName = transaction.accountManager.name 
+          || transaction.accountManager.fullName
+          || transaction.accountManager.accountManagerName
+          || transaction.accountManager.employeeName
+          || '';
+      }
     }
     
-    // Priority 2: Customer object (most common) - check all possible address fields
+    // Priority 2: Top-level accountManagerName field
+    if (!accountManagerName && transaction.accountManagerName) {
+      accountManagerName = transaction.accountManagerName;
+    }
+    
+    // Priority 3: Check if accountManager is populated from backend (with employee/user details)
+    if (!accountManagerName && transaction.accountManager && typeof transaction.accountManager === 'object') {
+      // Backend might populate accountManager with employee/user object
+      accountManagerName = transaction.accountManager.name
+        || transaction.accountManager.fullName
+        || transaction.accountManager.employeeName
+        || transaction.accountManager.userName
+        || transaction.accountManager.displayName
+        || '';
+    }
+    
+    // Priority 4: Check accountManagerId and try to find name from related objects
+    if (!accountManagerName && transaction.accountManagerId) {
+      // If accountManagerId exists but no name found, try to get from employee/user reference
+      if (transaction.accountManager && typeof transaction.accountManager === 'object') {
+        accountManagerName = transaction.accountManager.name || '';
+      }
+    }
+    
+    // Clean up - remove any whitespace
+    accountManagerName = accountManagerName ? accountManagerName.trim() : '';
+    
+    // Comprehensive address extraction - check ALL possible locations
+    let address = '';
+    
+    // Priority 1: Top-level address fields
+    if (!address && transaction.customerAddress && typeof transaction.customerAddress === 'string') {
+      const addr = transaction.customerAddress.trim();
+      if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+    }
+    if (!address && transaction.address && typeof transaction.address === 'string') {
+      const addr = transaction.address.trim();
+      if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+    }
+    if (!address && transaction.fullAddress && typeof transaction.fullAddress === 'string') {
+      const addr = transaction.fullAddress.trim();
+      if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+    }
+    if (!address && transaction.partyAddress && typeof transaction.partyAddress === 'string') {
+      const addr = transaction.partyAddress.trim();
+      if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+    }
+    
+    // Priority 2: Customer object - check ALL possible address fields
     if (!address && transaction.customer && typeof transaction.customer === 'object') {
+      // Try direct address fields first
       const customerAddr = transaction.customer.address || 
                           transaction.customer.fullAddress || 
                           transaction.customer.customerAddress || 
@@ -560,100 +617,248 @@ const TransactionsList = () => {
                           transaction.customer.presentAddress ||
                           transaction.customer.permanent_address ||
                           transaction.customer.present_address ||
-                          transaction.customer.village ||
-                          transaction.customer.postOffice ||
-                          transaction.customer.district ||
-                          transaction.customer.upazila ||
-                          transaction.customer.thana;
+                          '';
       
-      // If multiple address fields exist, combine them
-      if (!customerAddr || customerAddr === '') {
+      if (customerAddr && typeof customerAddr === 'string') {
+        const addr = customerAddr.trim();
+        if (addr && addr !== '[Full Address]' && addr !== '') {
+          address = addr;
+        }
+      }
+      
+      // If no direct address, try to combine address parts
+      if (!address || address === '') {
         const addressParts = [];
         if (transaction.customer.village) addressParts.push(transaction.customer.village);
         if (transaction.customer.postOffice) addressParts.push(transaction.customer.postOffice);
         if (transaction.customer.upazila) addressParts.push(transaction.customer.upazila);
         if (transaction.customer.thana) addressParts.push(transaction.customer.thana);
         if (transaction.customer.district) addressParts.push(transaction.customer.district);
+        if (transaction.customer.division) addressParts.push(transaction.customer.division);
         if (addressParts.length > 0) {
           const combinedAddr = addressParts.join(', ');
           if (combinedAddr && combinedAddr.trim() && combinedAddr !== '[Full Address]') {
             address = combinedAddr.trim();
           }
         }
-      } else if (customerAddr && typeof customerAddr === 'string') {
-        const addr = customerAddr.trim();
-        if (addr && addr !== '[Full Address]') address = addr;
       }
     }
     
-    // Priority 3: Haji/Umrah specific fields (like in HajiDetails.jsx)
+    // Priority 3: Haji object
     if (!address && transaction.haji && typeof transaction.haji === 'object') {
       const hajiAddr = transaction.haji.address || 
                        transaction.haji.fullAddress ||
                        transaction.haji.location ||
                        transaction.haji.permanentAddress ||
-                       transaction.haji.presentAddress;
+                       transaction.haji.presentAddress ||
+                       '';
       if (hajiAddr && typeof hajiAddr === 'string') {
         const addr = hajiAddr.trim();
-        if (addr && addr !== '[Full Address]') address = addr;
+        if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+      }
+      
+      // Try combining haji address parts
+      if (!address || address === '') {
+        const addressParts = [];
+        if (transaction.haji.village) addressParts.push(transaction.haji.village);
+        if (transaction.haji.postOffice) addressParts.push(transaction.haji.postOffice);
+        if (transaction.haji.upazila) addressParts.push(transaction.haji.upazila);
+        if (transaction.haji.thana) addressParts.push(transaction.haji.thana);
+        if (transaction.haji.district) addressParts.push(transaction.haji.district);
+        if (transaction.haji.division) addressParts.push(transaction.haji.division);
+        if (addressParts.length > 0) {
+          const combinedAddr = addressParts.join(', ');
+          if (combinedAddr && combinedAddr.trim() && combinedAddr !== '[Full Address]') {
+            address = combinedAddr.trim();
+          }
+        }
       }
     }
     
+    // Priority 4: Umrah object
     if (!address && transaction.umrah && typeof transaction.umrah === 'object') {
       const umrahAddr = transaction.umrah.address || 
                         transaction.umrah.fullAddress ||
                         transaction.umrah.location ||
                         transaction.umrah.permanentAddress ||
-                        transaction.umrah.presentAddress;
+                        transaction.umrah.presentAddress ||
+                        '';
       if (umrahAddr && typeof umrahAddr === 'string') {
         const addr = umrahAddr.trim();
-        if (addr && addr !== '[Full Address]') address = addr;
+        if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+      }
+      
+      // Try combining umrah address parts
+      if (!address || address === '') {
+        const addressParts = [];
+        if (transaction.umrah.village) addressParts.push(transaction.umrah.village);
+        if (transaction.umrah.postOffice) addressParts.push(transaction.umrah.postOffice);
+        if (transaction.umrah.upazila) addressParts.push(transaction.umrah.upazila);
+        if (transaction.umrah.thana) addressParts.push(transaction.umrah.thana);
+        if (transaction.umrah.district) addressParts.push(transaction.umrah.district);
+        if (transaction.umrah.division) addressParts.push(transaction.umrah.division);
+        if (addressParts.length > 0) {
+          const combinedAddr = addressParts.join(', ');
+          if (combinedAddr && combinedAddr.trim() && combinedAddr !== '[Full Address]') {
+            address = combinedAddr.trim();
+          }
+        }
       }
     }
     
-    // Priority 4: Party object
+    // Priority 5: Party object
     if (!address && transaction.party && typeof transaction.party === 'object') {
       const partyAddr = transaction.party.address || 
                         transaction.party.fullAddress || 
                         transaction.party.location ||
                         transaction.party.permanentAddress ||
-                        transaction.party.presentAddress;
+                        transaction.party.presentAddress ||
+                        '';
       if (partyAddr && typeof partyAddr === 'string') {
         const addr = partyAddr.trim();
-        if (addr && addr !== '[Full Address]') address = addr;
+        if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+      }
+      
+      // Try combining party address parts
+      if (!address || address === '') {
+        const addressParts = [];
+        if (transaction.party.village) addressParts.push(transaction.party.village);
+        if (transaction.party.postOffice) addressParts.push(transaction.party.postOffice);
+        if (transaction.party.upazila) addressParts.push(transaction.party.upazila);
+        if (transaction.party.thana) addressParts.push(transaction.party.thana);
+        if (transaction.party.district) addressParts.push(transaction.party.district);
+        if (transaction.party.division) addressParts.push(transaction.party.division);
+        if (addressParts.length > 0) {
+          const combinedAddr = addressParts.join(', ');
+          if (combinedAddr && combinedAddr.trim() && combinedAddr !== '[Full Address]') {
+            address = combinedAddr.trim();
+          }
+        }
       }
     }
     
-    // Priority 5: Other top-level fields
-    if (!address && transaction.address && typeof transaction.address === 'string') {
-      const addr = transaction.address.trim();
-      if (addr && addr !== '[Full Address]') address = addr;
+    // Priority 6: Vendor/Agent objects
+    if (!address && transaction.vendor && typeof transaction.vendor === 'object') {
+      const vendorAddr = transaction.vendor.address || 
+                        transaction.vendor.fullAddress ||
+                        transaction.vendor.location ||
+                        '';
+      if (vendorAddr && typeof vendorAddr === 'string') {
+        const addr = vendorAddr.trim();
+        if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+      }
     }
-    if (!address && transaction.fullAddress && typeof transaction.fullAddress === 'string') {
-      const addr = transaction.fullAddress.trim();
-      if (addr && addr !== '[Full Address]') address = addr;
+    
+    if (!address && transaction.agent && typeof transaction.agent === 'object') {
+      const agentAddr = transaction.agent.address || 
+                       transaction.agent.fullAddress ||
+                       transaction.agent.location ||
+                       '';
+      if (agentAddr && typeof agentAddr === 'string') {
+        const addr = agentAddr.trim();
+        if (addr && addr !== '[Full Address]' && addr !== '') address = addr;
+      }
+    }
+    
+    // Debug: Log the transaction structure to help identify where address might be
+    if (!address || address === '') {
+      console.log('Address not found in transaction. Transaction structure:', {
+        transactionId: transaction.transactionId,
+        hasCustomer: !!transaction.customer,
+        hasParty: !!transaction.party,
+        hasHaji: !!transaction.haji,
+        hasUmrah: !!transaction.umrah,
+        topLevelAddress: transaction.customerAddress || transaction.address || transaction.fullAddress,
+        customerAddress: transaction.customer?.address || transaction.customer?.fullAddress || transaction.customer?.customerAddress,
+        partyAddress: transaction.party?.address || transaction.party?.fullAddress,
+        fullTransaction: transaction
+      });
+    }
+    
+    // Clean up address - ensure it's not empty or placeholder
+    const finalAddress = (address && address.trim() && address !== '[Full Address]') 
+      ? address.trim() 
+      : '[Full Address]';
+    
+    // Extract unique transactionId - prioritize unique transactionId over MongoDB _id
+    // Check if transactionId exists and is not a MongoDB ObjectId (24 char hex string)
+    let uniqueTransactionId = transaction.transactionId;
+    
+    // If transactionId looks like a MongoDB ObjectId (24 char hex), try to find unique ID
+    if (!uniqueTransactionId || (uniqueTransactionId.length === 24 && /^[0-9a-fA-F]{24}$/.test(uniqueTransactionId))) {
+      // Try alternative fields for unique transaction ID
+      uniqueTransactionId = transaction.uniqueId 
+        || transaction.uniqueTransactionId
+        || transaction.txnId
+        || transaction.id
+        || transaction.transactionId;
+    }
+    
+    // Only use _id as last resort if no unique transactionId found
+    // But format it to look like a transaction ID if it's a MongoDB ObjectId
+    if (!uniqueTransactionId || uniqueTransactionId === transaction._id) {
+      if (transaction._id && transaction._id.length === 24 && /^[0-9a-fA-F]{24}$/.test(transaction._id)) {
+        // If it's a MongoDB ObjectId, don't use it - use a generated format instead
+        uniqueTransactionId = `TXN-${transaction._id.slice(-8).toUpperCase()}`;
+      } else {
+        uniqueTransactionId = transaction._id || 'N/A';
+      }
+    }
+    
+    // Check if this is a Bank Transfer transaction
+    const isBankTransfer = transaction.transactionType === 'transfer' 
+      || (transaction.debitAccount && transaction.creditAccount)
+      || (transaction.fromAccount && transaction.toAccount)
+      || (transaction.transferDetails && transaction.transferDetails.fromAccountId && transaction.transferDetails.toAccountId);
+    
+    // Extract debit and credit account names for Bank Transfer
+    let debitAccountName = '';
+    let creditAccountName = '';
+    
+    if (isBankTransfer) {
+      // Try multiple possible locations for account names
+      debitAccountName = transaction.debitAccount?.name 
+        || transaction.debitAccount?.accountName
+        || transaction.fromAccount?.name
+        || transaction.fromAccount?.accountName
+        || transaction.transferDetails?.fromAccount?.name
+        || transaction.transferDetails?.fromAccount?.accountName
+        || '[Debit Account]';
+      
+      creditAccountName = transaction.creditAccount?.name
+        || transaction.creditAccount?.accountName
+        || transaction.toAccount?.name
+        || transaction.toAccount?.accountName
+        || transaction.transferDetails?.toAccount?.name
+        || transaction.transferDetails?.toAccount?.accountName
+        || '[Credit Account]';
     }
     
     return {
-      transactionId: transaction.transactionId || transaction._id,
+      transactionId: uniqueTransactionId,
       transactionType: transaction.transactionType,
       status: transaction.status,
       customerId: transaction.customerId || transaction.customer?._id || transaction.customer?.id,
       customerName: getCustomerName(transaction),
       customerPhone: getCustomerPhone(transaction),
       customerEmail: transaction.customerEmail || transaction.customer?.email || transaction.party?.email,
-      customerAddress: address || '[Full Address]',
+      customerAddress: finalAddress,
       category: getCategory(transaction),
       paymentMethod: transaction.paymentMethod,
       bankName: transaction.paymentDetails?.bankName || '[Bank Name]',
       accountNumber: transaction.paymentDetails?.accountNumber || '[Acc No]',
+      accountManagerName: accountManagerName || '',
       date: transaction.date ? formatDate(transaction.date) : 'DD-MM-YYYY',
-      amount: transaction.paymentDetails?.amount || 0,
+      amount: transaction.paymentDetails?.amount || transaction.amount || 0,
       notes: transaction.notes || '',
+      // Bank Transfer specific fields
+      isBankTransfer: isBankTransfer,
+      debitAccountName: debitAccountName,
+      creditAccountName: creditAccountName,
     };
   };
 
-  const handleDownloadPDFBangla = async (transaction) => {
+  const handleDownloadPDFBangla = async (transaction, showHeader = true) => {
     try {
       // Show loading alert
       Swal.fire({
@@ -666,9 +871,24 @@ const TransactionsList = () => {
       });
 
       const pdfData = preparePDFData(transaction);
+      
+      // Debug logging
+      console.log('PDF Data for Bangla:', {
+        transactionId: pdfData.transactionId,
+        customerName: pdfData.customerName,
+        customerPhone: pdfData.customerPhone,
+        customerAddress: pdfData.customerAddress,
+        accountManagerName: pdfData.accountManagerName,
+        accountManagerNameType: typeof pdfData.accountManagerName,
+        accountManagerNameLength: pdfData.accountManagerName?.length,
+        accountManager: transaction.accountManager,
+        accountManagerId: transaction.accountManagerId,
+        amount: pdfData.amount
+      });
 
       const result = await generateSalmaReceiptPDF(pdfData, {
         language: 'bn',
+        showHeader: showHeader,
       });
 
       Swal.close();
@@ -697,7 +917,7 @@ const TransactionsList = () => {
     }
   };
 
-  const handleDownloadPDFEnglish = async (transaction) => {
+  const handleDownloadPDFEnglish = async (transaction, showHeader = true) => {
     try {
       // Show loading alert
       Swal.fire({
@@ -710,9 +930,24 @@ const TransactionsList = () => {
       });
 
       const pdfData = preparePDFData(transaction);
+      
+      // Debug logging
+      console.log('PDF Data for English:', {
+        transactionId: pdfData.transactionId,
+        customerName: pdfData.customerName,
+        customerPhone: pdfData.customerPhone,
+        customerAddress: pdfData.customerAddress,
+        accountManagerName: pdfData.accountManagerName,
+        accountManagerNameType: typeof pdfData.accountManagerName,
+        accountManagerNameLength: pdfData.accountManagerName?.length,
+        accountManager: transaction.accountManager,
+        accountManagerId: transaction.accountManagerId,
+        amount: pdfData.amount
+      });
 
       const result = await generateSalmaReceiptPDF(pdfData, {
         language: 'en',
+        showHeader: showHeader,
       });
 
       Swal.close();
@@ -1661,27 +1896,45 @@ const TransactionsList = () => {
               </div>
             </div>
             
-            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-              <button
-                onClick={() => handleDownloadPDFBangla(selectedTransaction)}
-                className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all duration-200"
-              >
-                <Download className="w-5 h-5" />
-                বাংলা PDF
-              </button>
-              <button
-                onClick={() => handleDownloadPDFEnglish(selectedTransaction)}
-                className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
-              >
-                <Download className="w-5 h-5" />
-                English PDF
-              </button>
-              <button
-                onClick={() => setShowTransactionModal(false)}
-                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
-              >
-                বন্ধ করুন
-              </button>
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              {/* Header Toggle */}
+              <div className={`mb-4 p-3 rounded-lg border ${isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-200'}`}>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showHeader}
+                    onChange={(e) => setShowHeader(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Header দেখান (Logo, Title, Tagline)
+                  </span>
+                </label>
+              </div>
+              
+              {/* Action buttons */}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => handleDownloadPDFBangla(selectedTransaction, showHeader)}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all duration-200"
+                >
+                  <Download className="w-5 h-5" />
+                  বাংলা PDF
+                </button>
+                <button
+                  onClick={() => handleDownloadPDFEnglish(selectedTransaction, showHeader)}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
+                >
+                  <Download className="w-5 h-5" />
+                  English PDF
+                </button>
+                <button
+                  onClick={() => setShowTransactionModal(false)}
+                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+                >
+                  বন্ধ করুন
+                </button>
+              </div>
             </div>
           </div>
         </div>

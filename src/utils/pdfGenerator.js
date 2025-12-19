@@ -18,6 +18,8 @@ const L_BN = {
   authorizedSignatory: "অনুমোদিত স্বাক্ষরকারী",
   customerSignatory: "গ্রাহকের স্বাক্ষর",
   forVerify: "যাচাই করুন",
+  debitAccount: "ডেবিট একাউন্ট",
+  creditAccount: "ক্রেডিট একাউন্ট",
 };
 
 // ==================== English Labels ====================
@@ -37,6 +39,8 @@ const L_EN = {
   authorizedSignatory: "Authorised Signatory",
   customerSignatory: "Customer's Signatory",
   forVerify: "For Verify",
+  debitAccount: "Debit Account",
+  creditAccount: "Credit Account",
 };
 
 let L = L_BN;
@@ -75,6 +79,23 @@ const createSinglePageReceipt = (data, showHeader = true) => {
   setLanguage(data.language || 'bn');
   
   const isCashPayment = (data.paymentMethod || '').toLowerCase() === 'cash';
+  const isBankTransfer = data.isBankTransfer || false;
+  
+  // Extract customer ID - prioritize uniqueId over MongoDB _id
+  let displayCustomerId = data.uniqueId || '';
+  
+  // If no uniqueId, check if customerId is a MongoDB ObjectId (24 char hex)
+  if (!displayCustomerId && data.customerId) {
+    const customerIdStr = String(data.customerId);
+    // Check if it's a MongoDB ObjectId (24 character hexadecimal string)
+    if (customerIdStr.length === 24 && /^[0-9a-fA-F]{24}$/.test(customerIdStr)) {
+      // Don't show MongoDB ObjectId, use empty or formatted version
+      displayCustomerId = '';
+    } else {
+      // It's not a MongoDB ObjectId, use it
+      displayCustomerId = customerIdStr;
+    }
+  }
 
   const qrData = encodeURIComponent(JSON.stringify({
     id: data.transactionId || 'N/A',
@@ -155,8 +176,17 @@ const createSinglePageReceipt = (data, showHeader = true) => {
       <div style="margin-right: 210px; font-size: 14px; border: none;">
         <table style="width: 100%; line-height: 1.4; border-collapse: collapse; border: none; border-bottom: none;">
           <tbody>
+            ${isBankTransfer ? `
+            <!-- Bank Transfer Format: Only Date, Payment Method, Debit Account, Credit Account, Account Manager -->
             <tr><td style="padding: 2px 0; width: 35%; font-weight: bold; color: #444; border: none;">${L.date}:</td><td style="border: none;">${data.date || 'DD-MM-YYYY'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.customerId}:</td><td style="border: none;">${data.customerId || ''}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.paymentMethod}:</td><td style="border: none;">${data.paymentMethod || 'Bank Transfer'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.debitAccount}:</td><td style="border: none;">${data.debitAccountName || '[Debit Account]'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.creditAccount}:</td><td style="border: none;">${data.creditAccountName || '[Credit Account]'}</td></tr>
+            ${(data.accountManagerName && String(data.accountManagerName).trim() !== '') ? `<tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none; border-bottom: none !important;">${L.accountManager}:</td><td style="border: none; border-bottom: none !important;">${String(data.accountManagerName).trim()}</td></tr>` : ''}
+            ` : `
+            <!-- Regular Transaction Format -->
+            <tr><td style="padding: 2px 0; width: 35%; font-weight: bold; color: #444; border: none;">${L.date}:</td><td style="border: none;">${data.date || 'DD-MM-YYYY'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.customerId}:</td><td style="border: none;">${displayCustomerId || ''}</td></tr>
             <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.name}:</td><td style="border: none;">${data.customerName || '[Customer Name]'}</td></tr>
             <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.contactNo}:</td><td style="border: none;">${data.customerPhone || '[Mobile No]'}</td></tr>
             <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.address}:</td><td style="border: none;">${(data.customerAddress && data.customerAddress.trim() && data.customerAddress !== '[Full Address]') ? data.customerAddress : '[Full Address]'}</td></tr>
@@ -165,7 +195,8 @@ const createSinglePageReceipt = (data, showHeader = true) => {
             <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.bank}:</td><td style="border: none;">${data.bankName || '[Bank Name]'}</td></tr>
             <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.receivingAcc}:</td><td style="border: none;">${data.accountNumber || '[Acc No]'}</td></tr>
             ` : ''}
-            ${(data.accountManagerName && data.accountManagerName.trim()) ? `<tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none; border-bottom: none !important;">${L.accountManager}:</td><td style="border: none; border-bottom: none !important;">${data.accountManagerName}</td></tr>` : ''}
+            ${(data.accountManagerName && String(data.accountManagerName).trim() !== '') ? `<tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none; border-bottom: none !important;">${L.accountManager}:</td><td style="border: none; border-bottom: none !important;">${String(data.accountManagerName).trim()}</td></tr>` : ''}
+            `}
           </tbody>
         </table>
       </div>

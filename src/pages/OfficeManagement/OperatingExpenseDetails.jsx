@@ -1,8 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
-import { ArrowLeft, Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText, Calendar, BarChart3, Pencil, X, Check } from 'lucide-react';
-import { useOpExCategory, useUpdateOpExCategory } from '../../hooks';
+import { ArrowLeft, Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText, Calendar, BarChart3, Pencil, X, Check, Trash2 } from 'lucide-react';
+import { useOpExCategory, useUpdateOpExCategory, useDeleteOpExCategory } from '../../hooks';
+import Swal from 'sweetalert2';
 
 const ICONS = { Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText };
 
@@ -15,6 +16,7 @@ export default function OperatingExpenseDetails() {
   const [feedback, setFeedback] = useState('');
   const { data: categoryData, isLoading } = useOpExCategory(categoryId);
   const updateCategory = useUpdateOpExCategory();
+  const deleteCategory = useDeleteOpExCategory();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -81,6 +83,42 @@ export default function OperatingExpenseDetails() {
     });
   };
 
+  const handleDeleteCategory = async () => {
+    if (!categoryId) return;
+    
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#3b82f6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      deleteCategory.mutate(categoryId, {
+        onSuccess: () => {
+          Swal.fire({
+            title: 'Deleted!',
+            text: 'Category has been deleted.',
+            icon: 'success',
+            confirmButtonColor: '#3b82f6'
+          });
+          navigate('/office-management/operating-expenses');
+        },
+        onError: (err) => {
+          Swal.fire({
+            title: 'Error!',
+            text: err?.response?.data?.message || 'Failed to delete category.',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+          });
+        }
+      });
+    }
+  };
+
 
   return (
     <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
@@ -103,6 +141,15 @@ export default function OperatingExpenseDetails() {
               className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${isDark ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-200 hover:bg-gray-50'}`}
             >
               {isEditing ? (<><X className="w-4 h-4" /> Cancel</>) : (<><Pencil className="w-4 h-4" /> Edit</>)}
+            </button>
+            
+            <button
+              onClick={handleDeleteCategory}
+              disabled={deleteCategory.isPending}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm transition-colors ${deleteCategory.isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete
             </button>
           </div>
         </div>

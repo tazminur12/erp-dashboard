@@ -402,20 +402,25 @@ export const useEmployeeSearch = (searchTerm, enabled = true) => {
         // First try the search endpoint
         const response = await axiosSecure.get(`/hr/employers/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
         
-        console.log('Employee search response:', response.data);
-        
         if (response.data.success) {
           return response.data.data || [];
         } else {
-          console.log('Search failed:', response.data);
-          return [];
+          // If search endpoint returns unsuccessful, try fallback
+          throw new Error('Search endpoint returned unsuccessful');
         }
       } catch (error) {
-        console.error('Employee search error:', error);
+        // Only log 404 errors in development mode, not for other errors
+        if (error?.response?.status === 404) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Employee search endpoint not found (404), trying fallback...');
+          }
+        } else if (error?.response?.status !== 404) {
+          // Log non-404 errors
+          console.error('Employee search error:', error);
+        }
         
-        // If search endpoint fails, try to get all employees and filter client-side
+        // If search endpoint fails (404 or other), try to get all employees and filter client-side
         try {
-          console.log('Falling back to client-side search...');
           const fallbackResponse = await axiosSecure.get('/hr/employers?limit=100');
           
           if (fallbackResponse.data.success && fallbackResponse.data.data) {
@@ -442,9 +447,13 @@ export const useEmployeeSearch = (searchTerm, enabled = true) => {
             return filteredEmployees.slice(0, 10); // Limit to 10 results
           }
         } catch (fallbackError) {
-          console.error('Fallback search also failed:', fallbackError);
+          // Only log fallback errors in development mode
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Fallback employee search also failed, returning empty array');
+          }
         }
         
+        // Return empty array if all attempts fail
         return [];
       }
     },

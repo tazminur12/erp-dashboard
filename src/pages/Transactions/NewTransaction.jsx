@@ -43,7 +43,6 @@ import {
   useCompleteTransaction,
   useTransactions,
   useTransactionAccounts,
-  useTransactionCustomers,
   useTransactionInvoices,
   useTransactionCategories,
   useSearchAgents,
@@ -81,7 +80,6 @@ const NewTransaction = () => {
   const bankAccountTransferMutation = useBankAccountTransfer();
   const createPersonalExpenseTxV2 = useCreatePersonalExpenseTransactionV2();
   const { data: accounts = [], isLoading: accountsLoading, error: accountsError } = useTransactionAccounts();
-  const { data: customers = [], isLoading: customersLoading, error: customersError } = useTransactionCustomers();
   
   // Air Customers queries
   const airCustomersQueries = useAirCustomersQueries();
@@ -92,41 +90,8 @@ const NewTransaction = () => {
   });
   const airCustomers = airCustomersData?.customers || [];
   
-
-  
-  // Fallback demo customers if API fails
-  const demoCustomers = [
-    {
-      id: 'DEMO-CUST-001',
-      customerId: 'DEMO-CUST-001',
-      name: 'আহমেদ আলী',
-      mobile: '01712345678',
-      phone: '01712345678',
-      email: 'ahmed@example.com',
-      customerType: 'customer'
-    },
-    {
-      id: 'DEMO-CUST-002',
-      customerId: 'DEMO-CUST-002',
-      name: 'ফাতেমা খাতুন',
-      mobile: '01876543210',
-      phone: '01876543210',
-      email: 'fatema@example.com',
-      customerType: 'customer'
-    },
-    {
-      id: 'DEMO-CUST-003',
-      customerId: 'DEMO-CUST-003',
-      name: 'করিম উদ্দিন',
-      mobile: '01987654321',
-      phone: '01987654321',
-      email: 'karim@example.com',
-      customerType: 'customer'
-    }
-  ];
-  
-  // Use demo customers if API customers are empty
-  const effectiveCustomers = customers && customers.length > 0 ? customers : demoCustomers;
+  // Use empty array for customers (useTransactionCustomers hook removed)
+  const effectiveCustomers = [];
   const { data: categories = [], isLoading: categoriesLoading, error: categoriesError } = useTransactionCategories();
   const { data: transactionsData } = useTransactions({}, 1, 1000); // Fetch all transactions for balance calculation
   // Personal expense categories
@@ -335,42 +300,10 @@ const NewTransaction = () => {
   const customerLoans = (customerLoansData && (customerLoansData.loans || customerLoansData.data || [])) || [];
 
   // Loans search list for the "Loans" selector tab - moved below where selectedSearchType/searchTerm are declared
-
-  // Demo invoices fallback when API has no data
-  const demoInvoices = [
-    {
-      id: 'DEMO-INV-001',
-      invoiceNumber: 'INV-2025-001',
-      customerName: 'ডেমো কাস্টমার ১',
-      amount: 12500,
-      dueDate: '2025-11-05',
-      status: 'Pending',
-      description: 'এয়ার টিকেট - ঢাকা থেকে দুবাই'
-    },
-    {
-      id: 'DEMO-INV-002',
-      invoiceNumber: 'INV-2025-002',
-      customerName: 'ডেমো কাস্টমার ২',
-      amount: 28900,
-      dueDate: '2025-11-12',
-      status: 'Pending',
-      description: 'উমরাহ প্যাকেজ - স্ট্যান্ডার্ড'
-    },
-    {
-      id: 'DEMO-INV-003',
-      invoiceNumber: 'INV-2025-003',
-      customerName: 'ডেমো কাস্টমার ৩',
-      amount: 7600,
-      dueDate: '2025-11-20',
-      status: 'Paid',
-      description: 'ভিসা সার্ভিস - সৌদি ভিসা'
-    }
-  ];
-
-  // Choose effective invoices (API data first, then demo)
-  // Show demo invoices when no customer is selected, API is loading, or API has no data
+  // Choose effective invoices (API data first, then empty array)
+  // Show empty array when no customer is selected, API is loading, or API has no data
   const shouldShowDemoInvoices = !formData.customerId || invoicesLoading || (invoices && invoices.length === 0);
-  const effectiveInvoices = shouldShowDemoInvoices ? demoInvoices : invoices;
+  const effectiveInvoices = shouldShowDemoInvoices ? [] : invoices;
   const isUsingDemoInvoices = shouldShowDemoInvoices;
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -806,15 +739,82 @@ const NewTransaction = () => {
   };
 
   const handleAccountManagerSelect = (manager) => {
-    setFormData(prev => ({
-      ...prev,
-      accountManager: {
-        id: manager.id || manager.employeeId,
-        name: manager.name || manager.fullName,
-        phone: manager.phone || manager.phoneNumber,
-        email: manager.email || manager.emailAddress
-      }
-    }));
+    // Extract name from multiple possible fields (matching UI display logic)
+    // Check all possible name fields and skip empty strings
+    let managerName = '';
+    
+    // Priority 1: Direct name fields
+    const name1 = manager.name?.trim();
+    const name2 = manager.fullName?.trim();
+    const name3 = manager.employeeName?.trim();
+    const name4 = manager.userName?.trim();
+    const name5 = manager.displayName?.trim();
+    
+    managerName = name1 || name2 || name3 || name4 || name5 || '';
+    
+    // Priority 2: Combine firstName + lastName if no direct name found
+    if (!managerName) {
+      const firstName = manager.firstName?.trim() || '';
+      const lastName = manager.lastName?.trim() || '';
+      const combinedName = `${firstName} ${lastName}`.trim();
+      if (combinedName) managerName = combinedName;
+    }
+    
+    // Priority 3: Try other possible name fields
+    if (!managerName) {
+      managerName = manager.employeeName?.trim() 
+        || manager.accountManagerName?.trim()
+        || '';
+    }
+    
+    // Extract ID from multiple possible fields
+    const managerId = manager._id 
+      || manager.id 
+      || manager.employeeId
+      || '';
+    
+    // Extract phone from multiple possible fields
+    const managerPhone = manager.phone?.trim()
+      || manager.phoneNumber?.trim()
+      || manager.mobile?.trim()
+      || manager.mobileNumber?.trim()
+      || '';
+    
+    // Extract email from multiple possible fields
+    const managerEmail = manager.email?.trim()
+      || manager.emailAddress?.trim()
+      || '';
+    
+    // Only set accountManager if we have at least an ID or name
+    if (managerId || managerName) {
+      setFormData(prev => ({
+        ...prev,
+        accountManager: {
+          id: managerId,
+          name: managerName,
+          phone: managerPhone,
+          email: managerEmail
+        }
+      }));
+      
+      // Debug log to verify data
+      console.log('Account Manager Selected:', {
+        originalManager: manager,
+        originalManagerKeys: Object.keys(manager),
+        extractedData: {
+          id: managerId,
+          name: managerName,
+          phone: managerPhone,
+          email: managerEmail
+        }
+      });
+    } else {
+      console.warn('⚠️ Account Manager selected but no ID or name found!', {
+        manager: manager,
+        managerKeys: Object.keys(manager)
+      });
+    }
+    
     // Clear search term after selection
     setAccountManagerSearchTerm('');
   };
@@ -1225,6 +1225,9 @@ const NewTransaction = () => {
             notes: formData.transferNotes || '',
             fromAccount: formData.debitAccount,
             toAccount: formData.creditAccount,
+            // Also add as debitAccount and creditAccount for consistency
+            debitAccount: formData.debitAccount,
+            creditAccount: formData.creditAccount,
             accountManager: formData.accountManager || null
           });
 
@@ -1549,6 +1552,50 @@ const NewTransaction = () => {
     // Log the data being sent for debugging
     console.log('Submitting credit/debit transaction payload:', unifiedTransactionData);
 
+    // Capture accountManager before form reset (important for PDF generation)
+    // Extract name properly from formData.accountManager
+    let capturedAccountManager = null;
+    if (formData.accountManager) {
+      let managerName = '';
+      
+      // Extract name from multiple possible fields
+      if (typeof formData.accountManager === 'string') {
+        managerName = formData.accountManager.trim();
+      } else if (typeof formData.accountManager === 'object') {
+        const name1 = formData.accountManager.name?.trim();
+        const name2 = formData.accountManager.fullName?.trim();
+        const name3 = formData.accountManager.employeeName?.trim();
+        const name4 = formData.accountManager.userName?.trim();
+        const name5 = formData.accountManager.displayName?.trim();
+        
+        managerName = name1 || name2 || name3 || name4 || name5 || '';
+        
+        // If still no name, try firstName + lastName
+        if (!managerName) {
+          const firstName = formData.accountManager.firstName?.trim() || '';
+          const lastName = formData.accountManager.lastName?.trim() || '';
+          const combinedName = `${firstName} ${lastName}`.trim();
+          if (combinedName) managerName = combinedName;
+        }
+      }
+      
+      // Only capture if we have at least an ID or name
+      const managerId = formData.accountManager.id || formData.accountManager._id || '';
+      if (managerId || managerName) {
+        capturedAccountManager = {
+          id: managerId,
+          name: managerName,
+          phone: formData.accountManager.phone?.trim() || '',
+          email: formData.accountManager.email?.trim() || ''
+        };
+      }
+    }
+    
+    console.log('Captured Account Manager before submit:', {
+      formDataAccountManager: formData.accountManager,
+      capturedAccountManager: capturedAccountManager
+    });
+    
     createTransactionMutation.mutate(unifiedTransactionData, {
       onSuccess: async (response) => {
         console.log('Transaction response:', response);
@@ -1592,6 +1639,15 @@ const NewTransaction = () => {
               transactionId: txId
             });
 
+            // Extract accountManager from backend response if available, otherwise use captured one
+            const responseAccountManager = completeData?.transaction?.accountManager 
+              || completeData?.accountManager
+              || response?.transaction?.accountManager
+              || response?.accountManager;
+            
+            // Use response accountManager if available, otherwise use captured one
+            const finalAccountManager = responseAccountManager || capturedAccountManager;
+
             // Save submission summary for post-submission page
             setSubmittedTransaction({
               mode: 'transaction',
@@ -1610,7 +1666,13 @@ const NewTransaction = () => {
               notes: unifiedTransactionData.notes,
               fromAccount: unifiedTransactionData.debitAccount,
               toAccount: unifiedTransactionData.creditAccount,
-              accountManager: formData.accountManager || null
+              accountManager: finalAccountManager
+            });
+            
+            console.log('Submitted Transaction Account Manager:', {
+              capturedAccountManager,
+              responseAccountManager,
+              finalAccountManager
             });
           },
           onError: (error) => {
@@ -1827,15 +1889,79 @@ const NewTransaction = () => {
     });
 
     // Prepare PDF data with selected language
-    // Extract accountManager name - handle both object and direct name
-    const accountManagerName = submittedTransaction.accountManager?.name 
-      || (typeof submittedTransaction.accountManager === 'string' ? submittedTransaction.accountManager : '')
-      || submittedTransaction.accountManagerName 
-      || '';
+    // Extract accountManager name - comprehensive extraction from all possible locations
+    let accountManagerName = '';
     
-    console.log('PDF Data - Account Manager:', {
-      accountManager: submittedTransaction.accountManager,
-      accountManagerName: accountManagerName
+    // Priority 1: Direct accountManager object with name
+    if (submittedTransaction.accountManager) {
+      if (typeof submittedTransaction.accountManager === 'string') {
+        const nameStr = submittedTransaction.accountManager.trim();
+        if (nameStr) accountManagerName = nameStr;
+      } else if (typeof submittedTransaction.accountManager === 'object') {
+        // Try all possible name fields, but skip empty strings
+        const name1 = submittedTransaction.accountManager.name?.trim();
+        const name2 = submittedTransaction.accountManager.fullName?.trim();
+        const name3 = submittedTransaction.accountManager.accountManagerName?.trim();
+        const name4 = submittedTransaction.accountManager.employeeName?.trim();
+        const name5 = submittedTransaction.accountManager.userName?.trim();
+        const name6 = submittedTransaction.accountManager.displayName?.trim();
+        
+        accountManagerName = name1 || name2 || name3 || name4 || name5 || name6 || '';
+        
+        // If still no name, try firstName + lastName
+        if (!accountManagerName) {
+          const firstName = submittedTransaction.accountManager.firstName?.trim() || '';
+          const lastName = submittedTransaction.accountManager.lastName?.trim() || '';
+          const combinedName = `${firstName} ${lastName}`.trim();
+          if (combinedName) accountManagerName = combinedName;
+        }
+      }
+    }
+    
+    // Priority 2: Top-level accountManagerName field
+    if (!accountManagerName && submittedTransaction.accountManagerName) {
+      accountManagerName = submittedTransaction.accountManagerName;
+    }
+    
+    // Priority 3: Check formData if submittedTransaction doesn't have it (fallback)
+    if (!accountManagerName && formData.accountManager) {
+      if (typeof formData.accountManager === 'string') {
+        const nameStr = formData.accountManager.trim();
+        if (nameStr) accountManagerName = nameStr;
+      } else if (typeof formData.accountManager === 'object') {
+        // Check all possible name fields, but skip empty strings
+        const name1 = formData.accountManager.name?.trim();
+        const name2 = formData.accountManager.fullName?.trim();
+        const name3 = formData.accountManager.accountManagerName?.trim();
+        const name4 = formData.accountManager.employeeName?.trim();
+        const name5 = formData.accountManager.userName?.trim();
+        const name6 = formData.accountManager.displayName?.trim();
+        
+        accountManagerName = name1 || name2 || name3 || name4 || name5 || name6 || '';
+        
+        // If still no name, try firstName + lastName
+        if (!accountManagerName) {
+          const firstName = formData.accountManager.firstName?.trim() || '';
+          const lastName = formData.accountManager.lastName?.trim() || '';
+          const combinedName = `${firstName} ${lastName}`.trim();
+          if (combinedName) accountManagerName = combinedName;
+        }
+      }
+    }
+    
+    // Clean up - remove any whitespace
+    accountManagerName = accountManagerName ? accountManagerName.trim() : '';
+    
+    console.log('PDF Data - Account Manager Debug:', {
+      submittedTransactionAccountManager: submittedTransaction.accountManager,
+      submittedTransactionAccountManagerType: typeof submittedTransaction.accountManager,
+      formDataAccountManager: formData.accountManager,
+      formDataAccountManagerType: typeof formData.accountManager,
+      extractedAccountManagerName: accountManagerName,
+      accountManagerNameLength: accountManagerName?.length,
+      allAccountManagerKeys: submittedTransaction.accountManager && typeof submittedTransaction.accountManager === 'object' 
+        ? Object.keys(submittedTransaction.accountManager) 
+        : []
     });
     
     // Extract address from multiple possible sources
@@ -1876,6 +2002,31 @@ const NewTransaction = () => {
       if (addr && addr !== '[Full Address]') extractedAddress = addr;
     }
     
+    // Check if this is a Bank Transfer transaction
+    const isBankTransfer = submittedTransaction.transactionType === 'transfer' 
+      || submittedTransaction.mode === 'transfer'
+      || (submittedTransaction.fromAccount && submittedTransaction.toAccount)
+      || (submittedTransaction.debitAccount && submittedTransaction.creditAccount);
+    
+    // Extract debit and credit account names for Bank Transfer
+    let debitAccountName = '';
+    let creditAccountName = '';
+    
+    if (isBankTransfer) {
+      // Try multiple possible locations for account names
+      debitAccountName = submittedTransaction.debitAccount?.name 
+        || submittedTransaction.debitAccount?.accountName
+        || submittedTransaction.fromAccount?.name
+        || submittedTransaction.fromAccount?.accountName
+        || '[Debit Account]';
+      
+      creditAccountName = submittedTransaction.creditAccount?.name
+        || submittedTransaction.creditAccount?.accountName
+        || submittedTransaction.toAccount?.name
+        || submittedTransaction.toAccount?.accountName
+        || '[Credit Account]';
+    }
+    
     const pdfData = {
       transactionId: submittedTransaction.transactionId || `TXN-${Date.now()}`,
       transactionType: submittedTransaction.transactionType,
@@ -1889,14 +2040,27 @@ const NewTransaction = () => {
       paymentMethod: submittedTransaction.paymentMethod || '',
       bankName: submittedTransaction.paymentDetails?.bankName || '',
       accountNumber: submittedTransaction.paymentDetails?.accountNumber || '',
-      accountManagerName: accountManagerName,
+      accountManagerName: accountManagerName || '',
       amount: submittedTransaction.amount || 0,
       notes: submittedTransaction.notes || '',
       date: submittedTransaction.date || new Date().toISOString().split('T')[0],
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch',
-      language: language // এটাই মূল — 'bn' অথবা 'en'
+      language: language, // এটাই মূল — 'bn' অথবা 'en'
+      // Bank Transfer specific fields
+      isBankTransfer: isBankTransfer,
+      debitAccountName: debitAccountName,
+      creditAccountName: creditAccountName,
     };
+
+    // Final validation - log if accountManagerName is missing
+    if (!pdfData.accountManagerName && (submittedTransaction.accountManager || formData.accountManager)) {
+      console.warn('⚠️ Account Manager selected but name not extracted!', {
+        submittedTransactionAccountManager: submittedTransaction.accountManager,
+        formDataAccountManager: formData.accountManager,
+        pdfDataAccountManagerName: pdfData.accountManagerName
+      });
+    }
 
     // Generate PDF using the updated generator (supports bn/en and showHeader)
     const result = await generateSalmaReceiptPDF(pdfData, { language, showHeader });
@@ -1946,11 +2110,58 @@ const NewTransaction = () => {
       });
 
       // Prepare PDF data with selected language
-      // Extract accountManager name - handle both object and direct name
-      const accountManagerName = submittedTransaction.accountManager?.name 
-        || (typeof submittedTransaction.accountManager === 'string' ? submittedTransaction.accountManager : '')
-        || submittedTransaction.accountManagerName 
-        || '';
+      // Extract accountManager name - comprehensive extraction from all possible locations
+      let accountManagerName = '';
+      
+      // Priority 1: Direct accountManager object with name
+      if (submittedTransaction.accountManager) {
+        if (typeof submittedTransaction.accountManager === 'string') {
+          accountManagerName = submittedTransaction.accountManager;
+        } else if (typeof submittedTransaction.accountManager === 'object') {
+          // Try all possible name fields
+          accountManagerName = submittedTransaction.accountManager.name 
+            || submittedTransaction.accountManager.fullName
+            || submittedTransaction.accountManager.accountManagerName
+            || submittedTransaction.accountManager.employeeName
+            || submittedTransaction.accountManager.userName
+            || submittedTransaction.accountManager.displayName
+            || '';
+        }
+      }
+      
+      // Priority 2: Top-level accountManagerName field
+      if (!accountManagerName && submittedTransaction.accountManagerName) {
+        accountManagerName = submittedTransaction.accountManagerName;
+      }
+      
+      // Priority 3: Check formData if submittedTransaction doesn't have it (fallback)
+      if (!accountManagerName && formData.accountManager) {
+        if (typeof formData.accountManager === 'string') {
+          const nameStr = formData.accountManager.trim();
+          if (nameStr) accountManagerName = nameStr;
+        } else if (typeof formData.accountManager === 'object') {
+          // Check all possible name fields, but skip empty strings
+          const name1 = formData.accountManager.name?.trim();
+          const name2 = formData.accountManager.fullName?.trim();
+          const name3 = formData.accountManager.accountManagerName?.trim();
+          const name4 = formData.accountManager.employeeName?.trim();
+          const name5 = formData.accountManager.userName?.trim();
+          const name6 = formData.accountManager.displayName?.trim();
+          
+          accountManagerName = name1 || name2 || name3 || name4 || name5 || name6 || '';
+          
+          // If still no name, try firstName + lastName
+          if (!accountManagerName) {
+            const firstName = formData.accountManager.firstName?.trim() || '';
+            const lastName = formData.accountManager.lastName?.trim() || '';
+            const combinedName = `${firstName} ${lastName}`.trim();
+            if (combinedName) accountManagerName = combinedName;
+          }
+        }
+      }
+      
+      // Clean up - remove any whitespace
+      accountManagerName = accountManagerName ? accountManagerName.trim() : '';
       
       // Extract address from multiple possible sources
       let extractedAddress = '';
@@ -1990,6 +2201,31 @@ const NewTransaction = () => {
         if (addr && addr !== '[Full Address]') extractedAddress = addr;
       }
       
+      // Check if this is a Bank Transfer transaction
+      const isBankTransfer = submittedTransaction.transactionType === 'transfer' 
+        || submittedTransaction.mode === 'transfer'
+        || (submittedTransaction.fromAccount && submittedTransaction.toAccount)
+        || (submittedTransaction.debitAccount && submittedTransaction.creditAccount);
+      
+      // Extract debit and credit account names for Bank Transfer
+      let debitAccountName = '';
+      let creditAccountName = '';
+      
+      if (isBankTransfer) {
+        // Try multiple possible locations for account names
+        debitAccountName = submittedTransaction.debitAccount?.name 
+          || submittedTransaction.debitAccount?.accountName
+          || submittedTransaction.fromAccount?.name
+          || submittedTransaction.fromAccount?.accountName
+          || '[Debit Account]';
+        
+        creditAccountName = submittedTransaction.creditAccount?.name
+          || submittedTransaction.creditAccount?.accountName
+          || submittedTransaction.toAccount?.name
+          || submittedTransaction.toAccount?.accountName
+          || '[Credit Account]';
+      }
+      
       const pdfData = {
         transactionId: submittedTransaction.transactionId || `TXN-${Date.now()}`,
         transactionType: submittedTransaction.transactionType,
@@ -2003,14 +2239,27 @@ const NewTransaction = () => {
         paymentMethod: submittedTransaction.paymentMethod || '',
         bankName: submittedTransaction.paymentDetails?.bankName || '',
         accountNumber: submittedTransaction.paymentDetails?.accountNumber || '',
-        accountManagerName: accountManagerName,
+        accountManagerName: accountManagerName || '',
         amount: submittedTransaction.amount || 0,
         notes: submittedTransaction.notes || '',
         date: submittedTransaction.date || new Date().toISOString().split('T')[0],
         createdBy: userProfile?.email || 'unknown_user',
         branchId: userProfile?.branchId || 'main_branch',
-        language: language
+        language: language,
+        // Bank Transfer specific fields
+        isBankTransfer: isBankTransfer,
+        debitAccountName: debitAccountName,
+        creditAccountName: creditAccountName,
       };
+
+      // Final validation - log if accountManagerName is missing
+      if (!pdfData.accountManagerName && (submittedTransaction.accountManager || formData.accountManager)) {
+        console.warn('⚠️ Account Manager selected but name not extracted in Print!', {
+          submittedTransactionAccountManager: submittedTransaction.accountManager,
+          formDataAccountManager: formData.accountManager,
+          pdfDataAccountManagerName: pdfData.accountManagerName
+        });
+      }
 
       // Generate PDF without downloading
       const result = await generateSalmaReceiptPDF(pdfData, { language, showHeader, download: false });
@@ -2134,7 +2383,7 @@ const NewTransaction = () => {
   };
 
   // Filter customers based on selected type
-  const customersToFilter = selectedSearchType === 'airCustomer' ? airCustomers : customers;
+  const customersToFilter = selectedSearchType === 'airCustomer' ? airCustomers : [];
   const filteredCustomers = customersToFilter.filter(customer =>
     customer.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.mobile?.includes(searchTerm) ||
@@ -3163,6 +3412,8 @@ const NewTransaction = () => {
                                 name: haji.name,
                                 phone: haji.mobile,
                                 email: haji.email,
+                                address: haji.address || haji.fullAddress || '',
+                                uniqueId: haji.uniqueId || haji.customerId || haji.hajiId || '',
                                 customerType: 'haji'
                               })}
                               className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
@@ -3206,11 +3457,16 @@ const NewTransaction = () => {
                                     {haji.name}
                                   </h3>
                                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                                    {haji.mobile}
+                                    📞 {haji.mobile || 'N/A'}
                                   </p>
+                                  {(haji.address || haji.fullAddress) && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      📍 {haji.address || haji.fullAddress}
+                                    </p>
+                                  )}
                                   {haji.passportNumber && (
                                     <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
-                                      পাসপোর্ট: {haji.passportNumber}
+                                      🛂 পাসপোর্ট: {haji.passportNumber}
                                     </p>
                                   )}
                                 </div>
@@ -3243,6 +3499,8 @@ const NewTransaction = () => {
                                 name: umrah.name,
                                 phone: umrah.mobile,
                                 email: umrah.email,
+                                address: umrah.address || umrah.fullAddress || '',
+                                uniqueId: umrah.uniqueId || umrah.customerId || umrah.umrahId || '',
                                 customerType: 'umrah'
                               })}
                               className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
@@ -3286,8 +3544,13 @@ const NewTransaction = () => {
                                     {umrah.name}
                                   </h3>
                                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                                    {umrah.mobile}
+                                    📞 {umrah.mobile || 'N/A'}
                                   </p>
+                                  {(umrah.address || umrah.fullAddress) && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      📍 {umrah.address || umrah.fullAddress}
+                                    </p>
+                                  )}
                                   {umrah.passportNumber && (
                                     <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
                                       পাসপোর্ট: {umrah.passportNumber}
@@ -3337,12 +3600,12 @@ const NewTransaction = () => {
                                     </span>
                                   </div>
                                   <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                    {agent.ownerName} • {agent.contactNo}
+                                    📞 {agent.contactNo || agent.phone || agent.mobile || 'N/A'}
                                   </p>
-                                  {agent.tradeLocation && (
-                                    <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
-                                      {agent.tradeLocation}
-                                    </span>
+                                  {(agent.address || agent.fullAddress || agent.tradeLocation) && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      📍 {agent.address || agent.fullAddress || agent.tradeLocation}
+                                    </p>
                                   )}
                                 </div>
                               </div>
@@ -3392,12 +3655,12 @@ const NewTransaction = () => {
                                     </span>
                                   </div>
                                   <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                    {vendor.ownerName} • {vendor.contactNo}
+                                    📞 {vendor.contactNo || vendor.phone || vendor.mobile || 'N/A'}
                                   </p>
-                                  {vendor.tradeLocation && (
-                                    <span className="inline-block px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs rounded-full mt-1">
-                                      {vendor.tradeLocation}
-                                    </span>
+                                  {(vendor.address || vendor.fullAddress || vendor.tradeLocation) && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      📍 {vendor.address || vendor.fullAddress || vendor.tradeLocation}
+                                    </p>
                                   )}
                                 </div>
                               </div>
@@ -3546,8 +3809,18 @@ const NewTransaction = () => {
                                   ) : null}
                                 </div>
                                 <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                  {customer.mobile || customer.phone} • {customer.email}
+                                  📞 {customer.mobile || customer.phone || customer.contactNo || 'N/A'}
                                 </p>
+                                {(customer.email) && (
+                                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                    ✉️ {customer.email}
+                                  </p>
+                                )}
+                                {(customer.address || customer.fullAddress) && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-500 truncate mt-1">
+                                    📍 {customer.address || customer.fullAddress}
+                                  </p>
+                                )}
                                 {customer.customerType && customer.customerType !== 'vendor' && customer.customerType !== 'Vendor' && customer.customerType !== 'agent' && customer.customerType !== 'Agent' && (
                                   <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 text-xs rounded-full mt-1">
                                     {customer.customerType}
@@ -4098,19 +4371,7 @@ const NewTransaction = () => {
                                 employeeSearchResults.map((employee) => (
                                   <button
                                     key={employee._id || employee.id}
-                                    onClick={() => {
-                                      setFormData(prev => ({
-                                        ...prev,
-                                        accountManager: {
-                                          id: employee._id || employee.id,
-                                          name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
-                                          phone: employee.phone || employee.phoneNumber,
-                                          email: employee.email || employee.emailAddress,
-                                          designation: employee.designation || employee.position
-                                        }
-                                      }));
-                                      setAccountManagerSearchTerm('');
-                                    }}
+                                    onClick={() => handleAccountManagerSelect(employee)}
                                     className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
                                       formData.accountManager?.id === employee._id
                                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
@@ -4806,19 +5067,7 @@ const NewTransaction = () => {
                           employeeSearchResults.map((employee) => (
                             <button
                               key={employee._id}
-                              onClick={() => {
-                                setFormData(prev => ({
-                                  ...prev,
-                                  accountManager: {
-                                    id: employee._id,
-                                    name: employee.name,
-                                    phone: employee.phone,
-                                    email: employee.email,
-                                    designation: employee.designation
-                                  }
-                                }));
-                                setAccountManagerSearchTerm('');
-                              }}
+                              onClick={() => handleAccountManagerSelect(employee)}
                               className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
                                 formData.accountManager?.id === employee._id
                                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'

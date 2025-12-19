@@ -22,11 +22,12 @@ import {
   AlertCircle,
   XCircle,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Trash2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { useLoans } from '../../hooks/useLoanQueries';
+import { useLoans, useDeleteLoan } from '../../hooks/useLoanQueries';
 
 const LoanList = () => {
   const { isDark } = useTheme();
@@ -48,6 +49,7 @@ const LoanList = () => {
 
   // Use the loan query hook
   const { data: loansData, isLoading: loading } = useLoans(filters, currentPage, 20);
+  const deleteLoanMutation = useDeleteLoan();
   
   const loans = loansData?.loans || [];
 
@@ -105,6 +107,36 @@ const LoanList = () => {
     navigate(`/loan/new-${type}`);
   };
 
+  const handleDeleteLoan = async (loan) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#3b82f6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await deleteLoanMutation.mutateAsync(loan.loanId || loan._id);
+        Swal.fire({
+          title: 'Deleted!',
+          text: 'Loan has been deleted.',
+          icon: 'success',
+          confirmButtonColor: '#3b82f6'
+        });
+      } catch (error) {
+        Swal.fire({
+          title: 'Error!',
+          text: error.message || 'Failed to delete loan',
+          icon: 'error',
+          confirmButtonColor: '#ef4444'
+        });
+      }
+    }
+  };
   
 
   if (loading) {
@@ -357,6 +389,15 @@ const LoanList = () => {
                           >
                             <Eye className="w-4 h-4" />
                             View
+                          </button>
+                          
+                          <button
+                            onClick={() => handleDeleteLoan(loan)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 transition-colors duration-200 flex items-center gap-1 ml-3"
+                            disabled={deleteLoanMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
                           </button>
                           {/* Approve/Reject removed as requested */}
                         </div>

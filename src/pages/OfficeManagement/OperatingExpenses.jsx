@@ -18,11 +18,13 @@ import {
   Filter,
   Search,
   Download,
-  Eye
+  Eye,
+  Trash2
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import { useOpExCategories } from '../../hooks';
+import { useOpExCategories, useDeleteOpExCategory } from '../../hooks';
+import Swal from 'sweetalert2';
 
 const OperatingExpenses = () => {
   const { isDark } = useTheme();
@@ -34,6 +36,7 @@ const OperatingExpenses = () => {
   const ICONS = { Scale, Megaphone, Laptop, CreditCard, Package, Receipt, RotateCcw, FileText };
 
   const { data: apiCategories = [], isLoading } = useOpExCategories();
+  const deleteCategory = useDeleteOpExCategory();
 
   // Map API categories to include icon component for rendering
   const expenseCategories = useMemo(() => {
@@ -65,6 +68,41 @@ const OperatingExpenses = () => {
 
   const handleAddCategory = () => {
     navigate('/office-management/operating-expenses/add');
+  };
+
+  const handleDeleteCategory = async (e, categoryId) => {
+    e.stopPropagation();
+    
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You won't be able to revert this!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#3b82f6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      deleteCategory.mutate(categoryId, {
+        onSuccess: () => {
+          Swal.fire({
+            title: 'Deleted!',
+            text: 'Category has been deleted.',
+            icon: 'success',
+            confirmButtonColor: '#3b82f6'
+          });
+        },
+        onError: (err) => {
+          Swal.fire({
+            title: 'Error!',
+            text: err?.response?.data?.message || 'Failed to delete category.',
+            icon: 'error',
+            confirmButtonColor: '#ef4444'
+          });
+        }
+      });
+    }
   };
 
   return (
@@ -268,8 +306,17 @@ const OperatingExpenses = () => {
               
               <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                  <span>Last Updated</span>
-                  <span>{category.lastUpdated ? new Date(category.lastUpdated).toLocaleDateString() : '-'}</span>
+                  <div className="flex items-center gap-1">
+                    <span>Last Updated</span>
+                    <span>{category.lastUpdated ? new Date(category.lastUpdated).toLocaleDateString() : '-'}</span>
+                  </div>
+                  <button
+                    onClick={(e) => handleDeleteCategory(e, category.id)}
+                    className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Delete Category"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             </div>

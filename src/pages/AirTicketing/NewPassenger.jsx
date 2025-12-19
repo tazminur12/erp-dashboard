@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import { Helmet } from 'react-helmet-async';
 import 'react-datepicker/dist/react-datepicker.css';
 import { 
+  ArrowLeft,
   User, 
   Phone, 
   Mail, 
@@ -25,6 +27,7 @@ import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudi
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 
 const NewPassenger = () => {
+  const navigate = useNavigate();
   const { isDark } = useTheme();
   const { useCreateAirCustomer, useSearchAirCustomers } = useAirCustomersQueries();
   
@@ -170,6 +173,12 @@ const NewPassenger = () => {
       setFormData(prev => ({ ...prev, whatsappNo: '' }));
     }
   }, [formData.mobile, useMobileAsWhatsApp]);
+
+  // Auto-fill Full Name when First Name or Last Name changes
+  useEffect(() => {
+    const fullName = `${formData.firstName || ''} ${formData.lastName || ''}`.trim();
+    setFormData(prev => ({ ...prev, name: fullName }));
+  }, [formData.firstName, formData.lastName]);
 
   // Note: Reference customer search is now handled by useSearchAirCustomers hook
   // The search is debounced automatically by React Query
@@ -635,6 +644,7 @@ const NewPassenger = () => {
     // Prepare customer data
     const customerData = {
       // Basic customer information
+      name: formData.name || null,
       firstName: formData.firstName || null,
       lastName: formData.lastName || null,
       mobile: formData.mobile,
@@ -875,15 +885,27 @@ const NewPassenger = () => {
       }`}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-4 text-center">
-          <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
-            নতুন এয়ার প্যাসেঞ্জার যুক্ত করুন
-          </h1>
-          <p className={`mt-1 text-sm lg:text-base transition-colors duration-300 ${
-            isDark ? 'text-gray-300' : 'text-gray-600'
-          }`}>
-            এখানে নতুন এয়ার প্যাসেঞ্জার যোগ করুন
-          </p>
+        <div className="mb-6">
+          <button
+            onClick={() => navigate('/air-ticketing/passengers')}
+            className={`flex items-center mb-4 transition-colors duration-200 font-medium ${
+              isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-blue-600'
+            }`}
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Back to List
+          </button>
+          
+          <div className="text-center">
+            <h1 className="text-2xl lg:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
+              নতুন এয়ার প্যাসেঞ্জার যুক্ত করুন
+            </h1>
+            <p className={`mt-1 text-sm lg:text-base transition-colors duration-300 ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              এখানে নতুন এয়ার প্যাসেঞ্জার যোগ করুন
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -943,6 +965,33 @@ const NewPassenger = () => {
                       }`}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Full Name (Auto-filled) */}
+              <div className="space-y-1">
+                <label className={`block text-xs font-semibold transition-colors duration-300 ${
+                  isDark ? 'text-gray-200' : 'text-gray-700'
+                }`}>
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className={`absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 transition-colors duration-300 ${
+                    isDark ? 'text-gray-500' : 'text-gray-400'
+                  }`} />
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Full Name"
+                    readOnly
+                    className={`w-full pl-8 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm cursor-not-allowed ${
+                      isDark 
+                        ? 'bg-gray-800 border-gray-600 text-gray-400' 
+                        : 'bg-gray-100 border-gray-300 text-gray-500'
+                    }`}
+                  />
                 </div>
               </div>
 

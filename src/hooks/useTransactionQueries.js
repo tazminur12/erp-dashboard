@@ -251,54 +251,6 @@ export const useTransactionAccounts = () => {
   });
 };
 
-// Hook to fetch customers for transactions
-export const useTransactionCustomers = () => {
-  const axiosSecure = useAxiosSecure();
-  
-  return useQuery({
-    queryKey: transactionKeys.customers(),
-    queryFn: async () => {
-      try {
-        // Try multiple endpoints for customers
-        const endpoints = ['/customers', '/api/customers', '/api/haj-umrah/customers'];
-        
-        for (const endpoint of endpoints) {
-          try {
-            console.log(`Trying customers endpoint: ${endpoint}`);
-            const response = await axiosSecure.get(endpoint);
-            console.log(`Customers API response from ${endpoint}:`, response.data);
-            
-            if (response.data.success) {
-              return response.data.customers || response.data.data || [];
-            } else if (response.data.data) {
-              return response.data.data;
-            }
-          } catch (endpointError) {
-            console.log(`Endpoint ${endpoint} failed:`, endpointError.message);
-            continue;
-          }
-        }
-        
-        // If all endpoints fail, return empty array
-        console.warn('All customer endpoints failed, returning empty array');
-        return [];
-      } catch (error) {
-        console.error('Error fetching customers:', error);
-        return [];
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
-    retry: (failureCount, error) => {
-      // Don't retry on 4xx errors
-      if (error?.response?.status >= 400 && error?.response?.status < 500) {
-        return false;
-      }
-      return failureCount < 2;
-    },
-  });
-};
-
 // Hook to fetch invoices for transactions
 export const useTransactionInvoices = (customerId) => {
   const axiosSecure = useAxiosSecure();
@@ -308,17 +260,37 @@ export const useTransactionInvoices = (customerId) => {
     queryFn: async () => {
       if (!customerId) return [];
       
-      const response = await axiosSecure.get(`/invoices?customerId=${customerId}`);
-      
-      if (response.data.success) {
-        return response.data.invoices || [];
-      } else {
-        throw new Error(response.data.message || 'Failed to load invoices');
+      try {
+        const response = await axiosSecure.get(`/invoices?customerId=${customerId}`);
+        
+        if (response.data.success) {
+          return response.data.invoices || [];
+        } else {
+          // If response is not successful, return empty array instead of throwing
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Invoice query returned unsuccessful:', response.data.message);
+          }
+          return [];
+        }
+      } catch (error) {
+        // Handle 404 errors gracefully - invoice endpoint might not exist
+        if (error?.response?.status === 404) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Invoice endpoint not found (404), returning empty array');
+          }
+          return [];
+        }
+        // For other errors, log in development and return empty array
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching invoices:', error);
+        }
+        return [];
       }
     },
     enabled: !!customerId,
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
+    retry: false, // Don't retry if endpoint doesn't exist
   });
 };
 

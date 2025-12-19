@@ -169,6 +169,26 @@ export const useUpdateLoan = () => {
   });
 };
 
+// Delete loan by loanId (soft delete)
+export const useDeleteLoan = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (loanId) => {
+      const response = await axiosSecure.delete(`/loans/${encodeURIComponent(loanId)}`);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to delete loan');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+      // Also invalidate dashboard summary as counts/amounts will change
+      queryClient.invalidateQueries({ queryKey: loanKeys.all });
+    },
+  });
+};
+
 export default {
   loanKeys,
   useLoans,
@@ -176,6 +196,7 @@ export default {
   useCreateGivingLoan,
   useCreateReceivingLoan,
   useUpdateLoan,
+  useDeleteLoan,
   useLoanDashboardSummary,
 };
 
