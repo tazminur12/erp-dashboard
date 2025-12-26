@@ -356,6 +356,11 @@ export const useCreateTransaction = () => {
         ? String(transactionData.subCategory || '').trim() || undefined 
         : undefined;
       
+      // Extract charge (can be at top level or in paymentDetails)
+      const finalCharge = transactionData.charge !== undefined 
+        ? transactionData.charge 
+        : (transactionData.paymentDetails?.charge !== undefined ? transactionData.paymentDetails.charge : undefined);
+      
       // Extract operatingExpenseCategoryId from object or direct value
       const finalOperatingExpenseCategoryId = transactionData.operatingExpenseCategoryId 
         || transactionData.operatingExpenseCategory?.id 
@@ -431,6 +436,7 @@ export const useCreateTransaction = () => {
       const payload = {
         transactionType: transactionData.transactionType,
         amount: amount,
+        charge: finalCharge !== undefined ? (finalCharge !== null && finalCharge !== '' ? parseFloat(finalCharge) || 0 : 0) : undefined,
         partyId: finalPartyId,
         partyType: finalPartyType,
         customerType: transactionData.customerType || null, // Backend uses this to auto-detect party type
@@ -458,7 +464,11 @@ export const useCreateTransaction = () => {
         // Include nested objects for backend compatibility
         debitAccount: transactionData.debitAccount || (transactionData.transactionType === 'debit' ? { id: finalTargetAccountId } : null),
         creditAccount: transactionData.creditAccount || (transactionData.transactionType === 'credit' ? { id: finalTargetAccountId } : null),
-        paymentDetails: transactionData.paymentDetails || { amount: amount },
+        paymentDetails: {
+          ...(transactionData.paymentDetails || {}),
+          amount: amount,
+          ...(finalCharge !== undefined ? { charge: finalCharge !== null && finalCharge !== '' ? parseFloat(finalCharge) || 0 : 0 } : {})
+        },
         customerBankAccount: transactionData.customerBankAccount || null,
         customerId: finalPartyId,
         // Money exchange information (for money-exchange party type)

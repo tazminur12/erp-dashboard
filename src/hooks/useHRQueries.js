@@ -34,10 +34,11 @@ export const useEmployees = (filters = {}) => {
       if (filters.position) params.append('position', filters.position);
       if (filters.employmentType) params.append('employmentType', filters.employmentType);
       if (filters.status) params.append('status', filters.status);
+      if (filters.branch) params.append('branch', filters.branch);
       if (filters.sortBy) params.append('sortBy', filters.sortBy);
       if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
       
-      const response = await axiosSecure.get(`/hr/employers?${params.toString()}`);
+      const response = await axiosSecure.get(`/api/hr/employers?${params.toString()}`);
       
       if (response.data.success) {
         return {
@@ -50,7 +51,7 @@ export const useEmployees = (filters = {}) => {
           }
         };
       } else {
-        throw new Error(response.data.message || 'Failed to load employees');
+        throw new Error(response.data.message || response.data.error || 'Failed to load employees');
       }
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -76,12 +77,12 @@ export const useEmployee = (employeeId) => {
       }
       
       try {
-        const response = await axiosSecure.get(`/hr/employers/${employeeId}`);
+        const response = await axiosSecure.get(`/api/hr/employers/${employeeId}`);
         
         if (response.data.success) {
           return response.data.data;
         } else {
-          throw new Error(response.data.message || 'Failed to load employee');
+          throw new Error(response.data.message || response.data.error || 'Failed to load employee');
         }
       } catch (error) {
         throw error;
@@ -94,18 +95,23 @@ export const useEmployee = (employeeId) => {
 };
 
 // Hook to fetch employee statistics
-export const useEmployeeStats = () => {
+export const useEmployeeStats = (filters = {}) => {
   const axiosSecure = useAxiosSecure();
   
   return useQuery({
-    queryKey: hrKeys.stats(),
+    queryKey: [...hrKeys.stats(), filters],
     queryFn: async () => {
-      const response = await axiosSecure.get('/hr/employers/stats/overview');
+      const params = new URLSearchParams();
+      if (filters.branch) params.append('branch', filters.branch);
+      if (filters.branchId) params.append('branchId', filters.branchId);
+      
+      const url = `/api/hr/employers/stats/overview${params.toString() ? `?${params.toString()}` : ''}`;
+      const response = await axiosSecure.get(url);
       
       if (response.data.success) {
         return response.data.data;
       } else {
-        throw new Error(response.data.message || 'Failed to load statistics');
+        throw new Error(response.data.message || response.data.error || 'Failed to load statistics');
       }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -160,12 +166,12 @@ export const useCreateEmployee = () => {
   
   return useMutation({
     mutationFn: async (employeeData) => {
-      const response = await axiosSecure.post('/hr/employers', employeeData);
+      const response = await axiosSecure.post('/api/hr/employers', employeeData);
       
       if (response.data.success) {
         return response.data;
       } else {
-        throw new Error(response.data.message || 'Failed to create employee');
+        throw new Error(response.data.message || response.data.error || 'Failed to create employee');
       }
     },
     onSuccess: (data) => {
@@ -174,10 +180,13 @@ export const useCreateEmployee = () => {
       
       // Add the new employee to the cache if needed
       if (data.data) {
-        queryClient.setQueryData(
-          hrKeys.employeeDetail(data.data.id || data.data.employeeId),
-          data.data
-        );
+        const employeeId = data.data.id || data.data.employeeId || data.data._id;
+        if (employeeId) {
+          queryClient.setQueryData(
+            hrKeys.employeeDetail(employeeId),
+            data.data
+          );
+        }
       }
       
       // Invalidate stats
@@ -186,14 +195,14 @@ export const useCreateEmployee = () => {
       // Show success message
       Swal.fire({
         title: 'সফল!',
-        text: 'নতুন কর্মচারী সফলভাবে যোগ করা হয়েছে।',
+        text: data.message || 'নতুন কর্মচারী সফলভাবে যোগ করা হয়েছে।',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',
       });
     },
     onError: (error) => {
-      const message = error?.response?.data?.message || 'কর্মচারী যোগ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+      const message = error?.response?.data?.message || error?.response?.data?.error || 'কর্মচারী যোগ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
       Swal.fire({
         title: 'ত্রুটি!',
         text: message,
@@ -212,12 +221,12 @@ export const useUpdateEmployee = () => {
   
   return useMutation({
     mutationFn: async ({ id, data: employeeData }) => {
-      const response = await axiosSecure.put(`/hr/employers/${id}`, employeeData);
+      const response = await axiosSecure.put(`/api/hr/employers/${id}`, employeeData);
       
       if (response.data.success) {
         return response.data;
       } else {
-        throw new Error(response.data.message || 'Failed to update employee');
+        throw new Error(response.data.message || response.data.error || 'Failed to update employee');
       }
     },
     onSuccess: (data, { id }) => {
@@ -241,14 +250,14 @@ export const useUpdateEmployee = () => {
       // Show success message
       Swal.fire({
         title: 'সফল!',
-        text: 'কর্মচারী তথ্য সফলভাবে আপডেট করা হয়েছে।',
+        text: data.message || 'কর্মচারী তথ্য সফলভাবে আপডেট করা হয়েছে।',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',
       });
     },
     onError: (error) => {
-      const message = error?.response?.data?.message || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+      const message = error?.response?.data?.message || error?.response?.data?.error || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
       Swal.fire({
         title: 'ত্রুটি!',
         text: message,
@@ -267,12 +276,12 @@ export const useDeleteEmployee = () => {
   
   return useMutation({
     mutationFn: async (employeeId) => {
-      const response = await axiosSecure.delete(`/hr/employers/${employeeId}`);
+      const response = await axiosSecure.delete(`/api/hr/employers/${employeeId}`);
       
       if (response.data.success) {
         return response.data;
       } else {
-        throw new Error(response.data.message || 'Failed to delete employee');
+        throw new Error(response.data.message || response.data.error || 'Failed to delete employee');
       }
     },
     onSuccess: (data, employeeId) => {
@@ -288,13 +297,13 @@ export const useDeleteEmployee = () => {
       // Show success message
       Swal.fire({
         title: 'মুছে ফেলা হয়েছে!',
-        text: 'কর্মচারী সফলভাবে মুছে ফেলা হয়েছে।',
+        text: data.message || 'কর্মচারী সফলভাবে মুছে ফেলা হয়েছে।',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
       });
     },
     onError: (error) => {
-      const message = error?.response?.data?.message || 'কর্মচারী মুছতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
+      const message = error?.response?.data?.message || error?.response?.data?.error || 'কর্মচারী মুছতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
       Swal.fire({
         title: 'ত্রুটি!',
         text: message,
@@ -313,14 +322,15 @@ export const useUpdateEmployeeStatus = () => {
   
   return useMutation({
     mutationFn: async ({ employeeId, status }) => {
-      const response = await axiosSecure.patch(`/hr/employers/${employeeId}`, {
+      // Backend uses PUT for updates, so we'll use PUT with status field
+      const response = await axiosSecure.put(`/api/hr/employers/${employeeId}`, {
         status
       });
       
       if (response.data.success) {
         return response.data;
       } else {
-        throw new Error(response.data.message || 'Failed to update employee status');
+        throw new Error(response.data.message || response.data.error || 'Failed to update employee status');
       }
     },
     onSuccess: (data, { employeeId }) => {
@@ -334,18 +344,20 @@ export const useUpdateEmployeeStatus = () => {
       queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
       
       // Show success message
+      const statusText = data.data?.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়';
       Swal.fire({
         title: 'সফল!',
-        text: `কর্মচারী স্ট্যাটাস ${data.data?.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে।`,
+        text: `কর্মচারী স্ট্যাটাস ${statusText} করা হয়েছে।`,
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',
       });
     },
     onError: (error) => {
+      const message = error?.response?.data?.message || error?.response?.data?.error || 'কর্মচারী স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।';
       Swal.fire({
         title: 'ত্রুটি!',
-        text: 'কর্মচারী স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে।',
+        text: message,
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -399,61 +411,21 @@ export const useEmployeeSearch = (searchTerm, enabled = true) => {
       }
       
       try {
-        // First try the search endpoint
-        const response = await axiosSecure.get(`/hr/employers/search?q=${encodeURIComponent(searchTerm)}&limit=10`);
+        // Use the main endpoint with search parameter (backend supports search in GET /api/hr/employers)
+        const response = await axiosSecure.get(`/api/hr/employers?search=${encodeURIComponent(searchTerm)}&limit=10`);
         
         if (response.data.success) {
           return response.data.data || [];
         } else {
-          // If search endpoint returns unsuccessful, try fallback
-          throw new Error('Search endpoint returned unsuccessful');
+          throw new Error(response.data.message || response.data.error || 'Search failed');
         }
       } catch (error) {
-        // Only log 404 errors in development mode, not for other errors
-        if (error?.response?.status === 404) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Employee search endpoint not found (404), trying fallback...');
-          }
-        } else if (error?.response?.status !== 404) {
-          // Log non-404 errors
+        // Log errors in development mode
+        if (process.env.NODE_ENV === 'development') {
           console.error('Employee search error:', error);
         }
         
-        // If search endpoint fails (404 or other), try to get all employees and filter client-side
-        try {
-          const fallbackResponse = await axiosSecure.get('/hr/employers?limit=100');
-          
-          if (fallbackResponse.data.success && fallbackResponse.data.data) {
-            const allEmployees = fallbackResponse.data.data;
-            const searchLower = searchTerm.toLowerCase();
-            
-            // Filter employees client-side
-            const filteredEmployees = allEmployees.filter(employee => {
-              const name = `${employee.firstName || ''} ${employee.lastName || ''}`.toLowerCase();
-              const email = (employee.email || '').toLowerCase();
-              const phone = (employee.phone || '').toLowerCase();
-              const employeeId = (employee.employeeId || '').toLowerCase();
-              const position = (employee.position || '').toLowerCase();
-              const department = (employee.department || '').toLowerCase();
-              
-              return name.includes(searchLower) ||
-                     email.includes(searchLower) ||
-                     phone.includes(searchLower) ||
-                     employeeId.includes(searchLower) ||
-                     position.includes(searchLower) ||
-                     department.includes(searchLower);
-            });
-            
-            return filteredEmployees.slice(0, 10); // Limit to 10 results
-          }
-        } catch (fallbackError) {
-          // Only log fallback errors in development mode
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Fallback employee search also failed, returning empty array');
-          }
-        }
-        
-        // Return empty array if all attempts fail
+        // Return empty array on error
         return [];
       }
     },
@@ -463,3 +435,4 @@ export const useEmployeeSearch = (searchTerm, enabled = true) => {
     retry: false, // Don't retry search queries
   });
 };
+

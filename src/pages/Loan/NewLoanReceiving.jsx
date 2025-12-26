@@ -68,6 +68,8 @@ const NewLoanReceiving = () => {
     emergencyPhone: '',
     
     // Additional Information
+    commencementDate: new Date().toISOString().split('T')[0], // Default to today
+    completionDate: '',
     notes: ''
   });
 
@@ -157,20 +159,20 @@ const NewLoanReceiving = () => {
       setFormData(prev => ({ ...prev, [imageType]: imageUrl }));
       
       Swal.fire({
-        title: 'Success!',
-        text: 'Image uploaded to Cloudinary successfully!',
+        title: 'সফল!',
+        text: 'ছবি সফলভাবে আপলোড করা হয়েছে!',
         icon: 'success',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
       
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: error.message || 'Failed to upload image. Please try again.',
+        title: 'ত্রুটি!',
+        text: error.message || 'ছবি আপলোড করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।',
         icon: 'error',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
         background: isDark ? '#1F2937' : '#FEF2F2'
       });
@@ -191,24 +193,24 @@ const NewLoanReceiving = () => {
 
     // Required: First and Last Name only
     if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = 'নামের প্রথম অংশ আবশ্যক';
     }
     if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = 'নামের শেষ অংশ আবশ্যক';
     }
 
     // Optional field validations (format-only when provided)
     if (formData.nidNumber && !/^\d{10}$|^\d{13}$|^\d{17}$/.test(formData.nidNumber.replace(/\s/g, ''))) {
-      newErrors.nidNumber = 'Please enter a valid NID number';
+      newErrors.nidNumber = 'সঠিক জাতীয় পরিচয়পত্র নম্বর লিখুন';
     }
 
     // Contact Information Validation
     if (formData.contactPhone && !/^01[3-9]\d{8}$/.test(formData.contactPhone)) {
-      newErrors.contactPhone = 'Please enter a valid phone number';
+      newErrors.contactPhone = 'সঠিক মোবাইল নম্বর লিখুন';
     }
 
     if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
-      newErrors.contactEmail = 'Please enter a valid email address';
+      newErrors.contactEmail = 'সঠিক ইমেইল ঠিকানা লিখুন';
     }
 
     setErrors(newErrors);
@@ -220,10 +222,10 @@ const NewLoanReceiving = () => {
     
     if (!validateForm()) {
       Swal.fire({
-        title: 'Error!',
-        text: 'Please fill in all required fields correctly.',
+        title: 'ত্রুটি!',
+        text: 'অনুগ্রহ করে সব আবশ্যক ক্ষেত্র সঠিকভাবে পূরণ করুন।',
         icon: 'error',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
         background: isDark ? '#1F2937' : '#FEF2F2'
       });
@@ -243,10 +245,10 @@ const NewLoanReceiving = () => {
       const result = await createReceivingLoan.mutateAsync(loanData);
 
       await Swal.fire({
-        title: 'Success!',
-        text: result?.message || 'Loan application has been submitted successfully.',
+        title: 'সফল!',
+        text: result?.message || 'ঋণের আবেদন সফলভাবে জমা দেওয়া হয়েছে।',
         icon: 'success',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
@@ -281,6 +283,8 @@ const NewLoanReceiving = () => {
         contactEmail: '',
         emergencyContact: '',
         emergencyPhone: '',
+        commencementDate: new Date().toISOString().split('T')[0],
+        completionDate: '',
         notes: ''
       });
       setImagePreview({
@@ -290,10 +294,10 @@ const NewLoanReceiving = () => {
       });
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: (error?.response?.data?.message) || error.message || 'There was a problem submitting the loan application.',
+        title: 'ত্রুটি!',
+        text: (error?.response?.data?.message) || error.message || 'ঋণের আবেদন জমা দিতে সমস্যা হয়েছে।',
         icon: 'error',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
         background: isDark ? '#1F2937' : '#FEF2F2'
       });
@@ -328,12 +332,12 @@ const NewLoanReceiving = () => {
               </div>
               <div>
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  New Loan Application
+                  নতুন ঋণ আবেদন
                 </h1>
                 <p className={`mt-1 text-lg transition-colors duration-300 ${
                   isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}>
-                  Fill in the required information for loan application
+                  ঋণ আবেদনের জন্য প্রয়োজনীয় তথ্য পূরণ করুন
                 </p>
               </div>
             </div>
@@ -350,14 +354,14 @@ const NewLoanReceiving = () => {
               <div className="lg:col-span-2">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <User className="w-5 h-5 text-blue-600" />
-                  Personal Information & Profile
+                  ব্যক্তিগত তথ্য ও প্রোফাইল
                 </h3>
               </div>
 
               {/* Profile Photo Upload */}
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Profile Photo
+                  প্রোফাইল ছবি
                 </label>
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden">
@@ -390,7 +394,7 @@ const NewLoanReceiving = () => {
                       ) : (
                         <Upload className="w-4 h-4" />
                       )}
-                      {imageUploading.profilePhoto ? 'Uploading...' : 'Upload Photo'}
+                      {imageUploading.profilePhoto ? 'আপলোড হচ্ছে...' : 'ছবি আপলোড করুন'}
                     </label>
                     {errors.profilePhoto && (
                       <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
@@ -404,14 +408,14 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  First Name *
+                  নামের প্রথম অংশ *
                 </label>
                 <input
                   type="text"
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  placeholder="Enter first name"
+                  placeholder="নামের প্রথম অংশ লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.firstName
                       ? 'border-red-500 focus:ring-red-500'
@@ -430,14 +434,14 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Last Name *
+                  নামের শেষ অংশ *
                 </label>
                 <input
                   type="text"
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  placeholder="Enter last name"
+                  placeholder="নামের শেষ অংশ লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.lastName
                       ? 'border-red-500 focus:ring-red-500'
@@ -456,7 +460,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Full Name
+                  পূর্ণ নাম
                 </label>
                 <input
                   type="text"
@@ -464,7 +468,7 @@ const NewLoanReceiving = () => {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   readOnly
-                  placeholder="Enter your full name"
+                  placeholder="পূর্ণ নাম"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -475,14 +479,14 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Father's Name
+                  পিতার নাম
                 </label>
                 <input
                   type="text"
                   name="fatherName"
                   value={formData.fatherName}
                   onChange={handleInputChange}
-                  placeholder="Enter father's name"
+                  placeholder="পিতার নাম লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.fatherName
                       ? 'border-red-500 focus:ring-red-500'
@@ -501,14 +505,14 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Mother's Name
+                  মাতার নাম
                 </label>
                 <input
                   type="text"
                   name="motherName"
                   value={formData.motherName}
                   onChange={handleInputChange}
-                  placeholder="Enter mother's name"
+                  placeholder="মাতার নাম লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -519,7 +523,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Date of Birth
+                  জন্ম তারিখ
                 </label>
                 <input
                   type="date"
@@ -544,7 +548,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Gender
+                  লিঙ্গ
                 </label>
                 <select
                   name="gender"
@@ -558,10 +562,10 @@ const NewLoanReceiving = () => {
                         : 'border-gray-300'
                   }`}
                 >
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
+                  <option value="">লিঙ্গ নির্বাচন করুন</option>
+                  <option value="Male">পুরুষ</option>
+                  <option value="Female">মহিলা</option>
+                  <option value="Other">অন্যান্য</option>
                 </select>
                 {errors.gender && (
                   <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
@@ -573,7 +577,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Marital Status
+                  বৈবাহিক অবস্থা
                 </label>
                 <select
                   name="maritalStatus"
@@ -585,11 +589,11 @@ const NewLoanReceiving = () => {
                       : 'border-gray-300'
                   }`}
                 >
-                  <option value="">Select Status</option>
-                  <option value="Single">Single</option>
-                  <option value="Married">Married</option>
-                  <option value="Divorced">Divorced</option>
-                  <option value="Widowed">Widowed</option>
+                  <option value="">অবস্থা নির্বাচন করুন</option>
+                  <option value="Single">অবিবাহিত</option>
+                  <option value="Married">বিবাহিত</option>
+                  <option value="Divorced">তালাকপ্রাপ্ত</option>
+                  <option value="Widowed">বিধবা/বিধুর</option>
                 </select>
               </div>
 
@@ -597,20 +601,20 @@ const NewLoanReceiving = () => {
               <div className="lg:col-span-2">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <CreditCard className="w-5 h-5 text-green-600" />
-                  National ID Information
+                  জাতীয় পরিচয়পত্র তথ্য
                 </h4>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  National ID Number
+                  জাতীয় পরিচয়পত্র নম্বর
                 </label>
                 <input
                   type="text"
                   name="nidNumber"
                   value={formData.nidNumber}
                   onChange={handleInputChange}
-                  placeholder="Enter National ID number"
+                  placeholder="জাতীয় পরিচয়পত্র নম্বর লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.nidNumber
                       ? 'border-red-500 focus:ring-red-500'
@@ -630,7 +634,7 @@ const NewLoanReceiving = () => {
               {/* NID Image Uploads */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  NID Front Image
+                  জাতীয় পরিচয়পত্রের সামনের ছবি
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center">
                   {imagePreview.nidFrontImage ? (
@@ -648,7 +652,7 @@ const NewLoanReceiving = () => {
                       ) : (
                         <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                       )}
-                      <p className="text-gray-500">{imageUploading.nidFrontImage ? 'Uploading...' : 'NID Front Image'}</p>
+                      <p className="text-gray-500">{imageUploading.nidFrontImage ? 'আপলোড হচ্ছে...' : 'জাতীয় পরিচয়পত্রের সামনের ছবি'}</p>
                     </div>
                   )}
                   <input
@@ -670,7 +674,7 @@ const NewLoanReceiving = () => {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    {imageUploading.nidFrontImage ? 'Uploading...' : 'Upload'}
+                    {imageUploading.nidFrontImage ? 'আপলোড হচ্ছে...' : 'আপলোড করুন'}
                   </label>
                   {errors.nidFrontImage && (
                     <p className="mt-2 text-sm text-red-600 flex items-center justify-center gap-1">
@@ -683,7 +687,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  NID Back Image
+                  জাতীয় পরিচয়পত্রের পিছনের ছবি
                 </label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center">
                   {imagePreview.nidBackImage ? (
@@ -701,7 +705,7 @@ const NewLoanReceiving = () => {
                       ) : (
                         <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
                       )}
-                      <p className="text-gray-500">{imageUploading.nidBackImage ? 'Uploading...' : 'NID Back Image'}</p>
+                      <p className="text-gray-500">{imageUploading.nidBackImage ? 'আপলোড হচ্ছে...' : 'জাতীয় পরিচয়পত্রের পিছনের ছবি'}</p>
                     </div>
                   )}
                   <input
@@ -723,7 +727,7 @@ const NewLoanReceiving = () => {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    {imageUploading.nidBackImage ? 'Uploading...' : 'Upload'}
+                    {imageUploading.nidBackImage ? 'আপলোড হচ্ছে...' : 'আপলোড করুন'}
                   </label>
                   {errors.nidBackImage && (
                     <p className="mt-2 text-sm text-red-600 flex items-center justify-center gap-1">
@@ -738,20 +742,20 @@ const NewLoanReceiving = () => {
               <div className="lg:col-span-2 mt-6">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-purple-600" />
-                  Address Information
+                  ঠিকানা তথ্য
                 </h4>
               </div>
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Present Address
+                  বর্তমান ঠিকানা
                 </label>
                 <textarea
                   name="presentAddress"
                   value={formData.presentAddress}
                   onChange={handleInputChange}
                   rows="2"
-                  placeholder="Enter detailed present address"
+                  placeholder="বর্তমান ঠিকানার বিস্তারিত লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
                     errors.presentAddress
                       ? 'border-red-500 focus:ring-red-500'
@@ -770,14 +774,14 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  District
+                  জেলা
                 </label>
                 <input
                   type="text"
                   name="district"
                   value={formData.district}
                   onChange={handleInputChange}
-                  placeholder="Enter district"
+                  placeholder="জেলা লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.district
                       ? 'border-red-500 focus:ring-red-500'
@@ -796,14 +800,14 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Upazila
+                  উপজেলা
                 </label>
                 <input
                   type="text"
                   name="upazila"
                   value={formData.upazila}
                   onChange={handleInputChange}
-                  placeholder="Enter upazila"
+                  placeholder="উপজেলা লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.upazila
                       ? 'border-red-500 focus:ring-red-500'
@@ -824,13 +828,13 @@ const NewLoanReceiving = () => {
               <div className="lg:col-span-2 mt-6">
                 <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <Phone className="w-5 h-5 text-blue-600" />
-                  Contact Information
+                  যোগাযোগের তথ্য
                 </h4>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Phone Number
+                  মোবাইল নম্বর
                 </label>
                 <input
                   type="tel"
@@ -856,7 +860,7 @@ const NewLoanReceiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Email
+                  ইমেইল
                 </label>
                 <input
                   type="email"
@@ -882,16 +886,54 @@ const NewLoanReceiving = () => {
 
               {/* Loan Details removed as requested */}
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  লোন শুরুর তারিখ
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    name="commencementDate"
+                    value={formData.commencementDate}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  লোন শেষ তারিখ
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    name="completionDate"
+                    value={formData.completionDate}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Additional Notes
+                  অতিরিক্ত নোট
                 </label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows="3"
-                  placeholder="Enter additional information about the loan application..."
+                  placeholder="ঋণ আবেদন সম্পর্কে অতিরিক্ত তথ্য লিখুন..."
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
@@ -909,7 +951,7 @@ const NewLoanReceiving = () => {
                 className="flex items-center gap-2 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
               >
                 <X className="w-4 h-4" />
-                Cancel
+                বাতিল
               </button>
               <button
                 type="submit"
@@ -919,12 +961,12 @@ const NewLoanReceiving = () => {
                 {isSubmitting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Submitting...
+                    জমা দেওয়া হচ্ছে...
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Submit Application
+                    আবেদন জমা দিন
                   </>
                 )}
               </button>

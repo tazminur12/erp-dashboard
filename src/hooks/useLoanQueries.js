@@ -21,6 +21,7 @@ export const useLoans = (filters = {}, page = 1, limit = 20) => {
       const params = new URLSearchParams();
       if (filters.loanDirection) params.append('loanDirection', String(filters.loanDirection));
       if (filters.status) params.append('status', String(filters.status));
+      if (filters.branchId) params.append('branchId', String(filters.branchId));
       // Allow filtering by customerId if backend supports it
       if (filters.customerId) params.append('customerId', String(filters.customerId));
       if (filters.search) params.append('search', String(filters.search));

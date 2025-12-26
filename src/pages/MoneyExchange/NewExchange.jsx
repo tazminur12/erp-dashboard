@@ -83,11 +83,43 @@ const NewExchange = () => {
     }
   }, [form.currencyCode]);
 
+  // Reset quantity and exchangeRate when type changes
+  useEffect(() => {
+    setForm((f) => ({ ...f, quantity: '', exchangeRate: '' }));
+    setErrors((e) => ({ ...e, quantity: undefined, exchangeRate: undefined }));
+  }, [form.type]);
+
+  const isBuy = form.type === 'Buy';
+
+  // For Buy: quantity field stores BDT amount, calculate foreign currency
+  // For Sell: quantity field stores foreign currency, calculate BDT
   const amount = useMemo(() => {
     const r = Number(form.exchangeRate);
     const q = Number(form.quantity);
-    return Number.isFinite(r) && Number.isFinite(q) ? r * q : 0;
-  }, [form.exchangeRate, form.quantity]);
+    if (!Number.isFinite(r) || !Number.isFinite(q) || r <= 0 || q <= 0) return 0;
+    
+    if (isBuy) {
+      // Buy: quantity is BDT paid, amount_bdt = quantity
+      return q;
+    } else {
+      // Sell: quantity is foreign currency, amount_bdt = quantity * rate
+      return q * r;
+    }
+  }, [form.exchangeRate, form.quantity, isBuy]);
+
+  const foreignCurrencyAmount = useMemo(() => {
+    const r = Number(form.exchangeRate);
+    const q = Number(form.quantity);
+    if (!Number.isFinite(r) || !Number.isFinite(q) || r <= 0 || q <= 0) return 0;
+    
+    if (isBuy) {
+      // Buy: quantity is BDT, foreign currency = quantity / rate
+      return q / r;
+    } else {
+      // Sell: quantity is foreign currency
+      return q;
+    }
+  }, [form.exchangeRate, form.quantity, isBuy]);
 
   const handleChange = (name, value) => {
     setForm((f) => ({ ...f, [name]: value }));
@@ -101,10 +133,15 @@ const NewExchange = () => {
     if (Object.keys(v).filter((k) => v[k]).length) return;
 
     try {
-      await createExchange.mutateAsync({
+      // Prepare data for API
+      // Backend expects: quantity = foreign currency amount, amount_bdt = BDT amount
+      const payload = {
         ...form,
+        quantity: isBuy ? foreignCurrencyAmount : Number(form.quantity), // For Buy, convert BDT to foreign currency
         amount_bdt: amount,
-      });
+      };
+      
+      await createExchange.mutateAsync(payload);
       setForm({ ...initialForm });
     } catch (error) {
       // Error is handled by the mutation's onError callback
@@ -148,7 +185,35 @@ const NewExchange = () => {
         <div className="xl:col-span-2">
           <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
             <form id="exchange-form" onSubmit={handleSubmit} className="space-y-6" noValidate>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Type Selection - First */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type (ধরণ) <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => handleChange('type', t.value)}
+                      disabled={disabled}
+                      className={`px-4 py-3 rounded-md border-2 font-medium transition-all ${
+                        form.type === t.value
+                          ? t.value === 'Buy'
+                            ? 'border-green-500 bg-green-50 text-green-700'
+                            : 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      } disabled:opacity-50`}
+                    >
+                      {t.labelBn}
+                    </button>
+                  ))}
+                </div>
+                {errors.type && <p className="mt-1 text-xs text-red-600">{errors.type}</p>}
+              </div>
+
+              {/* Common Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Date (তারিখ) <span className="text-red-500">*</span>
@@ -176,25 +241,6 @@ const NewExchange = () => {
                     disabled={disabled}
                   />
                   {errors.fullName && <p className="mt-1 text-xs text-red-600">{errors.fullName}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Type (ধরণ) <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
-                    value={form.type}
-                    onChange={(e) => handleChange('type', e.target.value)}
-                    disabled={disabled}
-                  >
-                    {TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.labelBn}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.type && <p className="mt-1 text-xs text-red-600">{errors.type}</p>}
                 </div>
               </div>
 
@@ -230,6 +276,7 @@ const NewExchange = () => {
                 </div>
               </div>
 
+              {/* Currency Selection */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
@@ -280,48 +327,112 @@ const NewExchange = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Exchange Rate (এক্সচেঞ্জ রেট) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.0001"
-                    className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="0.0000"
-                    value={form.exchangeRate}
-                    onChange={(e) => handleChange('exchangeRate', e.target.value)}
-                    disabled={disabled}
-                  />
-                  {errors.exchangeRate && <p className="mt-1 text-xs text-red-600">{errors.exchangeRate}</p>}
-                </div>
+              {/* Type-specific Fields */}
+              {isBuy ? (
+                // Buy Form: Paying BDT, Receiving Foreign Currency
+                <div className="space-y-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                  <h3 className="text-sm font-semibold text-green-800 mb-3">ক্রয় (Buy) - BDT প্রদান করে বিদেশি মুদ্রা গ্রহণ</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Amount to Pay (প্রদান করতে হবে) <span className="text-red-500">*</span>
+                        <span className="text-xs text-gray-500 block">BDT</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="0.00"
+                        value={form.quantity}
+                        onChange={(e) => handleChange('quantity', e.target.value)}
+                        disabled={disabled}
+                      />
+                      {errors.quantity && <p className="mt-1 text-xs text-red-600">{errors.quantity}</p>}
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Quantity (পরিমাণ) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="0.00"
-                    value={form.quantity}
-                    onChange={(e) => handleChange('quantity', e.target.value)}
-                    disabled={disabled}
-                  />
-                  {errors.quantity && <p className="mt-1 text-xs text-red-600">{errors.quantity}</p>}
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Exchange Rate (এক্সচেঞ্জ রেট) <span className="text-red-500">*</span>
+                        <span className="text-xs text-gray-500 block">1 {form.currencyCode} = ? BDT</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.0001"
+                        className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
+                        placeholder="0.0000"
+                        value={form.exchangeRate}
+                        onChange={(e) => handleChange('exchangeRate', e.target.value)}
+                        disabled={disabled}
+                      />
+                      {errors.exchangeRate && <p className="mt-1 text-xs text-red-600">{errors.exchangeRate}</p>}
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Amount (টাকা/BDT)</label>
-                  <div className="mt-1 w-full border rounded-md px-3 py-2 bg-gray-50 text-gray-900 tabular-nums">
-                    {formatBDT(amount)}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Foreign Currency to Receive (প্রাপ্ত হবে)
+                        <span className="text-xs text-gray-500 block">{form.currencyCode}</span>
+                      </label>
+                      <div className="mt-1 w-full border rounded-md px-3 py-2 bg-gray-50 text-gray-900 tabular-nums">
+                        {foreignCurrencyAmount.toFixed(4)}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                // Sell Form: Selling Foreign Currency, Receiving BDT
+                <div className="space-y-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                  <h3 className="text-sm font-semibold text-red-800 mb-3">বিক্রয় (Sell) - বিদেশি মুদ্রা প্রদান করে BDT গ্রহণ</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Foreign Currency to Sell (বিক্রয় করতে হবে) <span className="text-red-500">*</span>
+                        <span className="text-xs text-gray-500 block">{form.currencyCode}</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="0.00"
+                        value={form.quantity}
+                        onChange={(e) => handleChange('quantity', e.target.value)}
+                        disabled={disabled}
+                      />
+                      {errors.quantity && <p className="mt-1 text-xs text-red-600">{errors.quantity}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Exchange Rate (এক্সচেঞ্জ রেট) <span className="text-red-500">*</span>
+                        <span className="text-xs text-gray-500 block">1 {form.currencyCode} = ? BDT</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.0001"
+                        className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="0.0000"
+                        value={form.exchangeRate}
+                        onChange={(e) => handleChange('exchangeRate', e.target.value)}
+                        disabled={disabled}
+                      />
+                      {errors.exchangeRate && <p className="mt-1 text-xs text-red-600">{errors.exchangeRate}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Amount to Receive (প্রাপ্ত হবে)
+                        <span className="text-xs text-gray-500 block">BDT</span>
+                      </label>
+                      <div className="mt-1 w-full border rounded-md px-3 py-2 bg-gray-50 text-gray-900 tabular-nums">
+                        {formatBDT(amount)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-2">
                 <button
@@ -345,9 +456,15 @@ const NewExchange = () => {
         </div>
 
         <aside className="space-y-4">
-          <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+          <div className={`bg-white rounded-lg border p-5 shadow-sm ${isBuy ? 'border-green-200' : 'border-red-200'}`}>
             <h3 className="text-base font-semibold text-gray-900 mb-3">লেনদেনের সারাংশ</h3>
             <div className="space-y-3 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600">ধরণ</span>
+                <span>
+                  <Pill color={isBuy ? 'green' : 'red'}>{form.type}</Pill>
+                </span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">তারিখ</span>
                 <span className="font-medium text-gray-900">{form.date || '-'}</span>
@@ -360,16 +477,12 @@ const NewExchange = () => {
                 <span className="text-gray-600">মোবাইল নম্বর</span>
                 <span className="font-medium text-gray-900">{form.mobileNumber || '-'}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">জাতীয় পরিচয়পত্র</span>
-                <span className="font-medium text-gray-900">{form.nid || '-'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">ধরণ</span>
-                <span>
-                  <Pill color={form.type === 'Buy' ? 'green' : 'red'}>{form.type}</Pill>
-                </span>
-              </div>
+              {form.nid && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">জাতীয় পরিচয়পত্র</span>
+                  <span className="font-medium text-gray-900">{form.nid}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-gray-600">কারেন্সি</span>
                 <span className="font-medium text-gray-900">
@@ -378,16 +491,35 @@ const NewExchange = () => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">এক্সচেঞ্জ রেট</span>
-                <span className="font-medium text-gray-900 tabular-nums">{form.exchangeRate || '0.0000'}</span>
+                <span className="font-medium text-gray-900 tabular-nums">
+                  1 {form.currencyCode} = {form.exchangeRate || '0.0000'} BDT
+                </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">পরিমাণ</span>
-                <span className="font-medium text-gray-900 tabular-nums">{form.quantity || '0.00'}</span>
-              </div>
-              <div className="border-t pt-3 mt-2 flex justify-between">
-                <span className="text-gray-700 font-medium">মোট (BDT)</span>
-                <span className="text-lg font-semibold text-gray-900">{formatBDT(amount)}</span>
-              </div>
+              {isBuy ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">প্রদান করতে হবে (BDT)</span>
+                    <span className="font-medium text-gray-900 tabular-nums">{formatBDT(Number(form.quantity) || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">প্রাপ্ত হবে ({form.currencyCode})</span>
+                    <span className="font-medium text-gray-900 tabular-nums">
+                      {foreignCurrencyAmount.toFixed(4)}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">বিক্রয় করতে হবে ({form.currencyCode})</span>
+                    <span className="font-medium text-gray-900 tabular-nums">{form.quantity || '0.00'}</span>
+                  </div>
+                  <div className="border-t pt-3 mt-2 flex justify-between">
+                    <span className="text-gray-700 font-medium">প্রাপ্ত হবে (BDT)</span>
+                    <span className="text-lg font-semibold text-gray-900">{formatBDT(amount)}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </aside>

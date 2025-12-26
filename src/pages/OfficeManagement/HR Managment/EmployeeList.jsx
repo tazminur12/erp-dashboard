@@ -222,6 +222,48 @@ const EmployeeList = () => {
     'Administration'
   ];
 
+  // Calculate salary statistics
+  const calculateSalaryStats = () => {
+    const activeEmployees = filteredEmployees.filter(emp => emp.status === 'active' || emp.status === 'Active');
+    
+    // Total paid salary - will be fetched from backend
+    // TODO: Replace with actual API call to get total paid salary
+    const totalPaidSalary = 0;
+    
+    // Calculate this month paid salary - mock calculation
+    // In real app, this would come from payroll API filtered by current month
+    // Mock: assume 80% of active employees have been paid this month
+    // Use employee ID hash to determine if paid (deterministic)
+    const thisMonthPaidSalary = activeEmployees.reduce((sum, emp) => {
+      const basicSalary = emp.basicSalary || 0;
+      // Use employee ID to create deterministic "paid" status (80% paid)
+      const empId = (emp.id || emp.employeeId || '').toString();
+      const hash = empId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const isPaid = (hash % 10) < 8; // 80% chance based on hash
+      return sum + (isPaid ? basicSalary : 0);
+    }, 0);
+    
+    // Calculate this month salary dues - mock calculation
+    // In real app, this would be unpaid salaries for current month
+    // Mock: assume 20% of active employees haven't been paid this month
+    const thisMonthSalaryDues = activeEmployees.reduce((sum, emp) => {
+      const basicSalary = emp.basicSalary || 0;
+      // Use employee ID to create deterministic "unpaid" status (20% unpaid)
+      const empId = (emp.id || emp.employeeId || '').toString();
+      const hash = empId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const isUnpaid = (hash % 10) >= 8; // 20% chance based on hash
+      return sum + (isUnpaid ? basicSalary : 0);
+    }, 0);
+    
+    return {
+      totalPaidSalary,
+      thisMonthPaidSalary,
+      thisMonthSalaryDues
+    };
+  };
+
+  const salaryStats = calculateSalaryStats();
+
   if (isLoading) {
     return (
       <div className="p-6 bg-gray-50 min-h-screen">
@@ -275,7 +317,7 @@ const EmployeeList = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
@@ -326,6 +368,54 @@ const EmployeeList = () => {
               </div>
               <div className="bg-orange-100 p-3 rounded-full">
                 <DollarSign className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Salary Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-xl shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">Total Paid Salary</p>
+                <p className="text-2xl font-bold text-indigo-600">
+                  ৳{salaryStats.totalPaidSalary.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">All time</p>
+              </div>
+              <div className="bg-indigo-100 p-3 rounded-full">
+                <DollarSign className="w-6 h-6 text-indigo-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">This Month Paid Salary</p>
+                <p className="text-2xl font-bold text-emerald-600">
+                  ৳{salaryStats.thisMonthPaidSalary.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+              </div>
+              <div className="bg-emerald-100 p-3 rounded-full">
+                <DollarSign className="w-6 h-6 text-emerald-600" />
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white p-6 rounded-xl shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm">This Month Salary Dues</p>
+                <p className="text-2xl font-bold text-red-600">
+                  ৳{salaryStats.thisMonthSalaryDues.toLocaleString()}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">Pending payment</p>
+              </div>
+              <div className="bg-red-100 p-3 rounded-full">
+                <DollarSign className="w-6 h-6 text-red-600" />
               </div>
             </div>
           </div>

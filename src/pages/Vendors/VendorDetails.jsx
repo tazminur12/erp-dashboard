@@ -127,9 +127,19 @@ const VendorDetails = () => {
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 text-white">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
-              <Building2 className="w-8 h-8" />
-            </div>
+            {vendor.logo ? (
+              <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center overflow-hidden">
+                <img
+                  src={vendor.logo}
+                  alt={`${vendor.tradeName} logo`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
+                <Building2 className="w-8 h-8" />
+              </div>
+            )}
             <div>
               <h1 className="text-3xl font-bold">{vendor.tradeName}</h1>
               <p className="text-purple-100 text-lg">{vendor.ownerName}</p>
@@ -157,6 +167,13 @@ const VendorDetails = () => {
               <Clock className="w-4 h-4" />
               Refresh
             </button>
+            <Link 
+              to={`/vendors/${vendor._id || vendor.vendorId}/bank-accounts`}
+              className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
+            >
+              <CreditCard className="w-4 h-4" />
+              Bank Accounts
+            </Link>
               <Link 
               to={`/vendors/${vendor._id || vendor.vendorId}/edit`} 
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
@@ -224,6 +241,21 @@ const VendorDetails = () => {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-4">
+                {vendor.logo && (
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-shrink-0">
+                      <img
+                        src={vendor.logo}
+                        alt={`${vendor.tradeName} logo`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">Vendor Logo</div>
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-1">Company branding</div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
                   <Hash className="w-5 h-5 mt-1 text-gray-500" />
                   <div>

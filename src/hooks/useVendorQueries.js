@@ -39,6 +39,7 @@ export const useVendors = (filters = {}) => {
         dob: vendor.dob || '',
         nid: vendor.nid || '',
         passport: vendor.passport || '',
+        logo: vendor.logo || '',
         createdAt: vendor.createdAt || new Date().toISOString(),
         updatedAt: vendor.updatedAt || new Date().toISOString()
       }));
@@ -97,6 +98,7 @@ export const useVendor = (vendorId) => {
         dob: vendor.dob || '',
         nid: vendor.nid || '',
         passport: vendor.passport || '',
+        logo: vendor.logo || '',
         totalPaid: vendor.totalPaid ?? 0,
         totalDue: vendor.totalDue ?? 0,
         hajDue: vendor.hajDue ?? 0,

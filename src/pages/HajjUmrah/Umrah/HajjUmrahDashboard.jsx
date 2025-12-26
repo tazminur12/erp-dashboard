@@ -79,6 +79,7 @@ const HajjUmrahDashboard = () => {
   }
 
   // Extract data from API response
+  // Backend returns: { overview, profitLoss, agentProfitLoss, topAgentsByHaji, topDistricts, financialSummary }
   const overview = dashboardData?.overview || {};
   const profitLoss = dashboardData?.profitLoss || {};
   const agentProfitLoss = dashboardData?.agentProfitLoss || [];
@@ -354,6 +355,18 @@ const HajjUmrahDashboard = () => {
               <span className="text-gray-600 dark:text-gray-400">উমরাহ বকেয়া:</span>
               <span className="font-semibold text-purple-600">{formatCurrency(financialSummary.agents?.umrahDue || 0)}</span>
             </div>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">মোট এডভান্স:</span>
+                <span className={`font-bold text-lg ${
+                  (agentProfitLoss.reduce((sum, agent) => sum + (agent.totalAdvance || 0), 0)) >= 0 
+                    ? 'text-green-600' 
+                    : 'text-orange-600'
+                }`}>
+                  {formatCurrency(agentProfitLoss.reduce((sum, agent) => sum + (agent.totalAdvance || 0), 0))}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -412,6 +425,9 @@ const HajjUmrahDashboard = () => {
                     লাভ/ক্ষতি
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    এডভান্স
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     প্যাকেজ
                   </th>
                 </tr>
@@ -438,6 +454,11 @@ const HajjUmrahDashboard = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`text-sm font-semibold ${(agent.profitLoss || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatCurrency(agent.profitLoss || 0)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-sm font-semibold ${(agent.totalAdvance || 0) >= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                        {formatCurrency(agent.totalAdvance || 0)}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">

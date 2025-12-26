@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Users, ArrowLeft, Pencil, UserCheck, Calendar, DollarSign,
-  TrendingUp, MapPin, Phone, Mail, CreditCard, FileText,
+  TrendingUp, TrendingDown, MapPin, Phone, Mail, CreditCard, FileText,
   Building, Globe, Award, Target, BarChart3, PieChart, Package,
   ChevronDown, ChevronUp, Eye, Edit, Trash2, Plus, Wallet, Receipt,
-  PiggyBank, Calculator, FileSpreadsheet, AlertTriangle
+  PiggyBank, Calculator, FileSpreadsheet, AlertTriangle, Banknote
 } from 'lucide-react';
 import { useAgent } from '../../../hooks/useAgentQueries';
 import { useAgentPackageList, useDeleteAgentPackage, useAgentPackageTransactions } from '../../../hooks/UseAgentPacakageQueries';
@@ -74,6 +74,7 @@ const calculateProfitLoss = (pkg = {}) => {
 
   const costingPrice =
     resolveNumber(
+      profitLossFromApi.totalCostingPrice, // Prioritize totalCostingPrice from profitLoss
       profitLossFromApi.costingPrice,
       totals.costingPrice,
       totals.grandTotal,
@@ -190,16 +191,23 @@ const transactionsData = {
   const packageSummary = packages.reduce(
     (acc, pkg) => {
       const assignedCount = Array.isArray(pkg.assignedCustomers) ? pkg.assignedCustomers.length : 0;
+      // Bill should use totalPrice (original package selling price), NOT costingPrice
+      // Priority: Use package totalPrice first (base package price), then profitLoss values
       const billed = resolveNumber(
         pkg.financialSummary?.totalBilled,
         pkg.financialSummary?.billTotal,
         pkg.financialSummary?.subtotal,
         pkg.paymentSummary?.totalBilled,
         pkg.paymentSummary?.billTotal,
+        // Package total price (base package price - this is what we want)
+        pkg.totalPrice,
+        pkg.totalPriceBdt,
         pkg.totals?.grandTotal,
         pkg.totals?.subtotal,
-        pkg.totalPriceBdt,
-        pkg.totalPrice
+        // Fallback to profitLoss values if totalPrice not available
+        pkg.profitLoss?.packagePrice,
+        pkg.profitLoss?.totalOriginalPrice
+        // NOTE: Do NOT use costingPrice here - that's the cost, not the bill amount
       );
       const paid = resolveNumber(
         pkg.financialSummary?.totalPaid,
@@ -212,20 +220,28 @@ const transactionsData = {
         pkg.depositReceived,
         pkg.receivedAmount
       );
-      let due = resolveNumber(
-        pkg.financialSummary?.totalDue,
-        pkg.financialSummary?.dueAmount,
-        pkg.paymentSummary?.totalDue,
-        pkg.paymentSummary?.due,
-        pkg.totalDue
-      );
-      if (!due && billed) {
-        due = Math.max(billed - paid, 0);
-      }
+      // Always calculate dues as billed - paid to ensure accuracy
+      // Ignore API due values as they may be incorrect
+      // Dues = Bill - Paid (what's owed minus what's paid)
+      const due = Math.max(billed - paid, 0);
 
       // Calculate profit/loss for this package
       const profit = calculateProfitLoss(pkg);
       const profitValue = profit.profitValue || 0;
+      
+      // Get costing price for this package (needed for total costing calculation)
+      const costingPrice = profit.costingPrice || 0;
+      
+      // Debug: Log individual package costing price
+      if (costingPrice === 0) {
+        console.log('Package costingPrice is 0:', {
+          packageId: pkg._id,
+          packageName: pkg.packageName,
+          profitLoss: pkg.profitLoss,
+          totals: pkg.totals,
+          calculatedCostingPrice: profit.costingPrice,
+        });
+      }
 
       const isHajj =
         pkg.packageType === 'Hajj' ||
@@ -234,16 +250,20 @@ const transactionsData = {
         pkg.customPackageType === 'Hajj';
       const group = isHajj ? 'hajj' : 'umrah';
 
+      // Add all packages to summary regardless of assigned customers
+      // Package create করলেই Bill এ add হবে
       acc[group].customers += assignedCount;
       acc[group].billed += billed;
       acc[group].paid += paid;
       acc[group].due += due;
+      acc[group].costingPrice += costingPrice; // Sum all costing prices
       acc[group].profit += profitValue;
 
       acc.overall.customers += assignedCount;
       acc.overall.billed += billed;
       acc.overall.paid += paid;
       acc.overall.due += due;
+      acc.overall.costingPrice += costingPrice; // Sum all costing prices
       acc.overall.profit += profitValue;
 
       return acc;
@@ -254,6 +274,7 @@ const transactionsData = {
         billed: 0,
         paid: 0,
         due: 0,
+        costingPrice: 0,
         profit: 0,
       },
       hajj: {
@@ -261,6 +282,7 @@ const transactionsData = {
         billed: 0,
         paid: 0,
         due: 0,
+        costingPrice: 0,
         profit: 0,
       },
       umrah: {
@@ -268,6 +290,7 @@ const transactionsData = {
         billed: 0,
         paid: 0,
         due: 0,
+        costingPrice: 0,
         profit: 0,
       },
     }
@@ -290,8 +313,23 @@ const transactionsData = {
         ['totalPaid', 'totalDeposit', 'totalReceived', 'totalCollection'],
         packageSummary.overall.paid
       ),
-      due: pickNumberFromObject(agent, ['totalDue', 'dueAmount', 'outstanding'], packageSummary.overall.due),
-      profit: packageSummary.overall.profit,
+      // Use backend calculated due value if available, otherwise calculate from package summary
+      due: pickNumberFromObject(
+        agent,
+        ['totalDue'],
+        packageSummary.overall.due
+      ),
+      // Use backend calculated advance value if available, otherwise calculate from package summary
+      advance: pickNumberFromObject(
+        agent,
+        ['totalAdvance'],
+        packageSummary.overall.paid - packageSummary.overall.costingPrice
+      ),
+      profit: pickNumberFromObject(
+        agent,
+        ['totalProfit'],
+        packageSummary.overall.profit
+      ),
     },
     hajj: {
       customers: pickNumberFromObject(
@@ -309,8 +347,23 @@ const transactionsData = {
         ['hajPaid', 'hajjPaid', 'hajjDeposit', 'hajDeposit', 'totalHajjPaid'],
         packageSummary.hajj.paid
       ),
-      due: pickNumberFromObject(agent, ['hajDue', 'hajjDue', 'totalHajjDue'], packageSummary.hajj.due),
-      profit: packageSummary.hajj.profit,
+      // Use backend calculated due value if available, otherwise calculate from package summary
+      due: pickNumberFromObject(
+        agent,
+        ['hajDue'],
+        packageSummary.hajj.due
+      ),
+      // Use backend calculated advance value if available, otherwise calculate from package summary
+      advance: pickNumberFromObject(
+        agent,
+        ['hajAdvance'],
+        packageSummary.hajj.paid - packageSummary.hajj.costingPrice
+      ),
+      profit: pickNumberFromObject(
+        agent,
+        ['hajProfit'],
+        packageSummary.hajj.profit
+      ),
     },
     umrah: {
       customers: pickNumberFromObject(
@@ -328,8 +381,23 @@ const transactionsData = {
         ['umrahPaid', 'umrahDeposit', 'totalUmrahPaid'],
         packageSummary.umrah.paid
       ),
-      due: pickNumberFromObject(agent, ['umrahDue', 'totalUmrahDue'], packageSummary.umrah.due),
-      profit: packageSummary.umrah.profit,
+      // Use backend calculated due value if available, otherwise calculate from package summary
+      due: pickNumberFromObject(
+        agent,
+        ['umrahDue'],
+        packageSummary.umrah.due
+      ),
+      // Use backend calculated advance value if available, otherwise calculate from package summary
+      advance: pickNumberFromObject(
+        agent,
+        ['umrahAdvance'],
+        packageSummary.umrah.paid - packageSummary.umrah.costingPrice
+      ),
+      profit: pickNumberFromObject(
+        agent,
+        ['umrahProfit'],
+        packageSummary.umrah.profit
+      ),
     },
   };
 
@@ -348,6 +416,7 @@ const transactionsData = {
           icon: financialSummary.overall.profit >= 0 ? TrendingUp : TrendingDown,
           isProfit: financialSummary.overall.profit >= 0
         },
+        { label: 'Total Advance', value: formatCurrency(financialSummary.overall.advance), icon: Banknote },
       ],
     },
     {
@@ -364,6 +433,7 @@ const transactionsData = {
           icon: financialSummary.hajj.profit >= 0 ? TrendingUp : TrendingDown,
           isProfit: financialSummary.hajj.profit >= 0
         },
+        { label: 'Hajj Advance', value: formatCurrency(financialSummary.hajj.advance), icon: Banknote },
       ],
     },
     {
@@ -380,6 +450,7 @@ const transactionsData = {
           icon: financialSummary.umrah.profit >= 0 ? TrendingUp : TrendingDown,
           isProfit: financialSummary.umrah.profit >= 0
         },
+        { label: 'Umrah Advance', value: formatCurrency(financialSummary.umrah.advance), icon: Banknote },
       ],
     },
   ];
@@ -596,7 +667,7 @@ const transactionsData = {
               .map((row) => (
                 <div key={row.id} className="space-y-2">
                   <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{row.title}</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                     {row.items.map((item, index) => {
                       // Determine card colors based on label type
                       let bgColor = '';
@@ -618,6 +689,10 @@ const transactionsData = {
                         // Debit/Dues cards - light red background with dark red text
                         bgColor = 'bg-red-50 dark:bg-red-900/20';
                         textColor = 'text-red-700 dark:text-red-300';
+                      } else if (item.label.includes('Advance')) {
+                        // Advance cards - light orange/amber background with dark orange text
+                        bgColor = 'bg-orange-50 dark:bg-orange-900/20';
+                        textColor = 'text-orange-700 dark:text-orange-300';
                       } else if (item.label.includes('Billed') || item.label.includes('Bill')) {
                         // Billed cards - light blue background with dark blue text
                         bgColor = 'bg-blue-50 dark:bg-blue-900/20';
@@ -635,6 +710,8 @@ const transactionsData = {
                         ? 'border-red-200 dark:border-red-800'
                         : textColor.includes('blue')
                         ? 'border-blue-200 dark:border-blue-800'
+                        : textColor.includes('orange')
+                        ? 'border-orange-200 dark:border-orange-800'
                         : 'border-purple-200 dark:border-purple-800';
                       
                       const IconComponent = item.icon;

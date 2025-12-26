@@ -67,6 +67,7 @@ import { useFarmExpenses, useFarmIncomes } from '../../hooks/useFinanceQueries';
 import { useOpExCategories } from '../../hooks/useOperatingExpensenQuries';
 import { useExchanges } from '../../hooks/useMoneyExchangeQueries';
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
+import { useVendorBankAccounts } from '../../hooks/useVendorBankQueries';
 
 const NewTransaction = () => {
   const { isDark } = useTheme();
@@ -163,7 +164,10 @@ const NewTransaction = () => {
     // Step 1: Transaction Type
     transactionType: '',
     
-    // Step 2: Customer Selection (for credit/debit)
+    // Step 2: Customer Type Selection (for credit/debit)
+    selectedCustomerType: '', // 'airCustomer', 'vendor', 'agent', 'haji', 'umrah', 'loan', 'personalExpense', 'mirajIndustries', 'officeExpenses', 'moneyExchange'
+    
+    // Step 3: Customer Selection (for credit/debit)
     customerType: 'customer', // 'customer', 'vendor', 'agent', 'haji', 'umrah'
     customerId: '',
     uniqueId: '',
@@ -201,7 +205,8 @@ const NewTransaction = () => {
       mobileProvider: '',
       transactionId: '',
       amount: '',
-      reference: ''
+      reference: '',
+      charge: ''
     },
     
     // Account Selection for Credit/Debit transactions
@@ -263,6 +268,7 @@ const NewTransaction = () => {
     
     // Transfer Details
     transferAmount: '',
+    transferCharge: '',
     transferReference: '',
     transferNotes: '',
     
@@ -308,6 +314,30 @@ const NewTransaction = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSearchType, setSelectedSearchType] = useState('airCustomer');
+  
+  // Map selectedCustomerType to selectedSearchType for step 3
+  const getSearchTypeForStep3 = () => {
+    if (!formData.selectedCustomerType) return 'airCustomer';
+    // Map customer type to search type
+    const mapping = {
+      'airCustomer': 'airCustomer',
+      'vendor': 'vendor',
+      'agent': 'agent',
+      'haji': 'haji',
+      'umrah': 'umrah',
+      'loan': 'loans',
+      'personalExpense': 'personal',
+      'mirajIndustries': 'miraj',
+      'officeExpenses': 'office',
+      'moneyExchange': 'moneyExchange'
+    };
+    return mapping[formData.selectedCustomerType] || 'airCustomer';
+  };
+  
+  // Use selectedCustomerType for step 3, otherwise use selectedSearchType
+  const effectiveSearchType = currentStep === 3 && formData.selectedCustomerType 
+    ? getSearchTypeForStep3() 
+    : selectedSearchType;
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   const [debitAccountSearchTerm, setDebitAccountSearchTerm] = useState('');
   const [creditAccountSearchTerm, setCreditAccountSearchTerm] = useState('');
@@ -322,11 +352,18 @@ const NewTransaction = () => {
   // Search hooks (after searchTerm state declaration)
   const { data: agentResults = [], isLoading: agentLoading } = useSearchAgents(
     searchTerm || '',
-    selectedSearchType === 'agent'
+    effectiveSearchType === 'agent'
   );
   const { data: vendorResults = [], isLoading: vendorLoading } = useSearchVendors(
     searchTerm || '',
-    selectedSearchType === 'vendor'
+    effectiveSearchType === 'vendor'
+  );
+
+  // Fetch vendor bank accounts when vendor is selected for debit transaction
+  const { data: vendorBankAccounts = [], isLoading: vendorBankAccountsLoading } = useVendorBankAccounts(
+    formData.transactionType === 'debit' && formData.customerType === 'vendor' && formData.customerId
+      ? formData.customerId
+      : null
   );
 
   // Fetch agent packages when agent is selected
@@ -347,8 +384,8 @@ const NewTransaction = () => {
   const loansSearch = (loansSearchData && (loansSearchData.loans || loansSearchData.data || [])) || [];
   
   // Miraj Industries finance lists (positioned after selectedSearchType/searchTerm declarations)
-  const { data: mirajExpenses = [], isLoading: mirajExpensesLoading } = useFarmExpenses({ search: selectedSearchType === 'miraj' ? (searchTerm || '') : '' });
-  const { data: mirajIncomes = [], isLoading: mirajIncomesLoading } = useFarmIncomes({ search: selectedSearchType === 'miraj' ? (searchTerm || '') : '' });
+  const { data: mirajExpenses = [], isLoading: mirajExpensesLoading } = useFarmExpenses({ search: effectiveSearchType === 'miraj' ? (searchTerm || '') : '' });
+  const { data: mirajIncomes = [], isLoading: mirajIncomesLoading } = useFarmIncomes({ search: effectiveSearchType === 'miraj' ? (searchTerm || '') : '' });
   // Office expenses categories
   const { data: opExCategories = [], isLoading: opExLoading } = useOpExCategories();
   // Money exchange listings
@@ -390,7 +427,7 @@ const NewTransaction = () => {
       name: 'চেক', 
       icon: Receipt, 
       color: 'from-orange-500 to-orange-600',
-      fields: ['chequeNumber', 'bankName', 'reference'],
+      fields: ['reference'], // Removed: chequeNumber, bankName, accountNumber
       accountCategory: 'bank'
     },
     { 
@@ -398,7 +435,7 @@ const NewTransaction = () => {
       name: 'মোবাইল ব্যাংকিং', 
       icon: Smartphone, 
       color: 'from-purple-500 to-purple-600',
-      fields: ['mobileProvider', 'transactionId', 'reference'],
+      fields: ['reference'], // Removed: mobileProvider, transactionId
       accountCategory: 'mobile_banking'
     },
     { 
@@ -412,6 +449,29 @@ const NewTransaction = () => {
   ];
 
   // Helper: Avoid "false" showing in placeholders by mapping field → text
+  // Helper function to calculate charge with correct sign based on transaction type
+  const getChargeWithSign = () => {
+    const rawCharge = parseFloat(formData.paymentDetails.charge || 0);
+    if (!rawCharge || rawCharge <= 0) return 0;
+    
+    // Credit: charge is negative (-)
+    // Debit: charge is positive (+)
+    // Transfer: charge is negative (-)
+    if (formData.transactionType === 'credit' || formData.transactionType === 'transfer') {
+      return -rawCharge;
+    } else if (formData.transactionType === 'debit') {
+      return rawCharge;
+    }
+    return 0;
+  };
+
+  // Helper function to get total amount (amount + charge with sign)
+  const getTotalAmount = () => {
+    const amount = parseFloat(formData.paymentDetails.amount || 0);
+    const charge = getChargeWithSign();
+    return amount + charge;
+  };
+
   const getPaymentFieldPlaceholder = (field) => {
     switch (field) {
       case 'bankName':
@@ -558,31 +618,20 @@ const NewTransaction = () => {
     } else if (formData.transactionType === 'debit') {
       return [
         { number: 1, title: 'লেনদেন টাইপ', description: 'ডেবিট (ব্যয়) নির্বাচন করুন' },
-        { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
+        { number: 2, title: 'কাস্টমার টাইপ', description: 'কাস্টমার টাইপ নির্বাচন করুন' },
         { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
         { number: 4, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
         { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
       ];
     } else {
-      // Credit transaction - check if agent is selected
-      if (formData.customerType === 'agent') {
-        return [
-          { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
-          { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
-          { number: 3, title: 'এজেন্ট নির্বাচন', description: 'এজেন্ট সিলেক্ট করুন' },
-          { number: 4, title: 'এজেন্ট ব্যালেন্স', description: 'এজেন্টের ব্যালেন্স তথ্য দেখুন' },
-          { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
-          { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
-        ];
-      } else {
-        return [
-          { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
-          { number: 2, title: 'ক্যাটাগরি', description: 'সেবার ধরন নির্বাচন করুন' },
-          { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
-          { number: 4, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
-          { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
-        ];
-      }
+      // Credit transaction
+      return [
+        { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
+        { number: 2, title: 'কাস্টমার টাইপ', description: 'কাস্টমার টাইপ নির্বাচন করুন' },
+        { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
+        { number: 4, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+        { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+      ];
     }
   };
 
@@ -939,8 +988,8 @@ const NewTransaction = () => {
             }
             break;
           case 2:
-            if (!formData.category) {
-              newErrors.category = 'ক্যাটাগরি নির্বাচন করুন';
+            if (!formData.selectedCustomerType) {
+              newErrors.selectedCustomerType = 'কাস্টমার টাইপ নির্বাচন করুন';
             }
             break;
           case 3:
@@ -968,15 +1017,6 @@ const NewTransaction = () => {
               if (!formData.sourceAccount.id) {
                 newErrors.sourceAccount = 'সোর্স একাউন্ট নির্বাচন করুন';
               }
-              // Validate customer bank account details for bank transfer
-              if (formData.paymentMethod === 'bank-transfer') {
-                if (!formData.customerBankAccount.bankName) {
-                  newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
-                }
-                if (!formData.customerBankAccount.accountNumber) {
-                  newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
-                }
-              }
             }
             break;
           case 5:
@@ -994,8 +1034,8 @@ const NewTransaction = () => {
             }
             break;
           case 2:
-          if (!formData.category) {
-            newErrors.category = 'ক্যাটাগরি নির্বাচন করুন';
+          if (!formData.selectedCustomerType) {
+            newErrors.selectedCustomerType = 'কাস্টমার টাইপ নির্বাচন করুন';
           }
           break;
           case 3:
@@ -1050,15 +1090,6 @@ const NewTransaction = () => {
               if (!hasAnyAccount && !formData.destinationAccount.id) {
                 newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন (কোন ডিফল্ট একাউন্ট নেই)';
               }
-              // Validate customer bank account details for bank transfer
-              if (formData.paymentMethod === 'bank-transfer') {
-                if (!formData.customerBankAccount.bankName) {
-                  newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
-                }
-                if (!formData.customerBankAccount.accountNumber) {
-                  newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
-                }
-              }
             }
           }
           break;
@@ -1084,15 +1115,6 @@ const NewTransaction = () => {
               }
               if (!formData.creditAccountManager.id) {
                 newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
-              }
-              // Validate customer bank account details for bank transfer
-              if (formData.paymentMethod === 'bank-transfer') {
-                if (!formData.customerBankAccount.bankName) {
-                  newErrors.customerBankName = 'কাস্টমারের ব্যাংকের নাম লিখুন';
-                }
-                if (!formData.customerBankAccount.accountNumber) {
-                  newErrors.customerAccountNumber = 'কাস্টমারের একাউন্ট নম্বর লিখুন';
-                }
               }
             }
           }
@@ -1185,10 +1207,15 @@ const NewTransaction = () => {
       }
       
       // Call new backend transfer API using the dedicated transfer hook
+      // Calculate charge with correct sign for transfer (negative)
+      const rawCharge = parseFloat(formData.transferCharge || 0);
+      const transferCharge = rawCharge > 0 ? -rawCharge : 0; // Transfer charge is negative
+
       const transferPayload = {
         fromAccountId: formData.debitAccount.id,
         toAccountId: formData.creditAccount.id,
         amount: transferAmount,
+        charge: transferCharge || null,
         reference: formData.transferReference || `TXN-${Date.now()}`,
         notes: formData.transferNotes || `Transfer from ${formData.debitAccount.bankName} (${formData.debitAccount.accountNumber}) to ${formData.creditAccount.bankName} (${formData.creditAccount.accountNumber})`,
         createdBy: userProfile?.email || 'unknown_user',
@@ -1220,7 +1247,8 @@ const NewTransaction = () => {
             paymentMethod: 'bank-transfer',
             paymentDetails: {
               reference: transferPayload.reference,
-              notes: transferPayload.notes
+              notes: transferPayload.notes,
+              charge: transferCharge || ''
             },
             notes: formData.transferNotes || '',
             fromAccount: formData.debitAccount,
@@ -1512,7 +1540,8 @@ const NewTransaction = () => {
         chequeNumber: formData.paymentDetails.chequeNumber || null,
         mobileProvider: formData.paymentDetails.mobileProvider || null,
         transactionId: formData.paymentDetails.transactionId || null,
-        reference: formData.paymentDetails.reference || null
+        reference: formData.paymentDetails.reference || null,
+        charge: getChargeWithSign() || null
       },
       serviceCategory: resolvedServiceCategory,
       category: formData.category,
@@ -1542,6 +1571,8 @@ const NewTransaction = () => {
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch',
       employeeReference: formData.employeeReference?.id ? formData.employeeReference : null,
+      // Charge with correct sign (Credit: negative, Debit: positive, Transfer: negative)
+      charge: getChargeWithSign() || null,
       // Include operating expense category (support both ID and object)
       operatingExpenseCategoryId: operatingExpenseCategoryId,
       operatingExpenseCategory: operatingExpenseCategory,
@@ -1734,7 +1765,8 @@ const NewTransaction = () => {
         mobileProvider: '',
         transactionId: '',
         amount: '',
-        reference: ''
+        reference: '',
+        charge: ''
       },
       sourceAccount: {
         id: '',
@@ -1765,6 +1797,7 @@ const NewTransaction = () => {
         balance: 0
       },
       transferAmount: '',
+      transferCharge: '',
       transferReference: '',
       transferNotes: '',
       notes: '',
@@ -2438,15 +2471,29 @@ const NewTransaction = () => {
       paymentMethod,
       fromAccount,
       toAccount,
-      mode
+      mode,
+      paymentDetails
     } = submittedTransaction;
+
+    // Charge is already stored with correct sign in paymentDetails.charge
+    // (Credit/Transfer: negative, Debit: positive)
+    const submissionCharge = parseFloat(paymentDetails?.charge || 0);
+    const hasCharge = submissionCharge !== 0 && !isNaN(submissionCharge);
+    
+    // Calculate total amount for submission summary
+    const getSubmissionTotalAmount = () => {
+      const amountValue = parseFloat(amount || 0);
+      return amountValue + submissionCharge; // charge already has correct sign
+    };
+
+    const submissionTotalAmount = getSubmissionTotalAmount();
 
     return (
       <div className={`min-h-screen p-2 sm:p-4 lg:p-6 transition-colors duration-300 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
-          <Helmet>
-            <title>New Transaction</title>
-            <meta name="description" content="Create a new transaction in the system." />
-          </Helmet>
+        <Helmet>
+          <title>লেনদেন সফল - Transaction Success</title>
+          <meta name="description" content="Transaction completed successfully" />
+        </Helmet>
         
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -2512,7 +2559,23 @@ const NewTransaction = () => {
                 {amount !== undefined && amount !== null && (
                   <div className="flex justify-between">
                     <span className="text-gray-600 dark:text-gray-400">পরিমাণ:</span>
-                    <span className="font-semibold text-gray-900 dark:text-white">৳{amount}</span>
+                    <span className="font-semibold text-gray-900 dark:text-white">৳{parseFloat(amount || 0).toLocaleString()}</span>
+                  </div>
+                )}
+                {hasCharge && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">চার্জ:</span>
+                    <span className={`font-semibold ${submissionCharge < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+                      {submissionCharge < 0 ? '-' : '+'}৳{Math.abs(submissionCharge).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {hasCharge && (
+                  <div className="flex justify-between border-t border-dashed border-gray-300 dark:border-gray-600 pt-2 mt-2">
+                    <span className="text-gray-600 dark:text-gray-400 font-semibold">মোট পরিমাণ:</span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">
+                      ৳{submissionTotalAmount.toLocaleString()}
+                    </span>
                   </div>
                 )}
                 {date && (
@@ -2650,6 +2713,10 @@ const NewTransaction = () => {
         ? 'bg-gray-900' 
         : 'bg-gray-50'
     }`}>
+      <Helmet>
+        <title>নতুন লেনদেন - New Transaction</title>
+        <meta name="description" content="Create a new transaction in the ERP system" />
+      </Helmet>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-4 sm:mb-6">
@@ -2868,13 +2935,13 @@ const NewTransaction = () => {
                   </p>
                 </div>
               ) : (
-                // Credit/Debit: Category Selection
+                // Credit/Debit: Customer Type Selection
                 <div className="text-center mb-4 sm:mb-6">
                   <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    সেবার ক্যাটাগরি নির্বাচন করুন
+                    কাস্টমার টাইপ নির্বাচন করুন
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    আপনি কোন ধরনের সেবা প্রদান করছেন?
+                    আপনি কোন ধরনের কাস্টমারের সাথে লেনদেন করবেন?
                   </p>
                 </div>
               )}
@@ -2962,129 +3029,65 @@ const NewTransaction = () => {
                 ) : null}
                 
                 {formData.transactionType !== 'transfer' && (
-                // Credit/Debit: Category Selection
-                  <>
-                  {/* Category Search Bar */}
-                  <div className="relative mb-4 sm:mb-6 max-w-md mx-auto">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="text"
-                      placeholder="ক্যাটাগরি খুঁজুন..."
-                      value={categorySearchTerm}
-                      onChange={(e) => setCategorySearchTerm(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
-                          isDark 
-                            ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                            : 'border-gray-300'
-                        }`}
-                      />
+                // Credit/Debit: Customer Type Selection
+                  <div className="max-w-4xl mx-auto">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                      {[
+                        { value: 'airCustomer', label: 'Air Customer', icon: '✈️', color: 'blue' },
+                        { value: 'vendor', label: 'Vendor', icon: '🏪', color: 'purple' },
+                        { value: 'agent', label: 'Agent', icon: '👤', color: 'green' },
+                        { value: 'haji', label: 'Haji', icon: '🕋', color: 'amber' },
+                        { value: 'umrah', label: 'Umrah', icon: '🕌', color: 'indigo' },
+                        { value: 'loan', label: 'Loans', icon: '💰', color: 'red' },
+                        { value: 'personalExpense', label: 'Personal Expense', icon: '💳', color: 'pink' },
+                        { value: 'mirajIndustries', label: 'Miraj Industries', icon: '🏭', color: 'orange' },
+                        { value: 'officeExpenses', label: 'Office Expenses', icon: '🏢', color: 'teal' },
+                        { value: 'moneyExchange', label: 'Money Exchange', icon: '💱', color: 'cyan' }
+                      ].map((type) => (
+                        <button
+                          key={type.value}
+                          onClick={() => {
+                            setFormData(prev => ({ ...prev, selectedCustomerType: type.value }));
+                            setErrors(prev => ({ ...prev, selectedCustomerType: '' }));
+                            // Clear customer selection when type changes
+                            setFormData(prev => ({
+                              ...prev,
+                              customerId: '',
+                              customerName: '',
+                              customerPhone: '',
+                              customerEmail: '',
+                              customerAddress: '',
+                              customerType: type.value === 'airCustomer' ? 'customer' : type.value
+                            }));
+                          }}
+                          className={`p-4 sm:p-5 rounded-lg border-2 transition-all duration-200 hover:scale-105 text-left ${
+                            formData.selectedCustomerType === type.value
+                              ? `border-${type.color}-500 bg-${type.color}-50 dark:bg-${type.color}-900/20`
+                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl sm:text-3xl">{type.icon}</div>
+                            <div className="min-w-0 flex-1">
+                              <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                                {type.label}
+                              </h4>
+                            </div>
+                            {formData.selectedCustomerType === type.value && (
+                              <CheckCircle className={`w-5 h-5 text-${type.color}-500 flex-shrink-0`} />
+                            )}
+                          </div>
+                        </button>
+                      ))}
                     </div>
 
-                  {/* Category Groups */}
-                  <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4">
-                    {categoriesLoading ? (
-                      <div className="text-center py-8">
-                        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
-                        <p className="text-gray-500 dark:text-gray-400">ক্যাটাগরি লোড হচ্ছে...</p>
-                      </div>
-                    ) : (
-                      <>
-                        {visibleCategoryGroups.map((group) => (
-                          <div key={group.id} className={`rounded-lg border transition-all duration-200 ${
-                            isDark ? 'border-gray-600 bg-gray-800' : 'border-gray-200 bg-white'
-                          }`}>
-                            {/* Main Category Header */}
-                            <button
-                              onClick={() => toggleCategoryGroup(group.id)}
-                              className={`w-full p-3 sm:p-4 rounded-lg transition-all duration-200 hover:bg-opacity-80 ${
-                                expandedCategories[group.id] 
-                                  ? 'bg-blue-50 dark:bg-blue-900/20' 
-                                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className="text-2xl sm:text-3xl">{group.icon}</div>
-                                  <div className="text-left">
-                                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                                      {group.name}
-                                    </h3>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                                      {group.description}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className={`transform transition-transform duration-200 ${
-                                  expandedCategories[group.id] ? 'rotate-180' : ''
-                                }`}>
-                                  <ChevronDown className="w-5 h-5 text-gray-500" />
-                                </div>
-                              </div>
-                            </button>
-
-                            {/* Sub Categories */}
-                            {expandedCategories[group.id] && (
-                              <div className="px-3 sm:px-4 pb-3 sm:pb-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
-                                  {group.subCategories.map((subCategory) => (
-                                    <button
-                                      key={subCategory.id}
-                                      onClick={() => handleCategorySelect(subCategory.id)}
-                                      className={`p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 text-left ${
-                                        formData.category === subCategory.id
-                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                      : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                                    }`}
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <div className="text-lg sm:text-xl">{subCategory.icon}</div>
-                                        <div className="min-w-0 flex-1">
-                                          <h4 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                                            {subCategory.name}
-                                          </h4>
-                                          <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                                            {subCategory.description}
-                                          </p>
-                                        </div>
-                                        {formData.category === subCategory.id && (
-                                          <CheckCircle className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                                        )}
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-
-                        {visibleCategoryGroups.length === 0 && (
-                          <div className="text-center py-8">
-                            <div className="text-4xl mb-3">🔍</div>
-                            <p className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                              {categorySearchTerm ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই'}
-                            </p>
-                            {categorySearchTerm && (
-                              <button
-                                onClick={() => setCategorySearchTerm('')}
-                                className="mt-2 text-blue-600 hover:text-blue-700 text-sm underline"
-                              >
-                                সব ক্যাটাগরি দেখুন
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </>
+                    {errors.selectedCustomerType && (
+                      <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
+                        <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                        {errors.selectedCustomerType}
+                      </p>
                     )}
                   </div>
-
-                  {errors.category && (
-                    <p className="text-red-500 text-center mt-3 sm:mt-4 flex items-center justify-center gap-2 text-xs sm:text-sm">
-                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {errors.category}
-                    </p>
-                  )}
-                </>
                 )}
             </div>
           )}
@@ -3205,34 +3208,26 @@ const NewTransaction = () => {
               ) : (
                 // Credit/Debit: Customer Selection
                 <div className="max-w-4xl mx-auto">
-                  {/* Type Selector */}
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
-                    {['airCustomer','vendor','agent','haji','umrah','loans','personal','miraj','office','moneyExchange'].map((type) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => { setSelectedSearchType(type); setSearchTerm(''); }}
-                        className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                          selectedSearchType === type
-                            ? 'bg-blue-600 text-white border-blue-600'
-                            : (isDark ? 'text-gray-200 border-gray-600' : 'text-gray-700 border-gray-300 hover:border-blue-400')
-                        }`}
-                      >
-                        {type === 'airCustomer' ? 'Air Customer' : 
-                         type === 'vendor' ? 'Vendor' : 
-                         type === 'agent' ? 'Agent' :
-                         type === 'haji' ? 'Haji' :
-                         type === 'umrah' ? 'Umrah' :
-                         type === 'loans' ? 'Loans' : 
-                         type === 'personal' ? 'Personal Expense' :
-                         type === 'miraj' ? 'Miraj Industries' :
-                         type === 'office' ? 'Office Expenses' :
-                         type === 'moneyExchange' ? 'Money Exchange' :
-                         'কোন ডেটা নেই'
-                         }
-                      </button>
-                    ))}
-                  </div>
+                  {/* Show selected customer type */}
+                  {formData.selectedCustomerType && (
+                    <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        নির্বাচিত টাইপ: <span className="font-semibold">
+                          {formData.selectedCustomerType === 'airCustomer' ? 'Air Customer' : 
+                           formData.selectedCustomerType === 'vendor' ? 'Vendor' : 
+                           formData.selectedCustomerType === 'agent' ? 'Agent' :
+                           formData.selectedCustomerType === 'haji' ? 'Haji' :
+                           formData.selectedCustomerType === 'umrah' ? 'Umrah' :
+                           formData.selectedCustomerType === 'loan' ? 'Loans' : 
+                           formData.selectedCustomerType === 'personalExpense' ? 'Personal Expense' :
+                           formData.selectedCustomerType === 'mirajIndustries' ? 'Miraj Industries' :
+                           formData.selectedCustomerType === 'officeExpenses' ? 'Office Expenses' :
+                           formData.selectedCustomerType === 'moneyExchange' ? 'Money Exchange' :
+                           formData.selectedCustomerType}
+                        </span>
+                      </p>
+                    </div>
+                  )}
                   {/* Search Bar */}
                   <div className="relative mb-3 sm:mb-4">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -3272,28 +3267,28 @@ const NewTransaction = () => {
 
                   {/* Customer / Agent / Vendor List */}
                   <div className="space-y-2 max-h-60 sm:max-h-80 overflow-y-auto">
-                    {(selectedSearchType === 'agent' && (agentLoading || searchLoading)) ||
-                     (selectedSearchType === 'vendor' && (vendorLoading || searchLoading)) ||
-                     (selectedSearchType === 'airCustomer' && (airCustomersLoading || searchLoading)) ||
-                     (selectedSearchType === 'haji' && (hajiLoading || searchLoading)) ||
-                     (selectedSearchType === 'umrah' && (umrahLoading || searchLoading)) ||
-                     (selectedSearchType === 'loans' && (loansSearchLoading || searchLoading)) ||
-                    (selectedSearchType === 'office' && (opExLoading || searchLoading)) ||
-                    (selectedSearchType === 'moneyExchange' && (moneyExchangeLoading || searchLoading)) ? (
+                    {(effectiveSearchType === 'agent' && (agentLoading || searchLoading)) ||
+                     (effectiveSearchType === 'vendor' && (vendorLoading || searchLoading)) ||
+                     (effectiveSearchType === 'airCustomer' && (airCustomersLoading || searchLoading)) ||
+                     (effectiveSearchType === 'haji' && (hajiLoading || searchLoading)) ||
+                     (effectiveSearchType === 'umrah' && (umrahLoading || searchLoading)) ||
+                     (effectiveSearchType === 'loans' && (loansSearchLoading || searchLoading)) ||
+                    (effectiveSearchType === 'office' && (opExLoading || searchLoading)) ||
+                    (effectiveSearchType === 'moneyExchange' && (moneyExchangeLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
                         <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-                          {selectedSearchType === 'airCustomer' ? 'এয়ার কাস্টমার লোড হচ্ছে...' : 
-                           selectedSearchType === 'vendor' ? 'ভেন্ডর লোড হচ্ছে...' : 
-                           selectedSearchType === 'agent' ? 'এজেন্ট লোড হচ্ছে...' :
-                           selectedSearchType === 'haji' ? 'হাজি লোড হচ্ছে...' :
-                           selectedSearchType === 'umrah' ? 'উমরাহ লোড হচ্ছে...' :
-                           selectedSearchType === 'office' ? 'অফিস খরচ ক্যাটাগরি লোড হচ্ছে...' :
-                           selectedSearchType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ ডেটা লোড হচ্ছে...' :
+                          {effectiveSearchType === 'airCustomer' ? 'এয়ার কাস্টমার লোড হচ্ছে...' : 
+                           effectiveSearchType === 'vendor' ? 'ভেন্ডর লোড হচ্ছে...' : 
+                           effectiveSearchType === 'agent' ? 'এজেন্ট লোড হচ্ছে...' :
+                           effectiveSearchType === 'haji' ? 'হাজি লোড হচ্ছে...' :
+                           effectiveSearchType === 'umrah' ? 'উমরাহ লোড হচ্ছে...' :
+                           effectiveSearchType === 'office' ? 'অফিস খরচ ক্যাটাগরি লোড হচ্ছে...' :
+                           effectiveSearchType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ ডেটা লোড হচ্ছে...' :
                            'লোন লোড হচ্ছে...'}
                         </span>
                       </div>
-                    ) : selectedSearchType === 'office' ? (
+                    ) : effectiveSearchType === 'office' ? (
                       // Office Expenses categories list (show names only)
                       (opExCategories || []).filter(c => {
                         if (!searchTerm) return true;
@@ -3338,7 +3333,7 @@ const NewTransaction = () => {
                           </div>
                         </button>
                       ))
-                    ) : selectedSearchType === 'moneyExchange' ? (
+                    ) : effectiveSearchType === 'moneyExchange' ? (
                       moneyExchangeList.length > 0 ? (
                         moneyExchangeList.map((exchange) => (
                           <button
@@ -3394,7 +3389,7 @@ const NewTransaction = () => {
                           {exchangeTypeFilter ? 'কোন মানি এক্সচেঞ্জ ডেটা নেই' : 'লেনদেনের ধরন নির্বাচন করুন' }
                         </div>
                       )
-                    ) : selectedSearchType === 'haji' ? (
+                    ) : effectiveSearchType === 'haji' ? (
                       // Haji Results
                       hajiData?.data?.length > 0 ? (
                         hajiData.data
@@ -3481,7 +3476,7 @@ const NewTransaction = () => {
                           {searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই'}
                         </div>
                       )
-                    ) : selectedSearchType === 'umrah' ? (
+                    ) : effectiveSearchType === 'umrah' ? (
                       // Umrah Results
                       umrahData?.data?.length > 0 ? (
                         umrahData.data
@@ -3568,7 +3563,7 @@ const NewTransaction = () => {
                           {searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই'}
                         </div>
                       )
-                    ) : selectedSearchType === 'agent' ? (
+                    ) : effectiveSearchType === 'agent' ? (
                         agentResults.length > 0 ? (
                         agentResults.map((agent) => (
                           <button
@@ -3619,7 +3614,7 @@ const NewTransaction = () => {
                             {searchTerm ? 'কোন এজেন্ট পাওয়া যায়নি' : 'কোন এজেন্ট নেই'}
                           </div>
                         )
-                    ) : selectedSearchType === 'vendor' ? (
+                    ) : effectiveSearchType === 'vendor' ? (
                         vendorResults.length > 0 ? (
                         vendorResults.map((vendor) => (
                           <button
@@ -3638,9 +3633,17 @@ const NewTransaction = () => {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
-                                </div>
+                                {vendor.logo ? (
+                                  <img 
+                                    src={vendor.logo} 
+                                    alt={vendor.tradeName || vendor.vendorName || vendor.name} 
+                                    className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0 border border-gray-200 dark:border-gray-700" 
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
+                                  </div>
+                                )}
                                 <div className="text-left min-w-0 flex-1">
                                   <div className="flex items-center gap-2">
                                     <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
@@ -3674,7 +3677,7 @@ const NewTransaction = () => {
                             {searchTerm ? 'কোন ভেন্ডর পাওয়া যায়নি' : 'কোন ভেন্ডর নেই'}
                           </div>
                         )
-                        ) : selectedSearchType === 'loans' ? (
+                        ) : effectiveSearchType === 'loans' ? (
                       loansSearch.length > 0 ? (
                         loansSearch.map((loan) => (
                           <button
@@ -3713,7 +3716,7 @@ const NewTransaction = () => {
                       ) : (
                         <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন লোন পাওয়া যায়নি</div>
                       )
-                    ) : selectedSearchType === 'miraj' ? (
+                    ) : effectiveSearchType === 'miraj' ? (
                       // Miraj Industries: show incomes for credit, expenses for debit
                       (
                         formData.transactionType === 'credit' ? mirajIncomes : mirajExpenses
@@ -3834,7 +3837,7 @@ const NewTransaction = () => {
                         </div>
                       </button>
                       ))
-                      ) : selectedSearchType === 'personal' ? (
+                      ) : effectiveSearchType === 'personal' ? (
                       // Personal Expense Categories
                       <div className="max-w-4xl mx-auto w-full">
                         <div className="flex items-center justify-between mb-3">
@@ -3872,12 +3875,12 @@ const NewTransaction = () => {
                       </div>
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                        {selectedSearchType === 'airCustomer' ? (searchTerm ? 'কোন এয়ার কাস্টমার পাওয়া যায়নি' : 'কোন এয়ার কাস্টমার নেই') : 
-                         selectedSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 
-                         selectedSearchType === 'agent' ? 'কোন এজেন্ট পাওয়া যায়নি' :
-                         selectedSearchType === 'haji' ? (searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই') :
-                          selectedSearchType === 'umrah' ? (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই') :
-                          selectedSearchType === 'moneyExchange' ? (exchangeTypeFilter ? 'কোন মানি এক্সচেঞ্জ ডেটা নেই' : 'লেনদেনের ধরন নির্বাচন করুন') :
+                        {effectiveSearchType === 'airCustomer' ? (searchTerm ? 'কোন এয়ার কাস্টমার পাওয়া যায়নি' : 'কোন এয়ার কাস্টমার নেই') : 
+                         effectiveSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 
+                         effectiveSearchType === 'agent' ? 'কোন এজেন্ট পাওয়া যায়নি' :
+                         effectiveSearchType === 'haji' ? (searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই') :
+                          effectiveSearchType === 'umrah' ? (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই') :
+                          effectiveSearchType === 'moneyExchange' ? (exchangeTypeFilter ? 'কোন মানি এক্সচেঞ্জ ডেটা নেই' : 'লেনদেনের ধরন নির্বাচন করুন') :
                          'কোন ডেটা নেই'}
                       </div>
                     )}
@@ -4329,6 +4332,37 @@ const NewTransaction = () => {
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                            চার্জ (Charge)
+                          </label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="number"
+                              name="transferCharge"
+                              value={formData.transferCharge}
+                              onChange={handleInputChange}
+                              placeholder="0.00"
+                              min="0"
+                              step="0.01"
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-white border-gray-300 text-gray-900' 
+                                  : 'border-gray-300'
+                              } ${errors.transferCharge ? 'border-red-500 focus:ring-red-500' : ''}`}
+                            />
+                          </div>
+                          {errors.transferCharge && (
+                            <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              {errors.transferCharge}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                           একাউন্ট ম্যানেজার নির্বাচন
                           </label>
                           
@@ -4499,7 +4533,11 @@ const NewTransaction = () => {
                           অ্যাকাউন্ট নির্বাচন
                         </h3>
                         
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div className={`grid gap-3 sm:gap-4 ${
+                          formData.transactionType === 'debit' && formData.customerType === 'vendor' && formData.customerId
+                            ? 'grid-cols-1 md:grid-cols-2'
+                            : 'grid-cols-1'
+                        }`}>
                           {/* Source Account */}
                           <div>
                             <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -4583,64 +4621,85 @@ const NewTransaction = () => {
                             )}
                           </div>
 
-                          {/* Customer Bank Details */}
-                          {formData.paymentMethod !== 'cash' && (
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                              কাস্টমার অ্যাকাউন্ট (যেখানে টাকা পাঠানো হবে)
-                            </label>
-                            <div className="space-y-3">
-                            {/* Bank Name or Mobile Provider (conditional) */}
+                          {/* Vendor Bank Accounts - Only show when vendor is selected for debit */}
+                          {formData.transactionType === 'debit' && formData.customerType === 'vendor' && formData.customerId && (
                             <div>
-                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার' : 'ব্যাংকের নাম'}
+                              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                ভেন্ডরের ব্যাংক অ্যাকাউন্ট
                               </label>
-                                <input
-                                  type="text"
-                                  name="customerBankAccount.bankName"
-                                  value={formData.customerBankAccount.bankName}
-                                  onChange={handleInputChange}
-                                placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার লিখুন...' : 'ব্যাংকের নাম লিখুন...'}
-                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                                    isDark 
-                                      ? 'bg-white border-gray-300 text-gray-900' 
-                                      : 'border-gray-300'
-                                  } ${errors.customerBankName ? 'border-red-500 focus:ring-red-500' : ''}`}
-                                />
-                                {errors.customerBankName && (
-                                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    {errors.customerBankName}
-                                  </p>
-                                )}
-                              </div>
-                              
-                            {/* Account Number or Mobile Number (conditional) */}
-                            <div>
-                              <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                                {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর' : 'একাউন্ট নম্বর'}
-                              </label>
-                                <input
-                                  type="text"
-                                  name="customerBankAccount.accountNumber"
-                                  value={formData.customerBankAccount.accountNumber}
-                                  onChange={handleInputChange}
-                                placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর লিখুন...' : 'একাউন্ট নম্বর লিখুন...'}
-                                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                                    isDark 
-                                      ? 'bg-white border-gray-300 text-gray-900' 
-                                      : 'border-gray-300'
-                                  } ${errors.customerAccountNumber ? 'border-red-500 focus:ring-red-500' : ''}`}
-                                />
-                                {errors.customerAccountNumber && (
-                                  <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    {errors.customerAccountNumber}
-                                  </p>
+                              <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                                {vendorBankAccountsLoading ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">ব্যাংক অ্যাকাউন্ট লোড হচ্ছে...</span>
+                                  </div>
+                                ) : vendorBankAccounts.length > 0 ? (
+                                  vendorBankAccounts.map((bankAccount) => (
+                                    <div
+                                      key={bankAccount._id}
+                                      className={`w-full p-3 rounded-lg border transition-all duration-200 ${
+                                        formData.paymentDetails.vendorBankAccountId === bankAccount._id
+                                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                                          : 'border-gray-200 dark:border-gray-600'
+                                      }`}
+                                    >
+                                      <div className="flex justify-between items-center">
+                                        <div className="flex-1">
+                                          <p className="font-medium text-gray-900 dark:text-white text-sm">
+                                            {bankAccount.bankName}
+                                          </p>
+                                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                                            A/C: {bankAccount.accountNumber}
+                                          </p>
+                                          {bankAccount.branchName && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-500">
+                                              Branch: {bankAccount.branchName}
+                                            </p>
+                                          )}
+                                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                            {bankAccount.accountHolder}
+                                          </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {bankAccount.isPrimary && (
+                                            <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs font-medium rounded-full">
+                                              Primary
+                                            </span>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setFormData(prev => ({
+                                                ...prev,
+                                                paymentDetails: {
+                                                  ...prev.paymentDetails,
+                                                  vendorBankAccountId: bankAccount._id,
+                                                  vendorBankName: bankAccount.bankName,
+                                                  vendorAccountNumber: bankAccount.accountNumber,
+                                                  vendorBranchName: bankAccount.branchName || '',
+                                                  vendorAccountHolder: bankAccount.accountHolder
+                                                }
+                                              }));
+                                            }}
+                                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                              formData.paymentDetails.vendorBankAccountId === bankAccount._id
+                                                ? 'bg-purple-600 text-white'
+                                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-600 hover:text-white'
+                                            }`}
+                                          >
+                                            {formData.paymentDetails.vendorBankAccountId === bankAccount._id ? 'Selected' : 'Select'}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="text-center py-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                    <p className="text-gray-500 dark:text-gray-400 text-sm">কোন ব্যাংক অ্যাকাউন্ট পাওয়া যায়নি</p>
+                                  </div>
                                 )}
                               </div>
                             </div>
-                          </div>
                           )}
                         </div>
                       </div>
@@ -4687,8 +4746,82 @@ const NewTransaction = () => {
                             )}
                           </div>
 
+                          {/* Charge Field - For cash, bank-transfer, cheque, and mobile-banking */}
+                          {(formData.paymentMethod === 'cash' || formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && (
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                                চার্জ
+                              </label>
+                              <div className="relative">
+                                <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                  type="number"
+                                  placeholder="চার্জ লিখুন..."
+                                  value={formData.paymentDetails.charge || ''}
+                                  onChange={(e) => setFormData(prev => ({
+                                    ...prev,
+                                    paymentDetails: { ...prev.paymentDetails, charge: e.target.value }
+                                  }))}
+                                  min="0"
+                                  step="0.01"
+                                  className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                    isDark 
+                                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                                      : 'border-gray-300'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Total Amount Summary */}
+                          {formData.paymentDetails.amount && (
+                            <div>
+                              <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-3 sm:p-4 border border-blue-200 dark:border-blue-800">
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">পরিমাণ:</span>
+                                    <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                      ৳{parseFloat(formData.paymentDetails.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  {formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge || 0) > 0 && (
+                                    <>
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">চার্জ:</span>
+                                        <span className={`text-sm font-semibold ${
+                                          getChargeWithSign() < 0 
+                                            ? 'text-red-600 dark:text-red-400' 
+                                            : 'text-green-600 dark:text-green-400'
+                                        }`}>
+                                          {getChargeWithSign() < 0 ? '-' : '+'}৳{Math.abs(getChargeWithSign()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between items-center pt-2 border-t border-blue-200 dark:border-blue-700">
+                                        <span className="text-base font-bold text-gray-900 dark:text-white">মোট পরিমাণ:</span>
+                                        <span className="text-base font-bold text-blue-600 dark:text-blue-400">
+                                          ৳{getTotalAmount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Dynamic Fields based on Payment Method */}
-                          {selectedPaymentMethod.fields.map((field) => (
+                          {selectedPaymentMethod.fields
+                            .filter(field => {
+                              // For vendor debit transactions, remove bankName and accountNumber from bank-transfer
+                              if (formData.transactionType === 'debit' && formData.customerType === 'vendor' && formData.customerId) {
+                                if (formData.paymentMethod === 'bank-transfer') {
+                                  return field !== 'bankName' && field !== 'accountNumber';
+                                }
+                              }
+                              return true;
+                            })
+                            .map((field) => (
                             <div key={field}>
                               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                                 {field === 'bankName' && 'ব্যাংকের নাম'}
@@ -5629,6 +5762,32 @@ const NewTransaction = () => {
                           )}
                         </div>
 
+                        {/* Charge Field - Only for bank-transfer, cheque, and mobile-banking */}
+                        {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && (
+                          <div className="sm:col-span-2">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                              চার্জ
+                            </label>
+                            <div className="relative">
+                              <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <input
+                                type="number"
+                                name="paymentDetails.charge"
+                                value={formData.paymentDetails.charge || ''}
+                                onChange={handleInputChange}
+                                placeholder="0.00"
+                                min="0"
+                                step="0.01"
+                                className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                  isDark 
+                                    ? 'bg-white border-gray-300 text-gray-900' 
+                                    : 'border-gray-300'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        )}
+
                         {/* Dynamic Fields based on Payment Method */}
                         {selectedPaymentMethod.fields.map((field) => (
                           <div key={field}>
@@ -5961,6 +6120,18 @@ const NewTransaction = () => {
                         <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ট্রান্সফার পরিমাণ:</span>
                         <span className="text-lg font-bold text-green-600 dark:text-green-400">৳{parseFloat(formData.transferAmount || 0).toLocaleString()}</span>
                       </div>
+                      {formData.transferCharge && parseFloat(formData.transferCharge) > 0 && (
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">চার্জ:</span>
+                          <span className="text-sm font-semibold text-red-600 dark:text-red-400">-৳{parseFloat(formData.transferCharge || 0).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">মোট পরিমাণ:</span>
+                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                          ৳{(parseFloat(formData.transferAmount || 0) - parseFloat(formData.transferCharge || 0)).toLocaleString()}
+                        </span>
+                      </div>
                       {formData.transferReference && (
                         <div className="flex justify-between items-center mt-2">
                           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">রেফারেন্স:</span>
@@ -5983,35 +6154,6 @@ const NewTransaction = () => {
                       <div className="flex flex-col sm:flex-row gap-2 text-sm text-gray-600 dark:text-gray-400">
                         <span>📞 {formData.accountManager?.phone}</span>
                         <span>✉️ {formData.accountManager?.email}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* SMS Confirmation */}
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 sm:p-6 mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                      <Mail className="w-5 h-5 text-orange-600" />
-                      এসএমএস কনফার্মেশন
-                    </h3>
-                    
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-                        ট্রান্সফার সম্পূর্ণ করার জন্য নির্বাচিত একাউন্ট ম্যানেজার ({formData.accountManager?.name}) এর কাছে এসএমএস পাঠানো হবে।
-                      </p>
-                      
-                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-4">
-                        <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                          এসএমএস বার্তা:
-                        </p>
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                          ট্রান্সফার অনুমোদন প্রয়োজন: {formData.debitAccount?.name} থেকে {formData.creditAccount?.name} এ ৳{parseFloat(formData.transferAmount || 0).toLocaleString()}। 
-                          রেফারেন্স: {formData.transferReference || 'N/A'}। দয়া করে অনুমোদন করুন।
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <Mail className="w-4 h-4" />
-                        <span>এসএমএস পাঠানো হবে: {formData.accountManager?.phone}</span>
                       </div>
                     </div>
                   </div>
@@ -6045,15 +6187,7 @@ const NewTransaction = () => {
                         </>
                       )}
                     </button>
-                    
-                    <button
-                      onClick={() => {}} // SMS functionality
-                      className="flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg text-sm sm:text-base"
-                    >
-                      <Mail className="w-4 h-4" />
-                      <span className="hidden sm:inline">SMS পাঠান</span>
-                      <span className="sm:hidden">SMS</span>
-                    </button>
+                  
                   </div>
                 </div>
               ) : formData.transactionType === 'debit' ? (
@@ -6100,9 +6234,25 @@ const NewTransaction = () => {
                         <div className="flex justify-between text-xs sm:text-sm">
                           <span className="text-gray-600 dark:text-gray-400">পরিমাণ:</span>
                           <span className="font-semibold text-gray-900 dark:text-white">
-                            ৳{formData.paymentDetails.amount}
+                            ৳{formData.paymentDetails.amount ? parseFloat(formData.paymentDetails.amount).toLocaleString() : '0'}
                           </span>
                         </div>
+                        {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                          <div className="flex justify-between text-xs sm:text-sm">
+                            <span className="text-gray-600 dark:text-gray-400">চার্জ:</span>
+                            <span className={`font-semibold ${getChargeWithSign() < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                              {getChargeWithSign() < 0 ? '-' : '+'}৳{Math.abs(getChargeWithSign()).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                          <div className="flex justify-between text-xs sm:text-sm border-t pt-2 mt-2">
+                            <span className="text-gray-600 dark:text-gray-400 font-semibold">মোট পরিমাণ:</span>
+                            <span className="font-bold text-blue-600 dark:text-blue-400">
+                              ৳{getTotalAmount().toLocaleString()}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex justify-between text-xs sm:text-sm">
                           <span className="text-gray-600 dark:text-gray-400">Date:</span>
                           <span className="font-semibold text-gray-900 dark:text-white">
@@ -6353,7 +6503,7 @@ const NewTransaction = () => {
                       অ্যাকাউন্ট নির্বাচন
                     </h3>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4">
                       {/* Source Account */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
@@ -6428,66 +6578,6 @@ const NewTransaction = () => {
                           )}
                         </div>
                       </div>
-
-                      {/* Customer Bank Details */}
-                      {formData.paymentMethod !== 'cash' && (
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                          কাস্টমার অ্যাকাউন্ট (যেখান থেকে টাকা পাঠানো হবে)
-                        </label>
-                        <div className="space-y-3">
-                        {/* Bank Name or Mobile Provider (conditional) */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার' : 'ব্যাংকের নাম'}
-                          </label>
-                            <input
-                              type="text"
-                              name="customerBankAccount.bankName"
-                              value={formData.customerBankAccount.bankName}
-                              onChange={handleInputChange}
-                            placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল প্রোভাইডার লিখুন...' : 'ব্যাংকের নাম লিখুন...'}
-                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                                isDark 
-                                  ? 'bg-white border-gray-300 text-gray-900' 
-                                  : 'border-gray-300'
-                              } ${errors.customerBankName ? 'border-red-500 focus:ring-red-500' : ''}`}
-                            />
-                            {errors.customerBankName && (
-                              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                <AlertCircle className="w-3 h-3" />
-                                {errors.customerBankName}
-                              </p>
-                            )}
-                          </div>
-                          
-                        {/* Account Number or Mobile Number (conditional) */}
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                            {formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর' : 'একাউন্ট নম্বর'}
-                          </label>
-                            <input
-                              type="text"
-                              name="customerBankAccount.accountNumber"
-                              value={formData.customerBankAccount.accountNumber}
-                              onChange={handleInputChange}
-                            placeholder={formData.paymentMethod === 'mobile-banking' ? 'মোবাইল নম্বর লিখুন...' : 'একাউন্ট নম্বর লিখুন...'}
-                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm ${
-                                isDark 
-                                  ? 'bg-white border-gray-300 text-gray-900' 
-                                  : 'border-gray-300'
-                              } ${errors.customerAccountNumber ? 'border-red-500 focus:ring-red-500' : ''}`}
-                            />
-                            {errors.customerAccountNumber && (
-                              <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
-                                <AlertCircle className="w-3 h-3" />
-                                {errors.customerAccountNumber}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -6530,6 +6620,68 @@ const NewTransaction = () => {
                           </p>
                         )}
                       </div>
+
+                      {/* Charge Field - For cash, bank-transfer, cheque, and mobile-banking */}
+                      {(formData.paymentMethod === 'cash' || formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && (
+                        <div className="sm:col-span-2">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                            চার্জ
+                          </label>
+                          <div className="relative">
+                            <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="number"
+                              name="paymentDetails.charge"
+                              value={formData.paymentDetails.charge || ''}
+                              onChange={handleInputChange}
+                              placeholder="0.00"
+                              min="0"
+                              step="0.01"
+                              className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                                isDark 
+                                  ? 'bg-white border-gray-300 text-gray-900' 
+                                  : 'border-gray-300'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Total Amount Summary */}
+                      {formData.paymentDetails.amount && (
+                        <div className="sm:col-span-2">
+                          <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg p-3 sm:p-4 border border-blue-200 dark:border-blue-800">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">পরিমাণ:</span>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  ৳{parseFloat(formData.paymentDetails.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              {formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge || 0) > 0 && (
+                                <>
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">চার্জ:</span>
+                                    <span className={`text-sm font-semibold ${
+                                      getChargeWithSign() < 0 
+                                        ? 'text-red-600 dark:text-red-400' 
+                                        : 'text-green-600 dark:text-green-400'
+                                    }`}>
+                                      {getChargeWithSign() < 0 ? '-' : '+'}৳{Math.abs(getChargeWithSign()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center pt-2 border-t border-blue-200 dark:border-blue-700">
+                                    <span className="text-base font-bold text-gray-900 dark:text-white">মোট পরিমাণ:</span>
+                                    <span className="text-base font-bold text-blue-600 dark:text-blue-400">
+                                      ৳{getTotalAmount().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Dynamic Fields based on Payment Method */}
                       {selectedPaymentMethod.fields.map((field) => (
@@ -6620,6 +6772,22 @@ const NewTransaction = () => {
                           ৳{formData.paymentDetails.amount ? parseFloat(formData.paymentDetails.amount).toLocaleString() : '0'}
                         </p>
                       </div>
+                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                        <div>
+                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">চার্জ:</span>
+                          <p className={`font-medium ${getChargeWithSign() < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                            {getChargeWithSign() < 0 ? '-' : '+'}৳{Math.abs(getChargeWithSign()).toLocaleString()}
+                          </p>
+                        </div>
+                      )}
+                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                        <div className="border-t pt-2 mt-2">
+                          <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">মোট পরিমাণ:</span>
+                          <p className="text-blue-600 dark:text-blue-400 font-bold">
+                            ৳{getTotalAmount().toLocaleString()}
+                          </p>
+                        </div>
+                      )}
                       <div>
                         <span className="text-sm font-medium text-gray-600 dark:text-gray-400">পেমেন্ট মেথড:</span>
                         <p className="text-gray-900 dark:text-white font-medium">
@@ -6707,9 +6875,25 @@ const NewTransaction = () => {
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-600 dark:text-gray-400">পরিমাণ:</span>
                         <span className="font-semibold text-gray-900 dark:text-white">
-                          ৳{formData.paymentDetails.amount}
+                          ৳{formData.paymentDetails.amount ? parseFloat(formData.paymentDetails.amount).toLocaleString() : '0'}
                         </span>
                       </div>
+                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                        <div className="flex justify-between text-xs sm:text-sm">
+                          <span className="text-gray-600 dark:text-gray-400">চার্জ:</span>
+                          <span className={`font-semibold ${getChargeWithSign() < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
+                            {getChargeWithSign() < 0 ? '-' : '+'}৳{Math.abs(getChargeWithSign()).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                        <div className="flex justify-between text-xs sm:text-sm border-t pt-2 mt-2">
+                          <span className="text-gray-600 dark:text-gray-400 font-semibold">মোট পরিমাণ:</span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            ৳{getTotalAmount().toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-xs sm:text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Date:</span>
                         <span className="font-semibold text-gray-900 dark:text-white">

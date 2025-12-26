@@ -194,11 +194,25 @@ export const navigation = [
     ]
   },
   {
-    name: 'Short Term Loans',
+    name: 'Additional Services',
+    icon: Package,
+    children: [
+      { name: 'Dashboard', href: '/additional-services/dashboard', icon: LayoutDashboard },
+      { name: 'Customer List', href: '/additional-services/customer-list', icon: Users },
+      { name: 'Passport Service', href: '/additional-services/passport-service', icon: FileCheck },
+      { name: 'Manpower Service', href: '/additional-services/manpower-service', icon: Briefcase },
+      { name: 'Visa Processing', href: '/additional-services/visa-processing', icon: FileTextIcon3 },
+      { name: "Other's Service", href: '/additional-services/others-service', icon: Package }
+    ]
+  },
+  {
+    name: 'স্বল্পমেয়াদী লেনদেন',
     icon: Calculator,
     children: [
-      { name: 'Dashboard', href: '/loan/dashboard', icon: LayoutDashboard },
-      { name: 'Loan List', href: '/loan/list', icon: List },
+      { name: 'ড্যাশবোর্ড', href: '/loan/dashboard', icon: LayoutDashboard },
+      // { name: 'ঋণের তালিকা', href: '/loan/list', icon: List },
+      { name: 'ঋণ গ্রহণ', href: '/loan/receiving-list', icon: TrendingUp },
+      { name: 'ঋণ প্রদান', href: '/loan/giving-list', icon: TrendingDown },
     ]
   },
   {
@@ -237,10 +251,7 @@ export const navigation = [
       { name: 'Income Management', href: '/account/income', icon: TrendingUp },
       { name: 'Expense Management', href: '/account/expense', icon: TrendingDown },
       { name: 'Savings & Investments', href: '/account/savings', icon: PiggyBank },
-      { name: 'Loans & Credit', href: '/account/loans', icon: Calculator },
       { name: 'Bank Accounts', href: '/account/bank-accounts', icon: CreditCard },
-      { name: 'Credit Cards', href: '/account/credit-cards', icon: CreditCardIcon },
-      { name: 'Financial Reports', href: '/account/reports', icon: FileText },
       { name: 'Budget Planning', href: '/account/budget', icon: BarChart3Icon },
       { name: 'Tax Management', href: '/account/tax', icon: Receipt }
     ]

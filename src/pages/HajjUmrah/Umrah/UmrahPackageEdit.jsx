@@ -124,6 +124,31 @@ const UmrahPackageEdit = () => {
     }
   });
 
+  // Auto-generate package name when year, month, or packageType changes
+  useEffect(() => {
+    if (!formData.packageYear) {
+      setFormData(prev => ({
+        ...prev,
+        packageName: ''
+      }));
+      return;
+    }
+
+    const customPackageType = 'Umrah';
+    const year = formData.packageYear || '';
+    const month = formData.packageMonth || '';
+    const packageType = formData.packageType || 'Regular';
+
+    // Build package name: "Umrah 2026 May Regular"
+    // Backend will add unique number (01, 02, etc.) after creation
+    const generatedName = `${customPackageType} ${year}${month ? ` ${month}` : ''} ${packageType}`;
+    
+    setFormData(prev => ({
+      ...prev,
+      packageName: generatedName
+    }));
+  }, [formData.packageYear, formData.packageMonth, formData.packageType]);
+
   // Load existing package data
   useEffect(() => {
     if (existingPackage) {
@@ -230,6 +255,7 @@ const UmrahPackageEdit = () => {
       (costs.hajjKollan || 0) +
       (costs.trainFee || 0) +
       (costs.hajjGuide || 0) +
+      (costs.visaFee || 0) + // ভিসা ফি বাংলাদেশ অংশ
       (costs.govtServiceCharge || 0) +
       (costs.licenseFee || 0) +
       (costs.transportFee || 0) +
@@ -243,7 +269,6 @@ const UmrahPackageEdit = () => {
       (costs.madinaHotel2 || 0) +
       (costs.zamzamWater || 0) +
       (costs.maktab || 0) +
-      (costs.visaFee || 0) +
       (costs.insuranceFee || 0) +
       (costs.electronicsFee || 0) +
       (costs.groundServiceFee || 0) +
@@ -738,19 +763,25 @@ const UmrahPackageEdit = () => {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         প্যাকেজ নাম <span className="text-red-500">*</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(স্বয়ংক্রিয়ভাবে তৈরি হবে)</span>
                       </label>
                       <input
                         type="text"
                         name="packageName"
                         value={formData.packageName}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        readOnly
+                        className={`w-full px-4 py-3 border rounded-lg bg-gray-50 dark:bg-gray-600 dark:text-white cursor-not-allowed ${
                           errors.packageName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                         }`}
-                        placeholder="প্যাকেজের নাম লিখুন"
+                        placeholder="সাল, মাস এবং প্যাকেজ টাইপ নির্বাচন করুন"
                       />
                       {errors.packageName && (
                         <p className="mt-1 text-sm text-red-600">{errors.packageName}</p>
+                      )}
+                      {formData.packageName && (
+                        <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                          ✓ প্যাকেজ নাম: {formData.packageName}
+                        </p>
                       )}
                     </div>
 
@@ -846,6 +877,11 @@ const UmrahPackageEdit = () => {
                             </div>
 
                             <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ভিসা ফি</label>
+                              <input type="number" name="visaFee" value={costs.visaFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
+                            </div>
+
+                            <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">অন্যান্য বাংলাদেশি খরচ</label>
                               <input type="number" name="otherBdCosts" value={costs.otherBdCosts} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
                             </div>
@@ -908,11 +944,6 @@ const UmrahPackageEdit = () => {
                             <div>
                               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">খাবার</label>
                               <input type="number" name="food" value={costs.food} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">ভিসা ফি</label>
-                              <input type="number" name="visaFee" value={costs.visaFee} onChange={handleCostChange} min="0" step="0.01" className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white" placeholder="0.00" />
                             </div>
 
                             <div>

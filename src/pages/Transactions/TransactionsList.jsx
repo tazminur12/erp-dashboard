@@ -850,6 +850,8 @@ const TransactionsList = () => {
       accountManagerName: accountManagerName || '',
       date: transaction.date ? formatDate(transaction.date) : 'DD-MM-YYYY',
       amount: transaction.paymentDetails?.amount || transaction.amount || 0,
+      charge: transaction.charge || transaction.paymentDetails?.charge || 0,
+      totalAmount: (parseFloat(transaction.paymentDetails?.amount || transaction.amount || 0)) + (parseFloat(transaction.charge || transaction.paymentDetails?.charge || 0)),
       notes: transaction.notes || '',
       // Bank Transfer specific fields
       isBankTransfer: isBankTransfer,
@@ -1606,12 +1608,24 @@ const TransactionsList = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className={`text-sm font-semibold ${
-                        transaction.transactionType === 'credit' 
-                          ? 'text-green-600 dark:text-green-400' 
-                          : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {formatAmount(transaction.paymentDetails?.amount || 0)}
+                      <div className="space-y-1">
+                        <div className={`text-sm font-semibold ${
+                          transaction.transactionType === 'credit' 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          পরিমাণ: {formatAmount(transaction.paymentDetails?.amount || transaction.amount || 0)}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          চার্জ: {formatAmount(parseFloat(transaction.charge || transaction.paymentDetails?.charge || 0))}
+                        </div>
+                        <div className={`text-xs font-bold ${
+                          transaction.transactionType === 'credit' 
+                            ? 'text-green-700 dark:text-green-300' 
+                            : 'text-red-700 dark:text-red-300'
+                        }`}>
+                          মোট: {formatAmount((parseFloat(transaction.paymentDetails?.amount || transaction.amount || 0)) + parseFloat(transaction.charge || transaction.paymentDetails?.charge || 0))}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -1877,7 +1891,17 @@ const TransactionsList = () => {
                       ? 'text-green-600 dark:text-green-400' 
                       : 'text-red-600 dark:text-red-400'
                   }`}>
-                    {formatAmount(selectedTransaction.paymentDetails?.amount || 0)}
+                    পরিমাণ: {formatAmount(selectedTransaction.paymentDetails?.amount || selectedTransaction.amount || 0)}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    চার্জ: {formatAmount(parseFloat(selectedTransaction.charge || selectedTransaction.paymentDetails?.charge || 0))}
+                  </p>
+                  <p className={`text-sm font-bold mt-1 ${
+                    selectedTransaction.transactionType === 'credit' 
+                      ? 'text-green-700 dark:text-green-300' 
+                      : 'text-red-700 dark:text-red-300'
+                  }`}>
+                    মোট পরিমাণ: {formatAmount((parseFloat(selectedTransaction.paymentDetails?.amount || selectedTransaction.amount || 0)) + parseFloat(selectedTransaction.charge || selectedTransaction.paymentDetails?.charge || 0))}
                   </p>
                 </div>
                 <div>

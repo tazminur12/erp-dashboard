@@ -237,6 +237,7 @@ const UmrahPackageCosting = () => {
       (parseFloat(costs.hajjKollan) || 0) +
       (parseFloat(costs.trainFee) || 0) +
       (parseFloat(costs.hajjGuide) || 0) +
+      (parseFloat(costs.visaFee) || 0) + // ভিসা ফি বাংলাদেশ অংশ
       (parseFloat(costs.govtServiceCharge) || 0) +
       (parseFloat(costs.licenseFee) || 0) +
       (parseFloat(costs.transportFee) || 0) +
@@ -255,7 +256,6 @@ const UmrahPackageCosting = () => {
       (parseFloat(costs.food) || 0) +
       (parseFloat(costs.ziyaraFee) || 0) +
       (parseFloat(costs.campFee) || 0) +
-      (parseFloat(costs.visaFee) || 0) +
       (parseFloat(costs.insuranceFee) || 0) +
       (parseFloat(costs.otherSaudiCosts) || 0);
     const saudiCostsBDT = saudiCostsSAR * sarToBdt;
@@ -596,6 +596,7 @@ const UmrahPackageCosting = () => {
                       ['hajjKollan', 'হজ্জ কল্যাণ ফি'],
                       ['trainFee', 'ট্রেনিং ফি'],
                       ['hajjGuide', 'হজ গাইড ফি'],
+                      ['visaFee', 'ভিসা ফি'],
                       ['govtServiceCharge', 'সরকারি সার্ভিস চার্জ'],
                       ['licenseFee', 'লাইসেন্স চার্জ ফি'],
                       ['transportFee', 'যাতায়াত ফি'],
@@ -674,7 +675,6 @@ const UmrahPackageCosting = () => {
                       ['food', 'খাবার'],
                       ['ziyaraFee', 'জিয়ারা ফি'],
                       ['campFee', 'ক্যাম্প ফি'],
-                      ['visaFee', 'ভিসা ফি'],
                       ['insuranceFee', 'ইনস্যুরেন্স ফি'],
                       ['otherSaudiCosts', 'অন্যান্য সৌদি খরচ'],
                     ].map(([key, label]) => (

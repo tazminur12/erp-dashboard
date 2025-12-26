@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { 
@@ -24,8 +24,9 @@ const HajPackageCreation = () => {
   const [formData, setFormData] = useState({
     packageName: '',
     packageYear: '',
-    packageMonth: '',
-    packageType: 'Regular',
+    arbiYear: '',
+    packageCategory: 'A',
+    packageType: 'Fitra',
     customPackageType: 'Haj Selection', // Pre-set to Haj Selection
     passengerType: 'Adult',
     sarToBdtRate: '',
@@ -80,6 +81,32 @@ const HajPackageCreation = () => {
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Auto-generate package name when year, arbiYear, packageCategory, or packageType changes
+  useEffect(() => {
+    if (!formData.packageYear) {
+      setFormData(prev => ({
+        ...prev,
+        packageName: ''
+      }));
+      return;
+    }
+
+    const customPackageType = 'Haj';
+    const year = formData.packageYear || '';
+    const arbiYear = formData.arbiYear || '';
+    const packageCategory = formData.packageCategory || 'A';
+    const packageType = formData.packageType || 'Fitra';
+
+    // Build package name: "Haj 2029 Fitra A" (year, packageType, packageCategory)
+    // Backend will add unique number (01, 02, etc.) after creation
+    const generatedName = `${customPackageType} ${year}${arbiYear ? ` ${arbiYear}` : ''} ${packageType} ${packageCategory}`;
+    
+    setFormData(prev => ({
+      ...prev,
+      packageName: generatedName
+    }));
+  }, [formData.packageYear, formData.arbiYear, formData.packageCategory, formData.packageType]);
   
   // Air fare popup state
   const [showAirFarePopup, setShowAirFarePopup] = useState(false);
@@ -472,8 +499,9 @@ const HajPackageCreation = () => {
       setFormData({
         packageName: '',
         packageYear: '',
-        packageMonth: '',
-        packageType: 'Regular',
+        arbiYear: '',
+        packageCategory: 'A',
+        packageType: 'Fitra',
         customPackageType: 'Haj Selection',
         passengerType: 'Adult',
         sarToBdtRate: '',
@@ -647,105 +675,148 @@ const HajPackageCreation = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      সাল <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="packageYear"
-                      value={formData.packageYear}
-                      onChange={handleInputChange}
-                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
-                        errors.packageYear ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                    >
-                      <option value="">Select Year</option>
-                      <option value="2030">2030</option>
-                      <option value="2029">2029</option>
-                      <option value="2028">2028</option>
-                      <option value="2027">2027</option>
-                      <option value="2026">2026</option>
-                      <option value="2025">2025</option>
-                      <option value="2024">2024</option>
-                      <option value="2023">2023</option>
-                      <option value="2022">2022</option>
-                      <option value="2021">2021</option>
-                      <option value="2020">2020</option>
-                      <option value="2019">2019</option>
-                      <option value="2018">2018</option>
-                      <option value="2017">2017</option>
-                      <option value="2016">2016</option>
-                      <option value="2015">2015</option>
-                      <option value="2014">2014</option>
-                      <option value="2013">2013</option>
-                      <option value="2012">2012</option>
-                      <option value="2011">2011</option>
-                      <option value="2010">2010</option>
-                    </select>
-                    {errors.packageYear && (
-                      <p className="mt-1 text-sm text-red-600">{errors.packageYear}</p>
-                    )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        সাল <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        name="packageYear"
+                        value={formData.packageYear}
+                        onChange={handleInputChange}
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                          errors.packageYear ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      >
+                        <option value="">Select Year</option>
+                        <option value="2030">2030</option>
+                        <option value="2029">2029</option>
+                        <option value="2028">2028</option>
+                        <option value="2027">2027</option>
+                        <option value="2026">2026</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                        <option value="2019">2019</option>
+                        <option value="2018">2018</option>
+                        <option value="2017">2017</option>
+                        <option value="2016">2016</option>
+                        <option value="2015">2015</option>
+                        <option value="2014">2014</option>
+                        <option value="2013">2013</option>
+                        <option value="2012">2012</option>
+                        <option value="2011">2011</option>
+                        <option value="2010">2010</option>
+                      </select>
+                      {errors.packageYear && (
+                        <p className="mt-1 text-sm text-red-600">{errors.packageYear}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        আরবি সাল
+                      </label>
+                      <select
+                        name="arbiYear"
+                        value={formData.arbiYear}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="">আরবি সাল নির্বাচন করুন</option>
+                        <option value="1450">1450</option>
+                        <option value="1449">1449</option>
+                        <option value="1448">1448</option>
+                        <option value="1447">1447</option>
+                        <option value="1446">1446</option>
+                        <option value="1445">1445</option>
+                        <option value="1444">1444</option>
+                        <option value="1443">1443</option>
+                        <option value="1442">1442</option>
+                        <option value="1441">1441</option>
+                        <option value="1440">1440</option>
+                        <option value="1439">1439</option>
+                        <option value="1438">1438</option>
+                        <option value="1437">1437</option>
+                        <option value="1436">1436</option>
+                        <option value="1435">1435</option>
+                        <option value="1434">1434</option>
+                        <option value="1433">1433</option>
+                        <option value="1432">1432</option>
+                        <option value="1431">1431</option>
+                        <option value="1430">1430</option>
+                      </select>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      মাস <span className="text-gray-400 text-xs">(Optional)</span>
-                    </label>
-                    <select
-                      name="packageMonth"
-                      value={formData.packageMonth}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="">মাস নির্বাচন করুন</option>
-                      <option value="January">জানুয়ারি (January)</option>
-                      <option value="February">ফেব্রুয়ারি (February)</option>
-                      <option value="March">মার্চ (March)</option>
-                      <option value="April">এপ্রিল (April)</option>
-                      <option value="May">মে (May)</option>
-                      <option value="June">জুন (June)</option>
-                      <option value="July">জুলাই (July)</option>
-                      <option value="August">আগস্ট (August)</option>
-                      <option value="September">সেপ্টেম্বর (September)</option>
-                      <option value="October">অক্টোবর (October)</option>
-                      <option value="November">নভেম্বর (November)</option>
-                      <option value="December">ডিসেম্বর (December)</option>
-                    </select>
-                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        প্যাকেজ টাইপ
+                      </label>
+                      <select
+                        name="packageType"
+                        value={formData.packageType}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="Fitra">Fitra</option>
+                        <option value="Permanent">Permanent</option>
+                        <option value="Short">Short</option>
+                      </select>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      প্যাকেজ টাইপ
-                    </label>
-                    <select
-                      name="packageType"
-                      value={formData.packageType}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="Regular">Regular</option>
-                      <option value="Standard">Standard</option>
-                      <option value="Premium">Premium</option>
-                    </select>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        প্যাকেজ ক্যাটাগরি
+                      </label>
+                      <select
+                        name="packageCategory"
+                        value={formData.packageCategory}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                      >
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                        <option value="H">H</option>
+                        <option value="I">I</option>
+                        <option value="J">J</option>
+                        <option value="K">K</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         প্যাকেজ নাম <span className="text-red-500">*</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">(স্বয়ংক্রিয়ভাবে তৈরি হবে)</span>
                       </label>
                       <input
                         type="text"
                         name="packageName"
                         value={formData.packageName}
-                        onChange={handleInputChange}
-                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        readOnly
+                        className={`w-full px-4 py-3 border rounded-lg bg-gray-50 dark:bg-gray-600 dark:text-white cursor-not-allowed ${
                           errors.packageName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                         }`}
-                        placeholder="প্যাকেজের নাম লিখুন"
+                        placeholder="সাল, আরবি সাল, ক্যাটাগরি এবং প্যাকেজ টাইপ নির্বাচন করুন"
                       />
                       {errors.packageName && (
                         <p className="mt-1 text-sm text-red-600">{errors.packageName}</p>
+                      )}
+                      {formData.packageName && (
+                        <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+                          ✓ প্যাকেজ নাম: {formData.packageName}
+                        </p>
                       )}
                     </div>
 

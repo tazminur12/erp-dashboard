@@ -4,32 +4,22 @@ import { useAuth } from '../../contexts/AuthContext';
 import { 
   ArrowLeft,
   DollarSign,
-  Calendar,
-  Eye,
   TrendingUp,
-  TrendingDown,
   Search,
-  Filter,
-  Plus,
   User,
-  Building,
   Phone,
-  Mail,
-  MapPin,
-  FileText,
-  Clock,
+  Eye,
+  Trash2,
   CheckCircle,
-  AlertCircle,
+  Clock,
   XCircle,
-  ThumbsUp,
-  ThumbsDown,
-  Trash2
+  AlertCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useLoans, useDeleteLoan } from '../../hooks/useLoanQueries';
 
-const LoanList = () => {
+const ReceivingList = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
   const navigate = useNavigate();
@@ -37,12 +27,12 @@ const LoanList = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all'); // all, giving, receiving
   const [filterStatus, setFilterStatus] = useState('all'); // all, active, completed, overdue
+  const filterType = 'receiving';
 
   // Build filters object for API
   const filters = {
-    ...(filterType !== 'all' && { loanDirection: filterType }),
+    loanDirection: filterType,
     ...(filterStatus !== 'all' && { status: filterStatus }),
     ...(searchTerm && { search: searchTerm })
   };
@@ -95,16 +85,12 @@ const LoanList = () => {
     }).format(amount);
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-BD');
-  };
-
   const handleViewLoan = (loan) => {
     navigate(`/loan/details/${loan.loanId || loan._id}`, { state: { loan } });
   };
 
-  const handleNewLoan = (type) => {
-    navigate(`/loan/new-${type}`);
+  const handleNewLoan = () => {
+    navigate(`/loan/new-receiving`);
   };
 
   const handleDeleteLoan = async (loan) => {
@@ -176,17 +162,17 @@ const LoanList = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-green-600 to-purple-600 bg-clip-text text-transparent">
-                  ঋণ ব্যবস্থাপনা
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">
+                  ঋণ গ্রহণ তালিকা
                 </h1>
                 <p className={`mt-1 text-lg transition-colors duration-300 ${
                   isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}>
-                  আপনার সকল ঋণ লেনদেন পরিচালনা করুন
+                  আপনার সকল গৃহীত ঋণের তালিকা
                 </p>
               </div>
             </div>
@@ -196,18 +182,11 @@ const LoanList = () => {
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <button
-            onClick={() => handleNewLoan('receiving')}
+            onClick={handleNewLoan}
             className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <TrendingUp className="w-5 h-5" />
             নতুন ঋণ গ্রহণ
-          </button>
-          <button
-            onClick={() => handleNewLoan('giving')}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <TrendingDown className="w-5 h-5" />
-            নতুন ঋণ প্রদান
           </button>
         </div>
 
@@ -215,7 +194,7 @@ const LoanList = () => {
         <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border transition-colors duration-300 p-6 mb-6 ${
           isDark ? 'border-gray-700' : 'border-gray-100'
         }`}>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -224,7 +203,7 @@ const LoanList = () => {
                 placeholder="ঋণ খুঁজুন..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                className={`w-full pl-10 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                   isDark 
                     ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                     : 'border-gray-300'
@@ -232,29 +211,12 @@ const LoanList = () => {
               />
             </div>
 
-            {/* Type Filter */}
-            <div>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                  isDark 
-                    ? 'bg-gray-700 border-gray-600 text-white' 
-                    : 'border-gray-300'
-                }`}
-              >
-                <option value="all">সব ধরন</option>
-                <option value="giving">ঋণ প্রদান</option>
-                <option value="receiving">ঋণ গ্রহণ</option>
-              </select>
-            </div>
-
             {/* Status Filter */}
             <div>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
                   isDark 
                     ? 'bg-gray-700 border-gray-600 text-white' 
                     : 'border-gray-300'
@@ -293,9 +255,9 @@ const LoanList = () => {
               <p className={`text-sm ${
                 isDark ? 'text-gray-400' : 'text-gray-500'
               }`}>
-                {searchTerm || filterType !== 'all' || filterStatus !== 'all' 
+                {searchTerm || filterStatus !== 'all' 
                   ? 'আপনার অনুসন্ধান বা ফিল্টার পরিবর্তন করে চেষ্টা করুন'
-                  : 'আপনার প্রথম ঋণ লেনদেন তৈরি করুন'
+                  : 'আপনার প্রথম ঋণ গ্রহণ করুন'
                 }
               </p>
             </div>
@@ -332,13 +294,9 @@ const LoanList = () => {
                     } transition-colors duration-200`}>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {(loan.loanDirection || loan.type) === 'giving' ? (
-                            <TrendingDown className="w-5 h-5 text-blue-600" />
-                          ) : (
-                            <TrendingUp className="w-5 h-5 text-green-600" />
-                          )}
+                          <TrendingUp className="w-5 h-5 text-green-600" />
                           <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
-                            {(loan.loanDirection || loan.type) === 'giving' ? 'ঋণ প্রদান' : 'ঋণ গ্রহণ'}
+                            ঋণ গ্রহণ
                           </span>
                         </div>
                       </td>
@@ -353,7 +311,7 @@ const LoanList = () => {
                               onClick={() => handleViewLoan(loan)}
                               className="text-left text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline focus:outline-none"
                             >
-                              {(loan.loanDirection || loan.type) === 'giving' ? loan.fullName : loan.fullName}
+                              {loan.fullName}
                             </button>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
                               {loan.businessName}
@@ -404,7 +362,6 @@ const LoanList = () => {
                             <Trash2 className="w-4 h-4" />
                             মুছুন
                           </button>
-                          {/* Approve/Reject removed as requested */}
                         </div>
                       </td>
                     </tr>
@@ -419,4 +376,4 @@ const LoanList = () => {
   );
 };
 
-export default LoanList;
+export default ReceivingList;

@@ -169,17 +169,24 @@ const VendorList = () => {
                     Failed to load vendors. Please try again.
                   </td>
                 </tr>
-              ) : paged.length > 0 ? paged.map((v) => (
-                <tr key={v._id || v.vendorId} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
+              ) : paged.length > 0 ? paged.map((v) => {
+            
+                  return (
+                  <tr key={v._id || v.vendorId} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{v.vendorId}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="hidden sm:flex items-center justify-center h-9 w-9 rounded-md bg-purple-100 dark:bg-purple-900/30">
-                        <Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div>
-                        <Link to={`/vendors/${v._id || v.vendorId}`} className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline">{v.tradeName}</Link>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {v.tradeLocation}</div>
+                      {v.logo && (
+                        <img src={v.logo} alt={v.tradeName} className="w-10 h-10 rounded" />
+                      )}
+                      {!v.logo && (
+                        <div className="flex items-center justify-center h-10 w-10 rounded-md bg-purple-100 dark:bg-purple-900/30 flex-shrink-0">
+                          <Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <Link to={`/vendors/${v._id || v.vendorId}`} className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline block truncate">{v.tradeName}</Link>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{v.tradeLocation}</span></div>
                       </div>
                     </div>
                   </td>
@@ -233,7 +240,8 @@ const VendorList = () => {
                     </div>
                   </td>
                 </tr>
-              )) : (
+                );
+              }) : (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No vendors found</td>
                 </tr>

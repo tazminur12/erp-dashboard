@@ -63,10 +63,6 @@ const HajiList = () => {
   
   // Debug: Log counts to verify
   useEffect(() => {
-    console.log('API Response:', hajiData);
-    console.log('Total Hajis (from API pagination):', hajiData?.pagination?.total);
-    console.log('Hajis array length:', hajis.length);
-    console.log('Filtered Hajis:', filteredHajis.length);
   }, [hajiData, hajis.length, filteredHajis.length]);
   
   // Delete Haji mutation

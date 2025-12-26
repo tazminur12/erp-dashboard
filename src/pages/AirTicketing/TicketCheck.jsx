@@ -1,19 +1,29 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { Search, X, Loader2 } from 'lucide-react';
+import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
+import { useEmployees } from '../../hooks/useHRQueries';
 
 export default function TicketCheck() {
-  const reservationOfficers = useMemo(
-    () => [
-      { id: 'ro-1', name: 'Mahmudul Hasan' },
-      { id: 'ro-2', name: 'Nusrat Jahan' },
-      { id: 'ro-3', name: 'Tanvir Ahmed' }
-    ],
-    []
-  );
+  const { useSearchAirCustomers } = useAirCustomersQueries();
+  
+  // Fetch active employees for reservation officers
+  const { data: employeesData, isLoading: isLoadingEmployees } = useEmployees({
+    status: 'active',
+    limit: 100,
+    page: 1
+  });
+
+  const reservationOfficers = useMemo(() => {
+    if (!employeesData?.employees) return [];
+    return employeesData.employees.map(emp => ({
+      id: emp._id || emp.id || emp.employeeId,
+      name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.employeeId || 'Unknown'
+    }));
+  }, [employeesData]);
 
   const [formValues, setFormValues] = useState({
     travelDate: '',
-    firstName: '',
-    lastName: '',
+    passengerName: '',
     travellingCountry: '',
     passportNo: '',
     contactNo: '',
@@ -29,6 +39,47 @@ export default function TicketCheck() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submittedMessage, setSubmittedMessage] = useState('');
+  const [passengerSearchTerm, setPassengerSearchTerm] = useState('');
+  const [showPassengerResults, setShowPassengerResults] = useState(false);
+  const [selectedPassenger, setSelectedPassenger] = useState(null);
+  const searchRef = useRef(null);
+  const resultsRef = useRef(null);
+
+  const { data: passengerResults = [], isPending: isSearching } = useSearchAirCustomers(
+    passengerSearchTerm,
+    { enabled: passengerSearchTerm.trim().length >= 2 }
+  );
+
+  // Close results when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target) &&
+        resultsRef.current &&
+        !resultsRef.current.contains(event.target)
+      ) {
+        setShowPassengerResults(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handlePassengerSelect = (passenger) => {
+    setSelectedPassenger(passenger);
+    setFormValues(prev => ({
+      ...prev,
+      passengerName: passenger.name || `${passenger.firstName || ''} ${passenger.lastName || ''}`.trim(),
+      passportNo: passenger.passportNumber || '',
+      contactNo: passenger.mobile || passenger.phone || '',
+      whatsAppNo: passenger.whatsappNo || passenger.mobile || '',
+      email: passenger.email || '',
+      isWhatsAppSame: !passenger.whatsappNo || passenger.whatsappNo === passenger.mobile
+    }));
+    setPassengerSearchTerm('');
+    setShowPassengerResults(false);
+  };
 
   function updateValue(field, value) {
     setFormValues(prev => ({ ...prev, [field]: value }));
@@ -44,8 +95,7 @@ export default function TicketCheck() {
     setSubmittedMessage('');
 
     if (!formValues.travelDate) return setSubmittedMessage('Please select travel date.');
-    if (!formValues.firstName) return setSubmittedMessage('Please enter first name.');
-    if (!formValues.lastName) return setSubmittedMessage('Please enter last name.');
+    if (!formValues.passengerName) return setSubmittedMessage('Please enter passenger name.');
     if (!formValues.travellingCountry) return setSubmittedMessage('Please enter travelling country.');
     if (!formValues.passportNo) return setSubmittedMessage('Please enter passport number.');
     if (!formValues.contactNo) return setSubmittedMessage('Please enter contact number.');
@@ -68,8 +118,7 @@ export default function TicketCheck() {
   function handleReset() {
     setFormValues({
       travelDate: '',
-      firstName: '',
-      lastName: '',
+      passengerName: '',
       travellingCountry: '',
       passportNo: '',
       contactNo: '',
@@ -82,6 +131,8 @@ export default function TicketCheck() {
       email: '',
       reservationOfficerId: ''
     });
+    setSelectedPassenger(null);
+    setPassengerSearchTerm('');
     setSubmittedMessage('');
   }
 
@@ -106,47 +157,94 @@ export default function TicketCheck() {
             />
           </div>
 
-          {/* First Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passenger First Name</label>
-            <input
-              type="text"
-              placeholder="e.g. Rahim"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formValues.firstName}
-              onChange={e => updateValue('firstName', e.target.value)}
-              required
-            />
+          {/* Passenger Name with Search */}
+          <div className="md:col-span-2 lg:col-span-1 relative" ref={searchRef}>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              Passenger Name
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search passenger or enter name..."
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-10 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={passengerSearchTerm || formValues.passengerName}
+                onChange={e => {
+                  const value = e.target.value;
+                  setPassengerSearchTerm(value);
+                  if (!value) {
+                    updateValue('passengerName', '');
+                    setSelectedPassenger(null);
+                  } else {
+                    updateValue('passengerName', value);
+                  }
+                  setShowPassengerResults(value.trim().length >= 2);
+                }}
+                onFocus={() => {
+                  if (passengerSearchTerm.trim().length >= 2 || passengerResults.length > 0) {
+                    setShowPassengerResults(true);
+                  }
+                }}
+                required
+              />
+              {selectedPassenger && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPassenger(null);
+                    setPassengerSearchTerm('');
+                    updateValue('passengerName', '');
+                  }}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  <X className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
+            </div>
+            
+            {/* Search Results Dropdown */}
+            {showPassengerResults && (passengerSearchTerm.trim().length >= 2 || passengerResults.length > 0) && (
+              <div
+                ref={resultsRef}
+                className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-auto"
+              >
+                {isSearching ? (
+                  <div className="p-4 text-center">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-blue-600" />
+                    <p className="text-sm text-gray-500 mt-2">Searching...</p>
+                  </div>
+                ) : passengerResults.length > 0 ? (
+                  <ul className="py-1">
+                    {passengerResults.map((passenger) => {
+                      const fullName = passenger.name || `${passenger.firstName || ''} ${passenger.lastName || ''}`.trim();
+                      return (
+                        <li
+                          key={passenger._id || passenger.id || passenger.customerId}
+                          className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                          onClick={() => handlePassengerSelect(passenger)}
+                        >
+                          <div className="font-medium text-gray-900 dark:text-white">{fullName}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {passenger.mobile || passenger.phone ? `Phone: ${passenger.mobile || passenger.phone}` : ''}
+                            {passenger.passportNumber ? ` | Passport: ${passenger.passportNumber}` : ''}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : passengerSearchTerm.trim().length >= 2 ? (
+                  <div className="p-4 text-center text-sm text-gray-500">
+                    No passengers found
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
-          {/* Last Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passenger Last Name</label>
-            <input
-              type="text"
-              placeholder="e.g. Uddin"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formValues.lastName}
-              onChange={e => updateValue('lastName', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Travelling Country */}
-          <div className="md:col-span-2 lg:col-span-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Travelling Country</label>
-            <input
-              type="text"
-              placeholder="e.g. Saudi Arabia"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formValues.travellingCountry}
-              onChange={e => updateValue('travellingCountry', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Passport No */}
-          <div>
+        {/* Passport No */}
+ <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passport No</label>
             <input
               type="text"
@@ -157,7 +255,6 @@ export default function TicketCheck() {
               required
             />
           </div>
-
           {/* Contact No */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Contact No</label>
@@ -197,6 +294,20 @@ export default function TicketCheck() {
               />
             </div>
           )}
+
+
+          {/* Travelling Country */}
+          <div className="md:col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Travelling Country</label>
+            <input
+              type="text"
+              placeholder="e.g. Saudi Arabia"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={formValues.travellingCountry}
+              onChange={e => updateValue('travellingCountry', e.target.value)}
+              required
+            />
+          </div>
 
           {/* Airlines Name */}
           <div>
@@ -264,17 +375,26 @@ export default function TicketCheck() {
 
           {/* Reservation Officer */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Select Reservation Officer</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              Select Reservation Officer
+            </label>
             <select
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               value={formValues.reservationOfficerId}
               onChange={e => updateValue('reservationOfficerId', e.target.value)}
+              disabled={isLoadingEmployees}
               required
             >
-              <option value="" disabled>Choose officer</option>
-              {reservationOfficers.map(officer => (
-                <option key={officer.id} value={officer.id}>{officer.name}</option>
-              ))}
+              <option value="" disabled>
+                {isLoadingEmployees ? 'Loading employees...' : 'Choose officer'}
+              </option>
+              {reservationOfficers.length > 0 ? (
+                reservationOfficers.map(officer => (
+                  <option key={officer.id} value={officer.id}>{officer.name}</option>
+                ))
+              ) : !isLoadingEmployees ? (
+                <option value="" disabled>No employees found</option>
+              ) : null}
             </select>
           </div>
         </div>

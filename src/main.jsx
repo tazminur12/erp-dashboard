@@ -54,6 +54,7 @@ const VendorList = React.lazy(() => import('./pages/Vendors/VendorList'));
 const AddVendor = React.lazy(() => import('./pages/Vendors/AddVendor'));
 const EditVendor = React.lazy(() => import('./pages/Vendors/EditVendor'));
 const VendorDetails = React.lazy(() => import('./pages/Vendors/VendorDetails'));
+const VendorBankAccounts = React.lazy(() => import('./pages/Vendors/VendorBankAccounts'));
 const VendorBillGenerate = React.lazy(() => import('./pages/Vendors/VendorBillGenerate'));
 
 // Hajj & Umrah pages
@@ -119,6 +120,8 @@ const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing').then(mod
 // Loan pages (direct file imports to surface real errors and avoid masking with catch)
 const LoanDashboard = React.lazy(() => import('./pages/Loan/Dashboard'));
 const LoanList = React.lazy(() => import('./pages/Loan/LoanList'));
+const ReceivingList = React.lazy(() => import('./pages/Loan/ReceivingList'));
+const GivingList = React.lazy(() => import('./pages/Loan/GivingList'));
 const LoanDetails = React.lazy(() => import('./pages/Loan/LoanDetails'));
 const NewLoanReceiving = React.lazy(() => import('./pages/Loan/NewLoanReceiving'));
 const NewLoanGiving = React.lazy(() => import('./pages/Loan/NewLoanGiving'));
@@ -207,6 +210,19 @@ const AllInvoices = React.lazy(() => import('./pages/SalesInvoice/List'));
 // Settings pages
 const Users = React.lazy(() => import('./pages/Settings/Users'));
 const CustomerManagment = React.lazy(() => import('./pages/Settings/CustomerManagment'));
+
+// Additional Services pages
+const AdditionalServicesDashboard = React.lazy(() => import('./pages/AdditionalServices/Dashboard'));
+const CustomerList = React.lazy(() => import('./pages/AdditionalServices/CustomerList'));
+const AddCustomer = React.lazy(() => import('./pages/AdditionalServices/AddCustomer'));
+const EditCustomer = React.lazy(() => import('./pages/AdditionalServices/EditCustomer'));
+const CustomerDetails = React.lazy(() => import('./pages/AdditionalServices/CustomerDetails'));
+const PassportService = React.lazy(() => import('./pages/AdditionalServices/PassportService'));
+const AddPassportService = React.lazy(() => import('./pages/AdditionalServices/AddPassportService'));
+const ManpowerService = React.lazy(() => import('./pages/AdditionalServices/ManpowerService'));
+const AddManpowerService = React.lazy(() => import('./pages/AdditionalServices/AddManpowerService'));
+const VisaProcessing = React.lazy(() => import('./pages/AdditionalServices/VisaProcessing'));
+const OtherService = React.lazy(() => import('./pages/AdditionalServices/OtherService'));
 const CategoryManagement = React.lazy(() => import('./pages/Settings/CategoryManagement'));
 const BackupRestore = React.lazy(() => import('./pages/Settings/BackupRestore'));
 
@@ -366,6 +382,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <EditVendor />
+          </Suspense>
+        )
+      },
+      {
+        path: ":id/bank-accounts",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VendorBankAccounts />
           </Suspense>
         )
       },
@@ -943,6 +967,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <NewLoanGiving />
+          </Suspense>
+        )
+      },
+      {
+        path: "receiving-list",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ReceivingList />
+          </Suspense>
+        )
+      },
+      {
+        path: "giving-list",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <GivingList />
           </Suspense>
         )
       }
@@ -1574,6 +1614,112 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <Profile />
+          </Suspense>
+        )
+      }
+    ]
+  },
+  {
+    path: "/additional-services",
+    element: (
+      <ThemeProvider>
+        <DashboardLayout />
+      </ThemeProvider>
+    ),
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdditionalServicesDashboard />
+          </Suspense>
+        )
+      },
+      {
+        path: "dashboard",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdditionalServicesDashboard />
+          </Suspense>
+        )
+      },
+      {
+        path: "customer-list",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CustomerList />
+          </Suspense>
+        )
+      },
+      {
+        path: "customer/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddCustomer />
+          </Suspense>
+        )
+      },
+      {
+        path: "customer/edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditCustomer />
+          </Suspense>
+        )
+      },
+      {
+        path: "customer/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <CustomerDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "passport-service",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PassportService />
+          </Suspense>
+        )
+      },
+      {
+        path: "passport-service/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddPassportService />
+          </Suspense>
+        )
+      },
+      {
+        path: "manpower-service",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ManpowerService />
+          </Suspense>
+        )
+      },
+      {
+        path: "manpower-service/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddManpowerService />
+          </Suspense>
+        )
+      },
+      {
+        path: "visa-processing",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VisaProcessing />
+          </Suspense>
+        )
+      },
+      {
+        path: "others-service",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <OtherService />
           </Suspense>
         )
       }

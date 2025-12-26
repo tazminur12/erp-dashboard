@@ -411,6 +411,14 @@ const ProfessionalDashboard = () => {
                     {formatCurrency(grandTotals.netProfit || 0)}
                   </p>
                 </div>
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                    Total Advance Amount
+                  </p>
+                  <p className="text-2xl font-semibold text-purple-600">
+                    {formatCurrency(grandTotals.totalAdvanceAmni || 0)}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1162,211 +1170,6 @@ const ProfessionalDashboard = () => {
           </div>
         </div>
 
-        {/* Categories Summary */}
-        {categoriesSummary && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">ক্যাটাগরি অনুযায়ী ক্রেডিট ও ডেবিট সারাংশ</h3>
-              <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-
-            {isCategoriesLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-              </div>
-            ) : categoriesError ? (
-              <div className="text-center py-12">
-                <p className="text-red-600 dark:text-red-400">ডাটা লোড করতে সমস্যা হয়েছে</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{categoriesError.message}</p>
-              </div>
-            ) : categoriesSummary.categories && categoriesSummary.categories.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">ক্যাটাগরি</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">মোট ক্রেডিট</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">মোট ডেবিট</th>
-                      <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">নিট পরিমাণ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categoriesSummary.categories.map((category, index) => (
-                      <tr
-                        key={index}
-                        className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                      >
-                        <td className="py-3 px-4">
-                          <span className="font-medium text-gray-900 dark:text-white">
-                            {getCategoryName(category.categoryName)}
-                          </span>
-                        </td>
-                        <td className="text-right py-3 px-4">
-                          <span className="text-green-600 dark:text-green-400 font-semibold">
-                            {formatCurrency(category.totalCredit)}
-                          </span>
-                        </td>
-                        <td className="text-right py-3 px-4">
-                          <span className="text-red-600 dark:text-red-400 font-semibold">
-                            {formatCurrency(category.totalDebit)}
-                          </span>
-                        </td>
-                        <td className="text-right py-3 px-4">
-                          <span className={`font-bold ${category.netAmount >= 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400'
-                            }`}>
-                            {formatCurrency(category.netAmount)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {categoriesSummary.grandTotal && (
-                      <tr className="border-t-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30">
-                        <td className="py-4 px-4">
-                          <span className="font-bold text-gray-900 dark:text-white">মোট</span>
-                        </td>
-                        <td className="text-right py-4 px-4">
-                          <span className="text-green-600 dark:text-green-400 font-bold text-lg">
-                            {formatCurrency(categoriesSummary.grandTotal.totalCredit)}
-                          </span>
-                        </td>
-                        <td className="text-right py-4 px-4">
-                          <span className="text-red-600 dark:text-red-400 font-bold text-lg">
-                            {formatCurrency(categoriesSummary.grandTotal.totalDebit)}
-                          </span>
-                        </td>
-                        <td className="text-right py-4 px-4">
-                          <span className={`font-bold text-lg ${categoriesSummary.grandTotal.netAmount >= 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400'
-                            }`}>
-                            {formatCurrency(categoriesSummary.grandTotal.netAmount)}
-                          </span>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400">কোনো ডাটা পাওয়া যায়নি</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Transactions Stats by Category and Subcategory */}
-        {transactionsStats && (
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">ক্যাটাগরি ও সাবক্যাটাগরি অনুযায়ী লেনদেন পরিসংখ্যান</h3>
-              <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-
-            {isStatsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
-              </div>
-            ) : statsError ? (
-              <div className="text-center py-12">
-                <p className="text-red-600 dark:text-red-400">ডাটা লোড করতে সমস্যা হয়েছে</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{statsError.message}</p>
-              </div>
-            ) : transactionsStats.data && transactionsStats.data.length > 0 ? (
-              <div className="space-y-6">
-                {transactionsStats.totals && (
-                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg p-4 mb-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">মোট ক্রেডিট</p>
-                        <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                          {formatCurrency(transactionsStats.totals.totalCredit)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">মোট ডেবিট</p>
-                        <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                          {formatCurrency(transactionsStats.totals.totalDebit)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">নিট পরিমাণ</p>
-                        <p className={`text-2xl font-bold ${transactionsStats.totals.netAmount >= 0
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
-                          }`}>
-                          {formatCurrency(transactionsStats.totals.netAmount)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200 dark:border-gray-700">
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">ক্যাটাগরি</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">সাবক্যাটাগরি</th>
-                        <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">মোট ক্রেডিট</th>
-                        <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">মোট ডেবিট</th>
-                        <th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">নিট পরিমাণ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transactionsStats.data.map((item, index) => (
-                        <tr
-                          key={index}
-                          className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        >
-                          <td className="py-3 px-4">
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              {getCategoryName(item.category) || 'N/A'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="text-gray-700 dark:text-gray-300">
-                              {getCategoryName(item.subcategory) || '-'}
-                            </span>
-                          </td>
-                          <td className="text-right py-3 px-4">
-                            <span className="text-green-600 dark:text-green-400 font-semibold">
-                              {formatCurrency(item.totalCredit)}
-                            </span>
-                          </td>
-                          <td className="text-right py-3 px-4">
-                            <span className="text-red-600 dark:text-red-400 font-semibold">
-                              {formatCurrency(item.totalDebit)}
-                            </span>
-                          </td>
-                          <td className="text-right py-3 px-4">
-                            <span className={`font-bold ${item.netAmount >= 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
-                              }`}>
-                              {formatCurrency(item.netAmount)}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 dark:text-gray-400">কোনো ডাটা পাওয়া যায়নি</p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Recent Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Recent Transactions */}
@@ -1500,7 +1303,7 @@ const ProfessionalDashboard = () => {
         {/* Quick Actions */}
         <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 rounded-xl p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">দ্রুত কাজ</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Link
               to="/hajj-umrah/haji/add"
               className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
@@ -1521,13 +1324,6 @@ const ProfessionalDashboard = () => {
             >
               <Receipt className="h-6 w-6 text-purple-600 mb-2" />
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ইনভয়েস</span>
-            </Link>
-            <Link
-              to="/customers/add"
-              className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200"
-            >
-              <User className="h-6 w-6 text-orange-600 mb-2" />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">নতুন গ্রাহক</span>
             </Link>
           </div>
         </div>

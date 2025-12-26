@@ -97,17 +97,23 @@ const createSinglePageReceipt = (data, showHeader = true) => {
     }
   }
 
+  // Extract charge and calculate total amount
+  const baseAmount = data.amount || 0;
+  const charge = parseFloat(data.charge || 0);
+  const hasCharge = charge !== 0 && !isNaN(charge);
+  const totalAmount = baseAmount + charge; // charge already has correct sign (negative for credit/transfer, positive for debit)
+
   const qrData = encodeURIComponent(JSON.stringify({
     id: data.transactionId || 'N/A',
     name: data.customerName || 'Customer',
-    amount: data.amount || 0,
+    amount: totalAmount || 0,
     date: data.date || new Date().toISOString().split('T')[0],
   }));
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${qrData}`;
 
-  const amount = data.amount || 0;
-  const amountText = new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT' }).format(amount);
-  const amountInWords = amountToWords(amount);
+  // Display total amount in purpose box (amount + charge)
+  const amountText = new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT' }).format(totalAmount);
+  const amountInWords = amountToWords(Math.abs(totalAmount));
 
   const container = document.createElement('div');
 
@@ -164,7 +170,7 @@ const createSinglePageReceipt = (data, showHeader = true) => {
 </div>
 
       <!-- Purpose Box -->
-      <div style="position: absolute; top: ${isClient ? '40px' : '90px'}; right: 0; width: 190px; border: 2px solid black; padding: 6px; text-align: center; background: white; border-radius: 4px; font-size: 13px;">
+      <div style="position: absolute; top: ${isClient ? '10px' : '40px'}; right: 0; width: 190px; border: 2px solid black; padding: 6px; text-align: center; background: white; border-radius: 4px; font-size: 13px;">
         <div style="font-weight: bold; margin-bottom: 3px; font-size: 12px;">${L.purpose}</div>
         <div style="font-size: 18px; font-weight: bold; color: #d00; margin: 3px 0;">৳ ${amountText.replace('BDT', '').trim()}</div>
         <div style="font-size: 10px; padding-top: 3px; line-height: 1.2;">
