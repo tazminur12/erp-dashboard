@@ -1,8 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, BarChart3, Users, CheckCircle, Sparkles } from 'lucide-react';
+import { Shield, BarChart3, Users, CheckCircle, Sparkles, Download } from 'lucide-react';
+import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
 const Hero = () => {
+  const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
+
+  const handleInstallClick = async () => {
+    await promptInstall();
+  };
+
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-gradient-to-br from-white to-blue-50 dark:from-gray-900 dark:to-gray-800" />
@@ -34,6 +41,15 @@ const Hero = () => {
               >
                 লগইন
               </Link>
+              {isInstallable && !isInstalled && (
+                <button
+                  onClick={handleInstallClick}
+                  className="px-8 py-3 border-2 border-green-600 dark:border-green-400 text-green-600 dark:text-green-400 font-semibold rounded-lg hover:bg-green-600 dark:hover:bg-green-400 hover:text-white transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-5 h-5" />
+                  App ইনস্টল করুন
+                </button>
+              )}
             </div>
             <div className="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-6">
               <div className="flex items-start space-x-3">
