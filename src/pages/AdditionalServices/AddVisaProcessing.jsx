@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, FileCheck, Search, User, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Globe, Search, CheckCircle } from 'lucide-react';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useVendors } from '../../hooks/useVendorQueries';
 import Swal from 'sweetalert2';
 
-const AddPassportService = () => {
+const AddVisaProcessing = () => {
   const navigate = useNavigate();
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -15,23 +15,22 @@ const AddPassportService = () => {
   const [formData, setFormData] = useState({
     clientId: '',
     clientName: '',
-    serviceType: 'new_passport',
+    applicantName: '',
+    country: '',
+    visaType: 'tourist',
+    passportNumber: '',
     phone: '',
     email: '',
     address: '',
-    date: new Date().toISOString().split('T')[0],
+    appliedDate: new Date().toISOString().split('T')[0],
+    expectedDeliveryDate: '',
+    vendorId: '',
+    vendorName: '',
+    vendorBill: '',
+    othersBill: '',
+    totalBill: '',
     status: 'pending',
     notes: '',
-    expectedDeliveryDate: '',
-    applicationNumber: '',
-    dateOfBirth: '',
-    validity: '',
-    pages: '',
-    deliveryType: '',
-    officeContactPersonId: '',
-    officeContactPersonName: '',
-    formFillupCharge: '',
-    totalBill: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -110,7 +109,7 @@ const AddPassportService = () => {
   }, [clientQuery, axiosSecure]);
 
   // Filter vendors based on search query
-  const filteredVendors = React.useMemo(() => {
+  const filteredVendors = useMemo(() => {
     if (!vendorQuery.trim()) return vendorsData;
     const q = vendorQuery.toLowerCase();
     return vendorsData.filter((v) => {
@@ -127,12 +126,13 @@ const AddPassportService = () => {
 
   // Calculate total bill
   useEffect(() => {
-    const formCharge = parseFloat(formData.formFillupCharge) || 0;
+    const vendorBill = parseFloat(formData.vendorBill) || 0;
+    const othersBill = parseFloat(formData.othersBill) || 0;
     setFormData(prev => ({
       ...prev,
-      totalBill: formCharge.toFixed(2)
+      totalBill: (vendorBill + othersBill).toFixed(2)
     }));
-  }, [formData.formFillupCharge]);
+  }, [formData.vendorBill, formData.othersBill]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -148,6 +148,7 @@ const AddPassportService = () => {
       ...prev,
       clientId: client.id || client.customerId || client._id,
       clientName: clientName,
+      applicantName: clientName,
       phone: client.phone || client.mobile || '',
       email: client.email || '',
       address: client.address || '',
@@ -160,12 +161,12 @@ const AddPassportService = () => {
   const handleSelectVendor = (vendor) => {
     setFormData(prev => ({
       ...prev,
-      officeContactPersonId: vendor._id || vendor.vendorId,
-      officeContactPersonName: vendor.tradeName || vendor.ownerName || '',
+      vendorId: vendor._id || vendor.vendorId,
+      vendorName: vendor.tradeName || vendor.ownerName || '',
     }));
     setVendorQuery(vendor.tradeName || vendor.ownerName || '');
     setShowVendorDropdown(false);
-    setErrors(prev => ({ ...prev, officeContactPersonId: '' }));
+    setErrors(prev => ({ ...prev, vendorId: '' }));
   };
 
   const validate = () => {
@@ -179,8 +180,11 @@ const AddPassportService = () => {
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
     }
-    if (!formData.date) {
-      newErrors.date = 'Date is required';
+    if (!formData.appliedDate) {
+      newErrors.appliedDate = 'Applied date is required';
+    }
+    if (!formData.country.trim()) {
+      newErrors.country = 'Country is required';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -188,23 +192,23 @@ const AddPassportService = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const { data: response } = await axiosSecure.post('/api/passport-services', data);
+      const { data: response } = await axiosSecure.post('/api/visa-processing-services', data);
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['passportServices'] });
+      queryClient.invalidateQueries({ queryKey: ['visaProcessingServices'] });
       Swal.fire({
         title: 'সফল!',
-        text: 'পাসপোর্ট সার্ভিস সফলভাবে যোগ করা হয়েছে',
+        text: 'ভিসা প্রসেসিং সার্ভিস সফলভাবে যোগ করা হয়েছে',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
       });
-      navigate('/additional-services/passport-service');
+      navigate('/additional-services/visa-processing');
     },
     onError: (error) => {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error?.response?.data?.message || 'পাসপোর্ট সার্ভিস যোগ করতে সমস্যা হয়েছে',
+        text: error?.response?.data?.message || 'ভিসা প্রসেসিং সার্ভিস যোগ করতে সমস্যা হয়েছে',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
       });
@@ -219,8 +223,10 @@ const AddPassportService = () => {
     try {
       const payload = {
         ...formData,
-        formFillupCharge: formData.formFillupCharge ? Number(formData.formFillupCharge) : 0,
+        vendorBill: formData.vendorBill ? Number(formData.vendorBill) : 0,
+        othersBill: formData.othersBill ? Number(formData.othersBill) : 0,
         totalBill: formData.totalBill ? Number(formData.totalBill) : 0,
+        date: formData.appliedDate,
       };
       await createMutation.mutateAsync(payload);
     } finally {
@@ -231,26 +237,26 @@ const AddPassportService = () => {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <Helmet>
-        <title>Add Passport Service - Additional Services</title>
+        <title>Add Visa Processing - Additional Services</title>
       </Helmet>
 
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <button
-            onClick={() => navigate('/additional-services/passport-service')}
+            onClick={() => navigate('/additional-services/visa-processing')}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Passport Service
+            Back to Visa Processing
           </button>
           <div className="flex items-center gap-3">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <FileCheck className="w-6 h-6 text-blue-600" />
+            <div className="bg-green-100 p-3 rounded-lg">
+              <Globe className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Add New Passport Service</h1>
-              <p className="text-gray-600 mt-2">Fill in the passport service information below</p>
+              <h1 className="text-3xl font-bold text-gray-900">Add New Visa Processing</h1>
+              <p className="text-gray-600 mt-2">Fill in the visa processing information below</p>
             </div>
           </div>
         </div>
@@ -259,10 +265,10 @@ const AddPassportService = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Client Name - Searchable */}
+              {/* Name - Searchable */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Client Name <span className="text-red-500">*</span>
+                  Name <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -279,6 +285,7 @@ const AddPassportService = () => {
                           ...prev,
                           clientId: '',
                           clientName: '',
+                          applicantName: '',
                           phone: '',
                           email: '',
                           address: '',
@@ -352,7 +359,7 @@ const AddPassportService = () => {
                 />
               </div>
 
-              {/* Number (Phone) */}
+              {/* Number - Auto filled */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Number <span className="text-red-500">*</span>
@@ -387,6 +394,75 @@ const AddPassportService = () => {
                 {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
               </div>
 
+              {/* Country */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Country <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleChange}
+                  className={`w-full rounded-md border ${
+                    errors.country ? 'border-red-500' : 'border-gray-300'
+                  } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  placeholder="e.g. USA, UK, Canada"
+                  required
+                />
+                {errors.country && <p className="mt-1 text-xs text-red-600">{errors.country}</p>}
+              </div>
+
+              {/* Visa Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Visa Type</label>
+                <select
+                  name="visaType"
+                  value={formData.visaType}
+                  onChange={handleChange}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="tourist">Tourist</option>
+                  <option value="business">Business</option>
+                  <option value="student">Student</option>
+                  <option value="work">Work</option>
+                  <option value="transit">Transit</option>
+                  <option value="medical">Medical</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              {/* Passport Number */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
+                <input
+                  type="text"
+                  name="passportNumber"
+                  value={formData.passportNumber}
+                  onChange={handleChange}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. BN0123456"
+                />
+              </div>
+
+              {/* Applied Date */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Applied Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  name="appliedDate"
+                  value={formData.appliedDate}
+                  onChange={handleChange}
+                  className={`w-full rounded-md border ${
+                    errors.appliedDate ? 'border-red-500' : 'border-gray-300'
+                  } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  required
+                />
+                {errors.appliedDate && <p className="mt-1 text-xs text-red-600">{errors.appliedDate}</p>}
+              </div>
+
               {/* Expected Delivery Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Date</label>
@@ -399,118 +475,9 @@ const AddPassportService = () => {
                 />
               </div>
 
-              {/* Application Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Application Number</label>
-                <input
-                  type="text"
-                  name="applicationNumber"
-                  value={formData.applicationNumber}
-                  onChange={handleChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter application number"
-                />
-              </div>
-
-              {/* Date Of Birth */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date Of Birth</label>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Date */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  className={`w-full rounded-md border ${
-                    errors.date ? 'border-red-500' : 'border-gray-300'
-                  } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  required
-                />
-                {errors.date && <p className="mt-1 text-xs text-red-600">{errors.date}</p>}
-              </div>
-
-              {/* Validity */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Validity</label>
-                <select
-                  name="validity"
-                  value={formData.validity}
-                  onChange={handleChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select validity</option>
-                  <option value="05">05 Years</option>
-                  <option value="10">10 Years</option>
-                </select>
-              </div>
-
-              {/* Pages */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pages</label>
-                <select
-                  name="pages"
-                  value={formData.pages}
-                  onChange={handleChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select pages</option>
-                  <option value="48">48 Pages</option>
-                  <option value="64">64 Pages</option>
-                </select>
-              </div>
-
-              {/* Delivery Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Type</label>
-                <select
-                  name="deliveryType"
-                  value={formData.deliveryType}
-                  onChange={handleChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select delivery type</option>
-                  <option value="regular">Regular</option>
-                  <option value="express">Express</option>
-                  <option value="super_express">Super Express</option>
-                </select>
-              </div>
-
-              {/* Service Type */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Service Type <span className="text-red-500">*</span>
-                </label>
-                <select
-                  name="serviceType"
-                  value={formData.serviceType}
-                  onChange={handleChange}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="new_passport">New Passport</option>
-                  <option value="renewal">Passport Renewal</option>
-                  <option value="replacement">Passport Replacement</option>
-                  <option value="visa_stamping">Visa Stamping</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              {/* Select Office Contact Person */}
+              {/* Select Vendor */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Office Contact Person</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Vendor</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-gray-400" />
@@ -524,8 +491,8 @@ const AddPassportService = () => {
                       if (!e.target.value) {
                         setFormData(prev => ({
                           ...prev,
-                          officeContactPersonId: '',
-                          officeContactPersonName: '',
+                          vendorId: '',
+                          vendorName: '',
                         }));
                       }
                     }}
@@ -560,21 +527,36 @@ const AddPassportService = () => {
                     </div>
                   )}
                 </div>
-                {formData.officeContactPersonName && (
+                {formData.vendorName && (
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    Selected: {formData.officeContactPersonName}
+                    Selected: {formData.vendorName}
                   </div>
                 )}
               </div>
 
-              {/* Form Fillup Charge */}
+              {/* Vendor Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Form Fillup Charge (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Bill (BDT)</label>
                 <input
                   type="number"
-                  name="formFillupCharge"
-                  value={formData.formFillupCharge}
+                  name="vendorBill"
+                  value={formData.vendorBill}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Other's Bill */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Other's Bill (BDT)</label>
+                <input
+                  type="number"
+                  name="othersBill"
+                  value={formData.othersBill}
                   onChange={handleChange}
                   min="0"
                   step="0.01"
@@ -606,9 +588,11 @@ const AddPassportService = () => {
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
                   <option value="in_process">In Process</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
                   <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
                 </select>
               </div>
             </div>
@@ -622,7 +606,7 @@ const AddPassportService = () => {
                 onChange={handleChange}
                 rows={3}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional notes about the passport service"
+                placeholder="Additional notes about the visa processing"
               />
             </div>
 
@@ -630,7 +614,7 @@ const AddPassportService = () => {
             <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
               <button
                 type="button"
-                onClick={() => navigate('/additional-services/passport-service')}
+                onClick={() => navigate('/additional-services/visa-processing')}
                 className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
@@ -648,7 +632,7 @@ const AddPassportService = () => {
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Passport Service
+                    Save Visa Processing
                   </>
                 )}
               </button>
@@ -660,4 +644,5 @@ const AddPassportService = () => {
   );
 };
 
-export default AddPassportService;
+export default AddVisaProcessing;
+

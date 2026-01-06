@@ -222,6 +222,7 @@ const AddPassportService = React.lazy(() => import('./pages/AdditionalServices/A
 const ManpowerService = React.lazy(() => import('./pages/AdditionalServices/ManpowerService'));
 const AddManpowerService = React.lazy(() => import('./pages/AdditionalServices/AddManpowerService'));
 const VisaProcessing = React.lazy(() => import('./pages/AdditionalServices/VisaProcessing'));
+const AddVisaProcessing = React.lazy(() => import('./pages/AdditionalServices/AddVisaProcessing'));
 const OtherService = React.lazy(() => import('./pages/AdditionalServices/OtherService'));
 const CategoryManagement = React.lazy(() => import('./pages/Settings/CategoryManagement'));
 const BackupRestore = React.lazy(() => import('./pages/Settings/BackupRestore'));
@@ -1712,6 +1713,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <VisaProcessing />
+          </Suspense>
+        )
+      },
+      {
+        path: "visa-processing/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddVisaProcessing />
           </Suspense>
         )
       },
