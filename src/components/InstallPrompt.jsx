@@ -17,8 +17,8 @@ const InstallPrompt = () => {
     const dismissedAt = localStorage.getItem('installPromptDismissed');
     if (dismissedAt) {
       const daysSinceDismissed = (Date.now() - parseInt(dismissedAt)) / (1000 * 60 * 60 * 24);
-      // Show again after 7 days
-      if (daysSinceDismissed < 7) {
+      // Show again after 3 days (reduced from 7 days for better availability)
+      if (daysSinceDismissed < 3) {
         return;
       }
     }

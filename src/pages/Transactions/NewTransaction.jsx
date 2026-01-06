@@ -1089,12 +1089,9 @@ const NewTransaction = () => {
               } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
                 newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
               }
-              // For agent credit transactions, require destination account and manager
+              // For agent credit transactions, require destination account
               if (!formData.destinationAccount.id) {
                 newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
-              }
-              if (!formData.creditAccountManager.id) {
-                newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
               }
             }
           } else {
@@ -1146,7 +1143,9 @@ const NewTransaction = () => {
       if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && currentStep === 3) {
         setCurrentStep(5); // Skip step 4, go directly to payment method
       } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 4) {
-        setCurrentStep(5); // Go to payment method
+        setCurrentStep(5); // Go to payment method from balance display
+      } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
+        setCurrentStep(6); // Go to confirmation from payment method
       } else if (formData.transactionType === 'debit' && currentStep === 4) {
         // For debit, go directly to step 5 (confirmation) from step 4
         setCurrentStep(5);
@@ -6506,7 +6505,7 @@ const NewTransaction = () => {
                     </h3>
                     
                     <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                      {/* Source Account */}
+                      {/* Destination Account */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                           আমাদের অ্যাকাউন্ট (যেখানে টাকা আসবে) *
@@ -6547,9 +6546,9 @@ const NewTransaction = () => {
                             filteredAccounts.map((account) => (
                             <button
                               key={account.id}
-                              onClick={() => handleAccountSelectForTransaction(account, 'sourceAccount')}
+                              onClick={() => handleAccountSelectForTransaction(account, 'destinationAccount')}
                               className={`w-full p-2 rounded-lg border-2 transition-all duration-200 text-left ${
-                                formData.sourceAccount.id === account.id
+                                formData.destinationAccount.id === account.id
                                   ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                   : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
                               }`}
@@ -6570,7 +6569,7 @@ const NewTransaction = () => {
                                   <p className="text-xs font-semibold text-green-600 dark:text-green-400">
                                     ৳{account.balance.toLocaleString()}
                                   </p>
-                                  {formData.sourceAccount.id === account.id && (
+                                  {formData.destinationAccount.id === account.id && (
                                     <CheckCircle className="w-4 h-4 text-blue-500 mt-1" />
                                   )}
                                 </div>
@@ -6579,6 +6578,12 @@ const NewTransaction = () => {
                             ))
                           )}
                         </div>
+                        {errors.destinationAccount && (
+                          <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {errors.destinationAccount}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -6730,89 +6735,6 @@ const NewTransaction = () => {
             </div>
           )}
 
-          {/* Step 7: Confirmation (for credit with agent) */}
-          {currentStep === 7 && formData.transactionType === 'credit' && formData.customerType === 'agent' && (
-            <div className="p-3 sm:p-4 lg:p-6">
-              <div className="text-center mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
-                  তথ্য যাচাই এবং কনফার্মেশন
-                </h2>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                  সমস্ত তথ্য সঠিক হলে কনফার্ম করুন
-                </p>
-              </div>
-
-              <div className="max-w-4xl mx-auto">
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 sm:p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    লেনদেনের বিবরণ
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div className="space-y-3">
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">লেনদেনের ধরন:</span>
-                        <p className="text-gray-900 dark:text-white font-medium">ক্রেডিট</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">এজেন্ট:</span>
-                        <p className="text-gray-900 dark:text-white font-medium">{formData.customerName}</p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">ইনভয়েস:</span>
-                        <p className="text-gray-900 dark:text-white font-medium">
-                          #{formData.selectedInvoice?.invoiceNumber || 'N/A'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">পরিমাণ:</span>
-                        <p className="text-gray-900 dark:text-white font-medium">
-                          ৳{formData.paymentDetails.amount ? parseFloat(formData.paymentDetails.amount).toLocaleString() : '0'}
-                        </p>
-                      </div>
-                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
-                        <div>
-                          <span className="text-sm font-medium text-gray-600 dark:text-gray-400">চার্জ:</span>
-                          <p className={`font-medium ${getChargeWithSign() < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                            {getChargeWithSign() < 0 ? '-' : '+'}৳{Math.abs(getChargeWithSign()).toLocaleString()}
-                          </p>
-                        </div>
-                      )}
-                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
-                        <div className="border-t pt-2 mt-2">
-                          <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">মোট পরিমাণ:</span>
-                          <p className="text-blue-600 dark:text-blue-400 font-bold">
-                            ৳{getTotalAmount().toLocaleString()}
-                          </p>
-                        </div>
-                      )}
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">পেমেন্ট মেথড:</span>
-                        <p className="text-gray-900 dark:text-white font-medium">
-                          {formData.paymentMethod === 'cash' ? 'নগদ' :
-                           formData.paymentMethod === 'bank-transfer' ? 'ব্যাংক ট্রান্সফার' :
-                           formData.paymentMethod === 'cheque' ? 'চেক' :
-                           formData.paymentMethod === 'mobile-banking' ? 'মোবাইল ব্যাংকিং' :
-                           formData.paymentMethod === 'others' ? 'অন্যান্য' : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Date:</span>
-                        <p className="text-gray-900 dark:text-white font-medium">
-                          {new Date().toLocaleDateString('en-US')}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Step 6: Confirmation (for credit with customer) or Confirmation (for credit with agent) */}
           {currentStep === 6 && (
             <div className="p-3 sm:p-4 lg:p-6">
@@ -6880,7 +6802,7 @@ const NewTransaction = () => {
                           ৳{formData.paymentDetails.amount ? parseFloat(formData.paymentDetails.amount).toLocaleString() : '0'}
                         </span>
                       </div>
-                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                      {(formData.paymentMethod === 'cash' || formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
                         <div className="flex justify-between text-xs sm:text-sm">
                           <span className="text-gray-600 dark:text-gray-400">চার্জ:</span>
                           <span className={`font-semibold ${getChargeWithSign() < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
@@ -6888,7 +6810,7 @@ const NewTransaction = () => {
                           </span>
                         </div>
                       )}
-                      {(formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
+                      {(formData.paymentMethod === 'cash' || formData.paymentMethod === 'bank-transfer' || formData.paymentMethod === 'cheque' || formData.paymentMethod === 'mobile-banking') && formData.paymentDetails.charge && parseFloat(formData.paymentDetails.charge) > 0 && (
                         <div className="flex justify-between text-xs sm:text-sm border-t pt-2 mt-2">
                           <span className="text-gray-600 dark:text-gray-400 font-semibold">মোট পরিমাণ:</span>
                           <span className="font-bold text-blue-600 dark:text-blue-400">
@@ -7122,9 +7044,9 @@ const NewTransaction = () => {
 
           <button
             onClick={nextStep}
-            disabled={currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 7 : 6) : 5)}
+            disabled={currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 6 : 6) : 5)}
             className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-              currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 7 : 6) : 5)
+              currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 6 : 6) : 5)
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}

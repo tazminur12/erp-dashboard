@@ -8,7 +8,8 @@ import {
   Sun, 
   Moon, 
   X,
-  LogOut
+  LogOut,
+  Download
 } from 'lucide-react';
 import { useUIStore } from '../../store/ui';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -17,6 +18,7 @@ import { signOutUser, getCurrentUser, onAuthStateChange } from '../../firebase/a
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { useInstallPrompt } from '../../hooks/useInstallPrompt';
 
 const TopBar = ({ pageTitle = 'Dashboard' }) => {
   const navigate = useNavigate();
@@ -25,11 +27,13 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
   const { userProfile } = useAuth();
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
+  const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
   const [searchQuery, setSearchQuery] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showInstallInstructions, setShowInstallInstructions] = useState(false);
   const currentUser = getCurrentUser();
   const currentUserId = currentUser?.uid;
 
@@ -206,6 +210,60 @@ const TopBar = ({ pageTitle = 'Dashboard' }) => {
               <Moon className="w-5 h-5" />
             )}
           </button>
+
+          {/* Install App Button - Always Available */}
+          <div className="relative">
+            <button
+              onClick={async () => {
+                if (isInstallable) {
+                  await promptInstall();
+                } else {
+                  setShowInstallInstructions(!showInstallInstructions);
+                }
+              }}
+              className={`p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors duration-200 ${
+                isInstalled ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title={isInstalled ? 'Already Installed' : isInstallable ? 'Install App' : 'Install Instructions'}
+              disabled={isInstalled}
+            >
+              <Download className="w-5 h-5" />
+            </button>
+
+            {/* Install Instructions Dropdown */}
+            {showInstallInstructions && !isInstalled && (
+              <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+                <div className="p-4">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
+                    App ইনস্টল করুন
+                  </h3>
+                  <div className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+                    {/* Chrome/Edge/Android */}
+                    <div>
+                      <p className="font-medium mb-1">Chrome/Edge/Android:</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Address bar-এ install icon টি click করুন অথবা Menu → Install App
+                      </p>
+                    </div>
+                    {/* iOS/Safari */}
+                    <div>
+                      <p className="font-medium mb-1">iOS/Safari:</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Share button (📤) → "Add to Home Screen"
+                      </p>
+                    </div>
+                    {/* Desktop */}
+                    <div>
+                      <p className="font-medium mb-1">Desktop:</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Address bar-এ install icon টি click করুন
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Notifications */}
           <div className="relative">

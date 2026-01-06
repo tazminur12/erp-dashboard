@@ -1,13 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, BarChart3, Users, CheckCircle, Sparkles, Download } from 'lucide-react';
+import { Shield, BarChart3, Users, CheckCircle, Sparkles, Download, X } from 'lucide-react';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 
 const Hero = () => {
   const { isInstallable, isInstalled, promptInstall } = useInstallPrompt();
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const handleInstallClick = async () => {
-    await promptInstall();
+    if (isInstalled) {
+      return;
+    }
+    
+    if (isInstallable) {
+      // Try to install directly
+      const installed = await promptInstall();
+      if (!installed) {
+        // If user dismissed, show instructions
+        setShowInstructions(true);
+      }
+    } else {
+      // If not installable, show instructions
+      setShowInstructions(true);
+    }
   };
 
   return (
@@ -41,10 +56,10 @@ const Hero = () => {
               >
                 লগইন
               </Link>
-              {isInstallable && !isInstalled && (
+              {!isInstalled && (
                 <button
                   onClick={handleInstallClick}
-                  className="px-8 py-3 border-2 border-green-600 dark:border-green-400 text-green-600 dark:text-green-400 font-semibold rounded-lg hover:bg-green-600 dark:hover:bg-green-400 hover:text-white transition-all duration-200 flex items-center justify-center gap-2"
+                  className="px-8 py-3 bg-green-600 dark:bg-green-500 text-white font-semibold rounded-lg hover:bg-green-700 dark:hover:bg-green-600 transition-colors duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                 >
                   <Download className="w-5 h-5" />
                   App ইনস্টল করুন
@@ -114,6 +129,71 @@ const Hero = () => {
           </div>
         </div>
       </div>
+
+      {/* Install Instructions Modal */}
+      {showInstructions && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+            <button
+              onClick={() => setShowInstructions(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="mb-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
+                <Download className="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                App ইনস্টল করুন
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                আপনার device-এর জন্য manual installation instructions:
+              </p>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              {/* Chrome/Edge/Android */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <p className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
+                  Chrome/Edge/Android:
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Address bar-এ install icon (📥) click করুন অথবা Menu (⋮) → "Install App" / "Install [App Name]"
+                </p>
+              </div>
+
+              {/* iOS/Safari */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <p className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
+                  iOS/Safari (iPhone/iPad):
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Share button (📤) tap করুন → "Add to Home Screen" → "Add" click করুন
+                </p>
+              </div>
+
+              {/* Desktop */}
+              <div className="border-l-4 border-blue-500 pl-4">
+                <p className="font-semibold text-gray-900 dark:text-white text-sm mb-1">
+                  Desktop (Chrome/Edge):
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Address bar-এ install icon (➕) click করুন অথবা Menu → "Install [App Name]"
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowInstructions(false)}
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium rounded-lg transition-colors"
+            >
+              বুঝেছি
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 };
