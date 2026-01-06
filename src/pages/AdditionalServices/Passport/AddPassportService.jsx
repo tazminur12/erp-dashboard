@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, FileCheck, Search, User, CheckCircle } from 'lucide-react';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useVendors } from '../../hooks/useVendorQueries';
-import Swal from 'sweetalert2';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
+import { useVendors } from '../../../hooks/useVendorQueries';
+import { useCreatePassportService } from '../../../hooks/usePassportServiceQueries';
 
 const AddPassportService = () => {
   const navigate = useNavigate();
   const axiosSecure = useAxiosSecure();
-  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     clientId: '',
@@ -30,6 +28,9 @@ const AddPassportService = () => {
     deliveryType: '',
     officeContactPersonId: '',
     officeContactPersonName: '',
+    passportFees: '',
+    bankCharges: '',
+    vendorFees: '',
     formFillupCharge: '',
     totalBill: '',
   });
@@ -110,7 +111,7 @@ const AddPassportService = () => {
   }, [clientQuery, axiosSecure]);
 
   // Filter vendors based on search query
-  const filteredVendors = React.useMemo(() => {
+  const filteredVendors = useMemo(() => {
     if (!vendorQuery.trim()) return vendorsData;
     const q = vendorQuery.toLowerCase();
     return vendorsData.filter((v) => {
@@ -127,12 +128,16 @@ const AddPassportService = () => {
 
   // Calculate total bill
   useEffect(() => {
-    const formCharge = parseFloat(formData.formFillupCharge) || 0;
+    const passportFees = parseFloat(formData.passportFees) || 0;
+    const bankCharges = parseFloat(formData.bankCharges) || 0;
+    const vendorFees = parseFloat(formData.vendorFees) || 0;
+    const formFillupCharge = parseFloat(formData.formFillupCharge) || 0;
+    const total = passportFees + bankCharges + vendorFees + formFillupCharge;
     setFormData(prev => ({
       ...prev,
-      totalBill: formCharge.toFixed(2)
+      totalBill: total.toFixed(2)
     }));
-  }, [formData.formFillupCharge]);
+  }, [formData.passportFees, formData.bankCharges, formData.vendorFees, formData.formFillupCharge]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -171,45 +176,22 @@ const AddPassportService = () => {
   const validate = () => {
     const newErrors = {};
     if (!formData.clientName.trim()) {
-      newErrors.clientName = 'Client name is required';
+      newErrors.clientName = 'ক্লায়েন্টের নাম প্রয়োজন';
     }
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone is required';
+      newErrors.phone = 'নম্বর প্রয়োজন';
     }
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = 'ইমেইল ফরম্যাট সঠিক নয়';
     }
     if (!formData.date) {
-      newErrors.date = 'Date is required';
+      newErrors.date = 'তারিখ প্রয়োজন';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const { data: response } = await axiosSecure.post('/api/passport-services', data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['passportServices'] });
-      Swal.fire({
-        title: 'সফল!',
-        text: 'পাসপোর্ট সার্ভিস সফলভাবে যোগ করা হয়েছে',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-      });
-      navigate('/additional-services/passport-service');
-    },
-    onError: (error) => {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: error?.response?.data?.message || 'পাসপোর্ট সার্ভিস যোগ করতে সমস্যা হয়েছে',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-      });
-    },
-  });
+  const createMutation = useCreatePassportService();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -219,10 +201,16 @@ const AddPassportService = () => {
     try {
       const payload = {
         ...formData,
+        passportFees: formData.passportFees ? Number(formData.passportFees) : 0,
+        bankCharges: formData.bankCharges ? Number(formData.bankCharges) : 0,
+        vendorFees: formData.vendorFees ? Number(formData.vendorFees) : 0,
         formFillupCharge: formData.formFillupCharge ? Number(formData.formFillupCharge) : 0,
         totalBill: formData.totalBill ? Number(formData.totalBill) : 0,
       };
       await createMutation.mutateAsync(payload);
+      navigate('/additional-services/passport-service');
+    } catch (error) {
+      // Error is already handled by the hook
     } finally {
       setIsSubmitting(false);
     }
@@ -242,15 +230,15 @@ const AddPassportService = () => {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Passport Service
+            পাসপোর্ট সার্ভিসে ফিরে যান
           </button>
           <div className="flex items-center gap-3">
             <div className="bg-blue-100 p-3 rounded-lg">
               <FileCheck className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Add New Passport Service</h1>
-              <p className="text-gray-600 mt-2">Fill in the passport service information below</p>
+              <h1 className="text-3xl font-bold text-gray-900">নতুন পাসপোর্ট সার্ভিস যোগ করুন</h1>
+              <p className="text-gray-600 mt-2">নিচে পাসপোর্ট সার্ভিসের তথ্য পূরণ করুন</p>
             </div>
           </div>
         </div>
@@ -262,7 +250,7 @@ const AddPassportService = () => {
               {/* Client Name - Searchable */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Client Name <span className="text-red-500">*</span>
+                  ক্লায়েন্টের নাম <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -293,7 +281,7 @@ const AddPassportService = () => {
                     onBlur={() => {
                       setTimeout(() => setShowClientDropdown(false), 200);
                     }}
-                    placeholder="Search client by name, ID, phone, or email..."
+                    placeholder="নাম, ID, ফোন, বা ইমেইল দিয়ে ক্লায়েন্ট খুঁজুন..."
                     className={`w-full pl-10 pr-3 py-2 border ${
                       errors.clientName ? 'border-red-500' : 'border-gray-300'
                     } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -302,9 +290,9 @@ const AddPassportService = () => {
                   {showClientDropdown && (
                     <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                       {clientLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">খুঁজছি...</div>
                       ) : clientResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No clients found</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">কোন ক্লায়েন্ট পাওয়া যায়নি</div>
                       ) : (
                         clientResults.map((c) => {
                           const clientName = c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'N/A';
@@ -333,7 +321,7 @@ const AddPassportService = () => {
                 {formData.clientName && (
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    Selected: {formData.clientName}
+                    নির্বাচিত: {formData.clientName}
                   </div>
                 )}
                 {errors.clientName && <p className="mt-1 text-xs text-red-600">{errors.clientName}</p>}
@@ -341,21 +329,21 @@ const AddPassportService = () => {
 
               {/* Address - Auto filled */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ঠিকানা</label>
                 <textarea
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                   rows={3}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Address (auto-filled from client)"
+                  placeholder="ঠিকানা (ক্লায়েন্ট থেকে স্বয়ংক্রিয়ভাবে পূরণ)"
                 />
               </div>
 
               {/* Number (Phone) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number <span className="text-red-500">*</span>
+                  নম্বর <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -373,7 +361,7 @@ const AddPassportService = () => {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ইমেইল</label>
                 <input
                   type="email"
                   name="email"
@@ -389,7 +377,7 @@ const AddPassportService = () => {
 
               {/* Expected Delivery Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">প্রত্যাশিত ডেলিভারি তারিখ</label>
                 <input
                   type="date"
                   name="expectedDeliveryDate"
@@ -401,20 +389,20 @@ const AddPassportService = () => {
 
               {/* Application Number */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Application Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">আবেদন নম্বর</label>
                 <input
                   type="text"
                   name="applicationNumber"
                   value={formData.applicationNumber}
                   onChange={handleChange}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter application number"
+                  placeholder="আবেদন নম্বর লিখুন"
                 />
               </div>
 
               {/* Date Of Birth */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date Of Birth</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">জন্ম তারিখ</label>
                 <input
                   type="date"
                   name="dateOfBirth"
@@ -427,7 +415,7 @@ const AddPassportService = () => {
               {/* Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date <span className="text-red-500">*</span>
+                  তারিখ <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -444,37 +432,37 @@ const AddPassportService = () => {
 
               {/* Validity */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Validity</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ</label>
                 <select
                   name="validity"
                   value={formData.validity}
                   onChange={handleChange}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select validity</option>
-                  <option value="05">05 Years</option>
-                  <option value="10">10 Years</option>
+                  <option value="">মেয়াদ নির্বাচন করুন</option>
+                  <option value="05">০৫ বছর</option>
+                  <option value="10">১০ বছর</option>
                 </select>
               </div>
 
               {/* Pages */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pages</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">পৃষ্ঠা</label>
                 <select
                   name="pages"
                   value={formData.pages}
                   onChange={handleChange}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Select pages</option>
-                  <option value="48">48 Pages</option>
-                  <option value="64">64 Pages</option>
+                  <option value="">পৃষ্ঠা নির্বাচন করুন</option>
+                  <option value="48">৪৮ পৃষ্ঠা</option>
+                  <option value="64">৬৪ পৃষ্ঠা</option>
                 </select>
               </div>
 
               {/* Delivery Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ডেলিভারির ধরন</label>
                 <select
                   name="deliveryType"
                   value={formData.deliveryType}
@@ -491,7 +479,7 @@ const AddPassportService = () => {
               {/* Service Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Service Type <span className="text-red-500">*</span>
+                  সার্ভিসের ধরন <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="serviceType"
@@ -510,7 +498,7 @@ const AddPassportService = () => {
 
               {/* Select Office Contact Person */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Office Contact Person</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">অফিস যোগাযোগ ব্যক্তি নির্বাচন করুন</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-gray-400" />
@@ -531,7 +519,7 @@ const AddPassportService = () => {
                     }}
                     onFocus={() => setShowVendorDropdown(true)}
                     onBlur={() => setTimeout(() => setShowVendorDropdown(false), 200)}
-                    placeholder="Search vendor by name or contact..."
+                    placeholder="নাম বা যোগাযোগ দিয়ে ভেন্ডর খুঁজুন..."
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {vendorsLoading && (
@@ -555,7 +543,7 @@ const AddPassportService = () => {
                           </button>
                         ))
                       ) : (
-                        <div className="px-3 py-2 text-sm text-gray-500">No vendors found</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">কোন ভেন্ডর পাওয়া যায়নি</div>
                       )}
                     </div>
                   )}
@@ -563,14 +551,59 @@ const AddPassportService = () => {
                 {formData.officeContactPersonName && (
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    Selected: {formData.officeContactPersonName}
+                    নির্বাচিত: {formData.officeContactPersonName}
                   </div>
                 )}
               </div>
 
+              {/* Passport Fees */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">পাসপোর্ট ফি (BDT)</label>
+                <input
+                  type="number"
+                  name="passportFees"
+                  value={formData.passportFees}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Bank Charges */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ব্যাংক চার্জ (BDT)</label>
+                <input
+                  type="number"
+                  name="bankCharges"
+                  value={formData.bankCharges}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Vendor's Fees */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ভেন্ডরের ফি (BDT)</label>
+                <input
+                  type="number"
+                  name="vendorFees"
+                  value={formData.vendorFees}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+
               {/* Form Fillup Charge */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Form Fillup Charge (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ফরম ফিলআপ চার্জ (BDT)</label>
                 <input
                   type="number"
                   name="formFillupCharge"
@@ -585,7 +618,7 @@ const AddPassportService = () => {
 
               {/* Total Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Bill (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">মোট বিল (BDT)</label>
                 <input
                   type="number"
                   name="totalBill"
@@ -598,7 +631,7 @@ const AddPassportService = () => {
 
               {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">স্ট্যাটাস</label>
                 <select
                   name="status"
                   value={formData.status}
@@ -615,14 +648,14 @@ const AddPassportService = () => {
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">নোট</label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional notes about the passport service"
+                placeholder="পাসপোর্ট সার্ভিস সম্পর্কে অতিরিক্ত নোট"
               />
             </div>
 
@@ -633,7 +666,7 @@ const AddPassportService = () => {
                 onClick={() => navigate('/additional-services/passport-service')}
                 className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                বাতিল
               </button>
               <button
                 type="submit"
@@ -643,12 +676,12 @@ const AddPassportService = () => {
                 {(isSubmitting || createMutation.isPending) ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
+                    সংরক্ষণ করা হচ্ছে...
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Passport Service
+                    পাসপোর্ট সার্ভিস সংরক্ষণ করুন
                   </>
                 )}
               </button>

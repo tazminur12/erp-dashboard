@@ -2,15 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Globe, Search, CheckCircle } from 'lucide-react';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useVendors } from '../../hooks/useVendorQueries';
+import { useVendors } from '../../../hooks/useVendorQueries';
+import useOtherCustomerQueries from '../../../hooks/useOtherCustomerQueries';
 import Swal from 'sweetalert2';
 
 const AddVisaProcessing = () => {
   const navigate = useNavigate();
-  const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
+  const { useOtherCustomers } = useOtherCustomerQueries();
 
   const [formData, setFormData] = useState({
     clientId: '',
@@ -47,66 +47,46 @@ const AddVisaProcessing = () => {
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const { data: vendorsData = [], isLoading: vendorsLoading } = useVendors();
 
-  // Debounced client search - Additional Services customers
+  // Client search using hook
+  const { data: clientsData, isLoading: clientsDataLoading } = useOtherCustomers({
+    page: 1,
+    limit: 20,
+    q: clientQuery.trim(),
+    status: 'active'
+  });
+
+  // Update client results when data changes
   useEffect(() => {
     const q = clientQuery.trim();
     if (!q || q.length < 2) {
       setClientResults([]);
+      setClientLoading(false);
       return;
     }
 
-    let active = true;
-    setClientLoading(true);
-
-    const timer = setTimeout(async () => {
-      try {
-        const res = await axiosSecure.get('/api/other/customers', { 
-          params: { 
-            q: q,
-            page: 1,
-            limit: 20,
-            status: 'active'
-          } 
-        });
-        const data = res?.data;
-        
-        let list = [];
-        if (data?.success && Array.isArray(data.data)) {
-          list = data.data;
-        } else if (Array.isArray(data?.customers)) {
-          list = data.customers;
-        } else if (Array.isArray(data)) {
-          list = data;
-        }
-
-        // Additional filtering if backend doesn't filter properly
-        const normalizedQ = q.toLowerCase();
-        const filtered = list.filter((c) => {
-          const id = String(c.id || c.customerId || c._id || '').toLowerCase();
-          const name = String(c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || '').toLowerCase();
-          const phone = String(c.phone || c.mobile || '');
-          const email = String(c.email || '').toLowerCase();
-          return (
-            id.includes(normalizedQ) ||
-            name.includes(normalizedQ) ||
-            phone.includes(q) ||
-            email.includes(normalizedQ)
-          );
-        });
-
-        if (active) setClientResults(filtered.slice(0, 10));
-      } catch (err) {
-        if (active) setClientResults([]);
-      } finally {
-        if (active) setClientLoading(false);
-      }
-    }, 350);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [clientQuery, axiosSecure]);
+    setClientLoading(clientsDataLoading);
+    
+    if (clientsData?.customers) {
+      const list = clientsData.customers;
+      // Additional filtering if needed
+      const normalizedQ = q.toLowerCase();
+      const filtered = list.filter((c) => {
+        const id = String(c.id || c.customerId || c._id || '').toLowerCase();
+        const name = String(c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || '').toLowerCase();
+        const phone = String(c.phone || c.mobile || '');
+        const email = String(c.email || '').toLowerCase();
+        return (
+          id.includes(normalizedQ) ||
+          name.includes(normalizedQ) ||
+          phone.includes(q) ||
+          email.includes(normalizedQ)
+        );
+      });
+      setClientResults(filtered.slice(0, 10));
+    } else {
+      setClientResults([]);
+    }
+  }, [clientQuery, clientsData, clientsDataLoading]);
 
   // Filter vendors based on search query
   const filteredVendors = useMemo(() => {
@@ -172,19 +152,19 @@ const AddVisaProcessing = () => {
   const validate = () => {
     const newErrors = {};
     if (!formData.clientName.trim()) {
-      newErrors.clientName = 'Client name is required';
+      newErrors.clientName = 'নাম প্রয়োজন';
     }
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone is required';
+      newErrors.phone = 'নম্বর প্রয়োজন';
     }
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = 'ইমেইল ফরম্যাট সঠিক নয়';
     }
     if (!formData.appliedDate) {
-      newErrors.appliedDate = 'Applied date is required';
+      newErrors.appliedDate = 'আবেদনের তারিখ প্রয়োজন';
     }
     if (!formData.country.trim()) {
-      newErrors.country = 'Country is required';
+      newErrors.country = 'দেশ প্রয়োজন';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -192,8 +172,20 @@ const AddVisaProcessing = () => {
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const { data: response } = await axiosSecure.post('/api/visa-processing-services', data);
-      return response;
+      // Note: This should use a visa processing hook when available
+      const response = await fetch('/api/visa-processing-services', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Failed to create visa processing service');
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visaProcessingServices'] });
@@ -208,7 +200,7 @@ const AddVisaProcessing = () => {
     onError: (error) => {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error?.response?.data?.message || 'ভিসা প্রসেসিং সার্ভিস যোগ করতে সমস্যা হয়েছে',
+        text: error?.message || 'ভিসা প্রসেসিং সার্ভিস যোগ করতে সমস্যা হয়েছে',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
       });
@@ -248,15 +240,15 @@ const AddVisaProcessing = () => {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Visa Processing
+            ভিসা প্রসেসিংয়ে ফিরে যান
           </button>
           <div className="flex items-center gap-3">
             <div className="bg-green-100 p-3 rounded-lg">
               <Globe className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Add New Visa Processing</h1>
-              <p className="text-gray-600 mt-2">Fill in the visa processing information below</p>
+              <h1 className="text-3xl font-bold text-gray-900">নতুন ভিসা প্রসেসিং যোগ করুন</h1>
+              <p className="text-gray-600 mt-2">নিচে ভিসা প্রসেসিংয়ের তথ্য পূরণ করুন</p>
             </div>
           </div>
         </div>
@@ -268,7 +260,7 @@ const AddVisaProcessing = () => {
               {/* Name - Searchable */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name <span className="text-red-500">*</span>
+                  নাম <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -300,7 +292,7 @@ const AddVisaProcessing = () => {
                     onBlur={() => {
                       setTimeout(() => setShowClientDropdown(false), 200);
                     }}
-                    placeholder="Search client by name, ID, phone, or email..."
+                    placeholder="নাম, ID, ফোন, বা ইমেইল দিয়ে ক্লায়েন্ট খুঁজুন..."
                     className={`w-full pl-10 pr-3 py-2 border ${
                       errors.clientName ? 'border-red-500' : 'border-gray-300'
                     } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -309,9 +301,9 @@ const AddVisaProcessing = () => {
                   {showClientDropdown && (
                     <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                       {clientLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">খুঁজছি...</div>
                       ) : clientResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No clients found</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">কোন ক্লায়েন্ট পাওয়া যায়নি</div>
                       ) : (
                         clientResults.map((c) => {
                           const clientName = c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'N/A';
@@ -340,7 +332,7 @@ const AddVisaProcessing = () => {
                 {formData.clientName && (
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    Selected: {formData.clientName}
+                    নির্বাচিত: {formData.clientName}
                   </div>
                 )}
                 {errors.clientName && <p className="mt-1 text-xs text-red-600">{errors.clientName}</p>}
@@ -348,21 +340,21 @@ const AddVisaProcessing = () => {
 
               {/* Address - Auto filled */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ঠিকানা</label>
                 <textarea
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                   rows={3}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Address (auto-filled from client)"
+                  placeholder="ঠিকানা (ক্লায়েন্ট থেকে স্বয়ংক্রিয়ভাবে পূরণ)"
                 />
               </div>
 
               {/* Number - Auto filled */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number <span className="text-red-500">*</span>
+                  নম্বর <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -380,7 +372,7 @@ const AddVisaProcessing = () => {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ইমেইল</label>
                 <input
                   type="email"
                   name="email"
@@ -397,7 +389,7 @@ const AddVisaProcessing = () => {
               {/* Country */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Country <span className="text-red-500">*</span>
+                  দেশ <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -407,7 +399,7 @@ const AddVisaProcessing = () => {
                   className={`w-full rounded-md border ${
                     errors.country ? 'border-red-500' : 'border-gray-300'
                   } px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  placeholder="e.g. USA, UK, Canada"
+                  placeholder="যেমন: USA, UK, Canada"
                   required
                 />
                 {errors.country && <p className="mt-1 text-xs text-red-600">{errors.country}</p>}
@@ -415,7 +407,7 @@ const AddVisaProcessing = () => {
 
               {/* Visa Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Visa Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ভিসার ধরন</label>
                 <select
                   name="visaType"
                   value={formData.visaType}
@@ -434,21 +426,21 @@ const AddVisaProcessing = () => {
 
               {/* Passport Number */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Passport Number</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">পাসপোর্ট নম্বর</label>
                 <input
                   type="text"
                   name="passportNumber"
                   value={formData.passportNumber}
                   onChange={handleChange}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g. BN0123456"
+                  placeholder="যেমন: BN0123456"
                 />
               </div>
 
               {/* Applied Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Applied Date <span className="text-red-500">*</span>
+                  আবেদনের তারিখ <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -465,7 +457,7 @@ const AddVisaProcessing = () => {
 
               {/* Expected Delivery Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">প্রত্যাশিত ডেলিভারি তারিখ</label>
                 <input
                   type="date"
                   name="expectedDeliveryDate"
@@ -477,7 +469,7 @@ const AddVisaProcessing = () => {
 
               {/* Select Vendor */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Vendor</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ভেন্ডর নির্বাচন করুন</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-gray-400" />
@@ -498,7 +490,7 @@ const AddVisaProcessing = () => {
                     }}
                     onFocus={() => setShowVendorDropdown(true)}
                     onBlur={() => setTimeout(() => setShowVendorDropdown(false), 200)}
-                    placeholder="Search vendor by name or contact..."
+                    placeholder="নাম বা যোগাযোগ দিয়ে ভেন্ডর খুঁজুন..."
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {vendorsLoading && (
@@ -522,7 +514,7 @@ const AddVisaProcessing = () => {
                           </button>
                         ))
                       ) : (
-                        <div className="px-3 py-2 text-sm text-gray-500">No vendors found</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">কোন ভেন্ডর পাওয়া যায়নি</div>
                       )}
                     </div>
                   )}
@@ -530,14 +522,14 @@ const AddVisaProcessing = () => {
                 {formData.vendorName && (
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    Selected: {formData.vendorName}
+                    নির্বাচিত: {formData.vendorName}
                   </div>
                 )}
               </div>
 
               {/* Vendor Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Bill (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ভেন্ডর বিল (BDT)</label>
                 <input
                   type="number"
                   name="vendorBill"
@@ -552,7 +544,7 @@ const AddVisaProcessing = () => {
 
               {/* Other's Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Other's Bill (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">অন্যান্য বিল (BDT)</label>
                 <input
                   type="number"
                   name="othersBill"
@@ -567,7 +559,7 @@ const AddVisaProcessing = () => {
 
               {/* Total Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Bill (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">মোট বিল (BDT)</label>
                 <input
                   type="number"
                   name="totalBill"
@@ -580,7 +572,7 @@ const AddVisaProcessing = () => {
 
               {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">স্ট্যাটাস</label>
                 <select
                   name="status"
                   value={formData.status}
@@ -599,14 +591,14 @@ const AddVisaProcessing = () => {
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">নোট</label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional notes about the visa processing"
+                placeholder="ভিসা প্রসেসিং সম্পর্কে অতিরিক্ত নোট"
               />
             </div>
 
@@ -617,7 +609,7 @@ const AddVisaProcessing = () => {
                 onClick={() => navigate('/additional-services/visa-processing')}
                 className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                বাতিল
               </button>
               <button
                 type="submit"
@@ -627,12 +619,12 @@ const AddVisaProcessing = () => {
                 {(isSubmitting || createMutation.isPending) ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
+                    সংরক্ষণ করা হচ্ছে...
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Visa Processing
+                    ভিসা প্রসেসিং সংরক্ষণ করুন
                   </>
                 )}
               </button>

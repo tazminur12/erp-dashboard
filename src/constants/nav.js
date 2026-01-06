@@ -104,15 +104,15 @@ export const navigation = [
       { name : 'Today Transaction', href: '/transactions/today', icon: Calendar }
     ]
   },
-  {
-    name: 'Sales & Invoice',
-    icon: Receipt,
-    children: [
-      { name: 'Create Invoice', href: '/sales-invoice/new', icon: Plus },
-      { name: 'Pending Invoices', href: '/sales-invoice/pending', icon: FileText },
-      { name: 'All Invoices', href: '/sales-invoice/list', icon: List }
-    ]
-  },
+  // {
+  //   name: 'Sales & Invoice',
+  //   icon: Receipt,
+  //   children: [
+  //     { name: 'Create Invoice', href: '/sales-invoice/new', icon: Plus },
+  //     { name: 'Pending Invoices', href: '/sales-invoice/pending', icon: FileText },
+  //     { name: 'All Invoices', href: '/sales-invoice/list', icon: List }
+  //   ]
+  // },
   {
     name: 'Vendors',
     icon: Building2,

@@ -205,6 +205,59 @@ const TransactionsList = () => {
       }
     }
     
+    // Handle Office Expenses transactions - show category name
+    if (t.customerType === 'office' || t.operatingExpenseCategory || t.operatingExpenseCategoryId) {
+      // Check operatingExpenseCategory object
+      if (t.operatingExpenseCategory && typeof t.operatingExpenseCategory === 'object') {
+        const categoryName = t.operatingExpenseCategory.name || 
+                            t.operatingExpenseCategory.categoryName || 
+                            t.operatingExpenseCategory.label || '';
+        if (categoryName && categoryName.trim() && categoryName.toLowerCase() !== 'unknown') {
+          return `Office Expense - ${categoryName.trim()}`;
+        }
+      }
+      // Check if category name is in description or notes
+      if (t.description && typeof t.description === 'string') {
+        const descMatch = t.description.match(/Office\s+Expense[:\s-]+(.+)/i);
+        if (descMatch && descMatch[1]) {
+          return `Office Expense - ${descMatch[1].trim()}`;
+        }
+      }
+      // Fallback to category field if it's a readable name
+      if (t.category && typeof t.category === 'string' && !t.category.match(/^[0-9a-f]{24}$/i)) {
+        return `Office Expense - ${t.category}`;
+      }
+      // If we have operatingExpenseCategoryId but no name, show generic
+      if (t.operatingExpenseCategoryId) {
+        return 'Office Expense';
+      }
+    }
+    
+    // Handle haji/umrah transactions - check haji/umrah objects first
+    if (t.partyType === 'haji' || t.partyType === 'umrah') {
+      // Check haji object
+      if (t.haji && typeof t.haji === 'object') {
+        const hajiName = t.haji.name || t.haji.fullName || '';
+        if (hajiName && hajiName.trim() && hajiName.toLowerCase() !== 'unknown') {
+          return hajiName.trim();
+        }
+      }
+      // Check umrah object
+      if (t.umrah && typeof t.umrah === 'object') {
+        const umrahName = t.umrah.name || t.umrah.fullName || '';
+        if (umrahName && umrahName.trim() && umrahName.toLowerCase() !== 'unknown') {
+          return umrahName.trim();
+        }
+      }
+      // Check party object for haji/umrah
+      if (t.party && typeof t.party === 'object') {
+        const partyName = t.party.name || t.party.fullName || '';
+        if (partyName && partyName.trim() && partyName.toLowerCase() !== 'unknown') {
+          return partyName.trim();
+        }
+      }
+    }
+    
     // Try multiple fields and check for "Unknown" or empty values
     const name = 
       t.customerName ||

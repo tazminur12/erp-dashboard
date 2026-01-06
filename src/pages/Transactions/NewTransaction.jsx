@@ -171,6 +171,7 @@ const NewTransaction = () => {
     customerType: 'customer', // 'customer', 'vendor', 'agent', 'haji', 'umrah'
     customerId: '',
     uniqueId: '',
+    linkedCustomerId: null, // For haji/umrah: linked customer profile ID for syncing
     customerName: '',
     customerPhone: '',
     customerEmail: '',
@@ -185,6 +186,7 @@ const NewTransaction = () => {
     // Step 3: Category (for credit/debit)
     category: '',
     operatingExpenseCategoryId: '',
+    operatingExpenseCategory: null, // Store operating expense category object for Office Expenses
     // Slug for backend detection (e.g., 'hajj', 'umrah')
     serviceCategory: '',
     
@@ -672,28 +674,55 @@ const NewTransaction = () => {
   };
 
   const handleCustomerSelect = (customer) => {
-    // If selectedSearchType is 'airCustomer', set type to 'airCustomer'
+    // Priority: Use customer.customerType if explicitly provided (for haji/umrah)
+    // Then check selectedSearchType for airCustomer
     // Otherwise, use the customer's type or default to 'customer'
-    const resolvedType = selectedSearchType === 'airCustomer' 
-      ? 'airCustomer' 
-      : (customer.customerType || customer.type || customer._type || 'customer');
+    const resolvedType = customer.customerType 
+      ? customer.customerType 
+      : (selectedSearchType === 'airCustomer' 
+          ? 'airCustomer' 
+          : (customer.type || customer._type || 'customer'));
     const autoCategory = resolvedType === 'haji' ? 'হাজ্জ প্যাকেজ' : (resolvedType === 'umrah' ? 'ওমরাহ প্যাকেজ' : undefined);
     const autoSelectedOption = resolvedType === 'haji' ? 'hajj' : (resolvedType === 'umrah' ? 'umrah' : undefined);
     const autoServiceCategory = resolvedType === 'haji' ? 'hajj' : (resolvedType === 'umrah' ? 'umrah' : undefined);
     const exchangeInfo = resolvedType === 'money-exchange' ? (customer.moneyExchangeInfo || {}) : null;
     const exchangeAmount = exchangeInfo && (exchangeInfo.amount_bdt ?? exchangeInfo.amount);
+    
+    // For haji/umrah, extract linked customerId if available (for syncing to customer profile)
+    // Haji/Umrah records have a customerId field that links to the customer profile
+    // This is different from the haji/umrah record's own _id
+    const linkedCustomerId = (resolvedType === 'haji' || resolvedType === 'umrah') 
+      ? (customer.customerId || customer.linkedCustomerId || customer.airCustomerId || customer.referenceCustomerId || null)
+      : null;
+    
+    // Debug log for haji/umrah selection
+    if (resolvedType === 'haji' || resolvedType === 'umrah') {
+      console.log('Haji/Umrah Selection Debug:', {
+        resolvedType,
+        customerId: customer.id || customer._id || customer.customerId,
+        linkedCustomerId: linkedCustomerId,
+        customerObject: customer
+      });
+    }
 
     setFormData(prev => ({
       ...prev,
       customerId: (customer.id || customer.customerId) ? String(customer.id || customer.customerId) : '',
       uniqueId: customer.uniqueId || customer.customerId || '',
+      // Store linked customerId for haji/umrah to sync with customer profile
+      linkedCustomerId: linkedCustomerId ? String(linkedCustomerId) : null,
       customerName: customer.name,
       customerPhone: customer.mobile || customer.phone || customer.mobileNumber || customer.contactNo || '',
       customerEmail: customer.email,
       customerAddress: customer.address || customer.fullAddress || '',
       customerType: resolvedType,
-      // Store operating expense category ID for office expenses
+      // Store operating expense category ID and object for office expenses
       operatingExpenseCategoryId: resolvedType === 'office' ? String(customer.id || customer.customerId) : undefined,
+      operatingExpenseCategory: resolvedType === 'office' ? {
+        id: customer.id || customer.customerId,
+        name: customer.name || customer.categoryName || '',
+        categoryName: customer.name || customer.categoryName || ''
+      } : undefined,
       moneyExchangeInfo: resolvedType === 'money-exchange'
         ? (customer.moneyExchangeInfo || null)
         : null,
@@ -1516,6 +1545,11 @@ const NewTransaction = () => {
       partyId: formData.customerId ? String(formData.customerId) : undefined,
       // Keep customerId for backward compatibility
       customerId: formData.customerId ? String(formData.customerId) : undefined,
+      // For haji/umrah: pass linked customerId to sync with customer profile
+      // Backend will use this to update linked customer profile
+      linkedCustomerId: (formData.customerType === 'haji' || formData.customerType === 'umrah') && formData.linkedCustomerId
+        ? String(formData.linkedCustomerId)
+        : undefined,
       // Add customerType for backend auto-detection
       customerType: formData.customerType || undefined,
       // Add targetAccountId for backend API (for credit/debit transactions)
@@ -1583,6 +1617,13 @@ const NewTransaction = () => {
 
     // Log the data being sent for debugging
     console.log('Submitting credit/debit transaction payload:', unifiedTransactionData);
+    console.log('Haji/Umrah Debug Info:', {
+      customerType: formData.customerType,
+      partyId: unifiedTransactionData.partyId,
+      linkedCustomerId: unifiedTransactionData.linkedCustomerId,
+      customerId: unifiedTransactionData.customerId,
+      formDataLinkedCustomerId: formData.linkedCustomerId
+    });
 
     // Capture accountManager before form reset (important for PDF generation)
     // Extract name properly from formData.accountManager
@@ -3410,7 +3451,10 @@ const NewTransaction = () => {
                                 email: haji.email,
                                 address: haji.address || haji.fullAddress || '',
                                 uniqueId: haji.uniqueId || haji.customerId || haji.hajiId || '',
-                                customerType: 'haji'
+                                customerType: 'haji',
+                                // Pass customerId field from haji record (this links to customer profile)
+                                // This is different from haji._id (which is the haji record's own ID)
+                                customerId: haji.customerId || haji.linkedCustomerId || haji.airCustomerId || haji.referenceCustomerId || null
                               })}
                               className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
                                 formData.customerId === (haji._id || haji.id)
@@ -3497,7 +3541,10 @@ const NewTransaction = () => {
                                 email: umrah.email,
                                 address: umrah.address || umrah.fullAddress || '',
                                 uniqueId: umrah.uniqueId || umrah.customerId || umrah.umrahId || '',
-                                customerType: 'umrah'
+                                customerType: 'umrah',
+                                // Pass customerId field from umrah record (this links to customer profile)
+                                // This is different from umrah._id (which is the umrah record's own ID)
+                                customerId: umrah.customerId || umrah.linkedCustomerId || umrah.airCustomerId || umrah.referenceCustomerId || null
                               })}
                               className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
                                 formData.customerId === (umrah._id || umrah.id)

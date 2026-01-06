@@ -396,6 +396,28 @@ const EditUmrahHaji = () => {
     setFormData(prev => {
       const updates = { [name]: nextValue };
       
+      // Auto-split full name into first name and last name
+      if (name === 'name' && nextValue && typeof nextValue === 'string') {
+        const nameParts = nextValue.trim().split(/\s+/);
+        if (nameParts.length > 0) {
+          // First word is first name
+          updates.firstName = nameParts[0];
+          // Rest of the words are last name
+          updates.lastName = nameParts.slice(1).join(' ') || '';
+        } else {
+          updates.firstName = '';
+          updates.lastName = '';
+        }
+      }
+      
+      // Auto-combine first name and last name into full name
+      if (name === 'firstName' || name === 'lastName') {
+        const firstName = name === 'firstName' ? nextValue : prev.firstName || '';
+        const lastName = name === 'lastName' ? nextValue : prev.lastName || '';
+        // Combine first name and last name with a space
+        updates.name = [firstName, lastName].filter(Boolean).join(' ').trim();
+      }
+      
       // Reset district and upazila when division changes
       if (name === 'division') {
         updates.district = '';

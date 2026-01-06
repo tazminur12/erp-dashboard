@@ -2,15 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Briefcase, Search, CheckCircle } from 'lucide-react';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useVendors } from '../../hooks/useVendorQueries';
-import Swal from 'sweetalert2';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
+import { useVendors } from '../../../hooks/useVendorQueries';
+import { useCreateManpowerService } from '../../../hooks/useManpowerServiceQueries';
 
 const AddManpowerService = () => {
   const navigate = useNavigate();
   const axiosSecure = useAxiosSecure();
-  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     clientId: '',
@@ -25,6 +23,7 @@ const AddManpowerService = () => {
     vendorName: '',
     vendorBill: '',
     othersBill: '',
+    serviceCharge: '',
     totalBill: '',
     status: 'active',
     notes: '',
@@ -125,11 +124,13 @@ const AddManpowerService = () => {
   useEffect(() => {
     const vendorBill = parseFloat(formData.vendorBill) || 0;
     const othersBill = parseFloat(formData.othersBill) || 0;
+    const serviceCharge = parseFloat(formData.serviceCharge) || 0;
+    const total = vendorBill + othersBill + serviceCharge;
     setFormData(prev => ({
       ...prev,
-      totalBill: (vendorBill + othersBill).toFixed(2)
+      totalBill: total.toFixed(2)
     }));
-  }, [formData.vendorBill, formData.othersBill]);
+  }, [formData.vendorBill, formData.othersBill, formData.serviceCharge]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -168,45 +169,22 @@ const AddManpowerService = () => {
   const validate = () => {
     const newErrors = {};
     if (!formData.clientName.trim()) {
-      newErrors.clientName = 'Client name is required';
+      newErrors.clientName = 'নাম প্রয়োজন';
     }
     if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone is required';
+      newErrors.phone = 'নম্বর প্রয়োজন';
     }
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = 'ইমেইল ফরম্যাট সঠিক নয়';
     }
     if (!formData.appliedDate) {
-      newErrors.appliedDate = 'Applied date is required';
+      newErrors.appliedDate = 'আবেদনের তারিখ প্রয়োজন';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const createMutation = useMutation({
-    mutationFn: async (data) => {
-      const { data: response } = await axiosSecure.post('/api/manpower-services', data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['manpowerServices'] });
-      Swal.fire({
-        title: 'সফল!',
-        text: 'ম্যানপাওয়ার সার্ভিস সফলভাবে যোগ করা হয়েছে',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-      });
-      navigate('/additional-services/manpower-service');
-    },
-    onError: (error) => {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: error?.response?.data?.message || 'ম্যানপাওয়ার সার্ভিস যোগ করতে সমস্যা হয়েছে',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-      });
-    },
-  });
+  const createMutation = useCreateManpowerService();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -218,9 +196,13 @@ const AddManpowerService = () => {
         ...formData,
         vendorBill: formData.vendorBill ? Number(formData.vendorBill) : 0,
         othersBill: formData.othersBill ? Number(formData.othersBill) : 0,
+        serviceCharge: formData.serviceCharge ? Number(formData.serviceCharge) : 0,
         totalBill: formData.totalBill ? Number(formData.totalBill) : 0,
       };
       await createMutation.mutateAsync(payload);
+      navigate('/additional-services/manpower-service');
+    } catch (error) {
+      // Error is already handled by the hook
     } finally {
       setIsSubmitting(false);
     }
@@ -240,15 +222,15 @@ const AddManpowerService = () => {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Manpower Service
+            ম্যানপাওয়ার সার্ভিসে ফিরে যান
           </button>
           <div className="flex items-center gap-3">
             <div className="bg-indigo-100 p-3 rounded-lg">
               <Briefcase className="w-6 h-6 text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Add New Manpower Service</h1>
-              <p className="text-gray-600 mt-2">Fill in the manpower service information below</p>
+              <h1 className="text-3xl font-bold text-gray-900">নতুন ম্যানপাওয়ার সার্ভিস যোগ করুন</h1>
+              <p className="text-gray-600 mt-2">নিচে ম্যানপাওয়ার সার্ভিসের তথ্য পূরণ করুন</p>
             </div>
           </div>
         </div>
@@ -260,7 +242,7 @@ const AddManpowerService = () => {
               {/* Name - Searchable */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name <span className="text-red-500">*</span>
+                  নাম <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -291,7 +273,7 @@ const AddManpowerService = () => {
                     onBlur={() => {
                       setTimeout(() => setShowClientDropdown(false), 200);
                     }}
-                    placeholder="Search client by name, ID, phone, or email..."
+                    placeholder="নাম, ID, ফোন, বা ইমেইল দিয়ে ক্লায়েন্ট খুঁজুন..."
                     className={`w-full pl-10 pr-3 py-2 border ${
                       errors.clientName ? 'border-red-500' : 'border-gray-300'
                     } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
@@ -300,9 +282,9 @@ const AddManpowerService = () => {
                   {showClientDropdown && (
                     <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                       {clientLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">Searching...</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">খুঁজছি...</div>
                       ) : clientResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500">No clients found</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">কোন ক্লায়েন্ট পাওয়া যায়নি</div>
                       ) : (
                         clientResults.map((c) => {
                           const clientName = c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'N/A';
@@ -331,7 +313,7 @@ const AddManpowerService = () => {
                 {formData.clientName && (
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    Selected: {formData.clientName}
+                    নির্বাচিত: {formData.clientName}
                   </div>
                 )}
                 {errors.clientName && <p className="mt-1 text-xs text-red-600">{errors.clientName}</p>}
@@ -339,21 +321,21 @@ const AddManpowerService = () => {
 
               {/* Address - Auto filled */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ঠিকানা</label>
                 <textarea
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
                   rows={3}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Address (auto-filled from client)"
+                  placeholder="ঠিকানা (ক্লায়েন্ট থেকে স্বয়ংক্রিয়ভাবে পূরণ)"
                 />
               </div>
 
               {/* Number - Auto filled */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number <span className="text-red-500">*</span>
+                  নম্বর <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -371,7 +353,7 @@ const AddManpowerService = () => {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ইমেইল</label>
                 <input
                   type="email"
                   name="email"
@@ -388,7 +370,7 @@ const AddManpowerService = () => {
               {/* Applied Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Applied Date <span className="text-red-500">*</span>
+                  আবেদনের তারিখ <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
@@ -405,7 +387,7 @@ const AddManpowerService = () => {
 
               {/* Expected Delivery Date */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Expected Delivery Date</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">প্রত্যাশিত ডেলিভারি তারিখ</label>
                 <input
                   type="date"
                   name="expectedDeliveryDate"
@@ -418,7 +400,7 @@ const AddManpowerService = () => {
               {/* Service Type */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Service Type <span className="text-red-500">*</span>
+                  সার্ভিসের ধরন <span className="text-red-500">*</span>
                 </label>
                 <select
                   name="serviceType"
@@ -437,7 +419,7 @@ const AddManpowerService = () => {
 
               {/* Select Vendor */}
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Select Vendor</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ভেন্ডর নির্বাচন করুন</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <Search className="h-5 w-5 text-gray-400" />
@@ -452,13 +434,13 @@ const AddManpowerService = () => {
                         setFormData(prev => ({
                           ...prev,
                           vendorId: '',
-                          vendorName: '',
+                          vendorName: '', 
                         }));
                       }
                     }}
                     onFocus={() => setShowVendorDropdown(true)}
                     onBlur={() => setTimeout(() => setShowVendorDropdown(false), 200)}
-                    placeholder="Search vendor by name or contact..."
+                    placeholder="নাম বা যোগাযোগ দিয়ে ভেন্ডর খুঁজুন..."
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   {vendorsLoading && (
@@ -482,7 +464,7 @@ const AddManpowerService = () => {
                           </button>
                         ))
                       ) : (
-                        <div className="px-3 py-2 text-sm text-gray-500">No vendors found</div>
+                        <div className="px-3 py-2 text-sm text-gray-500">কোন ভেন্ডর পাওয়া যায়নি</div>
                       )}
                     </div>
                   )}
@@ -490,14 +472,14 @@ const AddManpowerService = () => {
                 {formData.vendorName && (
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3 text-green-600" />
-                    Selected: {formData.vendorName}
+                    নির্বাচিত: {formData.vendorName}
                   </div>
                 )}
               </div>
 
               {/* Vendor Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Bill (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ভেন্ডর বিল (BDT)</label>
                 <input
                   type="number"
                   name="vendorBill"
@@ -512,7 +494,7 @@ const AddManpowerService = () => {
 
               {/* Other's Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Other's Bill (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">অন্যান্য বিল (BDT)</label>
                 <input
                   type="number"
                   name="othersBill"
@@ -525,9 +507,24 @@ const AddManpowerService = () => {
                 />
               </div>
 
+              {/* Service Charge */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">সার্ভিস চার্জ (BDT)</label>
+                <input
+                  type="number"
+                  name="serviceCharge"
+                  value={formData.serviceCharge}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
+
               {/* Total Bill */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Bill (BDT)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">মোট বিল (BDT)</label>
                 <input
                   type="number"
                   name="totalBill"
@@ -540,31 +537,31 @@ const AddManpowerService = () => {
 
               {/* Status */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">স্ট্যাটাস</label>
                 <select
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="active">Active</option>
-                  <option value="in_process">In Process</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  <option value="active">সক্রিয়</option>
+                  <option value="in_process">প্রক্রিয়াধীন</option>
+                  <option value="completed">সম্পন্ন</option>
+                  <option value="cancelled">বাতিল</option>
                 </select>
               </div>
             </div>
 
             {/* Notes */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">নোট</label>
               <textarea
                 name="notes"
                 value={formData.notes}
                 onChange={handleChange}
                 rows={3}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional notes about the manpower service"
+                placeholder="ম্যানপাওয়ার সার্ভিস সম্পর্কে অতিরিক্ত নোট"
               />
             </div>
 
@@ -575,7 +572,7 @@ const AddManpowerService = () => {
                 onClick={() => navigate('/additional-services/manpower-service')}
                 className="px-4 py-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                বাতিল
               </button>
               <button
                 type="submit"
@@ -585,12 +582,12 @@ const AddManpowerService = () => {
                 {(isSubmitting || createMutation.isPending) ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
+                    সংরক্ষণ করা হচ্ছে...
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Manpower Service
+                    ম্যানপাওয়ার সার্ভিস সংরক্ষণ করুন
                   </>
                 )}
               </button>

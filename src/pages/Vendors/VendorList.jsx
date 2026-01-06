@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, Upload, Loader2, Trash2, Eye } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Building2, Search, Plus, Phone, User, MapPin, Calendar, CreditCard, FileText, Upload, Loader2, Trash2, Eye, Edit } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import ExcelUploader from '../../components/common/ExcelUploader';
 import { useTheme } from '../../contexts/ThemeContext.jsx';
@@ -14,11 +14,15 @@ import {
 
 const VendorList = () => {
   const { isDark } = useTheme();
+  const navigate = useNavigate();
   
   // React Query hooks
   const { data: vendors = [], isLoading: loading, error: vendorsError } = useVendors();
   const deleteVendorMutation = useDeleteVendor();
   const bulkUploadMutation = useBulkVendorOperation();
+  
+  // Format currency helper
+  const formatCurrency = (amount = 0) => `৳${Number(amount || 0).toLocaleString('bn-BD')}`;
   
   // Local state
   const [query, setQuery] = useState('');
@@ -104,8 +108,8 @@ const VendorList = () => {
           <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
         </div>
         <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Vendor List</h1>
-            <p className="text-gray-600 dark:text-gray-400">Browse all vendors</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">ভেন্ডর তালিকা</h1>
+            <p className="text-gray-600 dark:text-gray-400">সব ভেন্ডরের তালিকা</p>
           </div>
         </div>
 
@@ -119,20 +123,20 @@ const VendorList = () => {
               value={query}
               onChange={(e) => { setPage(1); setQuery(e.target.value); }}
               className="w-full sm:w-72 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              placeholder="Search vendors..."
+              placeholder="ভেন্ডর খুঁজুন..."
             />
           </div>
           <button
             onClick={() => setShowExcelUploader(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-blue-300 dark:border-blue-600 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-3.5 py-2.5"
           >
-            <Upload className="w-4 h-4" /> Excel Upload
+            <Upload className="w-4 h-4" /> Excel আপলোড
           </button>
           <Link
             to="/vendors/add"
             className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2.5"
           >
-            <Plus className="w-4 h-4" /> Add Vendor
+            <Plus className="w-4 h-4" /> নতুন ভেন্ডর
           </Link>
         </div>
       </div>
@@ -142,38 +146,41 @@ const VendorList = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-900/50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ID</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Trade Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Trade Location</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Owner</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Contact</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hidden lg:table-cell">DOB</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hidden xl:table-cell">NID</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider hidden xl:table-cell">Passport</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">আইডি</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ব্যবসায়ীক নাম</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মালিকের নাম</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মোবাইল নং</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ভেন্ডর বিল</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">পরিশোধ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">বকেয়া</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Loading vendors...
+                      লোড হচ্ছে...
                     </div>
                   </td>
                 </tr>
               ) : vendorsError ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-red-500 dark:text-red-400">
-                    Failed to load vendors. Please try again.
+                  <td colSpan={8} className="px-4 py-10 text-center text-red-500 dark:text-red-400">
+                    ভেন্ডর লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।
                   </td>
                 </tr>
               ) : paged.length > 0 ? paged.map((v) => {
+                // Calculate financial totals
+                const totalBill = (v.totalPaid || 0) + (v.totalDue || 0);
+                const paidAmount = v.totalPaid || 0;
+                const dueAmount = v.totalDue || 0;
             
                   return (
                   <tr key={v._id || v.vendorId} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{v.vendorId}</td>
+                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{v.vendorId || v._id || 'N/A'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {v.logo && (
@@ -185,35 +192,42 @@ const VendorList = () => {
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <Link to={`/vendors/${v._id || v.vendorId}`} className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline block truncate">{v.tradeName}</Link>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{v.tradeLocation}</span></div>
+                        <Link to={`/vendors/${v._id || v.vendorId}`} className="text-sm font-medium text-purple-600 dark:text-purple-400 hover:underline block truncate">{v.tradeName || 'N/A'}</Link>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">{v.tradeLocation}</td>
                   <td className="px-4 py-3">
                     <div className="text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-500" /> {v.ownerName}
+                      <User className="w-4 h-4 text-gray-500" /> {v.ownerName || 'N/A'}
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2"><Phone className="w-4 h-4 text-gray-500" /> {v.contactNo}</div>
+                    <div className="text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <Phone className="w-4 h-4 text-gray-500" /> {v.contactNo || 'N/A'}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 hidden lg:table-cell">
-                    <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2"><Calendar className="w-4 h-4 text-gray-500" /> {v.dob}</div>
+                  <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {formatCurrency(totalBill)}
                   </td>
-                  <td className="px-4 py-3 hidden xl:table-cell">
-                    <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2"><CreditCard className="w-4 h-4 text-gray-500" /> {v.nid}</div>
+                  <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
+                    {formatCurrency(paidAmount)}
                   </td>
-                  <td className="px-4 py-3 hidden xl:table-cell">
-                    <div className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-2"><FileText className="w-4 h-4 text-gray-500" /> {v.passport}</div>
+                  <td className="px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400">
+                    {formatCurrency(dueAmount)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
                       <Link
+                        to={`/vendors/${v._id || v.vendorId}/edit`}
+                        className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                        title="সম্পাদনা করুন"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Link>
+                      <Link
                         to={`/vendors/${v._id || v.vendorId}`}
                         className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                        title="View details"
+                        title="বিস্তারিত দেখুন"
                       >
                         <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                       </Link>
@@ -225,8 +239,8 @@ const VendorList = () => {
                             return deleteVendorMutation.isPending && deleteVendorMutation.variables === currentId;
                           })()
                         }
-                        className="inline-flex items-center justify-center h-9 px-3 rounded-md border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
-                        title="Delete vendor"
+                        className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                        title="মুছে ফেলুন"
                       >
                         {(() => {
                           const currentId = v._id || v.id || v.vendorId;
@@ -243,7 +257,7 @@ const VendorList = () => {
                 );
               }) : (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">No vendors found</td>
+                  <td colSpan={8} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">কোন ভেন্ডর পাওয়া যায়নি</td>
                 </tr>
               )}
             </tbody>
@@ -252,7 +266,7 @@ const VendorList = () => {
 
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing <span className="font-medium">{paged.length}</span> of <span className="font-medium">{filtered.length}</span> vendors
+            দেখানো হচ্ছে <span className="font-medium">{paged.length}</span> এর <span className="font-medium">{filtered.length}</span> ভেন্ডর
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -260,15 +274,15 @@ const VendorList = () => {
               disabled={currentPage === 1}
               className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
             >
-              Previous
+              আগে
             </button>
-            <span className="text-sm text-gray-700 dark:text-gray-200">Page {currentPage} of {totalPages}</span>
+            <span className="text-sm text-gray-700 dark:text-gray-200">পৃষ্ঠা {currentPage} এর {totalPages}</span>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
               className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
             >
-              Next
+              পরে
             </button>
           </div>
         </div>

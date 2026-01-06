@@ -471,6 +471,8 @@ export const useCreateTransaction = () => {
         },
         customerBankAccount: transactionData.customerBankAccount || null,
         customerId: finalPartyId,
+        // For haji/umrah: linked customerId to sync with customer profile
+        linkedCustomerId: transactionData.linkedCustomerId || null,
         // Money exchange information (for money-exchange party type)
         moneyExchangeInfo: moneyExchangeInfo
       };
@@ -506,9 +508,24 @@ export const useCreateTransaction = () => {
         }
       });
 
+      // Debug log for haji/umrah transactions
+      if (finalPartyType === 'haji' || finalPartyType === 'umrah') {
+        console.log('Haji/Umrah Transaction Payload:', {
+          partyType: finalPartyType,
+          partyId: finalPartyId,
+          linkedCustomerId: payload.linkedCustomerId,
+          customerId: payload.customerId,
+          fullPayload: payload
+        });
+      }
+
       const response = await axiosSecure.post('/api/transactions', payload);
       
       if (response.data.success) {
+        // Debug log for response
+        if (finalPartyType === 'haji' || finalPartyType === 'umrah') {
+          console.log('Haji/Umrah Transaction Response:', response.data);
+        }
         return response.data;
       } else {
         throw new Error(response.data.message || 'Failed to create transaction');
@@ -552,8 +569,25 @@ export const useCreateTransaction = () => {
         // Invalidate both regular customers and airCustomers queries
         // Backend auto-detects which collection to use based on where party is found
         queryClient.invalidateQueries({ queryKey: transactionKeys.customers() });
+        // Invalidate all airCustomer queries comprehensively
+        queryClient.invalidateQueries({ queryKey: airCustomerKeys.all });
         queryClient.invalidateQueries({ queryKey: airCustomerKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: airCustomerKeys.details() });
         queryClient.invalidateQueries({ queryKey: airCustomerKeys.detail(partyId) });
+        // Also invalidate any queries that might be using customerId or _id
+        // This ensures all customer-related queries are refreshed
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey;
+            if (!Array.isArray(key)) return false;
+            // Check if query key includes airCustomers and the partyId
+            const hasAirCustomer = key.some(k => 
+              typeof k === 'string' && (k === 'airCustomers' || k.includes('airCustomer'))
+            );
+            const hasPartyId = key.includes(partyId);
+            return hasAirCustomer && hasPartyId;
+          }
+        });
       }
       
       // Handle agent party type
@@ -562,12 +596,36 @@ export const useCreateTransaction = () => {
       }
       
       // Handle haji and umrah party types (these may also sync to customer profiles)
-      // Backend logic: Haji/Umrah transactions sync to linked customer profiles (via customerId)
+      // Backend logic: Haji/Umrah transactions sync to linked customer profiles (via customerId or linkedCustomerId)
       // Updates both regular customers and airCustomers if linked customer exists
       if ((partyType === 'haji' || partyType === 'umrah') && partyId) {
         // Invalidate customer queries as backend syncs to linked customer profiles
         queryClient.invalidateQueries({ queryKey: transactionKeys.customers() });
+        // Invalidate all airCustomer queries comprehensively
+        queryClient.invalidateQueries({ queryKey: airCustomerKeys.all });
         queryClient.invalidateQueries({ queryKey: airCustomerKeys.lists() });
+        queryClient.invalidateQueries({ queryKey: airCustomerKeys.details() });
+        // Get linked customerId from transaction data if available (for linked customer profile)
+        // Backend may use linkedCustomerId or customerId field to sync with customer profile
+        const linkedCustomerId = data?.transaction?.linkedCustomerId 
+          || data?.transaction?.customerId 
+          || variables?.linkedCustomerId 
+          || variables?.customerId;
+        if (linkedCustomerId) {
+          queryClient.invalidateQueries({ queryKey: airCustomerKeys.detail(linkedCustomerId) });
+          // Also invalidate any queries that might include this customerId
+          queryClient.invalidateQueries({ 
+            predicate: (query) => {
+              const key = query.queryKey;
+              if (!Array.isArray(key)) return false;
+              const hasAirCustomer = key.some(k => 
+                typeof k === 'string' && (k === 'airCustomers' || k.includes('airCustomer'))
+              );
+              const hasLinkedCustomerId = key.includes(linkedCustomerId);
+              return hasAirCustomer && hasLinkedCustomerId;
+            }
+          });
+        }
         // Invalidate haji/umrah queries
         queryClient.invalidateQueries({ queryKey: ['haji'] });
         queryClient.invalidateQueries({ queryKey: ['umrah'] });

@@ -274,7 +274,6 @@ const TodayTransactions = () => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">ক্যাটাগরি</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">পেমেন্ট মেথড</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">পরিমাণ</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">তারিখ</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">স্ট্যাটাস</th>
               </tr>
             </thead>
@@ -338,10 +337,6 @@ const TodayTransactions = () => {
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-white">
                     {formatCurrency(getAmount(tx))}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-400" />
-                    {tx.date ? formatDate(tx.date) : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
@@ -415,13 +410,6 @@ const TodayTransactions = () => {
                   <p className="text-gray-900 dark:text-white">
                     {getPaymentMethodLabel(tx.paymentMethod)}
                   </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">তারিখ</p>
-                    <p className="text-gray-900 dark:text-white">{tx.date ? formatDate(tx.date) : '—'}</p>
-                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">স্ট্যাটাস</p>
