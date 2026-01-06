@@ -625,13 +625,26 @@ const NewTransaction = () => {
       ];
     } else {
       // Credit transaction
-      return [
-        { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
-        { number: 2, title: 'কাস্টমার টাইপ', description: 'কাস্টমার টাইপ নির্বাচন করুন' },
-        { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
-        { number: 4, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
-        { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
-      ];
+      if (formData.customerType === 'agent') {
+        // For agent credit transactions, add balance information step
+        return [
+          { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
+          { number: 2, title: 'কাস্টমার টাইপ', description: 'কাস্টমার টাইপ নির্বাচন করুন' },
+          { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
+          { number: 4, title: 'এজেন্টের ব্যালেন্স তথ্য', description: 'এজেন্টের বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন' },
+          { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+          { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+        ];
+      } else {
+        // For non-agent credit transactions
+        return [
+          { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
+          { number: 2, title: 'কাস্টমার টাইপ', description: 'কাস্টমার টাইপ নির্বাচন করুন' },
+          { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
+          { number: 4, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+          { number: 5, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+        ];
+      }
     }
   };
 
@@ -1061,13 +1074,27 @@ const NewTransaction = () => {
           break;
         case 5:
           // For credit non-agent: step 5 is payment method (step 4 is skipped)
-          // For credit agent: step 5 is invoice selection
+          // For credit agent: step 5 is payment method validation
           if (formData.customerType === 'agent') {
-            // Invoice selection - only for agent customers (step 5 for agents)
-            // Require invoice only when real API invoices are available
-            if (!isUsingDemoInvoices) {
-              if (!formData.selectedInvoice || !formData.invoiceId) {
-                newErrors.invoiceId = 'ইনভয়েস নির্বাচন করুন';
+            // For credit agent: step 5 is payment method validation
+            if (!formData.paymentMethod) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
+            } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
+              newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
+            }
+            // Only validate amount if payment method is selected
+            if (formData.paymentMethod) {
+              if (!formData.paymentDetails.amount) {
+                newErrors.amount = 'পরিমাণ লিখুন';
+              } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
+                newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
+              }
+              // For agent credit transactions, require destination account and manager
+              if (!formData.destinationAccount.id) {
+                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
+              }
+              if (!formData.creditAccountManager.id) {
+                newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
               }
             }
           } else {
@@ -1094,34 +1121,7 @@ const NewTransaction = () => {
           }
           break;
         case 6:
-          // For credit agent: step 6 is payment method validation
-          // For credit non-agent: step 6 is confirmation (no validation needed)
-          if (formData.customerType === 'agent') {
-            if (!formData.paymentMethod) {
-              newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
-            } else if (!['cash', 'bank-transfer', 'cheque', 'mobile-banking', 'others'].includes(formData.paymentMethod)) {
-              newErrors.paymentMethod = 'পেমেন্ট মেথড অবৈধ';
-            }
-            // Only validate amount if payment method is selected
-            if (formData.paymentMethod) {
-              if (!formData.paymentDetails.amount) {
-                newErrors.amount = 'পরিমাণ লিখুন';
-              } else if (isNaN(parseFloat(formData.paymentDetails.amount)) || parseFloat(formData.paymentDetails.amount) <= 0) {
-                newErrors.amount = 'পরিমাণ ০ এর চেয়ে বেশি হতে হবে';
-              }
-              // For agent credit transactions, require destination account and manager
-              if (!formData.destinationAccount.id) {
-                newErrors.destinationAccount = 'ডেস্টিনেশন একাউন্ট নির্বাচন করুন';
-              }
-              if (!formData.creditAccountManager.id) {
-                newErrors.creditAccountManager = 'একাউন্ট ম্যানেজার নির্বাচন করুন';
-              }
-            }
-          }
-          // For credit non-agent, step 6 is confirmation - no validation needed
-          break;
-        case 7:
-          // Final confirmation step for agent transactions
+          // Final confirmation step for all credit transactions (no validation needed)
           break;
         }
       }
@@ -1138,8 +1138,8 @@ const NewTransaction = () => {
       } else if (formData.transactionType === 'debit') {
         maxSteps = 5;
       } else {
-        // Credit flow: for agents, skip invoice selection (step 5)
-        maxSteps = formData.customerType === 'agent' ? 7 : 6;
+        // Credit flow: for agents, 6 steps (balance info, payment method, confirmation)
+        maxSteps = formData.customerType === 'agent' ? 6 : 6;
       }
       
       // For credit non-agent, skip step 4 (invoice selection) and go directly to step 5 (payment method) from step 3
@@ -1160,8 +1160,10 @@ const NewTransaction = () => {
     // For credit non-agent, skip step 4 (invoice selection) and go back to step 3 (customer selection) from step 5
     if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && currentStep === 5) {
       setCurrentStep(3); // Skip step 4, go back to customer selection
+    } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 6) {
+      setCurrentStep(5); // Go back from confirmation to payment method
     } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
-      setCurrentStep(4); // Go back to balance display
+      setCurrentStep(4); // Go back from payment method to balance display
     } else if (formData.transactionType === 'debit' && currentStep === 5) {
       // For debit, go back from step 5 to step 4
       setCurrentStep(4);
