@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Eye, FileText, Phone, Mail, Calendar, Loader2, Globe } from 'lucide-react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
+import { useVisaProcessingServices, useDeleteVisaProcessingService } from '../../../hooks/useVisaProcessingQueries';
 
 const VisaProcessing = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -15,73 +14,25 @@ const VisaProcessing = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [countryFilter, setCountryFilter] = useState('all');
 
-  // Fetch visa processing services
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['visaProcessingServices', page, search, statusFilter, countryFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      params.append('page', page);
-      params.append('limit', limit);
-      if (search) params.append('search', search);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (countryFilter !== 'all') params.append('country', countryFilter);
-
-      // Note: This should use a visa processing hook when available
-      const response = await fetch(`/api/visa-processing-services?${params.toString()}`, {
-        credentials: 'include',
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to fetch visa processing services');
-      }
-      return {
-        services: result.data?.services || result.data || [],
-        pagination: result.pagination || {
-          currentPage: page,
-          totalPages: 1,
-          totalItems: 0,
-          itemsPerPage: limit
-        }
-      };
-    },
-    staleTime: 2 * 60 * 1000,
+  // Fetch visa processing services using custom hook
+  const { data, isLoading, error } = useVisaProcessingServices({
+    page,
+    limit,
+    q: search || undefined,
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    country: countryFilter !== 'all' ? countryFilter : undefined,
   });
 
   const services = data?.services || [];
-  const pagination = data?.pagination || {};
+  const pagination = data?.pagination || {
+    page: 1,
+    pages: 1,
+    total: 0,
+    limit: 20
+  };
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id) => {
-      // Note: This should use a visa processing hook when available
-      const response = await fetch(`/api/visa-processing-services/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to delete visa processing service');
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visaProcessingServices'] });
-      Swal.fire({
-        title: 'সফল!',
-        text: 'ভিসা প্রসেসিং সার্ভিস সফলভাবে মুছে ফেলা হয়েছে',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-      });
-    },
-    onError: (error) => {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: error?.message || 'ভিসা প্রসেসিং সার্ভিস মুছতে সমস্যা হয়েছে',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-      });
-    },
-  });
+  // Delete mutation using custom hook
+  const deleteMutation = useDeleteVisaProcessingService();
 
   const handleDelete = (service) => {
     Swal.fire({
@@ -154,7 +105,7 @@ const VisaProcessing = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-600 text-sm">Total Applications</p>
-                <p className="text-2xl font-bold text-gray-900">{pagination.totalItems || 0}</p>
+                <p className="text-2xl font-bold text-gray-900">{pagination.total || 0}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-full">
                 <FileText className="w-6 h-6 text-blue-600" />
@@ -386,27 +337,27 @@ const VisaProcessing = () => {
               </div>
 
               {/* Pagination */}
-              {pagination.totalPages > 1 && (
+              {pagination.pages > 1 && (
                 <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
                   <p className="text-gray-600">
-                    Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
-                    {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-                    {pagination.totalItems} applications
+                    Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
+                    {pagination.total} applications
                   </p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      disabled={pagination.currentPage === 1}
+                      disabled={pagination.page === 1}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Previous
                     </button>
-                    {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((pageNum) => (
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
                         className={`px-3 py-2 rounded-lg transition-colors ${
-                          pageNum === pagination.currentPage
+                          pageNum === pagination.page
                             ? 'bg-blue-600 text-white'
                             : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
                         }`}
@@ -415,8 +366,8 @@ const VisaProcessing = () => {
                       </button>
                     ))}
                     <button
-                      onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
-                      disabled={pagination.currentPage === pagination.totalPages}
+                      onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+                      disabled={pagination.page === pagination.pages}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next

@@ -202,6 +202,12 @@ const List = React.lazy(() => import('./pages/MoneyExchange/List'));
 const EditExchange = React.lazy(() => import('./pages/MoneyExchange/EditExchange'));
 const ExchangeDetails = React.lazy(() => import('./pages/MoneyExchange/Details'));
 
+// Marketing pages
+const SmsMarketing = React.lazy(() => import('./pages/Marketing/SmsMarketing'));
+const AllContacts = React.lazy(() => import('./pages/Marketing/AllContacts'));
+const Groups = React.lazy(() => import('./pages/Marketing/Groups'));
+const EmailMarketing = React.lazy(() => import('./pages/Marketing/EmailMarketing'));
+
 // Sales & Invoice pages
 const GenerateInvoice = React.lazy(() => import('./pages/SalesInvoice/Generate'));
 const PendingInvoices = React.lazy(() => import('./pages/SalesInvoice/Pending'));
@@ -219,10 +225,13 @@ const EditCustomer = React.lazy(() => import('./pages/AdditionalServices/EditCus
 const CustomerDetails = React.lazy(() => import('./pages/AdditionalServices/CustomerDetails'));
 const PassportService = React.lazy(() => import('./pages/AdditionalServices/Passport/PassportService'));
 const AddPassportService = React.lazy(() => import('./pages/AdditionalServices/Passport/AddPassportService'));
+const PassportServiceDetails = React.lazy(() => import('./pages/AdditionalServices/Passport/PassportServiceDetails'));
 const ManpowerService = React.lazy(() => import('./pages/AdditionalServices/Manpower/ManpowerService'));
 const AddManpowerService = React.lazy(() => import('./pages/AdditionalServices/Manpower/AddManpowerService'));
+const ManpowerServiceDetails = React.lazy(() => import('./pages/AdditionalServices/Manpower/ManpowerServiceDetails'));
 const VisaProcessing = React.lazy(() => import('./pages/AdditionalServices/visa/VisaProcessing'));
 const AddVisaProcessing = React.lazy(() => import('./pages/AdditionalServices/visa/AddVisaProcessing'));
+const VisaProcessingDetails = React.lazy(() => import('./pages/AdditionalServices/visa/VisaProcessingDetails'));
 const OtherService = React.lazy(() => import('./pages/AdditionalServices/OtherService'));
 const CategoryManagement = React.lazy(() => import('./pages/Settings/CategoryManagement'));
 const BackupRestore = React.lazy(() => import('./pages/Settings/BackupRestore'));
@@ -1519,6 +1528,48 @@ const router = createBrowserRouter([
     ]
   },
   {
+    path: "/marketing",
+    element: (
+      <ThemeProvider>
+        <DashboardLayout />
+      </ThemeProvider>
+    ),
+    children: [
+      {
+        path: "sms",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <SmsMarketing />
+          </Suspense>
+        )
+      },
+      {
+        path: "contacts",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AllContacts />
+          </Suspense>
+        )
+      },
+      {
+        path: "groups",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <Groups />
+          </Suspense>
+        )
+      },
+      {
+        path: "email",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EmailMarketing />
+          </Suspense>
+        )
+      }
+    ]
+  },
+  {
     path: "/sales-invoice",
     element: (
       <ThemeProvider>
@@ -1693,6 +1744,22 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "passport-service/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <PassportServiceDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "passport-service/edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddPassportService />
+          </Suspense>
+        )
+      },
+      {
         path: "manpower-service",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1709,6 +1776,22 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "manpower-service/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <ManpowerServiceDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "manpower-service/edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddManpowerService />
+          </Suspense>
+        )
+      },
+      {
         path: "visa-processing",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1718,6 +1801,22 @@ const router = createBrowserRouter([
       },
       {
         path: "visa-processing/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddVisaProcessing />
+          </Suspense>
+        )
+      },
+      {
+        path: "visa-processing/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <VisaProcessingDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "visa-processing/edit/:id",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <AddVisaProcessing />

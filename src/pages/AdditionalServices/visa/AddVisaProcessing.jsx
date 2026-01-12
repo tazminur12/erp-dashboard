@@ -2,14 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, Globe, Search, CheckCircle } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useVendors } from '../../../hooks/useVendorQueries';
 import useOtherCustomerQueries from '../../../hooks/useOtherCustomerQueries';
-import Swal from 'sweetalert2';
+import { useCreateVisaProcessingService } from '../../../hooks/useVisaProcessingQueries';
 
 const AddVisaProcessing = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { useOtherCustomers } = useOtherCustomerQueries();
 
   const [formData, setFormData] = useState({
@@ -170,42 +168,15 @@ const AddVisaProcessing = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const createMutation = useMutation({
-    mutationFn: async (data) => {
-      // Note: This should use a visa processing hook when available
-      const response = await fetch('/api/visa-processing-services', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(data),
-      });
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Failed to create visa processing service');
-      }
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visaProcessingServices'] });
-      Swal.fire({
-        title: 'সফল!',
-        text: 'ভিসা প্রসেসিং সার্ভিস সফলভাবে যোগ করা হয়েছে',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-      });
+  // Use custom hook for creating visa processing service
+  const createMutation = useCreateVisaProcessingService();
+  
+  // Override default onSuccess to navigate
+  useEffect(() => {
+    if (createMutation.isSuccess) {
       navigate('/additional-services/visa-processing');
-    },
-    onError: (error) => {
-      Swal.fire({
-        title: 'ত্রুটি!',
-        text: error?.message || 'ভিসা প্রসেসিং সার্ভিস যোগ করতে সমস্যা হয়েছে',
-        icon: 'error',
-        confirmButtonText: 'ঠিক আছে',
-      });
-    },
-  });
+    }
+  }, [createMutation.isSuccess, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

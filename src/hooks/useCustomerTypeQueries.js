@@ -221,14 +221,29 @@ export const useDeleteCustomerType = () => {
   
   return useMutation({
     mutationFn: async ({ customerTypeId, value }) => {
-      const response = await axiosSecure.delete(`/customer-types/${customerTypeId}`, {
-        data: { value }
-      });
+      // Log delete attempt for debugging
+      console.log('Attempting to delete customer type:', { customerTypeId, value });
       
-      if (response.data.success) {
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Failed to delete customer type');
+      try {
+        const response = await axiosSecure.delete(`/customer-types/${customerTypeId}`, {
+          data: { value }
+        });
+        
+        console.log('Delete response:', response.data);
+        
+        if (response.data.success) {
+          return response.data;
+        } else {
+          throw new Error(response.data.message || 'Failed to delete customer type');
+        }
+      } catch (error) {
+        // Log the full error for debugging
+        console.error('Delete mutation error:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
+        throw error;
       }
     },
     onSuccess: (data, { customerTypeId }) => {
@@ -248,7 +263,16 @@ export const useDeleteCustomerType = () => {
       });
     },
     onError: (error) => {
+      // Log full error for debugging
+      console.error('Delete Customer Type Error:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
+      
       let errorMessage = 'কাস্টমার টাইপ মুছতে সমস্যা হয়েছে।';
+      let errorDetails = '';
       
       if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
@@ -256,9 +280,21 @@ export const useDeleteCustomerType = () => {
         errorMessage = error.message;
       }
       
+      // Add technical details for Internal Server Error
+      if (error.response?.status === 500) {
+        errorDetails = `<br><small class="text-gray-500">Technical: ${error.response?.statusText || 'Internal Server Error'}</small>`;
+        errorMessage = 'Backend সার্ভারে সমস্যা হয়েছে। এটি একটি backend issue। Admin কে জানান।';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Customer Type খুঁজে পাওয়া যায়নি।';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'আপনার এই customer type মুছার অনুমতি নেই।';
+      } else if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 'Invalid request। Customer type ব্যবহার হচ্ছে হতে পারে।';
+      }
+      
       Swal.fire({
         title: 'ত্রুটি!',
-        text: errorMessage,
+        html: errorMessage + errorDetails,
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',

@@ -67,6 +67,7 @@ const DEFAULT_BILL_TYPES = [
   { value: 'service', label: 'Service Bill', icon: FileText, description: 'Create a service bill' },
   { value: 'expense', label: 'Expense Bill', icon: Receipt, description: 'Record vendor-related expenses' },
   { value: 'air-ticket', label: 'Air Ticket', icon: Plane, description: 'Create air ticket vendor bill' },
+  { value: 'old-ticket-reissue', label: 'Old Ticket Reissue', icon: Plane, description: 'Create old ticket reissue vendor bill' },
   { value: 'others', label: 'Others', icon: FileText, description: 'Create other types of vendor bills' }
 ];
 
@@ -2009,6 +2010,74 @@ const VendorBillGenerate = () => {
     );
   };
 
+  // Render Old Ticket Reissue Form
+  const renderOldTicketReissueForm = () => {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <Plane className="w-5 h-5 text-purple-600" />
+            Old Ticket Reissue Details
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Airlines <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="airlineName"
+                value={formData.airlineName}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="e.g. Biman Bangladesh Airlines"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                PNR <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="gdsPnr"
+                value={formData.gdsPnr}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="e.g. ABC123"
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Total Amount <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <span className="text-gray-500 text-sm">৳</span>
+              </div>
+              <input
+                type="number"
+                name="totalAmount"
+                value={formData.totalAmount}
+                onChange={handleInputChange}
+                min="0"
+                step="0.01"
+                className="w-full pl-7 pr-3 py-3 rounded-lg border-2 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 text-gray-900 dark:text-gray-100 font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="0.00"
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              মোট বিল পরিমাণ
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -2180,6 +2249,8 @@ const VendorBillGenerate = () => {
                 renderHajjUmrahForm()
               ) : isHotel ? (
                 renderHotelForm()
+              ) : billType === 'old-ticket-reissue' ? (
+                renderOldTicketReissueForm()
               ) : billType === 'others' ? (
                 renderOthersForm()
               ) : (

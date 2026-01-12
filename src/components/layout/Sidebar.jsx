@@ -221,12 +221,14 @@ const Sidebar = () => {
         {/* Sidebar header - Fixed height */}
         <div className="flex-shrink-0 flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">E</span>
-            </div>
+            <img 
+              src="/All_Logo/BIN-RASHID-LOGO.png" 
+              alt="Bin Rashid" 
+              className={`object-contain ${sidebarCollapsed ? 'w-10 h-10' : 'w-10 h-10'}`}
+            />
             {!sidebarCollapsed && (
               <span className="text-xl font-bold text-gray-900 dark:text-white font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
-                Bin Rashid ERP 
+                Bin Rashid ERP
               </span>
             )}
           </div>
