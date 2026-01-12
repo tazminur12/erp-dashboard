@@ -12,7 +12,8 @@ import {
   Search,
   User,
   Building,
-  Plane
+  Plane,
+  Plus,
 } from 'lucide-react';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
@@ -22,6 +23,7 @@ const NewTicket = () => {
   const navigate = useNavigate();
   const axiosSecure = useAxiosSecure();
   const createTicketMutation = useCreateAirTicket();
+  
   const [formData, setFormData] = useState({
     customerId: '',
     customerName: '',
@@ -44,6 +46,10 @@ const NewTicket = () => {
     ],
     agent: '', // Agent Name / ID
     agentId: '', // Agent ID for submission
+    issuedBy: '', // Employee Name
+    issuedById: '', // Employee ID
+    vendor: '', // Vendor Name
+    vendorId: '', // Vendor ID
     purposeType: '',
     // Passenger types
     adultCount: 0,
@@ -112,6 +118,29 @@ const NewTicket = () => {
   const [airlineLoading, setAirlineLoading] = useState(false);
   const [showAirlineDropdown, setShowAirlineDropdown] = useState(false);
   const [selectedAirlineId, setSelectedAirlineId] = useState('');
+
+  // Employee search state
+  const [employeeQuery, setEmployeeQuery] = useState('');
+  const [employeeResults, setEmployeeResults] = useState([]);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+
+  // Vendor search state
+  const [vendorQuery, setVendorQuery] = useState('');
+  const [vendorResults, setVendorResults] = useState([]);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState('');
+
+  // Add new customer modal state
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustomerData, setNewCustomerData] = useState({
+    name: '',
+    mobile: '',
+    email: '',
+    passportNumber: '',
+    address: ''
+  });
+  const [addingCustomer, setAddingCustomer] = useState(false);
 
   const markTouched = (name) => setTouched(prev => ({ ...prev, [name]: true }));
 
@@ -343,11 +372,189 @@ const NewTicket = () => {
     setShowAirlineDropdown(false);
   };
 
+  // Debounced backend search for employees
+  useEffect(() => {
+    const q = employeeQuery.trim();
+    if (!q || q.length < 2) {
+      setEmployeeResults([]);
+      return;
+    }
+
+    let active = true;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axiosSecure.get('/api/employees', { 
+          params: { search: q, status: 'active' } 
+        });
+        const data = res?.data;
+        
+        let list = [];
+        if (data?.success && Array.isArray(data.data)) {
+          list = data.data;
+        } else if (Array.isArray(data?.data)) {
+          list = data.data;
+        } else if (Array.isArray(data)) {
+          list = data;
+        }
+
+        const normalizedQ = q.toLowerCase();
+        const filtered = list.filter((emp) => {
+          const id = String(emp.employeeId || emp.id || emp._id || '').toLowerCase();
+          const name = String(emp.name || emp.fullName || '').toLowerCase();
+          const email = String(emp.email || '').toLowerCase();
+          const phone = String(emp.phone || emp.mobile || '');
+          const designation = String(emp.designation || '').toLowerCase();
+          return (
+            id.includes(normalizedQ) ||
+            name.includes(normalizedQ) ||
+            email.includes(normalizedQ) ||
+            phone.includes(q) ||
+            designation.includes(normalizedQ)
+          );
+        });
+
+        if (active) setEmployeeResults(filtered.slice(0, 10));
+      } catch (err) {
+        if (active) setEmployeeResults([]);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [employeeQuery, axiosSecure]);
+
+  const handleSelectEmployee = (employee) => {
+    const employeeId = employee.employeeId || employee.id || employee._id || '';
+    const employeeName = employee.name || employee.fullName || employeeId;
+    setFormData(prev => ({
+      ...prev,
+      issuedBy: employeeName,
+      issuedById: employeeId
+    }));
+    setSelectedEmployeeId(employeeId);
+    setEmployeeQuery(employeeName);
+    setShowEmployeeDropdown(false);
+  };
+
+  // Debounced backend search for vendors
+  useEffect(() => {
+    const q = vendorQuery.trim();
+    if (!q || q.length < 2) {
+      setVendorResults([]);
+      return;
+    }
+
+    let active = true;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axiosSecure.get('/vendors', { 
+          params: { search: q } 
+        });
+        const data = res?.data;
+        
+        let list = [];
+        if (data?.success && Array.isArray(data.vendors)) {
+          list = data.vendors;
+        } else if (Array.isArray(data?.vendors)) {
+          list = data.vendors;
+        } else if (Array.isArray(data)) {
+          list = data;
+        }
+
+        const normalizedQ = q.toLowerCase();
+        const filtered = list.filter((vendor) => {
+          const id = String(vendor.vendorId || vendor.id || vendor._id || '').toLowerCase();
+          const tradeName = String(vendor.tradeName || vendor.name || '').toLowerCase();
+          const ownerName = String(vendor.ownerName || '').toLowerCase();
+          const contactNo = String(vendor.contactNo || vendor.phone || '');
+          const location = String(vendor.tradeLocation || '').toLowerCase();
+          return (
+            id.includes(normalizedQ) ||
+            tradeName.includes(normalizedQ) ||
+            ownerName.includes(normalizedQ) ||
+            contactNo.includes(q) ||
+            location.includes(normalizedQ)
+          );
+        });
+
+        if (active) setVendorResults(filtered.slice(0, 10));
+      } catch (err) {
+        if (active) setVendorResults([]);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [vendorQuery, axiosSecure]);
+
+  const handleSelectVendor = (vendor) => {
+    const vendorId = vendor.vendorId || vendor.id || vendor._id || '';
+    const vendorName = vendor.tradeName || vendor.name || vendorId;
+    setFormData(prev => ({
+      ...prev,
+      vendor: vendorName,
+      vendorId: vendorId
+    }));
+    setSelectedVendorId(vendorId);
+    setVendorQuery(vendorName);
+    setShowVendorDropdown(false);
+  };
+
+  // Handle add new customer
+  const handleAddNewCustomer = async () => {
+    if (!newCustomerData.name || !newCustomerData.mobile) {
+      setError('Name and mobile number are required');
+      return;
+    }
+
+    setAddingCustomer(true);
+    setError('');
+
+    try {
+      const response = await axiosSecure.post('/api/airCustomers', {
+        name: newCustomerData.name,
+        mobile: newCustomerData.mobile,
+        email: newCustomerData.email || '',
+        passportNumber: newCustomerData.passportNumber || '',
+        address: newCustomerData.address || '',
+        isActive: true
+      });
+
+      const newCustomer = response.data?.data || response.data;
+      
+      // Auto-select the newly created customer
+      handleSelectCustomer(newCustomer);
+      
+      // Close modal and reset form
+      setShowAddCustomerModal(false);
+      setNewCustomerData({
+        name: '',
+        mobile: '',
+        email: '',
+        passportNumber: '',
+        address: ''
+      });
+      
+      setSuccess('Customer added successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to add customer');
+    } finally {
+      setAddingCustomer(false);
+    }
+  };
+
   const validate = (values) => {
     const errs = {};
     if (!values.customerId) errs.customerId = 'Customer is required';
     if (!values.date) errs.date = 'Selling date is required';
-    if (!values.bookingId) errs.bookingId = 'Booking ID is required';
+    // Booking ID is now optional
     if (!values.airline) errs.airline = 'Airline is required';
 
     if (values.tripType === 'multicity') {
@@ -487,7 +694,7 @@ const NewTicket = () => {
         tripType: formData.tripType,
         flightType: formData.flightType,
         date: formData.date,
-        bookingId: formData.bookingId,
+        bookingId: formData.bookingId || '',
         gdsPnr: formData.gdsPnr || '',
         airlinePnr: formData.airlinePnr || '',
         airline: formData.airline,
@@ -500,6 +707,10 @@ const NewTicket = () => {
         segments: formData.segments || [],
         agent: formData.agent || '',
         agentId: formData.agentId || '',
+        issuedBy: formData.issuedBy || '',
+        issuedById: formData.issuedById || '',
+        vendor: formData.vendor || '',
+        vendorId: formData.vendorId || '',
         purposeType: formData.purposeType || '',
         adultCount: formData.adultCount || 0,
         childCount: formData.childCount || 0,
@@ -563,6 +774,10 @@ const NewTicket = () => {
           ],
           agent: '',
           agentId: '',
+          issuedBy: '',
+          issuedById: '',
+          vendor: '',
+          vendorId: '',
           purposeType: '',
           adultCount: 0,
           childCount: 0,
@@ -608,6 +823,14 @@ const NewTicket = () => {
         setAirlineResults([]);
         setShowAirlineDropdown(false);
         setSelectedAirlineId('');
+        setEmployeeQuery('');
+        setEmployeeResults([]);
+        setShowEmployeeDropdown(false);
+        setSelectedEmployeeId('');
+        setVendorQuery('');
+        setVendorResults([]);
+        setShowVendorDropdown(false);
+        setSelectedVendorId('');
         setSuccess('');
         setTouched({});
         setValidationErrors({});
@@ -736,9 +959,19 @@ const NewTicket = () => {
             
             {/* Customer Selection */}
             <div className="mb-6">
-              <label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Customer * <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Customer * <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddCustomerModal(true)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add New Customer
+                </button>
+              </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <Search className="h-5 w-5 text-gray-400" />
@@ -788,37 +1021,67 @@ const NewTicket = () => {
                     {customerLoading ? (
                       <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
                     ) : customerResults.length === 0 ? (
-                      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                        {customerQuery.length < 2 ? 'Type at least 2 characters to search' : 'No customers found'}
+                      <div className="px-3 py-2">
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          {customerQuery.length < 2 ? 'Type at least 2 characters to search' : 'No customers found'}
+                        </div>
+                        {customerQuery.length >= 2 && (
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setShowCustomerDropdown(false);
+                              setShowAddCustomerModal(true);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors flex items-center gap-2"
+                          >
+                            <Plus className="w-4 h-4" />
+                            Add New Customer
+                          </button>
+                        )}
                       </div>
                     ) : (
-                      customerResults.map((c) => (
+                      <>
+                        {customerResults.map((c) => (
+                          <button
+                            key={String(c.customerId || c.id || c._id)}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSelectCustomer(c)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <User className="w-4 h-4 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">{c.name || 'N/A'}</div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    ID: {c.customerId || c.id || c._id}
+                                  </div>
+                                  {c.passportNumber && (
+                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                      Passport: {c.passportNumber}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-300">{c.mobile || c.phone || ''}</div>
+                            </div>
+                          </button>
+                        ))}
                         <button
-                          key={String(c.customerId || c.id || c._id)}
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => handleSelectCustomer(c)}
-                          className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          onClick={() => {
+                            setShowCustomerDropdown(false);
+                            setShowAddCustomerModal(true);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors flex items-center gap-2 border-t border-gray-200 dark:border-gray-600"
                         >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <User className="w-4 h-4 text-gray-400" />
-                              <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">{c.name || 'N/A'}</div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  ID: {c.customerId || c.id || c._id}
-                                </div>
-                                {c.passportNumber && (
-                                  <div className="text-xs text-gray-400 dark:text-gray-500">
-                                    Passport: {c.passportNumber}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-sm text-gray-600 dark:text-gray-300">{c.mobile || c.phone || ''}</div>
-                          </div>
+                          <Plus className="w-4 h-4" />
+                          Add New Customer
                         </button>
-                      ))
+                      </>
                     )}
                   </div>
                 )}
@@ -857,21 +1120,16 @@ const NewTicket = () => {
                 </div>
               </div>
               <div>
-                <label htmlFor="bookingId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Booking ID *</label>
+                <label htmlFor="bookingId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Booking ID</label>
                 <input
                   type="text"
                   name="bookingId"
                   id="bookingId"
                   value={formData.bookingId}
-                    onChange={(e) => { handleChange(e); if (touched.bookingId) setValidationErrors(validate({ ...formData, bookingId: e.target.value })); }}
-                    onBlur={() => { markTouched('bookingId'); markTouched('customerId'); setValidationErrors(validate(formData)); }}
+                  onChange={handleChange}
                   className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="Booking reference"
-                  required
                 />
-                {touched.bookingId && validationErrors.bookingId && (
-                  <p className="mt-1 text-xs text-red-600">{validationErrors.bookingId}</p>
-                )}
               </div>
               <div>
                 <label htmlFor="flightType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Route Category</label>
@@ -1075,7 +1333,7 @@ const NewTicket = () => {
               </div>
             </div>
 
-            {/* Agent and Purpose */}
+            {/* Agent, Issued By (Employee), and Vendor */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1107,7 +1365,6 @@ const NewTicket = () => {
                       }
                     }}
                     onBlur={() => {
-                      // Delay to allow click event on dropdown items
                       setTimeout(() => {
                         setShowAgentDropdown(false);
                       }, 200);
@@ -1165,16 +1422,179 @@ const NewTicket = () => {
                   </div>
                 )}
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Issued By</label>
-                <input
-                  type="text"
-                  name="purposeType"
-                  value={formData.purposeType}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Enter issuer name"
-                />
+              
+              {/* Issued By (Employee Search) */}
+              <div>
+                <label htmlFor="issuedBy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Issued By (Office Employee) <span className="text-gray-500">(Search by name, ID, or designation)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    id="issuedBy"
+                    value={employeeQuery}
+                    onChange={(e) => {
+                      setEmployeeQuery(e.target.value);
+                      setShowEmployeeDropdown(true);
+                      if (!e.target.value) {
+                        setFormData(prev => ({
+                          ...prev,
+                          issuedBy: '',
+                          issuedById: ''
+                        }));
+                        setSelectedEmployeeId('');
+                      }
+                    }}
+                    onFocus={() => {
+                      if (employeeResults.length > 0 || employeeQuery.length >= 2) {
+                        setShowEmployeeDropdown(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setShowEmployeeDropdown(false);
+                      }, 200);
+                    }}
+                    placeholder="Search employee by name, ID, or designation..."
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  {showEmployeeDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {employeeResults.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          {employeeQuery.length < 2 ? 'Type at least 2 characters to search' : 'No employees found'}
+                        </div>
+                      ) : (
+                        employeeResults.map((emp) => (
+                          <button
+                            key={String(emp.employeeId || emp.id || emp._id)}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSelectEmployee(emp)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <User className="w-4 h-4 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {emp.name || emp.fullName || 'N/A'}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    ID: {emp.employeeId || emp.id || emp._id}
+                                  </div>
+                                  {emp.designation && (
+                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                      {emp.designation}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                {emp.phone || emp.mobile || ''}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedEmployeeId && (
+                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Selected: <span className="font-medium text-gray-900 dark:text-white">{formData.issuedBy}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Vendor Search */}
+              <div>
+                <label htmlFor="vendor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Vendor <span className="text-gray-500">(Search from vendor list)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    id="vendor"
+                    value={vendorQuery}
+                    onChange={(e) => {
+                      setVendorQuery(e.target.value);
+                      setShowVendorDropdown(true);
+                      if (!e.target.value) {
+                        setFormData(prev => ({
+                          ...prev,
+                          vendor: '',
+                          vendorId: ''
+                        }));
+                        setSelectedVendorId('');
+                      }
+                    }}
+                    onFocus={() => {
+                      if (vendorResults.length > 0 || vendorQuery.length >= 2) {
+                        setShowVendorDropdown(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setShowVendorDropdown(false);
+                      }, 200);
+                    }}
+                    placeholder="Search vendor by trade name, owner, or location..."
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  {showVendorDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {vendorResults.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          {vendorQuery.length < 2 ? 'Type at least 2 characters to search' : 'No vendors found'}
+                        </div>
+                      ) : (
+                        vendorResults.map((v) => (
+                          <button
+                            key={String(v.vendorId || v.id || v._id)}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSelectVendor(v)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Building className="w-4 h-4 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {v.tradeName || v.name || 'N/A'}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    ID: {v.vendorId || v.id || v._id}
+                                  </div>
+                                  {v.ownerName && (
+                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                      Owner: {v.ownerName}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                {v.contactNo || v.phone || ''}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedVendorId && (
+                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Selected: <span className="font-medium text-gray-900 dark:text-white">{formData.vendor}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1750,6 +2170,115 @@ const NewTicket = () => {
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Confirm & Save
+            </button>
+          </ModalFooter>
+        </Modal>
+
+        {/* Add New Customer Modal */}
+        <Modal isOpen={showAddCustomerModal} onClose={() => setShowAddCustomerModal(false)} title="নতুন কাস্টমার যোগ করুন" size="lg">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Name * <span className="text-gray-500">(নাম)</span>
+              </label>
+              <input
+                type="text"
+                value={newCustomerData.name}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, name: e.target.value }))}
+                className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter customer name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Mobile * <span className="text-gray-500">(মোবাইল নম্বর)</span>
+              </label>
+              <input
+                type="text"
+                value={newCustomerData.mobile}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, mobile: e.target.value }))}
+                className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter mobile number"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email <span className="text-gray-500">(ইমেইল - ঐচ্ছিক)</span>
+              </label>
+              <input
+                type="email"
+                value={newCustomerData.email}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, email: e.target.value }))}
+                className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Passport Number <span className="text-gray-500">(পাসপোর্ট নম্বর - ঐচ্ছিক)</span>
+              </label>
+              <input
+                type="text"
+                value={newCustomerData.passportNumber}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, passportNumber: e.target.value }))}
+                className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter passport number"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Address <span className="text-gray-500">(ঠিকানা - ঐচ্ছিক)</span>
+              </label>
+              <textarea
+                value={newCustomerData.address}
+                onChange={(e) => setNewCustomerData(prev => ({ ...prev, address: e.target.value }))}
+                rows="3"
+                className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="Enter address"
+              />
+            </div>
+          </div>
+          
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddCustomerModal(false);
+                setNewCustomerData({
+                  name: '',
+                  mobile: '',
+                  email: '',
+                  passportNumber: '',
+                  address: ''
+                });
+              }}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              বাতিল করুন
+            </button>
+            <button
+              type="button"
+              onClick={handleAddNewCustomer}
+              disabled={addingCustomer || !newCustomerData.name || !newCustomerData.mobile}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {addingCustomer ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  যোগ হচ্ছে...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  কাস্টমার যোগ করুন
+                </>
+              )}
             </button>
           </ModalFooter>
         </Modal>

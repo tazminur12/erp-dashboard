@@ -269,13 +269,19 @@ const ReceivingList = () => {
                 }`}>
                   <tr>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      ঋণের ধরন
+                      নাম ও ঠিকানা
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      যোগাযোগ
+                      ঋণের পরিমাণ
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      পরিমাণ
+                      পরিশোধ
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      বকেয়া
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      কমিট্মেন্ট তারিখ
                     </th>
                     <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       স্ট্যাটাস
@@ -292,15 +298,7 @@ const ReceivingList = () => {
                     <tr key={loan.loanId || loan._id} className={`hover:${
                       isDark ? 'bg-gray-700/50' : 'bg-gray-50'
                     } transition-colors duration-200`}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5 text-green-600" />
-                          <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
-                            ঋণ গ্রহণ
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-gray-200 dark:bg-gray-600 rounded-full flex items-center justify-center">
                             <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
@@ -314,7 +312,7 @@ const ReceivingList = () => {
                               {loan.fullName}
                             </button>
                             <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {loan.businessName}
+                              {loan.address || loan.fullAddress || 'N/A'}
                             </div>
                             <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
                               <Phone className="w-3 h-3" />
@@ -327,12 +325,22 @@ const ReceivingList = () => {
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
                           {formatCurrency((loan.totalAmount ?? loan.amount ?? 0))}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          বাকি: {formatCurrency((loan.totalDue ?? (typeof loan.remainingAmount === 'number' ? loan.remainingAmount : Math.max(0, (loan.totalAmount ?? loan.amount ?? 0) - (loan.paidAmount ?? 0)))))}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                          {formatCurrency((loan.paidAmount ?? 0))}
                         </div>
                       </td>
-                      
-                      
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-red-600 dark:text-red-400">
+                          {formatCurrency((loan.totalDue ?? (typeof loan.remainingAmount === 'number' ? loan.remainingAmount : Math.max(0, (loan.totalAmount ?? loan.amount ?? 0) - (loan.paidAmount ?? 0)))))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {loan.commitmentDate ? new Date(loan.commitmentDate).toLocaleDateString('en-GB') : 'N/A'}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(loan.status)}`}>
                           {getStatusIcon(loan.status)}

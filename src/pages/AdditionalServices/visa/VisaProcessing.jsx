@@ -280,10 +280,11 @@ const VisaProcessing = () => {
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Applicant Name</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Country</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Visa Type</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Passport No</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Contact</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Date</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Bill Amount</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Paid Amount</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Due Amount</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Actions</th>
                     </tr>
                   </thead>
@@ -306,9 +307,6 @@ const VisaProcessing = () => {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
                             {service.visaType || service.serviceType || 'Tourist'}
                           </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-gray-900">{service.passportNumber || 'N/A'}</p>
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
@@ -342,10 +340,19 @@ const VisaProcessing = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Calendar className="w-4 h-4" />
-                            {service.date ? new Date(service.date).toLocaleDateString() : 'N/A'}
-                          </div>
+                          <p className="text-gray-900 font-medium">
+                            ৳{service.totalAmount ? service.totalAmount.toLocaleString() : '0'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-green-600 font-medium">
+                            ৳{service.paidAmount ? service.paidAmount.toLocaleString() : '0'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-red-600 font-medium">
+                            ৳{service.dueAmount ? service.dueAmount.toLocaleString() : '0'}
+                          </p>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">

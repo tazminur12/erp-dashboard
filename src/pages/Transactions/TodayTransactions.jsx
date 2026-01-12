@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Calendar, RefreshCcw, Loader2, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Calendar, RefreshCcw, Loader2, AlertCircle, ArrowLeft, ArrowRight, Eye, Download, X } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useTransactions, useTransactionCategories } from '../../hooks/useTransactionQueries';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
 import { formatDate, formatCurrency } from '../../lib/format';
 import useCategoryQueries from '../../hooks/useCategoryQueries';
+import { generateSalmaReceiptPDF } from '../../utils/pdfGenerator';
+import Swal from 'sweetalert2';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -124,6 +126,9 @@ const getAmount = (tx) => tx?.paymentDetails?.amount ?? tx?.amount ?? 0;
 
 const TodayTransactions = () => {
   const [page, setPage] = useState(1);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showHeader, setShowHeader] = useState(true);
 
   const { useBankAccount } = useAccountQueries();
   const categoryQueries = useCategoryQueries();
@@ -195,6 +200,136 @@ const TodayTransactions = () => {
 
   const canPrev = page > 1;
   const canNext = page < totalPages;
+
+  // Handle view transaction
+  const handleViewTransaction = (transaction) => {
+    setSelectedTransaction(transaction);
+    setShowTransactionModal(true);
+  };
+
+  // Prepare PDF data
+  const preparePDFData = (transaction) => {
+    const name = getCustomerName(transaction);
+    const phone = transaction.customerPhone || transaction.customer?.phone || transaction.party?.phone || '';
+    const email = transaction.customerEmail || transaction.customer?.email || transaction.party?.email || '';
+    
+    let address = '';
+    if (transaction.customerAddress && typeof transaction.customerAddress === 'string') {
+      address = transaction.customerAddress.trim();
+    } else if (transaction.customer?.address) {
+      address = transaction.customer.address;
+    } else if (transaction.party?.address) {
+      address = transaction.party.address;
+    }
+    
+    return {
+      transactionId: transaction.transactionId || transaction._id,
+      customerName: name,
+      customerPhone: phone,
+      customerEmail: email,
+      customerAddress: address || '[Full Address]',
+      transactionType: transaction.transactionType,
+      category: getCategory(transaction),
+      paymentMethod: getPaymentMethodLabel(transaction.paymentMethod),
+      amount: getAmount(transaction),
+      charge: transaction.charge || transaction.paymentDetails?.charge || 0,
+      status: transaction.status || 'N/A',
+      date: transaction.date,
+      notes: transaction.notes || '',
+      paymentDetails: transaction.paymentDetails || {},
+      accountManagerName: transaction.accountManager?.name || transaction.accountManager?.fullName || 'N/A',
+    };
+  };
+
+  // Download PDF in Bangla
+  const handleDownloadPDFBangla = async (transaction, showHeader = true) => {
+    try {
+      Swal.fire({
+        title: 'PDF তৈরি হচ্ছে...',
+        text: `${transaction.transactionId} এর রিসিট তৈরি হচ্ছে`,
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+      });
+
+      const pdfData = preparePDFData(transaction);
+      const result = await generateSalmaReceiptPDF(pdfData, {
+        language: 'bn',
+        showHeader: showHeader,
+      });
+
+      Swal.close();
+
+      if (result.success) {
+        Swal.fire({
+          title: 'সফল!',
+          text: `PDF সফলভাবে ডাউনলোড হয়েছে`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+        });
+      } else {
+        throw new Error('PDF generation failed');
+      }
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      Swal.close();
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: `PDF তৈরি করতে সমস্যা হয়েছে`,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+      });
+    }
+  };
+
+  // Download PDF in English
+  const handleDownloadPDFEnglish = async (transaction, showHeader = true) => {
+    try {
+      Swal.fire({
+        title: 'Generating PDF...',
+        text: `Generating receipt for ${transaction.transactionId}`,
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+      });
+
+      const pdfData = preparePDFData(transaction);
+      const result = await generateSalmaReceiptPDF(pdfData, {
+        language: 'en',
+        showHeader: showHeader,
+      });
+
+      Swal.close();
+
+      if (result.success) {
+        Swal.fire({
+          title: 'Success!',
+          text: `PDF downloaded successfully`,
+          icon: 'success',
+          confirmButtonText: 'OK',
+        });
+      } else {
+        throw new Error('PDF generation failed');
+      }
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      Swal.close();
+      Swal.fire({
+        title: 'Error!',
+        text: `Failed to generate PDF`,
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+    }
+  };
+
+  const formatAmount = (amount) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'BDT',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
 
   return (
     <div className="min-h-screen p-4 lg:p-8 transition-colors duration-300 bg-white dark:bg-gray-900">
@@ -275,12 +410,13 @@ const TodayTransactions = () => {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">পেমেন্ট মেথড</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">পরিমাণ</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">স্ট্যাটাস</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase">কর্ম</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading && (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center">
+                  <td colSpan="7" className="px-4 py-10 text-center">
                     <div className="flex items-center justify-center gap-3 text-gray-600 dark:text-gray-300">
                       <Loader2 className="w-5 h-5 animate-spin" />
                       <span>লোড হচ্ছে...</span>
@@ -291,7 +427,7 @@ const TodayTransactions = () => {
 
               {error && !isLoading && (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center">
+                  <td colSpan="7" className="px-4 py-10 text-center">
                     <div className="flex flex-col items-center gap-3 text-red-500">
                       <AlertCircle className="w-6 h-6" />
                       <p className="text-sm">{error?.response?.data?.message || error?.message || 'লোড করতে সমস্যা হয়েছে'}</p>
@@ -308,7 +444,7 @@ const TodayTransactions = () => {
 
               {!isLoading && !error && transactions.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan="7" className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     আজ কোনো ট্রানজ্যাকশন নেই।
                   </td>
                 </tr>
@@ -342,6 +478,15 @@ const TodayTransactions = () => {
                     <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
                       {tx.status || 'N/A'}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleViewTransaction(tx)}
+                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200"
+                      title="দেখুন"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -418,6 +563,16 @@ const TodayTransactions = () => {
                   </span>
                 </div>
               </div>
+
+              <div className="flex justify-end pt-2 border-t border-gray-100 dark:border-gray-700">
+                <button
+                  onClick={() => handleViewTransaction(tx)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-all duration-200"
+                >
+                  <Eye className="w-4 h-4" />
+                  বিস্তারিত দেখুন
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -447,6 +602,144 @@ const TodayTransactions = () => {
         </div>
         </div>
       </div>
+
+      {/* Transaction Details Modal */}
+      {showTransactionModal && selectedTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  লেনদেনের বিবরণ
+                </h3>
+                <button
+                  onClick={() => setShowTransactionModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    Transaction ID
+                  </label>
+                  <p className="text-gray-900 dark:text-white font-mono">{selectedTransaction.transactionId}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    স্ট্যাটাস
+                  </label>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    {selectedTransaction.status || 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    কাস্টমারের নাম
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{getCustomerName(selectedTransaction)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    ফোন নম্বর
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.customerPhone || selectedTransaction.customer?.phone || selectedTransaction.party?.phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    লেনদেনের ধরন
+                  </label>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    selectedTransaction.transactionType === 'credit'
+                      ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                      : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                  }`}>
+                    {selectedTransaction.transactionType === 'credit' ? 'ক্রেডিট' : 'ডেবিট'}
+                  </span>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    ক্যাটাগরি
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{getCategory(selectedTransaction)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    পেমেন্ট মেথড
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{getPaymentMethodLabel(selectedTransaction.paymentMethod)}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    পরিমাণ
+                  </label>
+                  <p className={`font-semibold ${
+                    selectedTransaction.transactionType === 'credit' 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {formatAmount(getAmount(selectedTransaction))}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    তারিখ
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{formatDate(selectedTransaction.date)}</p>
+                </div>
+              </div>
+              
+              {selectedTransaction.notes && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">
+                    নোট
+                  </label>
+                  <p className="text-gray-900 dark:text-white">{selectedTransaction.notes}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700">
+              {/* Header Toggle */}
+              <div className="mb-4 p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showHeader}
+                    onChange={(e) => setShowHeader(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Header দেখান (Logo, Title, Tagline)
+                  </span>
+                </label>
+              </div>
+              
+              {/* Action buttons */}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => handleDownloadPDFBangla(selectedTransaction, showHeader)}
+                  className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium transition-all duration-200"
+                >
+                  <Download className="w-5 h-5" />
+                  বাংলা PDF
+                </button>
+                <button
+                  onClick={() => handleDownloadPDFEnglish(selectedTransaction, showHeader)}
+                  className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-all duration-200"
+                >
+                  <Download className="w-5 h-5" />
+                  English PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

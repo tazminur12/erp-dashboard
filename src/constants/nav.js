@@ -77,7 +77,10 @@ import {
   Laptop,
   RotateCcw,
   ShoppingCart,
-  Calendar
+  Calendar,
+  Mail,
+  MessageSquare,
+  FolderOpen
 } from 'lucide-react';
 
 export const navigation = [
@@ -290,6 +293,16 @@ export const navigation = [
       { name: 'Dashboard', href: '/money-exchange/dashboard', icon: LayoutDashboard },
       { name: 'New Exchange', href: '/money-exchange/new', icon: Plus },
       { name: 'List', href: '/money-exchange/list', icon: List }
+    ]
+  },
+  {
+    name: 'Marketing Zone',
+    icon: Megaphone,
+    children: [
+      { name: 'SMS Marketing', href: '/marketing/sms', icon: MessageSquare },
+      { name: 'All Contacts', href: '/marketing/contacts', icon: Users },
+      { name: 'Groups', href: '/marketing/groups', icon: FolderOpen },
+      { name: 'Email Marketing', href: '/marketing/email', icon: Mail }
     ]
   },
   {

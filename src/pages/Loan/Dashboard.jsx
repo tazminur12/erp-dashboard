@@ -232,6 +232,65 @@ const LoanDashboard = () => {
           <Stat label="রিজেক্টেড" value={loading ? '...' : totals.rejected?.toLocaleString()} icon={Ban} color="slate" />
         </div>
 
+        {/* সল্পমেয়াদী লেনদেন সারসংক্ষেপ */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">মোট ঋণ গ্রহণ</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
+                  ৳{loading ? '...' : (financial.receivingTaken || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white flex items-center justify-center">
+                <ArrowDownRight className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">মোট ঋণ প্রদান</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
+                  ৳{loading ? '...' : (financial.givingDisbursed || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex items-center justify-center">
+                <ArrowUpRight className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">গ্রহীত ঋণ পরিশোধ</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
+                  ৳{loading ? '...' : (financial.receivingRepaid || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">প্রদত্ত ঋণ আদায়</p>
+                <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
+                  ৳{loading ? '...' : (financial.givingRepaid || 0).toLocaleString()}
+                </p>
+              </div>
+              <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">

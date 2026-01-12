@@ -227,6 +227,17 @@ const TicketList = () => {
     }
   };
 
+  // Format date as "06 Jan 2026"
+  const formatDateShort = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[date.getMonth()];
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  };
+
   const handleViewTicket = (ticket) => {
     const ticketId = ticket._id || ticket.id || ticket.bookingId;
     setSelectedTicketId(ticketId);
@@ -936,12 +947,12 @@ const TicketList = () => {
                 {tickets.map((ticket) => (
                   <tr key={ticket._id || ticket.bookingId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
+                      <div style={{ fontFamily: "'Google Sans', sans-serif" }}>
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
                           {ticket.bookingId || ticket._id}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {ticket.date ? new Date(ticket.date).toLocaleDateString() : '-'}
+                          {formatDateShort(ticket.date)}
                         </div>
                         <div className="text-xs text-gray-400 dark:text-gray-500">
                           {ticket.gdsPnr && `GDS: ${ticket.gdsPnr}`}
@@ -960,9 +971,9 @@ const TicketList = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
+                      <div style={{ fontFamily: "'Google Sans', sans-serif" }}>
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {ticket.flightDate ? new Date(ticket.flightDate).toLocaleDateString() : '-'}
+                          {formatDateShort(ticket.flightDate)}
                         </div>
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           {ticket.origin || '-'} → {ticket.destination || '-'}
@@ -1088,7 +1099,7 @@ const TicketList = () => {
                 <>
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      টিকিট বিবরণ - {selectedTicket.bookingId || selectedTicket._id}
+                      টিকিট বিবরণ - <span style={{ fontFamily: "'Google Sans', sans-serif" }}>{selectedTicket.bookingId || selectedTicket._id}</span>
                     </h2>
                     <button
                       onClick={() => {
@@ -1135,14 +1146,14 @@ const TicketList = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">ভ্রমণের তারিখ</label>
-                          <p className="text-sm text-gray-900 dark:text-white">
-                            {selectedTicket.flightDate ? new Date(selectedTicket.flightDate).toLocaleDateString() : '-'}
+                          <p className="text-sm text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                            {formatDateShort(selectedTicket.flightDate)}
                           </p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">বুকিং তারিখ</label>
-                          <p className="text-sm text-gray-900 dark:text-white">
-                            {selectedTicket.date ? new Date(selectedTicket.date).toLocaleDateString() : '-'}
+                          <p className="text-sm text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                            {formatDateShort(selectedTicket.date)}
                           </p>
                         </div>
                         <div>

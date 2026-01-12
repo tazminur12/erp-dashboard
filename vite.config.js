@@ -90,7 +90,9 @@ export default defineConfig({
       'react-dom',
       'react-router-dom',
       '@tanstack/react-query',
-      'scheduler'
+      'scheduler',
+      'jspdf',
+      'jspdf-autotable'
     ],
     force: true
   },

@@ -206,7 +206,9 @@ const ManpowerService = () => {
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">পদ</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">যোগাযোগ</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">স্ট্যাটাস</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">তারিখ</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বিল কত</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">জমা কত</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বকেয়া কত</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">কর্ম</th>
                     </tr>
                   </thead>
@@ -271,10 +273,19 @@ const ManpowerService = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Calendar className="w-4 h-4" />
-                            {service.appliedDate ? new Date(service.appliedDate).toLocaleDateString() : 'N/A'}
-                          </div>
+                          <p className="text-gray-900 font-medium">
+                            ৳{service.totalAmount ? service.totalAmount.toLocaleString() : '0'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-green-600 font-medium">
+                            ৳{service.paidAmount ? service.paidAmount.toLocaleString() : '0'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-red-600 font-medium">
+                            ৳{service.dueAmount ? service.dueAmount.toLocaleString() : '0'}
+                          </p>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">

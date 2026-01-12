@@ -202,11 +202,12 @@ const PassportService = () => {
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">ক্লায়েন্টের নাম</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">পাসপোর্ট নম্বর</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">সার্ভিসের ধরন</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">যোগাযোগ</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">স্ট্যাটাস</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">তারিখ</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বিল কত</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">জমা কত</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বকেয়া কত</th>
                       <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">কর্ম</th>
                     </tr>
                   </thead>
@@ -218,9 +219,6 @@ const PassportService = () => {
                             <p className="font-medium text-gray-900">{service.clientName || service.name || 'N/A'}</p>
                             <p className="text-sm text-gray-500">ID: {service.serviceId || service.id || 'N/A'}</p>
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <p className="text-gray-900">{service.passportNumber || 'N/A'}</p>
                         </td>
                         <td className="px-6 py-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
@@ -267,10 +265,19 @@ const PassportService = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <Calendar className="w-4 h-4" />
-                            {service.date ? new Date(service.date).toLocaleDateString() : 'N/A'}
-                          </div>
+                          <p className="text-gray-900 font-medium">
+                            ৳{service.totalAmount ? service.totalAmount.toLocaleString() : '0'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-green-600 font-medium">
+                            ৳{service.paidAmount ? service.paidAmount.toLocaleString() : '0'}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-red-600 font-medium">
+                            ৳{service.dueAmount ? service.dueAmount.toLocaleString() : '0'}
+                          </p>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">

@@ -18,7 +18,8 @@ import {
   Loader2,
   Edit,
   Trash2,
-  Save
+  Save,
+  FileDown
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,6 +35,8 @@ import { getAllSubCategories } from '../../utils/categoryUtils';
 import useCategoryQueries from '../../hooks/useCategoryQueries';
 import Swal from 'sweetalert2';
 import { formatDate as formatDateShared } from '../../lib/format';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const TransactionsList = () => {
   const { isDark } = useTheme();
@@ -59,6 +62,10 @@ const TransactionsList = () => {
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [showHeader, setShowHeader] = useState(true);
+  const [showPDFDownloadModal, setShowPDFDownloadModal] = useState(false);
+  const [pdfDateRange, setPDFDateRange] = useState('daily');
+  const [pdfCustomStartDate, setPDFCustomStartDate] = useState('');
+  const [pdfCustomEndDate, setPDFCustomEndDate] = useState('');
 
   // React Query hooks
   const { 
@@ -1117,6 +1124,197 @@ const TransactionsList = () => {
     setSelectAll(!selectAll);
   };
 
+  // Generate Transaction List PDF
+  const generateTransactionListPDF = async () => {
+    try {
+      // Show loading alert
+      Swal.fire({
+        title: 'PDF তৈরি হচ্ছে...',
+        text: 'Transaction List PDF তৈরি হচ্ছে',
+        icon: 'info',
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        background: isDark ? '#1F2937' : '#F9FAFB'
+      });
+
+      // Calculate date range
+      let startDate, endDate;
+      const now = new Date();
+      
+      if (pdfDateRange === 'daily') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      } else if (pdfDateRange === 'weekly') {
+        const dayOfWeek = now.getDay();
+        const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - diff);
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (6 - diff), 23, 59, 59);
+      } else if (pdfDateRange === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      } else if (pdfDateRange === 'custom') {
+        if (!pdfCustomStartDate || !pdfCustomEndDate) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: 'অনুগ্রহ করে শুরু এবং শেষের তারিখ নির্বাচন করুন।',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            background: isDark ? '#1F2937' : '#FEF2F2'
+          });
+          return;
+        }
+        startDate = new Date(pdfCustomStartDate);
+        endDate = new Date(pdfCustomEndDate + 'T23:59:59');
+      }
+
+      // Filter transactions by date range
+      const filteredTransactions = transactions.filter(t => {
+        const tDate = new Date(t.date);
+        return tDate >= startDate && tDate <= endDate;
+      });
+
+      if (filteredTransactions.length === 0) {
+        Swal.fire({
+          title: 'সতর্কতা!',
+          text: 'নির্বাচিত তারিখে কোন লেনদেন নেই।',
+          icon: 'warning',
+          confirmButtonText: 'ঠিক আছে',
+          background: isDark ? '#1F2937' : '#F9FAFB'
+        });
+        return;
+      }
+
+      // Create PDF
+      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      // Add Bengali font support (using Arial Unicode MS or similar)
+      doc.setFont('helvetica');
+      
+      // Title
+      doc.setFontSize(18);
+      doc.setTextColor(37, 99, 235); // Blue color
+      doc.text('Transaction List Report', pageWidth / 2, 15, { align: 'center' });
+      
+      // Date range
+      doc.setFontSize(11);
+      doc.setTextColor(107, 114, 128); // Gray color
+      const dateRangeText = `${formatDate(startDate)} - ${formatDate(endDate)}`;
+      doc.text(dateRangeText, pageWidth / 2, 22, { align: 'center' });
+      
+      // Summary statistics
+      const totalCredit = filteredTransactions
+        .filter(t => t.transactionType === 'credit')
+        .reduce((sum, t) => sum + parseFloat(t.paymentDetails?.amount || t.amount || 0), 0);
+      
+      const totalDebit = filteredTransactions
+        .filter(t => t.transactionType === 'debit')
+        .reduce((sum, t) => sum + parseFloat(t.paymentDetails?.amount || t.amount || 0), 0);
+      
+      const netAmount = totalCredit - totalDebit;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 32);
+      doc.text(`Total Credit: ${formatAmount(totalCredit)}`, 80, 32);
+      doc.text(`Total Debit: ${formatAmount(totalDebit)}`, 150, 32);
+      doc.setTextColor(netAmount >= 0 ? 22 : 220, netAmount >= 0 ? 163 : 38, netAmount >= 0 ? 74 : 38);
+      doc.text(`Net Amount: ${formatAmount(netAmount)}`, 220, 32);
+      
+      // Table data
+      const tableData = filteredTransactions.map((t, index) => [
+        (index + 1).toString(),
+        t.transactionId || 'N/A',
+        getCustomerName(t),
+        getCustomerPhone(t) || '-',
+        t.transactionType === 'credit' ? 'Credit' : 'Debit',
+        getCategory(t),
+        t.paymentMethod === 'bank' ? 'Bank Transfer' : 
+         t.paymentMethod === 'cheque' ? 'Cheque' : 
+         t.paymentMethod === 'mobile-banking' ? 'Mobile Banking' : 
+         t.paymentMethod || '-',
+        formatAmount(parseFloat(t.paymentDetails?.amount || t.amount || 0)),
+        formatDate(t.date),
+        t.status || 'N/A'
+      ]);
+      
+      // Add table using autoTable
+      autoTable(doc, {
+        startY: 38,
+        head: [['#', 'Transaction ID', 'Customer', 'Phone', 'Type', 'Category', 'Payment Method', 'Amount', 'Date', 'Status']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [37, 99, 235],
+          textColor: [255, 255, 255],
+          fontSize: 9,
+          fontStyle: 'bold',
+          halign: 'center'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          cellPadding: 2
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 20, halign: 'center' },
+          5: { cellWidth: 30 },
+          6: { cellWidth: 28 },
+          7: { cellWidth: 25, halign: 'right' },
+          8: { cellWidth: 22, halign: 'center' },
+          9: { cellWidth: 20, halign: 'center' }
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251]
+        },
+        margin: { left: 14, right: 14 },
+        didDrawPage: (data) => {
+          // Footer
+          doc.setFontSize(8);
+          doc.setTextColor(107, 114, 128);
+          doc.text(
+            `Generated on: ${formatDate(new Date())} | Page ${doc.internal.getCurrentPageInfo().pageNumber}`,
+            pageWidth / 2,
+            pageHeight - 10,
+            { align: 'center' }
+          );
+        }
+      });
+      
+      // Save PDF
+      const fileName = `Transaction_List_${pdfDateRange}_${formatDate(new Date()).replace(/\//g, '-')}.pdf`;
+      doc.save(fileName);
+      
+      Swal.close();
+      
+      // Close modal
+      setShowPDFDownloadModal(false);
+      
+      Swal.fire({
+        title: 'সফল!',
+        text: `Transaction List PDF সফলভাবে ডাউনলোড হয়েছে`,
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        background: isDark ? '#1F2937' : '#F9FAFB',
+      });
+      
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      Swal.close();
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: `PDF তৈরি করতে সমস্যা হয়েছে: ${error.message}`,
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+      });
+    }
+  };
+
   // Bulk PDF download
   const handleBulkDownloadPDF = async () => {
     if (selectedTransactions.length === 0) {
@@ -1276,6 +1474,13 @@ const TransactionsList = () => {
                   PDF ডাউনলোড ({selectedTransactions.length})
                 </button>
               )}
+              <button
+                onClick={() => setShowPDFDownloadModal(true)}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+              >
+                <FileDown className="w-5 h-5" />
+                Transaction List PDF
+              </button>
               <button
                 onClick={() => window.location.href = '/transactions/new'}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
@@ -2322,6 +2527,112 @@ const TransactionsList = () => {
                     আপডেট করুন
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Download Modal */}
+      {showPDFDownloadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className={`w-full max-w-md bg-white dark:bg-gray-800 rounded-2xl shadow-2xl`}>
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                  Transaction List PDF Download
+                </h3>
+                <button
+                  onClick={() => setShowPDFDownloadModal(false)}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              {/* Date Range Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  তারিখের পরিসর নির্বাচন করুন
+                </label>
+                <select
+                  value={pdfDateRange}
+                  onChange={(e) => setPDFDateRange(e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value="daily">আজকের লেনদেন (Daily)</option>
+                  <option value="weekly">এই সপ্তাহের লেনদেন (Weekly)</option>
+                  <option value="monthly">এই মাসের লেনদেন (Monthly)</option>
+                  <option value="custom">কাস্টম তারিখ (Custom Date)</option>
+                </select>
+              </div>
+
+              {/* Custom Date Range */}
+              {pdfDateRange === 'custom' && (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      শুরুর তারিখ
+                    </label>
+                    <input
+                      type="date"
+                      value={pdfCustomStartDate}
+                      onChange={(e) => setPDFCustomStartDate(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                        isDark 
+                          ? 'bg-gray-700 border-gray-600 text-white' 
+                          : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                      শেষের তারিখ
+                    </label>
+                    <input
+                      type="date"
+                      value={pdfCustomEndDate}
+                      onChange={(e) => setPDFCustomEndDate(e.target.value)}
+                      className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                        isDark 
+                          ? 'bg-gray-700 border-gray-600 text-white' 
+                          : 'border-gray-300'
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Info Text */}
+              <div className={`p-4 rounded-lg ${isDark ? 'bg-blue-900/20 border border-blue-800' : 'bg-blue-50 border border-blue-200'}`}>
+                <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-700'}`}>
+                  {pdfDateRange === 'daily' && 'আজকের সব লেনদেনের একটি PDF তৈরি হবে।'}
+                  {pdfDateRange === 'weekly' && 'এই সপ্তাহের (সোমবার থেকে রবিবার) সব লেনদেনের একটি PDF তৈরি হবে।'}
+                  {pdfDateRange === 'monthly' && 'এই মাসের সব লেনদেনের একটি PDF তৈরি হবে।'}
+                  {pdfDateRange === 'custom' && 'নির্বাচিত তারিখের মধ্যে সব লেনদেনের একটি PDF তৈরি হবে।'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button
+                onClick={() => setShowPDFDownloadModal(false)}
+                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+              >
+                বাতিল করুন
+              </button>
+              <button
+                onClick={generateTransactionListPDF}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white rounded-xl font-medium transition-all duration-200"
+              >
+                <FileDown className="w-5 h-5" />
+                PDF ডাউনলোড করুন
               </button>
             </div>
           </div>

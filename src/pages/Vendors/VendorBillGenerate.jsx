@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useVendors, useCustomerTypes, useCreateVendorBill } from '../../hooks/useVendorQueries';
+import { useAirTickets, useAirTicket } from '../../hooks/useAirTicketQueries';
+import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import Swal from 'sweetalert2';
 
 // Icon mapping for categories (same as CustomerManagment.jsx)
@@ -63,12 +65,15 @@ const DEFAULT_BILL_TYPES = [
   { value: 'invoice', label: 'Invoice', icon: Receipt, description: 'Generate an invoice for vendor services' },
   { value: 'payment', label: 'Payment Voucher', icon: DollarSign, description: 'Record a payment to vendor' },
   { value: 'service', label: 'Service Bill', icon: FileText, description: 'Create a service bill' },
-  { value: 'expense', label: 'Expense Bill', icon: Receipt, description: 'Record vendor-related expenses' }
+  { value: 'expense', label: 'Expense Bill', icon: Receipt, description: 'Record vendor-related expenses' },
+  { value: 'air-ticket', label: 'Air Ticket', icon: Plane, description: 'Create air ticket vendor bill' },
+  { value: 'others', label: 'Others', icon: FileText, description: 'Create other types of vendor bills' }
 ];
 
 const VendorBillGenerate = () => {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const axiosSecure = useAxiosSecure();
 
   // Fetch vendors and categories
   const { data: vendors = [], isLoading: vendorsLoading } = useVendors();
@@ -187,6 +192,11 @@ const VendorBillGenerate = () => {
   const [touched, setTouched] = useState({});
   const vendorDropdownRef = useRef(null);
   const [showTaxes, setShowTaxes] = useState(false);
+  
+  // Air Ticket Search
+  const [ticketSearchId, setTicketSearchId] = useState('');
+  const [selectedTicketData, setSelectedTicketData] = useState(null);
+  const [searchingTicket, setSearchingTicket] = useState(false);
 
   // Filter vendors based on search query
   const filteredVendors = useMemo(() => {
@@ -442,6 +452,16 @@ const VendorBillGenerate = () => {
     }
   }, [billType, billTypes]);
 
+  // Auto-calculate totalAmount for Others bill type
+  useEffect(() => {
+    if (billType === 'others' && formData.amount) {
+      setFormData(prev => ({
+        ...prev,
+        totalAmount: formData.amount
+      }));
+    }
+  }, [billType, formData.amount]);
+
   // Validation
   const errors = useMemo(() => {
     const errs = {};
@@ -452,6 +472,8 @@ const VendorBillGenerate = () => {
     if (billType === 'purchase' && !formData.deliveryDate) errs.deliveryDate = 'Delivery date is required';
     if (billType === 'payment' && !formData.paymentDate) errs.paymentDate = 'Payment date is required';
     if (billType === 'payment' && !formData.paymentMethod) errs.paymentMethod = 'Payment method is required';
+    if (billType === 'others' && !formData.description) errs.description = 'বিলের ধরণ প্রয়োজন';
+    if (billType === 'others' && !formData.totalAmount) errs.totalAmount = 'Total amount is required';
     return errs;
   }, [selectedVendor, billType, formData]);
 
@@ -509,6 +531,68 @@ const VendorBillGenerate = () => {
       const updated = segments.filter((_, i) => i !== index);
       return { ...prev, segments: updated };
     });
+  };
+
+  // Handle Search by Ticket ID
+  const handleSearchTicket = async () => {
+    if (!ticketSearchId.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'টিকেট আইডি প্রয়োজন',
+        text: 'অনুগ্রহ করে একটি টিকেট আইডি লিখুন',
+      });
+      return;
+    }
+
+    setSearchingTicket(true);
+    try {
+      const response = await axiosSecure.get(`/api/air-ticketing/tickets/${ticketSearchId}`);
+      
+      if (response.data && response.data.success) {
+        const ticket = response.data.data;
+        setSelectedTicketData(ticket);
+        
+        // Auto-fill form data with ticket information
+        setFormData(prev => ({
+          ...prev,
+          bookingId: ticket.bookingId || ticket._id || '',
+          gdsPnr: ticket.gdsPnr || '',
+          airlinePnr: ticket.airlinePnr || '',
+          airline: ticket.airline || '',
+          origin: ticket.origin || '',
+          destination: ticket.destination || '',
+          flightDate: ticket.flightDate ? new Date(ticket.flightDate).toISOString().split('T')[0] : '',
+          returnDate: ticket.returnDate ? new Date(ticket.returnDate).toISOString().split('T')[0] : '',
+          tripType: ticket.tripType || 'oneway',
+          flightType: ticket.flightType || 'domestic',
+          adultCount: ticket.adultCount || 0,
+          childCount: ticket.childCount || 0,
+          infantCount: ticket.infantCount || 0,
+          agent: ticket.agent || '',
+          purposeType: ticket.purposeType || '',
+          vendorAmount: ticket.vendorAmount || ticket.vendorDeal || 0,
+          totalAmount: ticket.vendorAmount || ticket.vendorDeal || 0,
+        }));
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'টিকেট পাওয়া গেছে!',
+          text: `টিকেট ${ticket.bookingId || ticket._id} সফলভাবে লোড হয়েছে`,
+        });
+      } else {
+        throw new Error('টিকেট পাওয়া যায়নি');
+      }
+    } catch (error) {
+      console.error('Ticket search error:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'টিকেট পাওয়া যায়নি',
+        text: error.message || 'টিকেট খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আইডি চেক করুন।',
+      });
+      setSelectedTicketData(null);
+    } finally {
+      setSearchingTicket(false);
+    }
   };
 
   // Handle bill type change
@@ -890,6 +974,51 @@ const VendorBillGenerate = () => {
   const renderAirTicketForm = () => {
     return (
       <div className="space-y-6">
+        {/* Search by Ticket ID */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+            <Search className="w-5 h-5 text-purple-600" />
+            সার্চ বাই টিকেট আইডি
+          </h3>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={ticketSearchId}
+              onChange={(e) => setTicketSearchId(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearchTicket()}
+              placeholder="টিকেট আইডি বা বুকিং আইডি লিখুন..."
+              className="flex-1 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              disabled={searchingTicket}
+            />
+            <button
+              type="button"
+              onClick={handleSearchTicket}
+              disabled={searchingTicket}
+              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {searchingTicket ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  খুঁজছি...
+                </>
+              ) : (
+                <>
+                  <Search className="w-5 h-5" />
+                  খুঁজুন
+                </>
+              )}
+            </button>
+          </div>
+          {selectedTicketData && (
+            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+              <p className="text-sm text-green-800 dark:text-green-300">
+                ✓ টিকেট পাওয়া গেছে: <strong>{selectedTicketData.bookingId || selectedTicketData._id}</strong> - 
+                Auto GDS PNR: <strong>{selectedTicketData.gdsPnr || 'N/A'}</strong>
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Booking Details */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1773,6 +1902,113 @@ const VendorBillGenerate = () => {
     );
   };
 
+  // Render Others Form
+  const renderOthersForm = () => {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <FileText className="w-5 h-5 text-purple-600" />
+            Bill Details
+          </h3>
+          
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                বিলের ধরণ <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                onBlur={() => setTouched(prev => ({ ...prev, description: true }))}
+                className={`w-full px-3 py-2.5 rounded-lg border bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                  hasError('description') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                }`}
+                placeholder="বিলের ধরণ লিখুন (যেমন: পরিবহন খরচ, অফিস সরঞ্জাম, ইত্যাদি)"
+              />
+              {hasError('description') && (
+                <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                পরিমাণ <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <span className="text-gray-500 text-sm">৳</span>
+                </div>
+                <input
+                  type="number"
+                  name="amount"
+                  value={formData.amount}
+                  onChange={handleInputChange}
+                  onBlur={() => setTouched(prev => ({ ...prev, amount: true }))}
+                  min="0"
+                  step="0.01"
+                  className={`w-full pl-7 pr-3 py-2.5 rounded-lg border bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    hasError('amount') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
+                  }`}
+                  placeholder="0.00"
+                />
+              </div>
+              {hasError('amount') && (
+                <p className="mt-1 text-sm text-red-600">{errors.amount}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                বিস্তারিত নোট
+              </label>
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleInputChange}
+                rows="4"
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                placeholder="বিলের বিস্তারিত বিবরণ লিখুন..."
+              />
+            </div>
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Total Amount <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <span className="text-gray-500 text-sm">৳</span>
+                </div>
+                <input
+                  type="number"
+                  name="totalAmount"
+                  value={formData.totalAmount || formData.amount}
+                  onChange={handleInputChange}
+                  onBlur={() => setTouched(prev => ({ ...prev, totalAmount: true }))}
+                  min="0"
+                  step="0.01"
+                  className={`w-full pl-7 pr-3 py-3 rounded-lg border-2 bg-purple-50 dark:bg-purple-900/20 text-gray-900 dark:text-gray-100 font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${
+                    hasError('totalAmount') ? 'border-red-500' : 'border-purple-300 dark:border-purple-700'
+                  }`}
+                  placeholder="0.00"
+                />
+              </div>
+              {hasError('totalAmount') && (
+                <p className="mt-1 text-sm text-red-600">{errors.totalAmount}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                মোট বিল পরিমাণ
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
@@ -1944,6 +2180,8 @@ const VendorBillGenerate = () => {
                 renderHajjUmrahForm()
               ) : isHotel ? (
                 renderHotelForm()
+              ) : billType === 'others' ? (
+                renderOthersForm()
               ) : (
                 <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

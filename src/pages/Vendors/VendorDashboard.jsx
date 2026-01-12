@@ -26,12 +26,16 @@ import {
   BarChart3,
   ArrowUpRight,
   ArrowDownRight,
-  RefreshCw
+  RefreshCw,
+  Receipt,
+  Wallet,
+  TrendingDown
 } from 'lucide-react';
 import CardWidget from '../../components/common/CardWidget';
 import SmallStat from '../../components/common/SmallStat';
 import useSecureAxios from '../../hooks/UseAxiosSecure.js';
 import useAxios from '../../hooks/Axios.js';
+import { useVendorBills } from '../../hooks/useVendorQueries';
 import Swal from 'sweetalert2';
 
 // Initial stats shape matching API response
@@ -63,6 +67,9 @@ const VendorDashboard = () => {
   const [stats, setStats] = useState(initialStats);
   const [dashboardData, setDashboardData] = useState(initialDashboardData);
   const [showComprehensiveView, setShowComprehensiveView] = useState(false);
+  
+  // Fetch all vendor bills
+  const { data: vendorBills = [], isLoading: billsLoading } = useVendorBills();
 
   const fetchDashboardData = async () => {
     try {
@@ -168,6 +175,30 @@ const VendorDashboard = () => {
   }, [searchQuery, statusFilter, sortBy, vendors]);
 
   const byLocation = useMemo(() => Array.isArray(stats.byLocation) ? stats.byLocation : [], [stats.byLocation]);
+  
+  // Calculate vendor bill statistics
+  const billStats = useMemo(() => {
+    if (!Array.isArray(vendorBills) || vendorBills.length === 0) {
+      return {
+        totalBills: 0,
+        totalAmount: 0,
+        totalPaid: 0,
+        totalDue: 0
+      };
+    }
+    
+    const totalBills = vendorBills.length;
+    const totalAmount = vendorBills.reduce((sum, bill) => sum + (parseFloat(bill.totalAmount) || 0), 0);
+    const totalPaid = vendorBills.reduce((sum, bill) => sum + (parseFloat(bill.paidAmount) || 0), 0);
+    const totalDue = totalAmount - totalPaid;
+    
+    return {
+      totalBills,
+      totalAmount,
+      totalPaid,
+      totalDue
+    };
+  }, [vendorBills]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -206,13 +237,49 @@ const VendorDashboard = () => {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - Row 1: Vendor Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <CardWidget title="Total Vendors" value={stats.total} icon={Building2} trend="" trendValue="" trendType="neutral" />
+        <CardWidget title="মোট ভেন্ডর" value={stats.total} icon={Building2} trend="" trendValue="" trendType="neutral" />
         <CardWidget title="Active Vendors" value={vendors.filter(v => v.status === 'active').length} icon={Users} trend="" trendValue="" trendType="neutral" />
         <CardWidget title="Added Today" value={stats.today} icon={Clock} trend="" trendValue="" trendType="neutral" />
         <CardWidget title="Added This Month" value={stats.thisMonth} icon={Calendar} trend="" trendValue="" trendType="neutral" />
         <CardWidget title="With NID / Passport" value={`${stats.withNID} / ${stats.withPassport}`} icon={CreditCard} trend="" trendValue="" trendType="neutral" />
+      </div>
+
+      {/* Stats Cards - Row 2: Bill & Payment Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardWidget 
+          title="মোট ভেন্ডর বিল" 
+          value={billsLoading ? '...' : billStats.totalBills} 
+          icon={Receipt} 
+          trend="" 
+          trendValue="" 
+          trendType="neutral" 
+        />
+        <CardWidget 
+          title="মোট বিল পরিমাণ" 
+          value={billsLoading ? '...' : `৳${billStats.totalAmount.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          icon={FileText} 
+          trend="" 
+          trendValue="" 
+          trendType="neutral" 
+        />
+        <CardWidget 
+          title="মোট পরিশোধিত" 
+          value={billsLoading ? '...' : `৳${billStats.totalPaid.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          icon={Wallet} 
+          trend="" 
+          trendValue="" 
+          trendType="up" 
+        />
+        <CardWidget 
+          title="মোট বাকি" 
+          value={billsLoading ? '...' : `৳${billStats.totalDue.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          icon={TrendingDown} 
+          trend="" 
+          trendValue="" 
+          trendType="down" 
+        />
       </div>
 
       {/* Comprehensive Dashboard Header */}
