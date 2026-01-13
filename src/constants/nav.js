@@ -177,6 +177,7 @@ export const navigation = [
         name: 'Old Ticketing Service',
         icon: History,
         children: [
+          { name: 'Dashboard', href: '/air-ticketing/old/dashboard', icon: LayoutDashboard },
           { name: 'Ticket Check', href: '/air-ticketing/old/ticket-check', icon: FileCheck },
           { name: 'Old Ticket Reissue', href: '/air-ticketing/old/ticket-reissue', icon: RotateCcw }
         ]

@@ -1253,6 +1253,269 @@ const ProfessionalDashboard = () => {
           </div>
         </div>
 
+        {/* Professional Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Revenue vs Expense Bar Chart */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+                আয় বনাম ব্যয় তুলনা
+              </h3>
+              <span className="text-xs text-gray-500 dark:text-gray-400">এই মাস</span>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Revenue Bar */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">আয়</span>
+                  </div>
+                  <span className="text-sm font-bold text-green-600">{formatCurrency(grandTotals.totalRevenue || 0)}</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-end px-2 transition-all duration-500"
+                    style={{ 
+                      width: `${Math.min(100, ((grandTotals.totalRevenue || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses) || 1) * 100)}%` 
+                    }}
+                  >
+                    <span className="text-xs font-medium text-white">
+                      {((grandTotals.totalRevenue || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Expense Bar */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ব্যয়</span>
+                  </div>
+                  <span className="text-sm font-bold text-red-600">{formatCurrency(grandTotals.totalExpenses || 0)}</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-500 to-rose-600 rounded-full flex items-center justify-end px-2 transition-all duration-500"
+                    style={{ 
+                      width: `${Math.min(100, ((grandTotals.totalExpenses || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses) || 1) * 100)}%` 
+                    }}
+                  >
+                    <span className="text-xs font-medium text-white">
+                      {((grandTotals.totalExpenses || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Net Profit Bar */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${(grandTotals.netProfit || 0) >= 0 ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">নিট লাভ</span>
+                  </div>
+                  <span className={`text-sm font-bold ${(grandTotals.netProfit || 0) >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                    {formatCurrency(grandTotals.netProfit || 0)}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+                  <div 
+                    className={`h-full rounded-full flex items-center justify-end px-2 transition-all duration-500 ${
+                      (grandTotals.netProfit || 0) >= 0 
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600' 
+                        : 'bg-gradient-to-r from-orange-500 to-red-600'
+                    }`}
+                    style={{ 
+                      width: `${Math.min(100, Math.abs(grandTotals.netProfit || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100)}%` 
+                    }}
+                  >
+                    <span className="text-xs font-medium text-white">
+                      {(Math.abs(grandTotals.netProfit || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Summary Stats Below */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-4">
+              <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Profit Margin</p>
+                <p className="text-lg font-bold text-green-600">
+                  {((grandTotals.netProfit || 0) / (grandTotals.totalRevenue || 1) * 100).toFixed(1)}%
+                </p>
+              </div>
+              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">ROI</p>
+                <p className="text-lg font-bold text-blue-600">
+                  {((grandTotals.netProfit || 0) / (grandTotals.totalExpenses || 1) * 100).toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Department-wise Revenue Distribution (Pie Chart Alternative) */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+                <BarChart3 className="h-5 w-5 mr-2 text-purple-600" />
+                বিভাগ অনুযায়ী আয়
+              </h3>
+            </div>
+            
+            {/* Department Revenue Breakdown */}
+            <div className="space-y-4">
+              {[
+                { name: 'হজ্জ ও উমরাহ', amount: huProfitLoss.combined?.totalRevenue || 0, color: 'bg-green-500', textColor: 'text-green-600' },
+                { name: 'এয়ার টিকেটিং', amount: airFinancials.revenue || 0, color: 'bg-blue-500', textColor: 'text-blue-600' },
+                { name: 'মুদ্রা বিনিময়', amount: services.exchanges?.sellAmount || 0, color: 'bg-purple-500', textColor: 'text-purple-600' },
+                { name: 'অন্যান্য সেবা', amount: (grandTotals.totalRevenue || 0) - (huProfitLoss.combined?.totalRevenue || 0) - (airFinancials.revenue || 0) - (services.exchanges?.sellAmount || 0), color: 'bg-orange-500', textColor: 'text-orange-600' }
+              ].map((dept, index) => {
+                const percentage = ((dept.amount / (grandTotals.totalRevenue || 1)) * 100) || 0;
+                return (
+                  <div key={index}>
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${dept.color}`}></div>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{dept.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-sm font-bold ${dept.textColor}`}>{formatCurrency(dept.amount)}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">({percentage.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                      <div 
+                        className={`h-full ${dept.color} rounded-full transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Circular Progress Indicator */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-center">
+                <div className="relative w-40 h-40">
+                  {/* Background Circle */}
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      stroke="currentColor"
+                      strokeWidth="12"
+                      fill="none"
+                      className="text-gray-200 dark:text-gray-700"
+                    />
+                    {/* Progress Circle */}
+                    <circle
+                      cx="80"
+                      cy="80"
+                      r="70"
+                      stroke="url(#gradient)"
+                      strokeWidth="12"
+                      fill="none"
+                      strokeDasharray={`${2 * Math.PI * 70}`}
+                      strokeDashoffset={`${2 * Math.PI * 70 * (1 - ((grandTotals.netProfit || 0) / (grandTotals.totalRevenue || 1)))}`}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000"
+                    />
+                    <defs>
+                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#3B82F6" />
+                        <stop offset="100%" stopColor="#8B5CF6" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  {/* Center Text */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {((grandTotals.netProfit || 0) / (grandTotals.totalRevenue || 1) * 100).toFixed(1)}%
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Profit Ratio</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Monthly Trend Line Chart Visualization */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-indigo-600" />
+              মাসিক প্রবণতা (Trend)
+            </h3>
+          </div>
+          
+          {/* Simple Line Chart with CSS */}
+          <div className="relative h-64">
+            {/* Y-axis labels */}
+            <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 dark:text-gray-400 pr-2">
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0))}</span>
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0) * 0.75)}</span>
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0) * 0.5)}</span>
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0) * 0.25)}</span>
+              <span>০</span>
+            </div>
+            
+            {/* Chart Area */}
+            <div className="ml-16 h-full border-l border-b border-gray-300 dark:border-gray-600 relative">
+              {/* Grid Lines */}
+              <div className="absolute inset-0 flex flex-col justify-between">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="w-full border-t border-gray-200 dark:border-gray-700 border-dashed"></div>
+                ))}
+              </div>
+              
+              {/* Trend Lines */}
+              <div className="absolute inset-0 flex items-end justify-around px-4">
+                {['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন'].map((month, index) => {
+                  const revenueHeight = Math.random() * 60 + 20;
+                  const expenseHeight = Math.random() * 50 + 15;
+                  return (
+                    <div key={index} className="flex-1 flex flex-col items-center gap-2">
+                      {/* Revenue Bar */}
+                      <div className="relative w-full max-w-[40px]">
+                        <div 
+                          className="w-full bg-gradient-to-t from-green-500 to-emerald-400 rounded-t-lg transition-all duration-500 hover:opacity-80 cursor-pointer"
+                          style={{ height: `${revenueHeight}%` }}
+                          title={`আয়: ${formatCurrency(grandTotals.totalRevenue || 0)}`}
+                        ></div>
+                      </div>
+                      {/* Month Label */}
+                      <span className="text-xs text-gray-600 dark:text-gray-400 mt-1 transform -rotate-45 origin-left whitespace-nowrap">
+                        {month}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          
+          {/* Legend */}
+          <div className="mt-4 flex items-center justify-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-r from-green-500 to-emerald-400"></div>
+              <span className="text-sm text-gray-700 dark:text-gray-300">আয়</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-gradient-to-r from-red-500 to-rose-400"></div>
+              <span className="text-sm text-gray-700 dark:text-gray-300">ব্যয়</span>
+            </div>
+          </div>
+        </div>
+
         {/* Business Modules Grid */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">

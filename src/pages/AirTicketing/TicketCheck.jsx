@@ -2,9 +2,12 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 import { useEmployees } from '../../hooks/useHRQueries';
+import useTicketCheckQueries from '../../hooks/useTicketCheckQueries';
 
 export default function TicketCheck() {
   const { useSearchAirCustomers } = useAirCustomersQueries();
+  const { useCreateTicketCheck } = useTicketCheckQueries();
+  const createMutation = useCreateTicketCheck();
   
   // Fetch active employees for reservation officers
   const { data: employeesData, isLoading: isLoadingEmployees } = useEmployees({
@@ -94,25 +97,56 @@ export default function TicketCheck() {
     e.preventDefault();
     setSubmittedMessage('');
 
-    if (!formValues.travelDate) return setSubmittedMessage('Please select travel date.');
-    if (!formValues.passengerName) return setSubmittedMessage('Please enter passenger name.');
-    if (!formValues.travellingCountry) return setSubmittedMessage('Please enter travelling country.');
-    if (!formValues.passportNo) return setSubmittedMessage('Please enter passport number.');
-    if (!formValues.contactNo) return setSubmittedMessage('Please enter contact number.');
-    if (!formValues.isWhatsAppSame && !formValues.whatsAppNo) return setSubmittedMessage('Please enter WhatsApp number.');
-    if (!formValues.airlineName) return setSubmittedMessage('Please enter airlines name.');
-    if (!formValues.route) return setSubmittedMessage('Please enter route.');
-    if (!formValues.bookingRef) return setSubmittedMessage('Please enter booking reference.');
-    if (!formValues.issuingAgentName) return setSubmittedMessage('Please enter issuing agent name.');
-    if (!validateEmail(formValues.email)) return setSubmittedMessage('Please enter a valid email.');
-    if (!formValues.reservationOfficerId) return setSubmittedMessage('Please select reservation officer.');
+    if (!formValues.travelDate) return setSubmittedMessage('ভ্রমণের তারিখ নির্বাচন করুন।');
+    if (!formValues.passengerName) return setSubmittedMessage('যাত্রীর নাম লিখুন।');
+    if (!formValues.travellingCountry) return setSubmittedMessage('ভ্রমণের দেশ লিখুন।');
+    if (!formValues.passportNo) return setSubmittedMessage('পাসপোর্ট নম্বর লিখুন।');
+    if (!formValues.contactNo) return setSubmittedMessage('যোগাযোগ নম্বর লিখুন।');
+    if (!formValues.isWhatsAppSame && !formValues.whatsAppNo) return setSubmittedMessage('WhatsApp নম্বর লিখুন।');
+    if (!formValues.airlineName) return setSubmittedMessage('এয়ারলাইন্সের নাম লিখুন।');
+    if (!formValues.route) return setSubmittedMessage('রুট লিখুন।');
+    if (!formValues.bookingRef) return setSubmittedMessage('বুকিং রেফারেন্স লিখুন।');
+    if (!formValues.issuingAgentName) return setSubmittedMessage('ইস্যুকারী এজেন্টের নাম লিখুন।');
+    if (!validateEmail(formValues.email)) return setSubmittedMessage('সঠিক ইমেইল ঠিকানা লিখুন।');
+    if (!formValues.reservationOfficerId) return setSubmittedMessage('রিজার্ভেশন অফিসার নির্বাচন করুন।');
 
     setSubmitting(true);
-    // Simulate submit
-    setTimeout(() => {
-      setSubmitting(false);
-      setSubmittedMessage('Ticket check information saved successfully.');
-    }, 800);
+
+    // Get reservation officer name
+    const selectedOfficer = reservationOfficers.find(officer => officer.id === formValues.reservationOfficerId);
+    const reservationOfficerName = selectedOfficer ? selectedOfficer.name : '';
+
+    // Prepare payload
+    const payload = {
+      customerId: selectedPassenger?._id || null,
+      travelDate: formValues.travelDate,
+      passengerName: formValues.passengerName,
+      travellingCountry: formValues.travellingCountry,
+      passportNo: formValues.passportNo,
+      contactNo: formValues.contactNo,
+      isWhatsAppSame: formValues.isWhatsAppSame,
+      whatsAppNo: formValues.isWhatsAppSame ? formValues.contactNo : formValues.whatsAppNo,
+      airlineName: formValues.airlineName,
+      route: formValues.route,
+      bookingRef: formValues.bookingRef,
+      issuingAgentName: formValues.issuingAgentName,
+      email: formValues.email,
+      reservationOfficerId: formValues.reservationOfficerId,
+      reservationOfficerName: reservationOfficerName,
+      notes: ''
+    };
+
+    createMutation.mutate(payload, {
+      onSuccess: () => {
+        setSubmitting(false);
+        setSubmittedMessage('Ticket check created successfully!');
+        // Reset form
+        handleReset();
+      },
+      onError: () => {
+        setSubmitting(false);
+      }
+    });
   }
 
   function handleReset() {
@@ -139,15 +173,15 @@ export default function TicketCheck() {
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Ticket Check</h1>
-        <div className="text-sm text-gray-500 dark:text-gray-400">Old Ticketing Service</div>
+        <h1 className="text-2xl font-semibold">টিকেট চেক</h1>
+        <div className="text-sm text-gray-500 dark:text-gray-400">পুরাতন টিকেটিং সেবা</div>
       </div>
 
       <form onSubmit={handleSubmit} onReset={handleReset} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">তারিখ</label>
             <input
               type="date"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -160,7 +194,7 @@ export default function TicketCheck() {
           {/* Passenger Name with Search */}
           <div className="md:col-span-2 lg:col-span-1 relative" ref={searchRef}>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Passenger Name
+              যাত্রীর নাম
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -168,7 +202,7 @@ export default function TicketCheck() {
               </div>
               <input
                 type="text"
-                placeholder="Search passenger or enter name..."
+                placeholder="যাত্রী খুঁজুন বা নাম লিখুন..."
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-10 pr-10 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={passengerSearchTerm || formValues.passengerName}
                 onChange={e => {
@@ -236,32 +270,35 @@ export default function TicketCheck() {
                   </ul>
                 ) : passengerSearchTerm.trim().length >= 2 ? (
                   <div className="p-4 text-center text-sm text-gray-500">
-                    No passengers found
+                    কোন যাত্রী পাওয়া যায়নি
                   </div>
                 ) : null}
               </div>
             )}
           </div>
 
-        {/* Passport No */}
- <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passport No</label>
+          {/* Passport No */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">পাসপোর্ট নম্বর</label>
             <input
               type="text"
-              placeholder="e.g. BN0123456"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ BN0123456"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.passportNo}
               onChange={e => updateValue('passportNo', e.target.value)}
               required
             />
           </div>
+
           {/* Contact No */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Contact No</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">যোগাযোগ নম্বর</label>
             <input
               type="tel"
-              placeholder="e.g. +8801XXXXXXXXX"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ +8801XXXXXXXXX"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.contactNo}
               onChange={e => updateValue('contactNo', e.target.value)}
               required
@@ -277,17 +314,18 @@ export default function TicketCheck() {
               checked={formValues.isWhatsAppSame}
               onChange={e => updateValue('isWhatsAppSame', e.target.checked)}
             />
-            <label htmlFor="waSame" className="text-sm text-gray-700 dark:text-gray-200">WhatsApp same as Contact No</label>
+            <label htmlFor="waSame" className="text-sm text-gray-700 dark:text-gray-200">WhatsApp যোগাযোগ নম্বরের মতো</label>
           </div>
 
           {/* WhatsApp No (conditional) */}
           {!formValues.isWhatsAppSame && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">WhatsApp No</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">WhatsApp নম্বর</label>
               <input
                 type="tel"
-                placeholder="e.g. +8801XXXXXXXXX"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="যেমনঃ +8801XXXXXXXXX"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 value={formValues.whatsAppNo}
                 onChange={e => updateValue('whatsAppNo', e.target.value)}
                 required={!formValues.isWhatsAppSame}
@@ -295,13 +333,12 @@ export default function TicketCheck() {
             </div>
           )}
 
-
           {/* Travelling Country */}
           <div className="md:col-span-2 lg:col-span-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Travelling Country</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ভ্রমণের দেশ</label>
             <input
               type="text"
-              placeholder="e.g. Saudi Arabia"
+              placeholder="যেমনঃ Saudi Arabia"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formValues.travellingCountry}
               onChange={e => updateValue('travellingCountry', e.target.value)}
@@ -311,11 +348,12 @@ export default function TicketCheck() {
 
           {/* Airlines Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Airlines Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">এয়ারলাইন্সের নাম</label>
             <input
               type="text"
-              placeholder="e.g. Saudi Airlines"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ Saudi Airlines"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.airlineName}
               onChange={e => updateValue('airlineName', e.target.value)}
               required
@@ -324,11 +362,12 @@ export default function TicketCheck() {
 
           {/* Route */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Route</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">রুট</label>
             <input
               type="text"
-              placeholder="e.g. DAC → RUH"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ DAC → RUH"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.route}
               onChange={e => updateValue('route', e.target.value)}
               required
@@ -337,11 +376,12 @@ export default function TicketCheck() {
 
           {/* Booking Ref */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Booking Ref</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">বুকিং রেফারেন্স</label>
             <input
               type="text"
-              placeholder="e.g. ABC123"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ ABC123"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.bookingRef}
               onChange={e => updateValue('bookingRef', e.target.value)}
               required
@@ -350,10 +390,10 @@ export default function TicketCheck() {
 
           {/* Issuing Agent Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Issuing Agent Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ইস্যুকারী এজেন্টের নাম</label>
             <input
               type="text"
-              placeholder="Agent full name"
+              placeholder="এজেন্টের সম্পূর্ণ নাম"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formValues.issuingAgentName}
               onChange={e => updateValue('issuingAgentName', e.target.value)}
@@ -363,11 +403,12 @@ export default function TicketCheck() {
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ইমেইল</label>
             <input
               type="email"
               placeholder="agent@example.com"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.email}
               onChange={e => updateValue('email', e.target.value)}
             />
@@ -376,7 +417,7 @@ export default function TicketCheck() {
           {/* Reservation Officer */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              Select Reservation Officer
+              রিজার্ভেশন অফিসার নির্বাচন করুন
             </label>
             <select
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -386,14 +427,14 @@ export default function TicketCheck() {
               required
             >
               <option value="" disabled>
-                {isLoadingEmployees ? 'Loading employees...' : 'Choose officer'}
+                {isLoadingEmployees ? 'লোড হচ্ছে...' : 'অফিসার নির্বাচন করুন'}
               </option>
               {reservationOfficers.length > 0 ? (
                 reservationOfficers.map(officer => (
                   <option key={officer.id} value={officer.id}>{officer.name}</option>
                 ))
               ) : !isLoadingEmployees ? (
-                <option value="" disabled>No employees found</option>
+                <option value="" disabled>কোন কর্মচারী পাওয়া যায়নি</option>
               ) : null}
             </select>
           </div>
@@ -409,13 +450,13 @@ export default function TicketCheck() {
             className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
             disabled={submitting}
           >
-            {submitting ? 'Saving...' : 'Save'}
+            {submitting ? 'সংরক্ষণ করা হচ্ছে...' : 'সংরক্ষণ করুন'}
           </button>
           <button
             type="reset"
             className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900"
           >
-            Reset
+            রিসেট
           </button>
         </div>
       </form>

@@ -3,33 +3,51 @@ import { Search, X, Plane, DollarSign } from 'lucide-react';
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 import { useVendors } from '../../hooks/useVendorQueries';
 import useEmployeeQueries from '../../hooks/useEmployeeQueries';
+import useAirlineQueries from '../../hooks/useAirlineQueries';
+import useOldTicketReissueQueries from '../../hooks/useOldTicketReissueQueries';
 
 export default function OldTicketReissue() {
   const { useSearchAirCustomers } = useAirCustomersQueries();
   const { data: vendors, isLoading: vendorsLoading } = useVendors();
   const { useEmployees } = useEmployeeQueries();
   const { data: employees = [], isLoading: employeesLoading } = useEmployees({ status: 'active' });
+  const { useAirlines } = useAirlineQueries();
+  const { useCreateOldTicketReissue } = useOldTicketReissueQueries();
+  const createMutation = useCreateOldTicketReissue();
+  
+  // Fetch airlines from database (without status filter to get all airlines)
+  const { data: airlinesData, isLoading: airlinesLoading } = useAirlines({ 
+    limit: 100
+  });
 
-  // Common airlines list
-  const airlinesList = useMemo(
-    () => [
-      'Biman Bangladesh Airlines',
-      'Saudi Airlines',
-      'Emirates',
-      'Qatar Airways',
-      'Flydubai',
-      'Air Arabia',
-      'Turkish Airlines',
-      'Malaysia Airlines',
-      'Singapore Airlines',
-      'Thai Airways',
-      'Etihad Airways',
-      'Gulf Air',
-      'Kuwait Airways',
-      'Oman Air'
-    ].sort(),
-    []
-  );
+  // Airlines list from database
+  const airlinesList = useMemo(() => {
+    if (!airlinesData?.airlines || airlinesData.airlines.length === 0) {
+      
+      return [];
+    }
+    
+    console.log('Raw Airlines data:', airlinesData.airlines);
+    
+    const names = airlinesData.airlines
+      // Filter only active airlines
+      .filter(airline => {
+        const isActive = airline.status === 'Active' || airline.status === 'active' || airline.isActive === true;
+        return isActive;
+      })
+      // Extract airline names
+      .map(airline => {
+        // Try different property names for airline name
+        const name = airline.name || airline.airlineName || airline.airline_name || airline.companyName || airline.tradeName;
+        console.log('Extracting name from airline:', airline, '=> Name:', name);
+        return name;
+      })
+      .filter(Boolean) // Remove null/undefined
+      .sort(); // Sort alphabetically
+    
+    console.log('Final processed airline names:', names);
+    return names;
+  }, [airlinesData]);
 
   const [formValues, setFormValues] = useState({
     formDate: new Date().toISOString().split('T')[0],
@@ -153,32 +171,77 @@ export default function OldTicketReissue() {
     e.preventDefault();
     setSubmittedMessage('');
 
-    if (!formValues.formDate) return setSubmittedMessage('Please select date.');
-    if (!formValues.firstName) return setSubmittedMessage('Please enter first name.');
-    if (!formValues.lastName) return setSubmittedMessage('Please enter last name.');
-    if (!formValues.travellingCountry) return setSubmittedMessage('Please enter travelling country.');
-    if (!formValues.passportNo) return setSubmittedMessage('Please enter passport number.');
-    if (!formValues.contactNo) return setSubmittedMessage('Please enter contact number.');
-    if (!formValues.isWhatsAppSame && !formValues.whatsAppNo) return setSubmittedMessage('Please enter WhatsApp number.');
-    if (!formValues.airlineName) return setSubmittedMessage('Please enter airlines name.');
-    if (!formValues.origin) return setSubmittedMessage('Please enter origin.');
-    if (!formValues.destination) return setSubmittedMessage('Please enter destination.');
-    if (!formValues.airlinesPnr) return setSubmittedMessage('Please enter Airlines PNR.');
-    if (!formValues.oldDate) return setSubmittedMessage('Please select old date.');
-    if (!formValues.newDate) return setSubmittedMessage('Please select new date.');
-    if (!formValues.reissueVendorId) return setSubmittedMessage('Please select reissue vendor.');
-    if (!formValues.vendorAmount) return setSubmittedMessage('Please enter vendor amount.');
-    if (!formValues.totalContractAmount) return setSubmittedMessage('Please enter total contract amount.');
-    if (!formValues.issuingAgentName) return setSubmittedMessage('Please enter issuing agent name.');
-    if (!formValues.issuingAgentContact) return setSubmittedMessage('Please enter issuing agent contact.');
-    if (!validateEmail(formValues.agentEmail)) return setSubmittedMessage('Please enter a valid email.');
-    if (!formValues.reservationOfficerId) return setSubmittedMessage('Please select reservation officer.');
+    if (!formValues.formDate) return setSubmittedMessage('তারিখ নির্বাচন করুন।');
+    if (!formValues.firstName) return setSubmittedMessage('প্রথম নাম লিখুন।');
+    if (!formValues.lastName) return setSubmittedMessage('শেষ নাম লিখুন।');
+    if (!formValues.travellingCountry) return setSubmittedMessage('ভ্রমণের দেশ লিখুন।');
+    if (!formValues.passportNo) return setSubmittedMessage('পাসপোর্ট নম্বর লিখুন।');
+    if (!formValues.contactNo) return setSubmittedMessage('যোগাযোগ নম্বর লিখুন।');
+    if (!formValues.isWhatsAppSame && !formValues.whatsAppNo) return setSubmittedMessage('WhatsApp নম্বর লিখুন।');
+    if (!formValues.airlineName) return setSubmittedMessage('এয়ারলাইন্সের নাম লিখুন।');
+    if (!formValues.origin) return setSubmittedMessage('উৎপত্তি লিখুন।');
+    if (!formValues.destination) return setSubmittedMessage('গন্তব্য লিখুন।');
+    if (!formValues.airlinesPnr) return setSubmittedMessage('এয়ারলাইন্স PNR লিখুন।');
+    if (!formValues.oldDate) return setSubmittedMessage('পুরাতন তারিখ নির্বাচন করুন।');
+    if (!formValues.newDate) return setSubmittedMessage('নতুন তারিখ নির্বাচন করুন।');
+    if (!formValues.reissueVendorId) return setSubmittedMessage('রিইস্যু ভেন্ডর নির্বাচন করুন।');
+    if (!formValues.vendorAmount) return setSubmittedMessage('ভেন্ডর এমাউন্ট লিখুন।');
+    if (!formValues.totalContractAmount) return setSubmittedMessage('মোট কন্ট্রাক্ট এমাউন্ট লিখুন।');
+    if (!formValues.issuingAgentName) return setSubmittedMessage('ইস্যুকারী এজেন্টের নাম লিখুন।');
+    if (!formValues.issuingAgentContact) return setSubmittedMessage('ইস্যুকারী এজেন্ট যোগাযোগ নম্বর লিখুন।');
+    if (!validateEmail(formValues.agentEmail)) return setSubmittedMessage('সঠিক ইমেইল ঠিকানা লিখুন।');
+    if (!formValues.reservationOfficerId) return setSubmittedMessage('রিজার্ভেশন অফিসার নির্বাচন করুন।');
 
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      setSubmittedMessage('Old ticket reissue information saved successfully.');
-    }, 800);
+
+    // Get reservation officer name
+    const selectedOfficer = employees.find(emp => 
+      (emp._id || emp.id || emp.employeeId) === formValues.reservationOfficerId
+    );
+    const reservationOfficerName = selectedOfficer 
+      ? `${selectedOfficer.firstName || ''} ${selectedOfficer.lastName || ''}`.trim() || selectedOfficer.employeeId || ''
+      : '';
+
+    // Prepare payload
+    const payload = {
+      customerId: selectedPassenger?._id || null,
+      formDate: formValues.formDate,
+      firstName: formValues.firstName,
+      lastName: formValues.lastName,
+      travellingCountry: formValues.travellingCountry,
+      passportNo: formValues.passportNo,
+      contactNo: formValues.contactNo,
+      isWhatsAppSame: formValues.isWhatsAppSame,
+      whatsAppNo: formValues.isWhatsAppSame ? formValues.contactNo : formValues.whatsAppNo,
+      airlineName: formValues.airlineName,
+      origin: formValues.origin,
+      destination: formValues.destination,
+      airlinesPnr: formValues.airlinesPnr,
+      oldDate: formValues.oldDate,
+      newDate: formValues.newDate,
+      reissueVendorId: formValues.reissueVendorId,
+      reissueVendorName: formValues.reissueVendorName,
+      vendorAmount: parseFloat(formValues.vendorAmount) || 0,
+      totalContractAmount: parseFloat(formValues.totalContractAmount) || 0,
+      issuingAgentName: formValues.issuingAgentName,
+      issuingAgentContact: formValues.issuingAgentContact,
+      agentEmail: formValues.agentEmail,
+      reservationOfficerId: formValues.reservationOfficerId,
+      reservationOfficerName: reservationOfficerName,
+      notes: ''
+    };
+
+    createMutation.mutate(payload, {
+      onSuccess: () => {
+        setSubmitting(false);
+        setSubmittedMessage('Old ticket reissue created successfully!');
+        // Reset form
+        handleReset();
+      },
+      onError: () => {
+        setSubmitting(false);
+      }
+    });
   }
 
   function handleReset() {
@@ -216,15 +279,15 @@ export default function OldTicketReissue() {
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Old Ticket Reissue</h1>
-        <div className="text-sm text-gray-500 dark:text-gray-400">Old Ticketing Service</div>
+        <h1 className="text-2xl font-semibold">পুরাতন টিকেট রিইস্যু</h1>
+        <div className="text-sm text-gray-500 dark:text-gray-400">পুরাতন টিকেটিং সেবা</div>
       </div>
 
       <form onSubmit={handleSubmit} onReset={handleReset} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Date (Auto) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Date (Auto)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">তারিখ (স্বয়ংক্রিয়)</label>
             <input
               type="date"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -235,12 +298,12 @@ export default function OldTicketReissue() {
 
           {/* Passenger Search */}
           <div className="md:col-span-2 lg:col-span-1 relative">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passenger Search</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">যাত্রী অনুসন্ধান</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by name, passport, contact..."
+                placeholder="নাম, পাসপোর্ট, যোগাযোগ দিয়ে খুঁজুন..."
                 className="w-full pl-10 pr-10 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={passengerSearchTerm}
                 onChange={(e) => {
@@ -267,7 +330,7 @@ export default function OldTicketReissue() {
             {showPassengerList && passengerSearchTerm.length > 1 && (
               <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-y-auto">
                 {searchingPassengers ? (
-                  <div className="p-3 text-center text-sm text-gray-500">Searching...</div>
+                  <div className="p-3 text-center text-sm text-gray-500">খোঁজা হচ্ছে...</div>
                 ) : searchedPassengers.length > 0 ? (
                   searchedPassengers.map((passenger) => (
                     <button
@@ -285,7 +348,7 @@ export default function OldTicketReissue() {
                     </button>
                   ))
                 ) : (
-                  <div className="p-3 text-center text-sm text-gray-500">No passengers found</div>
+                  <div className="p-3 text-center text-sm text-gray-500">কোন যাত্রী পাওয়া যায়নি</div>
                 )}
               </div>
             )}
@@ -293,10 +356,10 @@ export default function OldTicketReissue() {
 
           {/* First Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passenger First Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">যাত্রীর প্রথম নাম</label>
             <input
               type="text"
-              placeholder="e.g. Rahim"
+              placeholder="যেমনঃ Rahim"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formValues.firstName}
               onChange={e => updateValue('firstName', e.target.value)}
@@ -306,10 +369,10 @@ export default function OldTicketReissue() {
 
           {/* Last Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passenger Last Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">যাত্রীর শেষ নাম</label>
             <input
               type="text"
-              placeholder="e.g. Uddin"
+              placeholder="যেমনঃ Uddin"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formValues.lastName}
               onChange={e => updateValue('lastName', e.target.value)}
@@ -319,7 +382,7 @@ export default function OldTicketReissue() {
 
           {/* Travelling Country */}
           <div className="md:col-span-2 lg:col-span-1">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Travelling Country</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ভ্রমণের দেশ</label>
             <input
               type="text"
               placeholder="e.g. Saudi Arabia"
@@ -332,11 +395,12 @@ export default function OldTicketReissue() {
 
           {/* Passport No */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Passport No</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">পাসপোর্ট নম্বর</label>
             <input
               type="text"
-              placeholder="e.g. BN0123456"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ BN0123456"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.passportNo}
               onChange={e => updateValue('passportNo', e.target.value)}
               required
@@ -345,11 +409,12 @@ export default function OldTicketReissue() {
 
           {/* Contact No */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Contact No</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">যোগাযোগ নম্বর</label>
             <input
               type="tel"
-              placeholder="e.g. +8801XXXXXXXXX"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ +8801XXXXXXXXX"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.contactNo}
               onChange={e => updateValue('contactNo', e.target.value)}
               required
@@ -365,17 +430,18 @@ export default function OldTicketReissue() {
               checked={formValues.isWhatsAppSame}
               onChange={e => updateValue('isWhatsAppSame', e.target.checked)}
             />
-            <label htmlFor="waSame" className="text-sm text-gray-700 dark:text-gray-200">WhatsApp same as Contact No</label>
+            <label htmlFor="waSame" className="text-sm text-gray-700 dark:text-gray-200">WhatsApp যোগাযোগ নম্বরের মতো</label>
           </div>
 
           {/* WhatsApp No (conditional) */}
           {!formValues.isWhatsAppSame && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">WhatsApp No</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">WhatsApp নম্বর</label>
               <input
                 type="tel"
-                placeholder="e.g. +8801XXXXXXXXX"
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="যেমনঃ +8801XXXXXXXXX"
+                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 value={formValues.whatsAppNo}
                 onChange={e => updateValue('whatsAppNo', e.target.value)}
                 required={!formValues.isWhatsAppSame}
@@ -387,12 +453,12 @@ export default function OldTicketReissue() {
           <div className="relative">
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               <Plane className="w-4 h-4" />
-              Airlines Name
+              এয়ারলাইন্সের নাম
             </label>
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search airlines..."
+                placeholder="এয়ারলাইন খুঁজুন..."
                 className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={airlineSearchTerm || formValues.airlineName}
                 onChange={(e) => {
@@ -420,7 +486,9 @@ export default function OldTicketReissue() {
             
             {showAirlineList && (
               <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                {filteredAirlines.length > 0 ? (
+                {airlinesLoading ? (
+                  <div className="p-3 text-center text-sm text-gray-500">এয়ারলাইন লোড হচ্ছে...</div>
+                ) : filteredAirlines.length > 0 ? (
                   filteredAirlines.map((airline, idx) => (
                     <button
                       key={idx}
@@ -432,7 +500,11 @@ export default function OldTicketReissue() {
                     </button>
                   ))
                 ) : (
-                  <div className="p-3 text-center text-sm text-gray-500">No airlines found</div>
+                  <div className="p-3 text-center text-sm text-gray-500">
+                    {airlinesList.length === 0 
+                      ? 'ডাটাবেসে কোন এয়ারলাইন নেই। Airline List page থেকে এয়ারলাইন যোগ করুন।' 
+                      : 'আপনার অনুসন্ধানের সাথে কোন এয়ারলাইন মিলেনি।'}
+                  </div>
                 )}
               </div>
             )}
@@ -440,11 +512,12 @@ export default function OldTicketReissue() {
 
           {/* Origin */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Origin</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">উৎপত্তি</label>
             <input
               type="text"
-              placeholder="e.g. DAC"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ DAC"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.origin}
               onChange={e => updateValue('origin', e.target.value)}
               required
@@ -453,11 +526,12 @@ export default function OldTicketReissue() {
 
           {/* Destination */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Destination</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">গন্তব্য</label>
             <input
               type="text"
-              placeholder="e.g. RUH"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ RUH"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.destination}
               onChange={e => updateValue('destination', e.target.value)}
               required
@@ -466,11 +540,12 @@ export default function OldTicketReissue() {
 
           {/* Airlines PNR */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Airlines PNR</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">এয়ারলাইন্স PNR</label>
             <input
               type="text"
-              placeholder="e.g. ABC123"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ ABC123"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.airlinesPnr}
               onChange={e => updateValue('airlinesPnr', e.target.value)}
               required
@@ -479,7 +554,7 @@ export default function OldTicketReissue() {
 
           {/* Old Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Old Date</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">পুরাতন তারিখ</label>
             <input
               type="date"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -491,7 +566,7 @@ export default function OldTicketReissue() {
 
           {/* New Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">New Date</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">নতুন তারিখ</label>
             <input
               type="date"
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -503,12 +578,12 @@ export default function OldTicketReissue() {
 
           {/* Reissue Vendor (Auto Search) */}
           <div className="relative">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Reissue Vendor</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">রিইস্যু ভেন্ডর</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search vendor..."
+                placeholder="ভেন্ডর খুঁজুন..."
                 className="w-full pl-10 pr-10 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={vendorSearchTerm}
                 onChange={(e) => {
@@ -537,7 +612,7 @@ export default function OldTicketReissue() {
             {showVendorList && vendorSearchTerm && (
               <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-48 overflow-y-auto">
                 {vendorsLoading ? (
-                  <div className="p-3 text-center text-sm text-gray-500">Loading...</div>
+                  <div className="p-3 text-center text-sm text-gray-500">লোড হচ্ছে...</div>
                 ) : filteredVendors.length > 0 ? (
                   filteredVendors.map((vendor) => (
                     <button
@@ -555,7 +630,7 @@ export default function OldTicketReissue() {
                     </button>
                   ))
                 ) : (
-                  <div className="p-3 text-center text-sm text-gray-500">No vendors found</div>
+                  <div className="p-3 text-center text-sm text-gray-500">কোন ভেন্ডর পাওয়া যায়নি</div>
                 )}
               </div>
             )}
@@ -565,68 +640,71 @@ export default function OldTicketReissue() {
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               <DollarSign className="w-4 h-4" />
-              Vendor Amount
+              ভেন্ডর এমাউন্ট
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">৳</span>
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
               <input
                 type="number"
                 placeholder="0.00"
                 step="0.01"
                 min="0"
-                className="w-full pl-7 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-7 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 value={formValues.vendorAmount}
                 onChange={e => updateValue('vendorAmount', e.target.value)}
                 required
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">Amount paid to vendor</p>
+            <p className="mt-1 text-xs text-gray-500">ভেন্ডরকে প্রদত্ত এমাউন্ট</p>
           </div>
 
           {/* Total Contract Amount */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
               <DollarSign className="w-4 h-4" />
-              Total Contract Amount
+              মোট কন্ট্রাক্ট এমাউন্ট
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">৳</span>
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
               <input
                 type="number"
                 placeholder="0.00"
                 step="0.01"
                 min="0"
-                className="w-full pl-7 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-7 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 value={formValues.totalContractAmount}
                 onChange={e => updateValue('totalContractAmount', e.target.value)}
                 required
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">Amount billed to customer</p>
+            <p className="mt-1 text-xs text-gray-500">কাস্টমারকে বিল করা এমাউন্ট</p>
           </div>
 
           {/* Profit (Calculated) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Profit</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">লাভ</label>
             <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">৳</span>
+              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
               <input
                 type="text"
-                className={`w-full pl-7 rounded-md border-2 px-3 py-2 font-semibold ${
+                className={`w-full pl-7 rounded-md border-2 px-3 py-2 font-semibold font-english ${
                   profit >= 0 
                     ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
                     : 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
                 }`}
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 value={profit.toFixed(2)}
                 readOnly
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">Auto-calculated: Total - Vendor Amount</p>
+            <p className="mt-1 text-xs text-gray-500">স্বয়ংক্রিয় হিসাব: মোট - ভেন্ডর এমাউন্ট</p>
           </div>
 
           {/* Issuing Agent Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Issuing Agent Name</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ইস্যুকারী এজেন্টের নাম</label>
             <input
               type="text"
               placeholder="Agent full name"
@@ -639,11 +717,12 @@ export default function OldTicketReissue() {
 
           {/* Issuing Agent Contact No */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Issuing Agent Contact No</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ইস্যুকারী এজেন্ট যোগাযোগ নম্বর</label>
             <input
               type="tel"
-              placeholder="e.g. +8801XXXXXXXXX"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="যেমনঃ +8801XXXXXXXXX"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.issuingAgentContact}
               onChange={e => updateValue('issuingAgentContact', e.target.value)}
               required
@@ -652,11 +731,12 @@ export default function OldTicketReissue() {
 
           {/* Agent Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Agent Email</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">এজেন্ট ইমেইল</label>
             <input
               type="email"
               placeholder="agent@example.com"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+              style={{ fontFamily: "'Google Sans', sans-serif" }}
               value={formValues.agentEmail}
               onChange={e => updateValue('agentEmail', e.target.value)}
             />
@@ -664,7 +744,7 @@ export default function OldTicketReissue() {
 
           {/* Reservation Officer */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Select Reservation Officer</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">রিজার্ভেশন অফিসার নির্বাচন করুন</label>
             <select
               className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={formValues.reservationOfficerId}
@@ -673,7 +753,7 @@ export default function OldTicketReissue() {
               disabled={employeesLoading}
             >
               <option value="" disabled>
-                {employeesLoading ? 'Loading employees...' : 'Choose officer'}
+                {employeesLoading ? 'লোড হচ্ছে...' : 'অফিসার নির্বাচন করুন'}
               </option>
               {employees && employees.length > 0 ? (
                 employees.map(employee => (
@@ -682,14 +762,14 @@ export default function OldTicketReissue() {
                   </option>
                 ))
               ) : (
-                !employeesLoading && <option value="" disabled>No employees found</option>
+                !employeesLoading && <option value="" disabled>কোন কর্মচারী পাওয়া যায়নি</option>
               )}
             </select>
           </div>
         </div>
 
         {submittedMessage && (
-          <div className={`mt-4 text-sm ${submittedMessage.includes('success') ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
+          <div className={`mt-4 text-sm ${submittedMessage.includes('successfully') || submittedMessage.includes('সফল') ? 'text-green-700 dark:text-green-300' : 'text-red-700 dark:text-red-300'}`}>
             {submittedMessage}
           </div>
         )}
@@ -700,13 +780,13 @@ export default function OldTicketReissue() {
             className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
             disabled={submitting}
           >
-            {submitting ? 'Saving...' : 'Save'}
+            {submitting ? 'সংরক্ষণ করা হচ্ছে...' : 'সংরক্ষণ করুন'}
           </button>
           <button
             type="reset"
             className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900"
           >
-            Reset
+            রিসেট
           </button>
         </div>
       </form>
