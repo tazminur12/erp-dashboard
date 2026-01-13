@@ -162,24 +162,28 @@ const createSinglePageReceipt = (data, showHeader = true) => {
 
   const createCopyHTML = (isClient) => `
     <div style="position: relative; padding: 10px 0; border: none !important; border-bottom: none !important;">
-      <!-- Copy Label -->
-      <div style="text-align: center; margin: 0 auto 8px; width: 100%; display: flex; justify-content: center;">
-  <span style="display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 18px; border: 2px solid black; font-size: 15px; font-weight: bold; background: #f8f8f8; border-radius: 4px;">
-    ${isClient ? L.clientCopy : L.officeCopy}
-  </span>
-</div>
+      <!-- Copy Label - Manual vertical centering with transform -->
+      <div style="text-align: center; margin: 0 auto 3px;">
+        <div style="display: inline-block; border: 2px solid black; background: #f8f8f8; border-radius: 2px; padding: 0; margin: 0; overflow: hidden;">
+          <div style="padding: 3px 8px; font-size: 11px; font-weight: bold; line-height: 1; margin: 0; transform: translateY(0);">
+            ${isClient ? L.clientCopy : L.officeCopy}
+          </div>
+        </div>
+      </div>
 
-      <!-- Purpose Box -->
-      <div style="position: absolute; top: ${isClient ? '10px' : '40px'}; right: 0; width: 190px; border: 2px solid black; padding: 6px; text-align: center; background: white; border-radius: 4px; font-size: 13px;">
-        <div style="font-weight: bold; margin-bottom: 3px; font-size: 12px;">${L.purpose}</div>
-        <div style="font-size: 18px; font-weight: bold; color: #d00; margin: 3px 0;">৳ ${amountText.replace('BDT', '').trim()}</div>
-        <div style="font-size: 10px; padding-top: 3px; line-height: 1.2;">
-          ${amountInWords}
+      <!-- Purpose Box - Compact & Right Aligned -->
+      <div style="position: absolute; top: 10px; right: 0; width: 170px; border: 2px solid black; text-align: center; background: white; border-radius: 4px;">
+        <div style="padding: 4px 8px; background: #f8f8f8; border-bottom: 2px solid black; font-weight: bold; font-size: 11px;">${L.purpose}</div>
+        <div style="padding: 8px 8px 4px;">
+          <div style="font-size: 17px; font-weight: bold; color: #d00; margin-bottom: 4px;">৳ ${amountText.replace('BDT', '').trim()}</div>
+          <div style="font-size: 9px; line-height: 1.3; color: #333;">
+            ${amountInWords}
+          </div>
         </div>
       </div>
 
       <!-- Details Table -->
-      <div style="margin-right: 210px; font-size: 14px; border: none;">
+      <div style="margin-right: 190px; margin-top: 5px; font-size: 14px; border: none;">
         <table style="width: 100%; line-height: 1.4; border-collapse: collapse; border: none; border-bottom: none;">
           <tbody>
             ${isBankTransfer ? `
