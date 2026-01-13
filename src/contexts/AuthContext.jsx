@@ -117,6 +117,47 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Login with OTP (bypasses Firebase)
+  const loginWithOTP = async (phone, otp) => {
+    try {
+      const response = await axiosSecure.post('/api/auth/verify-otp', { phone, otp });
+
+      if (response.status === 200 && response.data.success) {
+        const data = response.data;
+        
+        // Set token and user profile
+        setToken(data.token);
+        localStorage.setItem('erp_token', data.token);
+        setUserProfile(data.user);
+        
+        // Create a pseudo Firebase user object for OTP login
+        const otpUser = {
+          uid: data.user._id || data.user.id,
+          email: data.user.email || `${data.user.phone}@otp.login`,
+          displayName: data.user.displayName || data.user.name,
+          emailVerified: true, // OTP verified = email verified equivalent
+          phoneNumber: data.user.phone
+        };
+        setUser(otpUser);
+        
+        return { success: true, user: data.user, token: data.token };
+      } else {
+        return { 
+          success: false, 
+          error: response.data.message || 'OTP verification failed',
+          attemptsLeft: response.data.attemptsLeft
+        };
+      }
+    } catch (error) {
+      console.error('OTP login error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.message || 'Network error during OTP verification',
+        attemptsLeft: error.response?.data?.attemptsLeft
+      };
+    }
+  };
+
   // Sign out
   const signOut = async () => {
     try {
@@ -200,6 +241,7 @@ export const AuthProvider = ({ children }) => {
     userRole,
     axiosSecure,
     loginWithBackend,
+    loginWithOTP,
     signOut,
     logout: signOut,
     updateProfile,

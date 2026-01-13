@@ -215,9 +215,36 @@ const Login = () => {
               )}
             </button>
           </form>
+
+          {/* Divider */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">অথবা</span>
+            </div>
+          </div>
+
+          {/* OTP Login Link */}
+          <Link
+            to="/otp-login"
+            className="w-full flex items-center justify-center gap-2 border-2 border-blue-600 text-blue-600 py-2.5 px-4 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+          >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+            </svg>
+            ফোন নম্বর দিয়ে লগইন করুন (OTP)
+          </Link>
         </div>
 
-       
+        {/* Sign Up Link */}
+        <p className="text-center text-sm text-gray-600 mt-6">
+          Don't have an account?{' '}
+          <Link to="/signup" className="text-blue-600 hover:text-blue-700 font-medium">
+            Sign up
+          </Link>
+        </p>
       </div>
     </div>
   );

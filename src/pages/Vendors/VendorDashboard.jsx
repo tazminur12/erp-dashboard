@@ -237,17 +237,16 @@ const VendorDashboard = () => {
         </div>
       </div>
 
-      {/* Stats Cards - Row 1: Vendor Stats */}
+      {/* Stats Cards - Single Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <CardWidget title="মোট ভেন্ডর" value={stats.total} icon={Building2} trend="" trendValue="" trendType="neutral" />
-        <CardWidget title="Active Vendors" value={vendors.filter(v => v.status === 'active').length} icon={Users} trend="" trendValue="" trendType="neutral" />
-        <CardWidget title="Added Today" value={stats.today} icon={Clock} trend="" trendValue="" trendType="neutral" />
-        <CardWidget title="Added This Month" value={stats.thisMonth} icon={Calendar} trend="" trendValue="" trendType="neutral" />
-        <CardWidget title="With NID / Passport" value={`${stats.withNID} / ${stats.withPassport}`} icon={CreditCard} trend="" trendValue="" trendType="neutral" />
-      </div>
-
-      {/* Stats Cards - Row 2: Bill & Payment Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardWidget 
+          title="মোট ভেন্ডর" 
+          value={stats.total} 
+          icon={Building2} 
+          trend="" 
+          trendValue="" 
+          trendType="neutral" 
+        />
         <CardWidget 
           title="মোট ভেন্ডর বিল" 
           value={billsLoading ? '...' : billStats.totalBills} 

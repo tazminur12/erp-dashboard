@@ -12,7 +12,7 @@ import { useVendor, useVendorFinancials, useVendorBillsByVendor } from '../../ho
 
 const VendorDetails = () => {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState('information'); // 'information', 'financial', 'bills'
+  const [activeTab, setActiveTab] = useState('financial'); // 'information', 'financial', 'bills' - Start with financial tab
 
   // Use React Query hooks to fetch vendor data
   const { 
@@ -171,10 +171,6 @@ const VendorDetails = () => {
                   <Hash className="w-4 h-4" />
                   {vendor.vendorId}
                 </span>
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/20 rounded-full text-sm">
-                  <Star className="w-4 h-4" />
-                  {financial.rating}/5
-                </span>
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-500/20 rounded-full text-sm">
                   <CheckCircle className="w-4 h-4" />
                   {financial.status}
@@ -183,23 +179,6 @@ const VendorDetails = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleRefresh}
-              disabled={loading || financialLoading || billsLoading}
-              className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading || financialLoading || billsLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  রিফ্রেশ হচ্ছে...
-                </>
-              ) : (
-                <>
-                  <Clock className="w-4 h-4" />
-                  রিফ্রেশ
-                </>
-              )}
-            </button>
             <Link 
               to={`/vendors/${vendor._id || vendor.vendorId}/bank-accounts`}
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
@@ -207,7 +186,7 @@ const VendorDetails = () => {
               <CreditCard className="w-4 h-4" />
               Bank Accounts
             </Link>
-              <Link 
+            <Link 
               to={`/vendors/${vendor._id || vendor.vendorId}/edit`} 
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
             >
@@ -290,19 +269,6 @@ const VendorDetails = () => {
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex -mb-px">
             <button
-              onClick={() => setActiveTab('information')}
-              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'information'
-                  ? 'border-purple-600 text-purple-600 dark:text-purple-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                ভেন্ডর তথ্য
-              </div>
-            </button>
-            <button
               onClick={() => setActiveTab('financial')}
               className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                 activeTab === 'financial'
@@ -313,6 +279,19 @@ const VendorDetails = () => {
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 আর্থিক তথ্য
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('information')}
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'information'
+                  ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                ভেন্ডর তথ্য
               </div>
             </button>
             <button
@@ -402,13 +381,6 @@ const VendorDetails = () => {
                     <div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">পাসপোর্ট নম্বর</div>
                       <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{vendor.passport || 'প্রদান করা হয়নি'}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Briefcase className="w-5 h-5 mt-1 text-gray-500" />
-                    <div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">ব্যবসার ধরন</div>
-                      <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{financial.businessType}</div>
                     </div>
                   </div>
                 </div>

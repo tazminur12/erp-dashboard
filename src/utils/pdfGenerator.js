@@ -135,28 +135,28 @@ const createSinglePageReceipt = (data, showHeader = true) => {
   // Header for Customer Copy - Keep space even when showHeader is false
   const customerHeaderHTML = `
     <div style="text-align: center; margin-bottom: 10px; padding-bottom: 8px; min-height: ${showHeader ? 'auto' : '80px'};">
-      ${showHeader ? `<img src="/public/invoice/Invoice Header.jpg" alt="Header" style="width: 100%; max-width: 100%; height: auto;" />` : ''}
+      ${showHeader ? `<img src="/invoice/Invoice Header.jpg" alt="Header" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
     </div>
   `;
 
   // Header for Office Copy - Keep space even when showHeader is false
   const officeHeaderHTML = `
     <div style="text-align: center; margin-bottom: 10px; padding-bottom: 8px; min-height: ${showHeader ? 'auto' : '80px'};">
-      ${showHeader ? `<img src="/public/invoice/Invoice Header.jpg" alt="Header" style="width: 100%; max-width: 100%; height: auto;" />` : ''}
+      ${showHeader ? `<img src="/invoice/Invoice Header.jpg" alt="Header" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
     </div>
   `;
 
   // Footer for Customer Copy - Keep space even when showHeader is false
   const customerFooterHTML = `
     <div style="text-align: center; padding-top: 10px; margin-top: 10px; min-height: ${showHeader ? 'auto' : '80px'};">
-      ${showHeader ? `<img src="/public/invoice/Invoice Footer.jpg" alt="Footer" style="width: 100%; max-width: 100%; height: auto;" />` : ''}
+      ${showHeader ? `<img src="/invoice/Invoice Footer.jpg" alt="Footer" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
     </div>
   `;
 
   // Footer for Office Copy - Keep space even when showHeader is false
   const officeFooterHTML = `
     <div style="text-align: center; padding-top: 10px; margin-top: 10px; min-height: ${showHeader ? 'auto' : '80px'};">
-      ${showHeader ? `<img src="/public/invoice/Invoice Footer.jpg" alt="Footer" style="width: 100%; max-width: 100%; height: auto;" />` : ''}
+      ${showHeader ? `<img src="/invoice/Invoice Footer.jpg" alt="Footer" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
     </div>
   `;
 
@@ -269,16 +269,21 @@ export const generateSalmaReceiptPDF = async (transactionData, options = {}) => 
     element.style.top = '-9999px';
     document.body.appendChild(element);
 
+    // Wait for images to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
+      allowTaint: true,
       backgroundColor: '#FFFFFF',
       width: 794,
       height: 1123,
       windowWidth: 794,
       windowHeight: 1123,
       logging: false,
-      removeContainer: true
+      removeContainer: true,
+      imageTimeout: 0
     });
 
     document.body.removeChild(element);

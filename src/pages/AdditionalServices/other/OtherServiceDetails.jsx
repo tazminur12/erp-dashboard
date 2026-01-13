@@ -18,7 +18,7 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  IdCard
+  CreditCard
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useOtherService, useDeleteOtherService } from '../../../hooks/useOtherServiceQueries';
@@ -226,7 +226,7 @@ const OtherServiceDetails = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="text-sm text-gray-600 mb-1 flex items-center gap-1">
-                  <IdCard className="w-4 h-4" />
+                  <CreditCard className="w-4 h-4" />
                   ক্লায়েন্ট ID
                 </label>
                 <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200" style={{ fontFamily: "'Google Sans', monospace" }}>

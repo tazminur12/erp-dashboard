@@ -37,6 +37,7 @@ import Swal from 'sweetalert2';
 import { formatDate as formatDateShared } from '../../lib/format';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 const TransactionsList = () => {
   const { isDark } = useTheme();
@@ -1184,106 +1185,144 @@ const TransactionsList = () => {
         return;
       }
 
-      // Create PDF
-      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      
-      // Add Bengali font support (using Arial Unicode MS or similar)
-      doc.setFont('helvetica');
-      
-      // Title
-      doc.setFontSize(18);
-      doc.setTextColor(37, 99, 235); // Blue color
-      doc.text('Transaction List Report', pageWidth / 2, 15, { align: 'center' });
-      
-      // Date range
-      doc.setFontSize(11);
-      doc.setTextColor(107, 114, 128); // Gray color
-      const dateRangeText = `${formatDate(startDate)} - ${formatDate(endDate)}`;
-      doc.text(dateRangeText, pageWidth / 2, 22, { align: 'center' });
-      
       // Summary statistics
       const totalCredit = filteredTransactions
         .filter(t => t.transactionType === 'credit')
         .reduce((sum, t) => sum + parseFloat(t.paymentDetails?.amount || t.amount || 0), 0);
-      
+
       const totalDebit = filteredTransactions
         .filter(t => t.transactionType === 'debit')
         .reduce((sum, t) => sum + parseFloat(t.paymentDetails?.amount || t.amount || 0), 0);
-      
+
       const netAmount = totalCredit - totalDebit;
+
+      // Create PDF with proper pagination (A4 Landscape)
+      const doc = new jsPDF('l', 'mm', 'a4'); // A4 Landscape: 297mm x 210mm
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
       
-      doc.setFontSize(10);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Total Transactions: ${filteredTransactions.length}`, 14, 32);
-      doc.text(`Total Credit: ${formatAmount(totalCredit)}`, 80, 32);
-      doc.text(`Total Debit: ${formatAmount(totalDebit)}`, 150, 32);
-      doc.setTextColor(netAmount >= 0 ? 22 : 220, netAmount >= 0 ? 163 : 38, netAmount >= 0 ? 74 : 38);
-      doc.text(`Net Amount: ${formatAmount(netAmount)}`, 220, 32);
+      // Calculate how many rows fit per page (approximately 15-18 rows per page)
+      const rowsPerPage = 15;
+      const totalPages = Math.ceil(filteredTransactions.length / rowsPerPage);
       
-      // Table data
-      const tableData = filteredTransactions.map((t, index) => [
-        (index + 1).toString(),
-        t.transactionId || 'N/A',
-        getCustomerName(t),
-        getCustomerPhone(t) || '-',
-        t.transactionType === 'credit' ? 'Credit' : 'Debit',
-        getCategory(t),
-        t.paymentMethod === 'bank' ? 'Bank Transfer' : 
-         t.paymentMethod === 'cheque' ? 'Cheque' : 
-         t.paymentMethod === 'mobile-banking' ? 'Mobile Banking' : 
-         t.paymentMethod || '-',
-        formatAmount(parseFloat(t.paymentDetails?.amount || t.amount || 0)),
-        formatDate(t.date),
-        t.status || 'N/A'
-      ]);
-      
-      // Add table using autoTable
-      autoTable(doc, {
-        startY: 38,
-        head: [['#', 'Transaction ID', 'Customer', 'Phone', 'Type', 'Category', 'Payment Method', 'Amount', 'Date', 'Status']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: {
-          fillColor: [37, 99, 235],
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: 'bold',
-          halign: 'center'
-        },
-        bodyStyles: {
-          fontSize: 8,
-          cellPadding: 2
-        },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 20, halign: 'center' },
-          5: { cellWidth: 30 },
-          6: { cellWidth: 28 },
-          7: { cellWidth: 25, halign: 'right' },
-          8: { cellWidth: 22, halign: 'center' },
-          9: { cellWidth: 20, halign: 'center' }
-        },
-        alternateRowStyles: {
-          fillColor: [249, 250, 251]
-        },
-        margin: { left: 14, right: 14 },
-        didDrawPage: (data) => {
-          // Footer
-          doc.setFontSize(8);
-          doc.setTextColor(107, 114, 128);
-          doc.text(
-            `Generated on: ${formatDate(new Date())} | Page ${doc.internal.getCurrentPageInfo().pageNumber}`,
-            pageWidth / 2,
-            pageHeight - 10,
-            { align: 'center' }
-          );
+      // Generate each page separately with headers
+      for (let pageNum = 0; pageNum < totalPages; pageNum++) {
+        if (pageNum > 0) {
+          doc.addPage();
         }
-      });
+        
+        const startIdx = pageNum * rowsPerPage;
+        const endIdx = Math.min(startIdx + rowsPerPage, filteredTransactions.length);
+        const pageTransactions = filteredTransactions.slice(startIdx, endIdx);
+        
+        // Create page container
+        const pageContainer = document.createElement('div');
+        pageContainer.style.position = 'absolute';
+        pageContainer.style.left = '-9999px';
+        pageContainer.style.top = '-9999px';
+        pageContainer.style.backgroundColor = 'white';
+        pageContainer.style.padding = '30px 40px';
+        pageContainer.style.width = '1050px';
+        pageContainer.style.boxSizing = 'border-box';
+        
+        pageContainer.innerHTML = `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000; line-height: 1.4;">
+            ${pageNum === 0 ? `
+              <h1 style="text-align: center; color: #2563EB; font-size: 28px; margin: 0 0 8px 0; font-weight: 700; letter-spacing: -0.5px;">
+                Transaction List Report
+              </h1>
+              <p style="text-align: center; color: #6B7280; font-size: 14px; margin: 0 0 25px 0; font-weight: 500;">
+                ${formatDate(startDate)} - ${formatDate(endDate)}
+              </p>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 25px; padding: 12px 20px; background: #F3F4F6; border-radius: 8px; font-size: 13px;">
+                <div><strong style="color: #374151;">Total Transactions:</strong> <span style="color: #1F2937;">${filteredTransactions.length}</span></div>
+                <div><strong style="color: #374151;">Total Credit:</strong> <span style="color: #16A34A; font-weight: 600;">${formatAmount(totalCredit)}</span></div>
+                <div><strong style="color: #374151;">Total Debit:</strong> <span style="color: #DC2626; font-weight: 600;">${formatAmount(totalDebit)}</span></div>
+                <div><strong style="color: #374151;">Net Amount:</strong> <span style="color: ${netAmount >= 0 ? '#16A34A' : '#DC2626'}; font-weight: 700;">${formatAmount(netAmount)}</span></div>
+              </div>
+            ` : `
+              <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="color: #2563EB; font-size: 18px; margin: 0 0 5px 0; font-weight: 600;">Transaction List Report (Continued)</h2>
+                <p style="color: #6B7280; font-size: 12px; margin: 0;">Page ${pageNum + 1} of ${totalPages}</p>
+              </div>
+            `}
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+              <thead>
+                <tr style="background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%); color: white;">
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: center; font-weight: 600; letter-spacing: 0.3px;">#</th>
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: center; font-weight: 600; letter-spacing: 0.3px;">Date</th>
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: left; font-weight: 600; letter-spacing: 0.3px;">Customer</th>
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: left; font-weight: 600; letter-spacing: 0.3px;">Phone</th>
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: center; font-weight: 600; letter-spacing: 0.3px;">Type</th>
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: left; font-weight: 600; letter-spacing: 0.3px;">Category</th>
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: left; font-weight: 600; letter-spacing: 0.3px;">Payment Method</th>
+                  <th style="border: 1px solid #CBD5E1; padding: 14px 10px; text-align: right; font-weight: 600; letter-spacing: 0.3px;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${pageTransactions.map((t, index) => {
+                  const globalIndex = startIdx + index;
+                  return `
+                    <tr style="background-color: ${index % 2 === 0 ? '#F9FAFB' : 'white'};">
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; text-align: center; color: #6B7280; font-weight: 500;">${globalIndex + 1}</td>
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; text-align: center; color: #374151; font-weight: 500; white-space: nowrap;">${formatDate(t.date)}</td>
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; color: #1F2937; font-weight: 500;">${getCustomerName(t) || '-'}</td>
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; color: #4B5563; font-family: monospace; white-space: nowrap;">${getCustomerPhone(t) || '-'}</td>
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; text-align: center;">
+                        <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; ${
+                          t.transactionType === 'credit' 
+                            ? 'background: #D1FAE5; color: #065F46;' 
+                            : 'background: #FEE2E2; color: #991B1B;'
+                        }">${t.transactionType === 'credit' ? 'Credit' : 'Debit'}</span>
+                      </td>
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; color: #374151;">${getCategory(t)}</td>
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; color: #374151;">${
+                        t.paymentMethod === 'bank' ? 'Bank Transfer' : 
+                        t.paymentMethod === 'cheque' ? 'Cheque' : 
+                        t.paymentMethod === 'mobile-banking' ? 'Mobile Banking' : 
+                        t.paymentMethod || '-'
+                      }</td>
+                      <td style="border: 1px solid #E5E7EB; padding: 11px 10px; text-align: right; font-weight: 600; color: ${
+                        t.transactionType === 'credit' ? '#16A34A' : '#DC2626'
+                      }; font-family: monospace;">${formatAmount(parseFloat(t.paymentDetails?.amount || t.amount || 0))}</td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+            <div style="margin-top: 20px; padding-top: 12px; border-top: 2px solid #E5E7EB; text-align: center;">
+              <p style="color: #9CA3AF; font-size: 11px; margin: 0;">
+                Page ${pageNum + 1} of ${totalPages} | Generated on: ${formatDate(new Date())} | BIN Rashid Group ERP System
+              </p>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(pageContainer);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Convert to canvas
+        const pageCanvas = await html2canvas(pageContainer, {
+          scale: 3,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+          imageTimeout: 0,
+          removeContainer: true
+        });
+        
+        document.body.removeChild(pageContainer);
+        
+        // Add to PDF
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 1.0);
+        const imgWidth = pageWidth - 20;
+        const imgHeight = (pageCanvas.height * imgWidth) / pageCanvas.width;
+        
+        // Center vertically if content is smaller than page
+        const yPosition = imgHeight < (pageHeight - 20) ? (pageHeight - imgHeight) / 2 : 10;
+        
+        doc.addImage(pageImgData, 'JPEG', 10, yPosition, imgWidth, imgHeight, undefined, 'FAST');
+      }
       
       // Save PDF
       const fileName = `Transaction_List_${pdfDateRange}_${formatDate(new Date()).replace(/\//g, '-')}.pdf`;

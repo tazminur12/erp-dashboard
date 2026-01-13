@@ -16,7 +16,7 @@ import {
   CheckCircle,
   XCircle,
   Copy,
-  IdCard,
+  CreditCard,
 } from 'lucide-react';
 import useOtherCustomerQueries from '../../hooks/useOtherCustomerQueries';
 import Swal from 'sweetalert2';
@@ -128,7 +128,7 @@ const CustomerDetails = () => {
               {/* Customer ID Badge */}
               <div className="mb-3">
                 <div className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800 gap-2">
-                  <IdCard className="w-4 h-4" />
+                  <CreditCard className="w-4 h-4" />
                   <span className="font-mono font-semibold">
                     {customer.customerId || customer.id || customer._id}
                   </span>
@@ -339,7 +339,7 @@ const CustomerDetails = () => {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-2">
-                    <IdCard className="w-4 h-4" />
+                    <CreditCard className="w-4 h-4" />
                     Customer ID
                   </label>
                   <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg">

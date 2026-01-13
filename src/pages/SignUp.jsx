@@ -8,6 +8,7 @@ import {
   Eye,
   EyeOff,
   MapPin,
+  Phone,
   ArrowRight
 } from 'lucide-react';
 import { signUpWithEmail } from '../firebase/auth';
@@ -17,6 +18,7 @@ const SignUp = () => {
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',
+    phone: '',
     password: '',
     confirmPassword: '',
     selectedBranch: ''
@@ -32,21 +34,23 @@ const SignUp = () => {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/branches/active`);
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/branches/active`);
         if (response.ok) {
           const data = await response.json();
-          if (data.success) {
+          if (data.success && data.branches && data.branches.length > 0) {
             setBranches(data.branches);
+          } else {
+            // Fallback if no branches returned
+            console.warn('No active branches found');
+            setBranches([]);
           }
+        } else {
+          console.error('Failed to fetch branches:', response.status);
+          setBranches([]);
         }
       } catch (error) {
         console.error('Failed to fetch branches:', error);
-        setBranches([
-          { branchId: 'main', branchName: 'Main Office', branchLocation: 'Dhaka' },
-          { branchId: 'bogra', branchName: 'Bogra Branch', branchLocation: 'Bogra' },
-          { branchId: 'chittagong', branchName: 'Chittagong Branch', branchLocation: 'CTG' },
-          { branchId: 'sylhet', branchName: 'Sylhet Branch', branchLocation: 'Sylhet' }
-        ]);
+        setBranches([]);
       } finally {
         setLoadingBranches(false);
       }
@@ -82,6 +86,18 @@ const SignUp = () => {
     const emailValidation = validateEmail(formData.email);
     if (!emailValidation.isValid) {
       showErrorAlert(emailValidation.message);
+      return false;
+    }
+
+    if (!formData.phone.trim()) {
+      showErrorAlert('Mobile number is required');
+      return false;
+    }
+
+    // Validate Bangladesh mobile number (11 digits, starts with 01)
+    const phoneRegex = /^01[3-9]\d{8}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      showErrorAlert('Please enter a valid Bangladesh mobile number (e.g., 01712345678)');
       return false;
     }
     
@@ -129,6 +145,7 @@ const SignUp = () => {
         formData.email,
         firebaseResult.user.uid,
         formData.displayName,
+        formData.phone,
         formData.selectedBranch
       );
 
@@ -149,9 +166,9 @@ const SignUp = () => {
     }
   };
 
-  const createUserInBackend = async (email, firebaseUid, displayName, branchId) => {
+  const createUserInBackend = async (email, firebaseUid, displayName, phone, branchId) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/users`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -160,6 +177,7 @@ const SignUp = () => {
           email,
           firebaseUid,
           displayName,
+          phone,
           branchId,
           role: 'user'
         })
@@ -235,6 +253,31 @@ const SignUp = () => {
               </div>
             </div>
 
+            {/* Mobile Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Mobile Number
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                  placeholder="01712345678"
+                  maxLength={11}
+                  required
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Bangladesh mobile number (11 digits)
+              </p>
+            </div>
+
             {/* Branch */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -250,17 +293,29 @@ const SignUp = () => {
                   onChange={handleChange}
                   className="w-full pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white appearance-none"
                   required
-                  disabled={loadingBranches}
+                  disabled={loadingBranches || branches.length === 0}
                 >
                   <option value="">
-                    {loadingBranches ? 'Loading...' : 'Select branch'}
+                    {loadingBranches 
+                      ? 'Loading branches...' 
+                      : branches.length === 0 
+                        ? 'No branches available' 
+                        : 'Select your branch'}
                   </option>
                   {branches.map((branch) => (
-                    <option key={branch.branchId} value={branch.branchId}>
+                    <option key={branch.branchId || branch._id} value={branch.branchId || branch._id}>
                       {branch.branchName}
+                      {branch.branchLocation && ` - ${branch.branchLocation}`}
+                      {branch.branchCode && ` (${branch.branchCode})`}
                     </option>
                   ))}
                 </select>
+                {/* Custom dropdown arrow */}
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
               </div>
             </div>
 

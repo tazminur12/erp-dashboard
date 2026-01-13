@@ -61,11 +61,13 @@ const iconMap = {
 
 // Default fallback bill types
 const DEFAULT_BILL_TYPES = [
-  { value: 'purchase', label: 'Purchase Order', icon: Package, description: 'Create a purchase order for goods/services' },
-  { value: 'invoice', label: 'Invoice', icon: Receipt, description: 'Generate an invoice for vendor services' },
-  { value: 'payment', label: 'Payment Voucher', icon: DollarSign, description: 'Record a payment to vendor' },
-  { value: 'service', label: 'Service Bill', icon: FileText, description: 'Create a service bill' },
-  { value: 'expense', label: 'Expense Bill', icon: Receipt, description: 'Record vendor-related expenses' },
+  // { value: 'purchase', label: 'Purchase Order', icon: Package, description: 'Create a purchase order for goods/services' },
+  // { value: 'invoice', label: 'Invoice', icon: Receipt, description: 'Generate an invoice for vendor services' },
+  // { value: 'payment', label: 'Payment Voucher', icon: DollarSign, description: 'Record a payment to vendor' },
+  // { value: 'service', label: 'Service Bill', icon: FileText, description: 'Create a service bill' },
+  // { value: 'expense', label: 'Expense Bill', icon: Receipt, description: 'Record vendor-related expenses' },
+  { value: 'hajj', label: 'Hajj', icon: Building2, description: 'Create Hajj vendor bill' },
+  { value: 'umrah', label: 'Umrah', icon: Building2, description: 'Create Umrah vendor bill' },
   { value: 'air-ticket', label: 'Air Ticket', icon: Plane, description: 'Create air ticket vendor bill' },
   { value: 'old-ticket-reissue', label: 'Old Ticket Reissue', icon: Plane, description: 'Create old ticket reissue vendor bill' },
   { value: 'others', label: 'Others', icon: FileText, description: 'Create other types of vendor bills' }
@@ -211,24 +213,11 @@ const VendorBillGenerate = () => {
     ).slice(0, 50);
   }, [vendorSearchQuery, vendors]);
 
-  // Transform categories from CustomerManagment to bill types
+  // Use manual bill types (not from backend)
   const billTypes = useMemo(() => {
-    if (categories && categories.length > 0) {
-      return categories.map(cat => {
-        const IconComponent = iconMap[cat.icon] || FileText;
-        return {
-          value: cat.value,
-          label: cat.label,
-          icon: IconComponent,
-          description: `${cat.label} - ${cat.prefix || ''} prefix`,
-          prefix: cat.prefix,
-          type: cat.type
-        };
-      });
-    }
-    // Fallback to default bill types if no categories available
+    // Always use manual/hardcoded bill types
     return DEFAULT_BILL_TYPES;
-  }, [categories]);
+  }, []);
 
   // Check if selected bill type is air
   const isAirTicket = useMemo(() => {

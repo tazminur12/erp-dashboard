@@ -248,6 +248,7 @@ const Profile = React.lazy(() => import('./pages/Profile/Profile'));
 const Login = React.lazy(() => import('./pages/Login'));
 const SignUp = React.lazy(() => import('./pages/SignUp'));
 const ForgotPassword = React.lazy(() => import('./pages/ForgotPassword'));
+const OTPLogin = React.lazy(() => import('./pages/OTPLogin'));
 
 const router = createBrowserRouter([
   {
@@ -267,6 +268,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <Login />
+          </Suspense>
+        )
+      },
+      {
+        path: "otp-login",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <OTPLogin />
           </Suspense>
         )
       },
