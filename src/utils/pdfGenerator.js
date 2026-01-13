@@ -81,27 +81,36 @@ const createSinglePageReceipt = (data, showHeader = true) => {
   const isCashPayment = (data.paymentMethod || '').toLowerCase() === 'cash';
   const isBankTransfer = data.isBankTransfer || false;
   
-  // Extract customer ID - prioritize uniqueId over MongoDB _id
   let displayCustomerId = data.uniqueId || '';
   
-  // If no uniqueId, check if customerId is a MongoDB ObjectId (24 char hex)
   if (!displayCustomerId && data.customerId) {
     const customerIdStr = String(data.customerId);
-    // Check if it's a MongoDB ObjectId (24 character hexadecimal string)
     if (customerIdStr.length === 24 && /^[0-9a-fA-F]{24}$/.test(customerIdStr)) {
-      // Don't show MongoDB ObjectId, use empty or formatted version
       displayCustomerId = '';
     } else {
-      // It's not a MongoDB ObjectId, use it
       displayCustomerId = customerIdStr;
     }
   }
 
-  // Extract charge and calculate total amount
   const baseAmount = data.amount || 0;
   const charge = parseFloat(data.charge || 0);
   const hasCharge = charge !== 0 && !isNaN(charge);
-  const totalAmount = baseAmount + charge; // charge already has correct sign (negative for credit/transfer, positive for debit)
+  const totalAmount = baseAmount + charge;
+
+  // Get category name for display
+  let displayCategory = '';
+  if (data.category) {
+    if (typeof data.category === 'object') {
+      displayCategory = data.category.name || data.category.label || data.category.title || '';
+    } else if (typeof data.category === 'string') {
+      // Check if it's an ObjectId (24 hex characters)
+      if (data.category.length === 24 && /^[0-9a-fA-F]{24}$/i.test(data.category)) {
+        displayCategory = ''; // It's an ID, not a name
+      } else {
+        displayCategory = data.category;
+      }
+    }
+  }
 
   const qrData = encodeURIComponent(JSON.stringify({
     id: data.transactionId || 'N/A',
@@ -111,7 +120,6 @@ const createSinglePageReceipt = (data, showHeader = true) => {
   }));
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${qrData}`;
 
-  // Display total amount in purpose box (amount + charge)
   const amountText = new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT' }).format(totalAmount);
   const amountInWords = amountToWords(Math.abs(totalAmount));
 
@@ -124,7 +132,7 @@ const createSinglePageReceipt = (data, showHeader = true) => {
     padding: 20px 40px;
     background: white;
     color: black;
-    font-family: 'Kalpurush', Arial, sans-serif;
+    font-family: 'Kalpurush', 'Noto Sans Bengali', Arial, sans-serif;
     box-sizing: border-box;
     position: relative;
     display: flex;
@@ -132,28 +140,24 @@ const createSinglePageReceipt = (data, showHeader = true) => {
     justify-content: flex-start;
   `;
 
-  // Header for Customer Copy - Keep space even when showHeader is false
   const customerHeaderHTML = `
     <div style="text-align: center; margin-bottom: 10px; padding-bottom: 8px; min-height: ${showHeader ? 'auto' : '80px'};">
       ${showHeader ? `<img src="/invoice/Invoice Header.jpg" alt="Header" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
     </div>
   `;
 
-  // Header for Office Copy - Keep space even when showHeader is false
   const officeHeaderHTML = `
     <div style="text-align: center; margin-bottom: 10px; padding-bottom: 8px; min-height: ${showHeader ? 'auto' : '80px'};">
       ${showHeader ? `<img src="/invoice/Invoice Header.jpg" alt="Header" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
     </div>
   `;
 
-  // Footer for Customer Copy - Keep space even when showHeader is false
   const customerFooterHTML = `
     <div style="text-align: center; padding-top: 10px; margin-top: 10px; min-height: ${showHeader ? 'auto' : '80px'};">
       ${showHeader ? `<img src="/invoice/Invoice Footer.jpg" alt="Footer" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
     </div>
   `;
 
-  // Footer for Office Copy - Keep space even when showHeader is false
   const officeFooterHTML = `
     <div style="text-align: center; padding-top: 10px; margin-top: 10px; min-height: ${showHeader ? 'auto' : '80px'};">
       ${showHeader ? `<img src="/invoice/Invoice Footer.jpg" alt="Footer" style="width: 100%; max-width: 100%; height: auto;" crossorigin="anonymous" />` : ''}
@@ -161,19 +165,35 @@ const createSinglePageReceipt = (data, showHeader = true) => {
   `;
 
   const createCopyHTML = (isClient) => `
-    <div style="position: relative; padding: 10px 0; border: none !important; border-bottom: none !important;">
-      <!-- Copy Label - Manual vertical centering with transform -->
-      <div style="text-align: center; margin: 0 auto 3px;">
-        <div style="display: inline-block; border: 2px solid black; background: #f8f8f8; border-radius: 2px; padding: 0; margin: 0; overflow: hidden;">
-          <div style="padding: 3px 8px; font-size: 11px; font-weight: bold; line-height: 1; margin: 0; transform: translateY(0);">
-            ${isClient ? L.clientCopy : L.officeCopy}
-          </div>
-        </div>
+    <div style="position: relative; padding: 10px 0;">
+      <!-- Copy Label Box - Perfectly Centered -->
+      <div style="width: 100%; text-align: center; margin: 0 auto 8px; padding: 0;">
+        <table style="margin: 0 auto; border: 2px solid #000000; background-color: #f5f5f5; border-radius: 4px; border-collapse: separate; border-spacing: 0;">
+          <tr>
+            <td style="
+              padding: 8px 18px;
+              font-family: 'Kalpurush', 'Noto Sans Bengali', Arial, sans-serif;
+              font-size: 14px;
+              font-weight: bold;
+              color: #000000;
+              text-align: center;
+              vertical-align: middle;
+              white-space: nowrap;
+              line-height: 16px;
+              height: 32px;
+              width: auto;
+            ">
+              ${isClient ? L.clientCopy : L.officeCopy}
+            </td>
+          </tr>
+        </table>
       </div>
 
-      <!-- Purpose Box - Compact & Right Aligned -->
+      <!-- Purpose Box -->
       <div style="position: absolute; top: 10px; right: 0; width: 170px; border: 2px solid black; text-align: center; background: white; border-radius: 4px;">
-        <div style="padding: 4px 8px; background: #f8f8f8; border-bottom: 2px solid black; font-weight: bold; font-size: 11px;">${L.purpose}</div>
+        <div style="padding: 4px 8px; background: #f8f8f8; border-bottom: 2px solid black; font-weight: bold; font-size: 11px;">
+          ${displayCategory && displayCategory !== 'N/A' ? displayCategory : L.purpose}
+        </div>
         <div style="padding: 8px 8px 4px;">
           <div style="font-size: 17px; font-weight: bold; color: #d00; margin-bottom: 4px;">৳ ${amountText.replace('BDT', '').trim()}</div>
           <div style="font-size: 9px; line-height: 1.3; color: #333;">
@@ -183,39 +203,37 @@ const createSinglePageReceipt = (data, showHeader = true) => {
       </div>
 
       <!-- Details Table -->
-      <div style="margin-right: 190px; margin-top: 5px; font-size: 14px; border: none;">
-        <table style="width: 100%; line-height: 1.4; border-collapse: collapse; border: none; border-bottom: none;">
+      <div style="margin-right: 190px; margin-top: 5px; font-size: 14px;">
+        <table style="width: 100%; line-height: 1.4; border-collapse: collapse;">
           <tbody>
             ${isBankTransfer ? `
-            <!-- Bank Transfer Format: Only Date, Payment Method, Debit Account, Credit Account, Account Manager -->
-            <tr><td style="padding: 2px 0; width: 35%; font-weight: bold; color: #444; border: none;">${L.date}:</td><td style="border: none;">${data.date || 'DD-MM-YYYY'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.paymentMethod}:</td><td style="border: none;">${data.paymentMethod || 'Bank Transfer'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.debitAccount}:</td><td style="border: none;">${data.debitAccountName || '[Debit Account]'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.creditAccount}:</td><td style="border: none;">${data.creditAccountName || '[Credit Account]'}</td></tr>
-            ${(data.accountManagerName && String(data.accountManagerName).trim() !== '') ? `<tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none; border-bottom: none !important;">${L.accountManager}:</td><td style="border: none; border-bottom: none !important;">${String(data.accountManagerName).trim()}</td></tr>` : ''}
+            <tr><td style="padding: 2px 0; width: 35%; font-weight: bold; color: #444;">${L.date}:</td><td>${data.date || 'DD-MM-YYYY'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.paymentMethod}:</td><td>${data.paymentMethod || 'Bank Transfer'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.debitAccount}:</td><td>${data.debitAccountName || '[Debit Account]'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.creditAccount}:</td><td>${data.creditAccountName || '[Credit Account]'}</td></tr>
+            ${(data.accountManagerName && String(data.accountManagerName).trim()) ? `<tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.accountManager}:</td><td>${String(data.accountManagerName).trim()}</td></tr>` : ''}
             ` : `
-            <!-- Regular Transaction Format -->
-            <tr><td style="padding: 2px 0; width: 35%; font-weight: bold; color: #444; border: none;">${L.date}:</td><td style="border: none;">${data.date || 'DD-MM-YYYY'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.customerId}:</td><td style="border: none;">${displayCustomerId || ''}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.name}:</td><td style="border: none;">${data.customerName || '[Customer Name]'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.contactNo}:</td><td style="border: none;">${data.customerPhone || '[Mobile No]'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.address}:</td><td style="border: none;">${(data.customerAddress && data.customerAddress.trim() && data.customerAddress !== '[Full Address]') ? data.customerAddress : '[Full Address]'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.paymentMethod}:</td><td style="border: none;">${data.paymentMethod || '[Cash/Etc]'}</td></tr>
+            <tr><td style="padding: 2px 0; width: 35%; font-weight: bold; color: #444;">${L.date}:</td><td>${data.date || 'DD-MM-YYYY'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.customerId}:</td><td>${displayCustomerId || ''}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.name}:</td><td>${data.customerName || '[Customer Name]'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.contactNo}:</td><td>${data.customerPhone || '[Mobile No]'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.address}:</td><td>${(data.customerAddress && data.customerAddress.trim() && data.customerAddress !== '[Full Address]') ? data.customerAddress : '[Full Address]'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.paymentMethod}:</td><td>${data.paymentMethod || '[Cash/Etc]'}</td></tr>
             ${!isCashPayment ? `
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.bank}:</td><td style="border: none;">${data.bankName || '[Bank Name]'}</td></tr>
-            <tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none;">${L.receivingAcc}:</td><td style="border: none;">${data.accountNumber || '[Acc No]'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.bank}:</td><td>${data.bankName || '[Bank Name]'}</td></tr>
+            <tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.receivingAcc}:</td><td>${data.accountNumber || '[Acc No]'}</td></tr>
             ` : ''}
-            ${(data.accountManagerName && String(data.accountManagerName).trim() !== '') ? `<tr><td style="padding: 2px 0; font-weight: bold; color: #444; border: none; border-bottom: none !important;">${L.accountManager}:</td><td style="border: none; border-bottom: none !important;">${String(data.accountManagerName).trim()}</td></tr>` : ''}
+            ${(data.accountManagerName && String(data.accountManagerName).trim()) ? `<tr><td style="padding: 2px 0; font-weight: bold; color: #444;">${L.accountManager}:</td><td>${String(data.accountManagerName).trim()}</td></tr>` : ''}
             `}
           </tbody>
         </table>
       </div>
 
       <!-- Signatures + QR -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: ${isClient ? '15px' : '25px'}; clear: both; border: none !important; border-bottom: none !important; border-top: none !important; outline: none;">
-        <div style="text-align: center; border: none !important; border-bottom: none !important; border-top: none !important; outline: none; box-shadow: none; background: transparent;">
-          <div style="width: 180px; height: 2px; background: black; margin-bottom: 4px; margin-left: auto; margin-right: auto;"></div>
-          <p style="margin: 0; padding: 0; font-size: 12px; font-weight: bold; border: none !important; border-bottom: none !important; border-top: none !important; text-decoration: none !important; outline: none; box-shadow: none; background: transparent; line-height: 1.2;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: ${isClient ? '15px' : '25px'};">
+        <div style="text-align: center;">
+          <div style="width: 180px; height: 2px; background: black; margin-bottom: 4px; margin: 0 auto;"></div>
+          <p style="margin: 0; font-size: 12px; font-weight: bold;">
             ${isClient ? L.authorizedSignatory : L.customerSignatory}
           </p>
         </div>
@@ -230,15 +248,12 @@ const createSinglePageReceipt = (data, showHeader = true) => {
   container.innerHTML = `
     <link href="https://fonts.maateen.me/kalpurush/font.css" rel="stylesheet">
     
-    <!-- Customer Copy with Header and Footer -->
     ${customerHeaderHTML}
     ${createCopyHTML(true)}
     ${customerFooterHTML}
     
-    <!-- Spacing between copies for equal cutting -->
     <div style="height: 20px;"></div>
     
-    <!-- Office Copy with Header and Footer -->
     ${officeHeaderHTML}
     ${createCopyHTML(false)}
     ${officeFooterHTML}
@@ -273,11 +288,12 @@ export const generateSalmaReceiptPDF = async (transactionData, options = {}) => 
     element.style.top = '-9999px';
     document.body.appendChild(element);
 
-    // Wait for images to load
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Important: Wait for font to load properly (critical for Bangla)
+    await document.fonts.ready;
+    await new Promise(resolve => setTimeout(resolve, 1200));
 
     const canvas = await html2canvas(element, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#FFFFFF',
@@ -287,19 +303,28 @@ export const generateSalmaReceiptPDF = async (transactionData, options = {}) => 
       windowHeight: 1123,
       logging: false,
       removeContainer: true,
-      imageTimeout: 0
+      imageTimeout: 0,
+      letterRendering: true,
+      pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
+      onclone: (clonedDoc) => {
+        // Ensure fonts are applied in cloned document
+        const clonedElement = clonedDoc.querySelector('div');
+        if (clonedElement) {
+          clonedElement.style.fontFamily = "'Kalpurush', 'Noto Sans Bengali', Arial, sans-serif";
+        }
+      }
     });
 
     document.body.removeChild(element);
 
-    // Convert to JPEG with compression to reduce file size
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    // Use high-quality JPEG for better balance between quality and file size
+    const imgData = canvas.toDataURL('image/jpeg', 1.0);
     const pdf = new jsPDF('p', 'mm', 'a4');
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
 
     const finalFilename = filename || `Salma_Receipt_${transactionData.transactionId || 'TRX'}_${new Date().toISOString().split('T')[0]}.pdf`;
 
