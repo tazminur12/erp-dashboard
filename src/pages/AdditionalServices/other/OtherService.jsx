@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, Eye, Package, Phone, Mail, Calendar, Loader2, Filter } from 'lucide-react';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 
@@ -114,7 +114,7 @@ const OtherService = () => {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <Helmet>
-        <title>Other Services - Additional Services</title>
+        <title>অন্যান্য সেবা - অতিরিক্ত সেবা</title>
       </Helmet>
 
       <div className="max-w-7xl mx-auto">
@@ -122,15 +122,15 @@ const OtherService = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Other Services</h1>
-              <p className="text-gray-600 mt-2">Manage other miscellaneous services</p>
+              <h1 className="text-3xl font-bold text-gray-900">অন্যান্য সেবা</h1>
+              <p className="text-gray-600 mt-2">বিবিধ সেবা ব্যবস্থাপনা করুন</p>
             </div>
             <button
               onClick={() => navigate('/additional-services/others-service/add')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
             >
               <Plus className="w-5 h-5" />
-              Add Other Service
+              অন্যান্য সেবা যোগ করুন
             </button>
           </div>
         </div>
@@ -140,7 +140,7 @@ const OtherService = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Services</p>
+                <p className="text-gray-600 text-sm">মোট সেবা</p>
                 <p className="text-2xl font-bold text-gray-900">{pagination.totalItems || 0}</p>
               </div>
               <div className="bg-gray-100 p-3 rounded-full">
@@ -151,9 +151,9 @@ const OtherService = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Active</p>
+                <p className="text-gray-600 text-sm">প্রসেসিং</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {services.filter(s => s.status === 'active').length}
+                  {services.filter(s => s.status === 'processing' || s.status === 'in_process').length}
                 </p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
@@ -164,7 +164,7 @@ const OtherService = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Pending</p>
+                <p className="text-gray-600 text-sm">পেন্ডিং</p>
                 <p className="text-2xl font-bold text-yellow-600">
                   {services.filter(s => s.status === 'pending').length}
                 </p>
@@ -177,7 +177,7 @@ const OtherService = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Completed</p>
+                <p className="text-gray-600 text-sm">সম্পন্ন</p>
                 <p className="text-2xl font-bold text-blue-600">
                   {services.filter(s => s.status === 'completed').length}
                 </p>
@@ -196,7 +196,7 @@ const OtherService = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search services..."
+                placeholder="সেবা খুঁজুন (নাম, ID, ফোন, ইত্যাদি)..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -214,12 +214,13 @@ const OtherService = () => {
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="in_process">In Process</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="all">সব স্ট্যাটাস</option>
+                <option value="pending">পেন্ডিং</option>
+                <option value="in_process">প্রক্রিয়াধীন</option>
+                <option value="processing">প্রসেসিং</option>
+                <option value="completed">সম্পন্ন</option>
+                <option value="cancelled">বাতিল</option>
+                <option value="on_hold">হোল্ডে আছে</option>
               </select>
             </div>
             <div>
@@ -231,9 +232,9 @@ const OtherService = () => {
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Service Types</option>
+                <option value="all">সব সেবার ধরন</option>
                 {serviceTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type} value={type} className="font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>{type}</option>
                 ))}
               </select>
             </div>
@@ -244,17 +245,17 @@ const OtherService = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {error ? (
             <div className="p-8 text-center">
-              <p className="text-red-600">Error loading other services</p>
+              <p className="text-red-600">অন্যান্য সেবা লোড করতে সমস্যা হয়েছে</p>
             </div>
           ) : services.length === 0 ? (
             <div className="p-8 text-center">
               <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">No other services found</p>
+              <p className="text-gray-500 text-lg">কোন অন্যান্য সেবা পাওয়া যায়নি</p>
               <button
                 onClick={() => navigate('/additional-services/others-service/add')}
                 className="mt-4 text-blue-600 hover:text-blue-700"
               >
-                Add your first service
+                আপনার প্রথম সেবা যোগ করুন
               </button>
             </div>
           ) : (
@@ -263,26 +264,34 @@ const OtherService = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Client Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Service Type</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Description</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Contact</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Date</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Actions</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">ক্লায়েন্ট ID</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">ক্লায়েন্টের নাম</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">সেবার ধরন</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বর্ণনা</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">যোগাযোগ</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">স্ট্যাটাস</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">তারিখ</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">কার্যক্রম</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {services.map((service) => (
                       <tr key={service._id || service.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="font-mono text-sm font-semibold text-blue-600" style={{ fontFamily: "'Google Sans', monospace" }}>
+                            {service.clientId || 'N/A'}
+                          </span>
+                        </td>
                         <td className="px-6 py-4">
                           <div>
                             <p className="font-medium text-gray-900">{service.clientName || service.name || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">ID: {service.serviceId || service.id || 'N/A'}</p>
+                            <p className="text-xs text-gray-500 font-english mt-0.5" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                              Service ID: {service.serviceId || service.id || 'N/A'}
+                            </p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                             {service.serviceType || 'General'}
                           </span>
                         </td>
@@ -294,13 +303,13 @@ const OtherService = () => {
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             {service.phone && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <div className="flex items-center gap-2 text-sm text-gray-600 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                                 <Phone className="w-4 h-4" />
                                 {service.phone}
                               </div>
                             )}
                             {service.email && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <div className="flex items-center gap-2 text-sm text-gray-600 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                                 <Mail className="w-4 h-4" />
                                 {service.email}
                               </div>
@@ -309,23 +318,28 @@ const OtherService = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              service.status === 'completed' || service.status === 'active'
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-english ${
+                              service.status === 'completed'
                                 ? 'bg-green-100 text-green-800'
-                                : service.status === 'in_process'
+                                : service.status === 'processing' || service.status === 'in_process'
                                 ? 'bg-blue-100 text-blue-800'
                                 : service.status === 'pending'
                                 ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
+                                : service.status === 'on_hold'
+                                ? 'bg-orange-100 text-orange-800'
+                                : service.status === 'cancelled'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-gray-100 text-gray-800'
                             }`}
+                            style={{ fontFamily: "'Google Sans', sans-serif" }}
                           >
-                            {service.status || 'Active'}
+                            {service.status || 'pending'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2 text-sm text-gray-600 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                             <Calendar className="w-4 h-4" />
-                            {service.date ? new Date(service.date).toLocaleDateString() : 'N/A'}
+                            {service.date ? new Date(service.date).toLocaleDateString('bn-BD') : 'N/A'}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -333,21 +347,21 @@ const OtherService = () => {
                             <button
                               onClick={() => handleView(service)}
                               className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="View Details"
+                              title="বিস্তারিত দেখুন"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleEdit(service)}
                               className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                              title="Edit Service"
+                              title="সম্পাদনা করুন"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(service)}
                               className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                              title="Delete Service"
+                              title="মুছে ফেলুন"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -363,9 +377,9 @@ const OtherService = () => {
               {pagination.totalPages > 1 && (
                 <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
                   <p className="text-gray-600">
-                    Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to{' '}
-                    {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of{' '}
-                    {pagination.totalItems} services
+                    দেখানো হচ্ছে {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} থেকে{' '}
+                    {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} পর্যন্ত, মোট{' '}
+                    {pagination.totalItems} টি সেবা
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -373,17 +387,18 @@ const OtherService = () => {
                       disabled={pagination.currentPage === 1}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Previous
+                      পূর্ববর্তী
                     </button>
                     {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((pageNum) => (
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
-                        className={`px-3 py-2 rounded-lg transition-colors ${
+                        className={`px-3 py-2 rounded-lg transition-colors font-english ${
                           pageNum === pagination.currentPage
                             ? 'bg-blue-600 text-white'
                             : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
                         }`}
+                        style={{ fontFamily: "'Google Sans', sans-serif" }}
                       >
                         {pageNum}
                       </button>
@@ -393,7 +408,7 @@ const OtherService = () => {
                       disabled={pagination.currentPage === pagination.totalPages}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Next
+                      পরবর্তী
                     </button>
                   </div>
                 </div>

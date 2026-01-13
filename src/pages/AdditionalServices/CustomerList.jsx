@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Eye, Users, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, Users, Phone, Mail, MapPin, Loader2, Copy } from 'lucide-react';
 import useOtherCustomerQueries from '../../hooks/useOtherCustomerQueries';
 import Swal from 'sweetalert2';
 
@@ -56,6 +56,30 @@ const CustomerList = () => {
     navigate(`/additional-services/customer/edit/${id}`);
   };
 
+  const handleCopyId = (customerId) => {
+    navigator.clipboard.writeText(customerId).then(() => {
+      Swal.fire({
+        title: 'কপি সফল!',
+        text: 'Customer ID কপি করা হয়েছে',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true,
+      });
+    }).catch(() => {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'ID কপি করতে সমস্যা হয়েছে',
+        icon: 'error',
+        timer: 1500,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true,
+      });
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -97,7 +121,7 @@ const CustomerList = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search customers..."
+                placeholder="Search by ID (OSC-0001), Name, Phone, or Email..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -146,43 +170,54 @@ const CustomerList = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Customer</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Contact</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Address</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Actions</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer ID</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {customers.map((customer) => (
                       <tr key={customer._id || customer.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <div>
-                            <p className="font-medium text-gray-900">{customer.name || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">ID: {customer.customerId || customer.id || 'N/A'}</p>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-semibold text-blue-600">
+                              {customer.customerId || customer.id || customer._id}
+                            </span>
+                            <button
+                              onClick={() => handleCopyId(customer.customerId || customer.id || customer._id)}
+                              className="text-gray-400 hover:text-gray-600 transition-colors"
+                              title="Copy ID"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
                           </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="font-medium text-gray-900">{customer.name || `${customer.firstName || ''} ${customer.lastName || ''}`.trim() || 'N/A'}</p>
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             {customer.phone && (
                               <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Phone className="w-4 h-4" />
-                                {customer.phone}
+                                <Phone className="w-4 h-4 flex-shrink-0" />
+                                <span className="truncate">{customer.phone}</span>
                               </div>
                             )}
                             {customer.email && (
                               <div className="flex items-center gap-2 text-sm text-gray-600">
-                                <Mail className="w-4 h-4" />
-                                {customer.email}
+                                <Mail className="w-4 h-4 flex-shrink-0" />
+                                <span className="truncate">{customer.email}</span>
                               </div>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          {customer.address ? (
-                            <div className="flex items-center gap-2 text-sm text-gray-600">
-                              <MapPin className="w-4 h-4" />
-                              {customer.address}
+                          {customer.city || customer.country ? (
+                            <div className="text-sm text-gray-600">
+                              {[customer.city, customer.country].filter(Boolean).join(', ')}
                             </div>
                           ) : (
                             <span className="text-gray-400">-</span>

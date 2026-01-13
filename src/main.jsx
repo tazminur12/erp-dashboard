@@ -235,7 +235,9 @@ const ManpowerServiceDetails = React.lazy(() => import('./pages/AdditionalServic
 const VisaProcessing = React.lazy(() => import('./pages/AdditionalServices/visa/VisaProcessing'));
 const AddVisaProcessing = React.lazy(() => import('./pages/AdditionalServices/visa/AddVisaProcessing'));
 const VisaProcessingDetails = React.lazy(() => import('./pages/AdditionalServices/visa/VisaProcessingDetails'));
-const OtherService = React.lazy(() => import('./pages/AdditionalServices/OtherService'));
+const OtherService = React.lazy(() => import('./pages/AdditionalServices/other/OtherService'));
+const AddOtherService = React.lazy(() => import('./pages/AdditionalServices/other/AddOtherService'));
+const OtherServiceDetails = React.lazy(() => import('./pages/AdditionalServices/other/OtherServiceDetails'));
 const CategoryManagement = React.lazy(() => import('./pages/Settings/CategoryManagement'));
 const BackupRestore = React.lazy(() => import('./pages/Settings/BackupRestore'));
 
@@ -1855,6 +1857,30 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <OtherService />
+          </Suspense>
+        )
+      },
+      {
+        path: "others-service/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddOtherService />
+          </Suspense>
+        )
+      },
+      {
+        path: "others-service/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <OtherServiceDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "others-service/edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddOtherService />
           </Suspense>
         )
       }

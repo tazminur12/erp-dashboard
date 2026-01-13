@@ -15,8 +15,11 @@ import {
   Globe,
   CheckCircle,
   XCircle,
+  Copy,
+  IdCard,
 } from 'lucide-react';
 import useOtherCustomerQueries from '../../hooks/useOtherCustomerQueries';
+import Swal from 'sweetalert2';
 
 const CustomerDetails = () => {
   const navigate = useNavigate();
@@ -41,6 +44,30 @@ const CustomerDetails = () => {
     } catch {
       return dateString;
     }
+  };
+
+  const handleCopyId = (customerId) => {
+    navigator.clipboard.writeText(customerId).then(() => {
+      Swal.fire({
+        title: 'কপি সফল!',
+        text: 'Customer ID কপি করা হয়েছে',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true,
+      });
+    }).catch(() => {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'ID কপি করতে সমস্যা হয়েছে',
+        icon: 'error',
+        timer: 1500,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true,
+      });
+    });
   };
 
   if (isLoading) {
@@ -98,6 +125,22 @@ const CustomerDetails = () => {
           </button>
           <div className="flex justify-between items-start">
             <div>
+              {/* Customer ID Badge */}
+              <div className="mb-3">
+                <div className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800 gap-2">
+                  <IdCard className="w-4 h-4" />
+                  <span className="font-mono font-semibold">
+                    {customer.customerId || customer.id || customer._id}
+                  </span>
+                  <button
+                    onClick={() => handleCopyId(customer.customerId || customer.id || customer._id)}
+                    className="hover:bg-blue-200 rounded p-0.5 transition-colors"
+                    title="Copy ID"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
               <h1 className="text-3xl font-bold text-gray-900">{fullName}</h1>
               <p className="text-gray-600 mt-2">Customer Details</p>
             </div>
@@ -293,29 +336,41 @@ const CustomerDetails = () => {
             {/* Metadata */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Metadata</h2>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Customer ID</label>
-                  <p className="text-gray-900 mt-1 font-mono text-sm">
-                    {customer._id || customer.id || 'N/A'}
-                  </p>
+                  <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-2">
+                    <IdCard className="w-4 h-4" />
+                    Customer ID
+                  </label>
+                  <div className="flex items-center gap-2 bg-blue-50 p-3 rounded-lg">
+                    <p className="text-blue-900 font-mono text-sm font-semibold flex-1">
+                      {customer.customerId || customer.id || customer._id}
+                    </p>
+                    <button
+                      onClick={() => handleCopyId(customer.customerId || customer.id || customer._id)}
+                      className="text-blue-600 hover:text-blue-800 p-1.5 hover:bg-blue-100 rounded transition-colors"
+                      title="Copy ID"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 {customer.createdAt && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1">
                       <Calendar className="w-4 h-4" />
                       Created At
                     </label>
-                    <p className="text-gray-900 mt-1">{formatDate(customer.createdAt)}</p>
+                    <p className="text-gray-900">{formatDate(customer.createdAt)}</p>
                   </div>
                 )}
                 {customer.updatedAt && (
                   <div>
-                    <label className="text-sm font-medium text-gray-500 flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-500 flex items-center gap-2 mb-1">
                       <Calendar className="w-4 h-4" />
                       Last Updated
                     </label>
-                    <p className="text-gray-900 mt-1">{formatDate(customer.updatedAt)}</p>
+                    <p className="text-gray-900">{formatDate(customer.updatedAt)}</p>
                   </div>
                 )}
               </div>

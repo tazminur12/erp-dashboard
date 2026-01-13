@@ -78,7 +78,7 @@ const VisaProcessing = () => {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <Helmet>
-        <title>Visa Processing - Additional Services</title>
+        <title>ভিসা প্রসেসিং - অতিরিক্ত সেবা</title>
       </Helmet>
 
       <div className="max-w-7xl mx-auto">
@@ -86,15 +86,15 @@ const VisaProcessing = () => {
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Visa Processing</h1>
-              <p className="text-gray-600 mt-2">Manage visa processing services and applications</p>
+              <h1 className="text-3xl font-bold text-gray-900">ভিসা প্রসেসিং</h1>
+              <p className="text-gray-600 mt-2">ভিসা প্রসেসিং সেবা এবং আবেদন ব্যবস্থাপনা করুন</p>
             </div>
             <button
               onClick={() => navigate('/additional-services/visa-processing/add')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
             >
               <Plus className="w-5 h-5" />
-              Add Visa Processing
+              ভিসা প্রসেসিং যোগ করুন
             </button>
           </div>
         </div>
@@ -104,7 +104,7 @@ const VisaProcessing = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Applications</p>
+                <p className="text-gray-600 text-sm">মোট আবেদন</p>
                 <p className="text-2xl font-bold text-gray-900">{pagination.total || 0}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-full">
@@ -115,7 +115,7 @@ const VisaProcessing = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Pending</p>
+                <p className="text-gray-600 text-sm">পেন্ডিং</p>
                 <p className="text-2xl font-bold text-yellow-600">
                   {services.filter(s => s.status === 'pending').length}
                 </p>
@@ -128,7 +128,7 @@ const VisaProcessing = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">In Process</p>
+                <p className="text-gray-600 text-sm">প্রক্রিয়াধীন</p>
                 <p className="text-2xl font-bold text-blue-600">
                   {services.filter(s => s.status === 'in_process' || s.status === 'processing').length}
                 </p>
@@ -141,7 +141,7 @@ const VisaProcessing = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Approved</p>
+                <p className="text-gray-600 text-sm">অনুমোদিত</p>
                 <p className="text-2xl font-bold text-green-600">
                   {services.filter(s => s.status === 'approved' || s.status === 'completed').length}
                 </p>
@@ -160,7 +160,7 @@ const VisaProcessing = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search visa applications..."
+                placeholder="ভিসা আবেদন খুঁজুন..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -178,7 +178,7 @@ const VisaProcessing = () => {
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Status</option>
+                <option value="all">সব স্ট্যাটাস</option>
                 <option value="pending">Pending</option>
                 <option value="processing">Processing</option>
                 <option value="in_process">In Process</option>
@@ -196,7 +196,7 @@ const VisaProcessing = () => {
                 }}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="all">All Countries</option>
+                <option value="all">সব দেশ</option>
                 {countries.map(country => (
                   <option key={country} value={country}>{country}</option>
                 ))}
@@ -209,17 +209,17 @@ const VisaProcessing = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {error ? (
             <div className="p-8 text-center">
-              <p className="text-red-600">Error loading visa processing services</p>
+              <p className="text-red-600">ভিসা প্রসেসিং সেবা লোড করতে সমস্যা হয়েছে</p>
             </div>
           ) : services.length === 0 ? (
             <div className="p-8 text-center">
               <Globe className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">No visa processing services found</p>
+              <p className="text-gray-500 text-lg">কোন ভিসা প্রসেসিং সেবা পাওয়া যায়নি</p>
               <button
                 onClick={() => navigate('/additional-services/visa-processing/add')}
                 className="mt-4 text-blue-600 hover:text-blue-700"
               >
-                Add your first visa processing service
+                আপনার প্রথম ভিসা প্রসেসিং সেবা যোগ করুন
               </button>
             </div>
           ) : (
@@ -228,15 +228,15 @@ const VisaProcessing = () => {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Applicant Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Country</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Visa Type</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Contact</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Bill Amount</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Paid Amount</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Due Amount</th>
-                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Actions</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">আবেদনকারীর নাম</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">দেশ</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">ভিসার ধরন</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">যোগাযোগ</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">স্ট্যাটাস</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বিলের পরিমাণ</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">পরিশোধিত</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বকেয়া</th>
+                      <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">কার্যক্রম</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -245,30 +245,34 @@ const VisaProcessing = () => {
                         <td className="px-6 py-4">
                           <div>
                             <p className="font-medium text-gray-900">{service.applicantName || service.name || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">ID: {service.applicationId || service.id || 'N/A'}</p>
+                            <p className="text-sm text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                              ID: {service.applicationId || service.id || 'N/A'}
+                            </p>
                           </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Globe className="w-4 h-4 text-gray-400" />
-                            <span className="text-gray-900">{service.country || 'N/A'}</span>
+                            <span className="text-gray-900 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                              {service.country || 'N/A'}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                             {service.visaType || service.serviceType || 'Tourist'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             {service.phone && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <div className="flex items-center gap-2 text-sm text-gray-600 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                                 <Phone className="w-4 h-4" />
                                 {service.phone}
                               </div>
                             )}
                             {service.email && (
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <div className="flex items-center gap-2 text-sm text-gray-600 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                                 <Mail className="w-4 h-4" />
                                 {service.email}
                               </div>
@@ -277,7 +281,7 @@ const VisaProcessing = () => {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-english ${
                               service.status === 'approved' || service.status === 'completed'
                                 ? 'bg-green-100 text-green-800'
                                 : service.status === 'processing' || service.status === 'in_process'
@@ -286,23 +290,24 @@ const VisaProcessing = () => {
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : 'bg-red-100 text-red-800'
                             }`}
+                            style={{ fontFamily: "'Google Sans', sans-serif" }}
                           >
                             {service.status || 'Pending'}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <p className="text-gray-900 font-medium">
-                            ৳{service.totalAmount ? service.totalAmount.toLocaleString() : '0'}
+                            ৳{service.totalAmount ? service.totalAmount.toLocaleString('bn-BD') : '০'}
                           </p>
                         </td>
                         <td className="px-6 py-4">
                           <p className="text-green-600 font-medium">
-                            ৳{service.paidAmount ? service.paidAmount.toLocaleString() : '0'}
+                            ৳{service.paidAmount ? service.paidAmount.toLocaleString('bn-BD') : '০'}
                           </p>
                         </td>
                         <td className="px-6 py-4">
                           <p className="text-red-600 font-medium">
-                            ৳{service.dueAmount ? service.dueAmount.toLocaleString() : '0'}
+                            ৳{service.dueAmount ? service.dueAmount.toLocaleString('bn-BD') : '০'}
                           </p>
                         </td>
                         <td className="px-6 py-4">
@@ -310,21 +315,21 @@ const VisaProcessing = () => {
                             <button
                               onClick={() => handleView(service)}
                               className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="View Details"
+                              title="বিস্তারিত দেখুন"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleEdit(service)}
                               className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                              title="Edit Service"
+                              title="সম্পাদনা করুন"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(service)}
                               className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                              title="Delete Service"
+                              title="মুছে ফেলুন"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -340,9 +345,9 @@ const VisaProcessing = () => {
               {pagination.pages > 1 && (
                 <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
                   <p className="text-gray-600">
-                    Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-                    {Math.min(pagination.page * pagination.limit, pagination.total)} of{' '}
-                    {pagination.total} applications
+                    দেখানো হচ্ছে {((pagination.page - 1) * pagination.limit) + 1} থেকে{' '}
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} পর্যন্ত, মোট{' '}
+                    {pagination.total} টি আবেদন
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -350,17 +355,18 @@ const VisaProcessing = () => {
                       disabled={pagination.page === 1}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Previous
+                      পূর্ববর্তী
                     </button>
                     {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((pageNum) => (
                       <button
                         key={pageNum}
                         onClick={() => setPage(pageNum)}
-                        className={`px-3 py-2 rounded-lg transition-colors ${
+                        className={`px-3 py-2 rounded-lg transition-colors font-english ${
                           pageNum === pagination.page
                             ? 'bg-blue-600 text-white'
                             : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
                         }`}
+                        style={{ fontFamily: "'Google Sans', sans-serif" }}
                       >
                         {pageNum}
                       </button>
@@ -370,7 +376,7 @@ const VisaProcessing = () => {
                       disabled={pagination.page === pagination.pages}
                       className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Next
+                      পরবর্তী
                     </button>
                   </div>
                 </div>
@@ -384,4 +390,3 @@ const VisaProcessing = () => {
 };
 
 export default VisaProcessing;
-
