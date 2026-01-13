@@ -188,12 +188,71 @@ Each main section contains relevant sub-sections:
 ## 🔧 Configuration
 
 ### Environment Variables
+
+Create a `.env` file in the root directory based on `.env.example`:
+
 ```env
-# Firebase Configuration (if needed)
+# Backend API Configuration (REQUIRED for production)
+VITE_API_BASE_URL=https://your-backend-api.vercel.app
+
+# Firebase Configuration
 VITE_FIREBASE_API_KEY=your-api-key
 VITE_FIREBASE_AUTH_DOMAIN=your-domain
 VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_APP_ID=your-app-id
+
+# Cloudinary Configuration (for image uploads)
+VITE_CLOUDINARY_CLOUD_NAME=your-cloud-name
+VITE_CLOUDINARY_API_KEY=your-api-key
+VITE_CLOUDINARY_API_SECRET=your-api-secret
+VITE_CLOUDINARY_UPLOAD_PRESET=your-preset
+
+# SMS API Configuration (optional)
+VITE_SMS_API_KEY=your-sms-api-key
+VITE_SMS_SENDER_ID=your-sender-id
 ```
+
+## 🚀 Deployment
+
+### Vercel Deployment
+
+1. **Push your code to GitHub/GitLab/Bitbucket**
+
+2. **Import project to Vercel:**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your repository
+
+3. **Configure Build Settings:**
+   - Framework Preset: Vite
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+
+4. **Set Environment Variables in Vercel:**
+   - Go to Project Settings → Environment Variables
+   - Add all required variables from `.env.example`
+   - **IMPORTANT:** Set `VITE_API_BASE_URL` to your backend API URL
+   - Example: `VITE_API_BASE_URL=https://your-backend-api.vercel.app`
+
+5. **Deploy:**
+   - Click "Deploy"
+   - Wait for build to complete
+
+**Note:** The `vercel.json` file is already configured for SPA routing. All routes will redirect to `index.html` to support React Router.
+
+### Common Issues
+
+**404 Error on Vercel:**
+- ✅ Fixed: `vercel.json` is configured with proper rewrites
+- Make sure `vercel.json` is in the root directory
+
+**Network Error during Login:**
+- ✅ Check: `VITE_API_BASE_URL` is set correctly in Vercel environment variables
+- ✅ Check: Your backend API is deployed and accessible
+- ✅ Check: CORS is configured on your backend to allow requests from your Vercel domain
 
 ### TailwindCSS
 - **Dark Mode**: Class-based dark mode
