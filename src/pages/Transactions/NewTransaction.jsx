@@ -1092,12 +1092,6 @@ const NewTransaction = () => {
             if (!formData.selectedOption) {
               newErrors.selectedOption = 'পেমেন্টের ধরন নির্বাচন করুন';
             }
-            // Validate package selection for hajj/umrah (optional for others)
-            if (formData.selectedOption && (formData.selectedOption === 'hajj' || formData.selectedOption === 'umrah')) {
-              if (!formData.selectedPackageId) {
-                newErrors.selectedPackage = 'প্যাকেজ নির্বাচন করুন';
-              }
-            }
           }
           // For credit non-agent, step 4 is skipped, so no validation needed here
           break;
@@ -3497,11 +3491,11 @@ const NewTransaction = () => {
                                     {haji.name}
                                   </h3>
                                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
-                                    📞 {haji.mobile || 'N/A'}
+                                    {haji.mobile || 'N/A'}
                                   </p>
                                   {(haji.address || haji.fullAddress) && (
                                     <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
-                                      📍 {haji.address || haji.fullAddress}
+                                      {haji.address || haji.fullAddress}
                                     </p>
                                   )}
                                   {haji.passportNumber && (
@@ -4219,124 +4213,7 @@ const NewTransaction = () => {
                           </p>
                         </div>
                       )}
-                      {errors.selectedPackage && (
-                        <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                          <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-2">
-                            <AlertCircle className="w-4 h-4" />
-                            {errors.selectedPackage}
-                          </p>
-                        </div>
-                      )}
                     </div>
-
-                    {/* Package List Section */}
-                    {formData.selectedOption && (
-                      <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-200 dark:border-gray-700">
-                        <div className="flex items-center gap-2 mb-4">
-                          <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                          <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
-                            প্যাকেজ নির্বাচন করুন
-                          </h3>
-                        </div>
-
-                        {packagesLoading ? (
-                          <div className="flex items-center justify-center py-8">
-                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                            <span className="ml-2 text-gray-600 dark:text-gray-400">প্যাকেজ লোড হচ্ছে...</span>
-                          </div>
-                        ) : agentPackages.length === 0 ? (
-                          <div className="text-center py-8">
-                            <Package className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                            <p className="text-sm text-gray-600 dark:text-gray-400">কোনো প্যাকেজ পাওয়া যায়নি</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {agentPackages
-                              .filter(pkg => {
-                                // Filter packages based on selectedOption
-                                if (formData.selectedOption === 'hajj') {
-                                  return pkg.packageType === 'Hajj' || pkg.packageType === 'হজ্জ' || 
-                                         pkg.customPackageType === 'Custom Hajj' || pkg.customPackageType === 'Hajj';
-                                } else if (formData.selectedOption === 'umrah') {
-                                  return pkg.packageType === 'Umrah' || pkg.packageType === 'উমরাহ' || 
-                                         pkg.customPackageType === 'Custom Umrah' || pkg.customPackageType === 'Umrah';
-                                } else {
-                                  // For 'others', show all packages
-                                  return true;
-                                }
-                              })
-                              .map((pkg) => {
-                                const packageTotal = pkg.totalPrice || pkg.totals?.grandTotal || pkg.totals?.subtotal || 0;
-                                const packagePaid = pkg.totalPaid || pkg.paymentSummary?.totalPaid || pkg.financialSummary?.totalPaid || 0;
-                                const packageDue = packageTotal - packagePaid;
-                                
-                                return (
-                                  <div
-                                    key={pkg._id}
-                                    onClick={() => {
-                                      setFormData(prev => ({
-                                        ...prev,
-                                        selectedPackage: pkg,
-                                        selectedPackageId: pkg._id
-                                      }));
-                                    }}
-                                    className={`rounded-lg p-4 border-2 cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                      formData.selectedPackageId === pkg._id
-                                        ? 'bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border-purple-400 dark:border-purple-500 shadow-lg'
-                                        : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
-                                    }`}
-                                  >
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <h4 className={`font-semibold text-sm ${
-                                            formData.selectedPackageId === pkg._id
-                                              ? 'text-purple-700 dark:text-purple-300'
-                                              : 'text-gray-900 dark:text-white'
-                                          }`}>
-                                            {pkg.packageName || 'Untitled Package'}
-                                          </h4>
-                                          {formData.selectedPackageId === pkg._id && (
-                                            <CheckCircle className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                                          )}
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                          <div>
-                                            <p className="text-gray-600 dark:text-gray-400">মোট মূল্য:</p>
-                                            <p className="font-medium text-gray-900 dark:text-white">
-                                              ৳{packageTotal.toLocaleString()}
-                                            </p>
-                                          </div>
-                                          <div>
-                                            <p className="text-gray-600 dark:text-gray-400">পরিশোধিত:</p>
-                                            <p className="font-medium text-green-600 dark:text-green-400">
-                                              ৳{packagePaid.toLocaleString()}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                              বকেয়া:
-                                            </span>
-                                            <span className={`text-sm font-bold ${
-                                              packageDue > 0
-                                                ? 'text-red-600 dark:text-red-400'
-                                                : 'text-green-600 dark:text-green-400'
-                                            }`}>
-                                              ৳{packageDue.toLocaleString()}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 ) : formData.transactionType === 'transfer' ? (
                   // Transfer: Transfer Details first, then Account Manager Selection
