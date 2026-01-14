@@ -66,8 +66,45 @@ const VendorDetails = () => {
     status: 'Unknown'
   };
 
+  // Calculate financial data from vendor bills if API data is not available
+  const calculatedFinancials = useMemo(() => {
+    if (vendorBills.length === 0) {
+      return {
+        totalBillAmount: 0,
+        totalPaid: 0,
+        totalDue: 0,
+      };
+    }
+
+    const totalBillAmount = vendorBills.reduce((sum, bill) => sum + (Number(bill.totalAmount) || 0), 0);
+    const totalPaid = vendorBills.reduce((sum, bill) => sum + (Number(bill.paidAmount || bill.amount) || 0), 0);
+    const totalDue = Math.max(0, totalBillAmount - totalPaid); // Ensure non-negative
+
+    return {
+      totalBillAmount,
+      totalPaid,
+      totalDue,
+    };
+  }, [vendorBills]);
+
   // Use actual data merged with defaults to avoid undefined fields
-  const financial = { ...defaultFinancialData, ...(financialData || {}) };
+  // If financialData is empty/zero, use calculated values from bills
+  const financial = useMemo(() => {
+    const apiFinancial = { ...defaultFinancialData, ...(financialData || {}) };
+    
+    // If API data is empty/zero, use calculated values from vendor bills
+    if ((!apiFinancial.paidAmount || apiFinancial.paidAmount === 0) && calculatedFinancials.totalPaid > 0) {
+      apiFinancial.paidAmount = calculatedFinancials.totalPaid;
+    }
+    if ((!apiFinancial.outstandingAmount || apiFinancial.outstandingAmount === 0) && calculatedFinancials.totalDue > 0) {
+      apiFinancial.outstandingAmount = calculatedFinancials.totalDue;
+    }
+    if ((!apiFinancial.totalAmount || apiFinancial.totalAmount === 0) && calculatedFinancials.totalBillAmount > 0) {
+      apiFinancial.totalAmount = calculatedFinancials.totalBillAmount;
+    }
+    
+    return apiFinancial;
+  }, [financialData, calculatedFinancials]);
 
   const formatCurrency = (amount = 0) => `৳${Number(amount || 0).toLocaleString()}`;
 
@@ -214,7 +251,7 @@ const VendorDetails = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">ভেন্ডর বিল</p>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                ৳{Number((vendor?.totalPaid ?? 0) + (vendor?.totalDue ?? 0)).toLocaleString()}
+                ৳{calculatedFinancials.totalBillAmount.toLocaleString()}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 মোট {vendorBills.length} টি বিল
@@ -231,10 +268,15 @@ const VendorDetails = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">পরিশোধ</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(vendor?.totalPaid ?? 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                ৳{calculatedFinancials.totalPaid.toLocaleString()}
+              </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {vendorBills.length > 0 
-                  ? `${vendorBills.filter(b => (b.totalAmount || 0) - (b.paidAmount || b.amount || 0) <= 0).length} টি বিল পরিশোধিত`
+                  ? `${vendorBills.filter(b => {
+                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount || b.amount) || 0);
+                      return due <= 0;
+                    }).length} টি বিল পরিশোধিত`
                   : 'কোনো বিল নেই'}
               </p>
             </div>
@@ -249,10 +291,15 @@ const VendorDetails = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">বকেয়া</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">৳{Number(vendor?.totalDue ?? 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                ৳{calculatedFinancials.totalDue.toLocaleString()}
+              </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {vendorBills.length > 0 
-                  ? `${vendorBills.filter(b => (b.totalAmount || 0) - (b.paidAmount || b.amount || 0) > 0).length} টি বিল বকেয়া`
+                  ? `${vendorBills.filter(b => {
+                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount || b.amount) || 0);
+                      return due > 0;
+                    }).length} টি বিল বকেয়া`
                   : 'কোনো বিল নেই'}
               </p>
             </div>
@@ -391,61 +438,65 @@ const VendorDetails = () => {
           {/* Financial Data Tab */}
           {activeTab === 'financial' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</div>
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(financial.paidAmount ?? 0).toLocaleString()}</div>
-                    </div>
-                    <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+              {financialLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                    <span className="text-gray-600 dark:text-gray-400">আর্থিক তথ্য লোড হচ্ছে...</span>
                   </div>
-                  <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                    <div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">বকেয়া পরিমাণ</div>
-                      <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">৳{Number(financial.outstandingAmount ?? 0).toLocaleString()}</div>
-                    </div>
-                    <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                  </div>
-                  {/* Optional breakdown if available on profile */}
-                  {(vendor?.hajDue !== undefined || vendor?.umrahDue !== undefined) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                        <div className="text-xs text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</div>
-                        <div className="text-lg font-semibold text-red-600 dark:text-red-400">৳{Number(vendor?.hajDue ?? 0).toLocaleString()}</div>
-                      </div>
-                      <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                        <div className="text-xs text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</div>
-                        <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">৳{Number(vendor?.umrahDue ?? 0).toLocaleString()}</div>
-                      </div>
-                    </div>
-                  )}
                 </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</div>
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                          ৳{Number(financial.paidAmount || calculatedFinancials.totalPaid || 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                      <div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">বকেয়া পরিমাণ</div>
+                        <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                          ৳{Number(financial.outstandingAmount || calculatedFinancials.totalDue || 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                    </div>
+                    <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">মোট বিল পরিমাণ</div>
+                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          ৳{Number(financial.totalAmount || calculatedFinancials.totalBillAmount || 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <Receipt className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    {/* Optional breakdown if available on profile */}
+                    {(vendor?.hajDue !== undefined || vendor?.umrahDue !== undefined) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                          <div className="text-xs text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</div>
+                          <div className="text-lg font-semibold text-red-600 dark:text-red-400">৳{Number(vendor?.hajDue ?? 0).toLocaleString()}</div>
+                        </div>
+                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                          <div className="text-xs text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</div>
+                          <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">৳{Number(vendor?.umrahDue ?? 0).toLocaleString()}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 <div className="space-y-4">
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div className="text-sm text-gray-600 dark:text-gray-400">ক্রেডিট লিমিট</div>
                     <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">৳{Number(financial.creditLimit ?? 0).toLocaleString()}</div>
                   </div>
-                  <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">পেমেন্ট টার্মস</div>
-                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{financial.paymentTerms}</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">শেষ পেমেন্ট তারিখ</div>
-                    <div className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                      {financial.lastPaymentDate ? new Date(financial.lastPaymentDate).toLocaleDateString('bn-BD') : 'এখনও কোনো পেমেন্ট নেই'}
-                    </div>
-                  </div>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">মোট অর্ডার</div>
-                    <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{financial.totalOrders || 0}</div>
-                  </div>
-                  <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">গড় অর্ডার মান</div>
-                    <div className="text-lg font-medium text-gray-900 dark:text-gray-100">{formatCurrency(financial.averageOrderValue || 0)}</div>
-                  </div>
                 </div>
-              </div>
+                </div>
+              )}
             </div>
           )}
 
