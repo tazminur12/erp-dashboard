@@ -222,6 +222,8 @@ const VendorBillGenerate = () => {
   // Check if selected bill type is air
   const isAirTicket = useMemo(() => {
     if (!billType) return false;
+    // Exclude 'old-ticket-reissue' - it has its own form
+    if (billType === 'old-ticket-reissue') return false;
     const airType = billTypes.find(bt => bt.value === billType);
     return airType && (billType.toLowerCase().includes('air') || billType.toLowerCase().includes('ticket'));
   }, [billType, billTypes]);
@@ -391,16 +393,19 @@ const VendorBillGenerate = () => {
       const profit = Math.round(customerDeal - vendorAmount);
       const customerDue = Math.max(0, Math.round(customerDeal - customerPaid));
 
+      const finalVendorAmount = Math.max(0, Math.round(vendorAmount));
+      
       setFormData(prev => ({
         ...prev,
         ait: ait,
         totalTaxes: Math.max(0, Math.round(totalTaxes)),
-        vendorAmount: Math.max(0, Math.round(vendorAmount)),
+        vendorAmount: finalVendorAmount,
         vendorDue,
         profit,
         customerDue,
-        totalAmount: customerDeal > 0 ? customerDeal.toFixed(2) : prev.totalAmount,
-        amount: customerDeal > 0 ? customerDeal : prev.amount
+        // Total Amount should be same as Vendor Amount
+        totalAmount: finalVendorAmount > 0 ? finalVendorAmount.toFixed(2) : prev.totalAmount,
+        amount: finalVendorAmount > 0 ? finalVendorAmount : prev.amount
       }));
     }
   }, [
@@ -441,6 +446,24 @@ const VendorBillGenerate = () => {
       }));
     }
   }, [billType, billTypes]);
+
+  // Keep Total Amount in sync with Vendor Amount for Air Ticket
+  useEffect(() => {
+    if (isAirTicket && formData.vendorAmount) {
+      const vendorAmount = parseFloat(formData.vendorAmount) || 0;
+      setFormData(prev => {
+        // Only update if totalAmount is different from vendorAmount
+        if (parseFloat(prev.totalAmount) !== vendorAmount) {
+          return {
+            ...prev,
+            totalAmount: vendorAmount > 0 ? vendorAmount.toFixed(2) : '',
+            amount: vendorAmount > 0 ? vendorAmount : prev.amount
+          };
+        }
+        return prev;
+      });
+    }
+  }, [isAirTicket, formData.vendorAmount]);
 
   // Auto-calculate totalAmount for Others bill type
   useEffect(() => {
@@ -538,36 +561,110 @@ const VendorBillGenerate = () => {
     try {
       const response = await axiosSecure.get(`/api/air-ticketing/tickets/${ticketSearchId}`);
       
-      if (response.data && response.data.success) {
-        const ticket = response.data.data;
+      // Handle both response.data.data and response.data.ticket
+      const ticket = response.data?.data || response.data?.ticket;
+      
+      if (response.data && response.data.success && ticket) {
         setSelectedTicketData(ticket);
         
-        // Auto-fill form data with ticket information
+        // Helper function to format date
+        const formatDate = (dateString) => {
+          if (!dateString) return '';
+          try {
+            return new Date(dateString).toISOString().split('T')[0];
+          } catch {
+            return '';
+          }
+        };
+
+        // Helper function to get numeric value
+        const getNumber = (value) => {
+          const num = Number(value);
+          return isNaN(num) ? 0 : num;
+        };
+        
+        // Auto-fill ALL form data with ticket information
         setFormData(prev => ({
           ...prev,
-          bookingId: ticket.bookingId || ticket._id || '',
-          gdsPnr: ticket.gdsPnr || '',
-          airlinePnr: ticket.airlinePnr || '',
-          airline: ticket.airline || '',
-          origin: ticket.origin || '',
-          destination: ticket.destination || '',
-          flightDate: ticket.flightDate ? new Date(ticket.flightDate).toISOString().split('T')[0] : '',
-          returnDate: ticket.returnDate ? new Date(ticket.returnDate).toISOString().split('T')[0] : '',
-          tripType: ticket.tripType || 'oneway',
-          flightType: ticket.flightType || 'domestic',
-          adultCount: ticket.adultCount || 0,
-          childCount: ticket.childCount || 0,
-          infantCount: ticket.infantCount || 0,
-          agent: ticket.agent || '',
-          purposeType: ticket.purposeType || '',
-          vendorAmount: ticket.vendorAmount || ticket.vendorDeal || 0,
-          totalAmount: ticket.vendorAmount || ticket.vendorDeal || 0,
+          // Basic ticket information
+          bookingId: ticket?.bookingId || ticket?._id || '',
+          gdsPnr: ticket?.gdsPnr || '',
+          airlinePnr: ticket?.airlinePnr || '',
+          airline: ticket?.airline || '',
+          origin: ticket?.origin || '',
+          destination: ticket?.destination || '',
+          flightDate: formatDate(ticket?.flightDate),
+          returnDate: formatDate(ticket?.returnDate),
+          tripType: ticket?.tripType || 'oneway',
+          flightType: ticket?.flightType || 'domestic',
+          
+          // Passenger counts
+          adultCount: getNumber(ticket?.adultCount),
+          childCount: getNumber(ticket?.childCount),
+          infantCount: getNumber(ticket?.infantCount),
+          
+          // Agent and purpose
+          agent: ticket?.agent || '',
+          purposeType: ticket?.purposeType || '',
+          
+          // Segments for multicity
+          segments: Array.isArray(ticket?.segments) && ticket.segments.length > 0
+            ? ticket.segments.map(seg => ({
+                origin: seg?.origin || '',
+                destination: seg?.destination || '',
+                date: formatDate(seg?.date)
+              }))
+            : prev.segments,
+          segmentCount: getNumber(ticket?.segmentCount) || (ticket?.segments?.length || 1),
+          flownSegment: ticket?.flownSegment || false,
+          
+          // Financial fields - Vendor Amount and Total Amount (Priority fields)
+          vendorAmount: getNumber(ticket?.vendorAmount || ticket?.vendorDeal || 0),
+          // Total Amount should be same as Vendor Amount
+          totalAmount: getNumber(ticket?.vendorAmount || ticket?.vendorDeal || 0),
+          
+          // Customer financial fields
+          customerDeal: getNumber(ticket?.customerDeal),
+          customerPaid: getNumber(ticket?.customerPaid),
+          customerDue: getNumber(ticket?.customerDue),
+          
+          // Vendor financial fields
+          vendorPaidFh: getNumber(ticket?.vendorPaidFh),
+          vendorDue: getNumber(ticket?.vendorDue),
+          profit: getNumber(ticket?.profit),
+          
+          // Breakdown fields - Base fare and taxes
+          baseFare: getNumber(ticket?.baseFare),
+          taxBD: getNumber(ticket?.taxBD),
+          e5: getNumber(ticket?.e5),
+          e7: getNumber(ticket?.e7),
+          g8: getNumber(ticket?.g8),
+          ow: getNumber(ticket?.ow),
+          p7: getNumber(ticket?.p7),
+          p8: getNumber(ticket?.p8),
+          ts: getNumber(ticket?.ts),
+          ut: getNumber(ticket?.ut),
+          yq: getNumber(ticket?.yq),
+          taxes: getNumber(ticket?.taxes),
+          totalTaxes: getNumber(ticket?.totalTaxes),
+          
+          // Commission and charges
+          commissionRate: getNumber(ticket?.commissionRate),
+          plb: getNumber(ticket?.plb),
+          salmaAirServiceCharge: getNumber(ticket?.salmaAirServiceCharge),
+          vendorServiceCharge: getNumber(ticket?.vendorServiceCharge),
+          ait: getNumber(ticket?.ait),
+          
+          // Booking date
+          date: formatDate(ticket?.date || ticket?.bookingDate),
         }));
         
         Swal.fire({
           icon: 'success',
           title: 'টিকেট পাওয়া গেছে!',
-          text: `টিকেট ${ticket.bookingId || ticket._id} সফলভাবে লোড হয়েছে`,
+          text: `টিকেট ${ticket?.bookingId || ticket?._id || ticketSearchId} সফলভাবে লোড হয়েছে। সমস্ত তথ্য অটো-ফিল করা হয়েছে।`,
+          timer: 2000,
+          showConfirmButton: false
         });
       } else {
         throw new Error('টিকেট পাওয়া যায়নি');
@@ -577,7 +674,7 @@ const VendorBillGenerate = () => {
       Swal.fire({
         icon: 'error',
         title: 'টিকেট পাওয়া যায়নি',
-        text: error.message || 'টিকেট খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আইডি চেক করুন।',
+        text: error.response?.data?.message || error.message || 'টিকেট খুঁজে পাওয়া যায়নি। অনুগ্রহ করে আইডি চেক করুন।',
       });
       setSelectedTicketData(null);
     } finally {
@@ -960,7 +1057,7 @@ const VendorBillGenerate = () => {
     }
   };
 
-  // Render Air Ticket Form (similar to NewTicket.jsx)
+  // Render Air Ticket Form (simplified - only 4 fields)
   const renderAirTicketForm = () => {
     return (
       <div className="space-y-6">
@@ -1000,510 +1097,123 @@ const VendorBillGenerate = () => {
             </button>
           </div>
           {selectedTicketData && (
-            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
-              <p className="text-sm text-green-800 dark:text-green-300">
-                ✓ টিকেট পাওয়া গেছে: <strong>{selectedTicketData.bookingId || selectedTicketData._id}</strong> - 
-                Auto GDS PNR: <strong>{selectedTicketData.gdsPnr || 'N/A'}</strong>
-              </p>
+            <div className="mt-3 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg">
+              <div className="flex items-start gap-2 mb-2">
+                <span className="text-green-600 dark:text-green-400 text-lg">✓</span>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-green-800 dark:text-green-300 mb-2">
+                    টিকেট সফলভাবে লোড হয়েছে!
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-green-700 dark:text-green-400">
+                    <div>
+                      <span className="font-medium">Booking ID:</span> <strong>{selectedTicketData?.bookingId || selectedTicketData?._id || 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span className="font-medium">GDS PNR:</span> <strong>{selectedTicketData?.gdsPnr || 'N/A'}</strong>
+                    </div>
+                    {selectedTicketData?.airlinePnr && (
+                      <div>
+                        <span className="font-medium">Airline PNR:</span> <strong>{selectedTicketData.airlinePnr}</strong>
+                      </div>
+                    )}
+                    {formData.vendorAmount > 0 && (
+                      <div>
+                        <span className="font-medium">Vendor Amount:</span> <strong>৳{formData.vendorAmount.toLocaleString()}</strong>
+                      </div>
+                    )}
+                    {formData.totalAmount > 0 && (
+                      <div>
+                        <span className="font-medium">Total Amount:</span> <strong>৳{formData.totalAmount.toLocaleString()}</strong>
+                      </div>
+                    )}
+                    {selectedTicketData?.airline && (
+                      <div>
+                        <span className="font-medium">Airline:</span> <strong>{selectedTicketData.airline}</strong>
+                      </div>
+                    )}
+                    {selectedTicketData?.origin && selectedTicketData?.destination && (
+                      <div>
+                        <span className="font-medium">Route:</span> <strong>{selectedTicketData.origin} → {selectedTicketData.destination}</strong>
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-green-600 dark:text-green-500 mt-2">
+                    সমস্ত তথ্য অটো-ফিল করা হয়েছে। প্রয়োজন হলে সম্পাদনা করুন।
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Booking Details */}
+        {/* Auto GDS PNR */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Package className="w-5 h-5 text-purple-600" />
-            Booking Details
+            <FileText className="w-5 h-5 text-purple-600" />
+            Auto GDS PNR
           </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Booking ID <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="bookingId"
-                value={formData.bookingId}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Booking reference"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                GDS PNR
-              </label>
-              <input
-                type="text"
-                name="gdsPnr"
-                value={formData.gdsPnr}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="ABC123"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Airlines PNR
-              </label>
-              <input
-                type="text"
-                name="airlinePnr"
-                value={formData.airlinePnr}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="DEF456"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Airlines <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="airline"
-                value={formData.airline}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Airline name"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Route Category
-              </label>
-              <select
-                name="flightType"
-                value={formData.flightType}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="domestic">Domestic</option>
-                <option value="international">International</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Agent Name / ID
-              </label>
-              <input
-                type="text"
-                name="agent"
-                value={formData.agent}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Agent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Issued By
-              </label>
-              <input
-                type="text"
-                name="purposeType"
-                value={formData.purposeType}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Enter issuer name"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Adult</label>
-              <input
-                type="number"
-                name="adultCount"
-                value={formData.adultCount}
-                onChange={handleInputChange}
-                min="0"
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Child</label>
-              <input
-                type="number"
-                name="childCount"
-                value={formData.childCount}
-                onChange={handleInputChange}
-                min="0"
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Infant</label>
-              <input
-                type="number"
-                name="infantCount"
-                value={formData.infantCount}
-                onChange={handleInputChange}
-                min="0"
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="0"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              GDS PNR
+            </label>
+            <input
+              type="text"
+              name="gdsPnr"
+              value={formData.gdsPnr}
+              readOnly
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white"
+              placeholder="Auto-filled from ticket search"
+            />
           </div>
         </div>
 
-        {/* Flight Specifics */}
-        <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <Plane className="w-5 h-5 text-purple-600" />
-            Flight Specifics
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trip Type *</label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, tripType: 'oneway' }))}
-                  className={`px-3 py-2 rounded-lg border ${formData.tripType === 'oneway' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                >
-                  One Way
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, tripType: 'roundtrip' }))}
-                  className={`px-3 py-2 rounded-lg border ${formData.tripType === 'roundtrip' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                >
-                  Round Trip
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, tripType: 'multicity' }))}
-                  className={`px-3 py-2 rounded-lg border ${formData.tripType === 'multicity' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                >
-                  Multi City
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {formData.tripType !== 'multicity' ? (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origin *</label>
-                <input
-                  type="text"
-                  name="origin"
-                  value={formData.origin}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="DAC"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Destination *</label>
-                <input
-                  type="text"
-                  name="destination"
-                  value={formData.destination}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="DXB"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Flight Date *</label>
-                <input
-                  type="date"
-                  name="flightDate"
-                  value={formData.flightDate}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Return Date{formData.tripType === 'roundtrip' ? ' *' : ''}
-                </label>
-                <input
-                  type="date"
-                  name="returnDate"
-                  value={formData.returnDate}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-md font-medium text-gray-900 dark:text-white">Multi City Segments</h4>
-                <button
-                  type="button"
-                  onClick={addSegment}
-                  className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                >
-                  Add Segment
-                </button>
-              </div>
-              {formData.segments?.map((seg, idx) => (
-                <div key={idx} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Origin *</label>
-                    <input
-                      type="text"
-                      value={seg.origin}
-                      onChange={(e) => handleSegmentChange(idx, 'origin', e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="DAC"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Destination *</label>
-                    <input
-                      type="text"
-                      value={seg.destination}
-                      onChange={(e) => handleSegmentChange(idx, 'destination', e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      placeholder="DXB"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Flight Date *</label>
-                    <input
-                      type="date"
-                      value={seg.date}
-                      onChange={(e) => handleSegmentChange(idx, 'date', e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => removeSegment(idx)}
-                      disabled={(formData.segments?.length || 0) <= 2}
-                      className={`px-3 py-2 rounded-lg border ${((formData.segments?.length || 0) <= 2) ? 'text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed' : 'text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/10'}`}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Financial Details */}
+        {/* Vendor Bill */}
         <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-purple-600" />
-            Financial Details
+            Vendor Bill
           </h3>
-
-          {/* Customer Finance */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Deal</label>
-              <input
-                type="number"
-                name="customerDeal"
-                value={formData.customerDeal}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Paid</label>
-              <input
-                type="number"
-                name="customerPaid"
-                value={formData.customerPaid}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Due</label>
-              <input
-                type="number"
-                name="customerDue"
-                value={formData.customerDue}
-                readOnly
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white"
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Due Date</label>
-              <input
-                type="date"
-                name="dueDate"
-                value={formData.dueDate}
-                onChange={handleInputChange}
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Vendor Amount <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              name="vendorAmount"
+              value={formData.vendorAmount}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="0"
+              min="0"
+              step="0.01"
+            />
           </div>
+        </div>
 
-          {/* Vendor Amount Breakdown */}
-          <div className="space-y-4">
-            <h4 className="text-md font-medium text-gray-900 dark:text-white">Vendor Amount Breakdown</h4>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Base Fare</label>
-                <input
-                  type="number"
-                  name="baseFare"
-                  value={formData.baseFare}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="0"
-                />
+        {/* Total Amount */}
+        <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <DollarSign className="w-5 h-5 text-purple-600" />
+            Total Amount
+          </h3>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Total Amount <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <span className="text-gray-500 text-sm">৳</span>
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Taxes</label>
-                <input
-                  type="number"
-                  name="taxes"
-                  value={formData.taxes}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="0"
-                />
-              </div>
-              <div className="md:col-span-1">
-                <button
-                  type="button"
-                  onClick={() => setShowTaxes(!showTaxes)}
-                  className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 mt-6"
-                >
-                  <span>Tax Details</span>
-                  {showTaxes ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Collapsible Tax Fields */}
-            {showTaxes && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">BD</label>
-                  <input type="number" name="taxBD" value={formData.taxBD} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E5</label>
-                  <input type="number" name="e5" value={formData.e5} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">E7</label>
-                  <input type="number" name="e7" value={formData.e7} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">G8</label>
-                  <input type="number" name="g8" value={formData.g8} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">OW</label>
-                  <input type="number" name="ow" value={formData.ow} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">P7</label>
-                  <input type="number" name="p7" value={formData.p7} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">P8</label>
-                  <input type="number" name="p8" value={formData.p8} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">TS</label>
-                  <input type="number" name="ts" value={formData.ts} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UT</label>
-                  <input type="number" name="ut" value={formData.ut} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">YQ</label>
-                  <input type="number" name="yq" value={formData.yq} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total Taxes</label>
-                  <input type="number" name="totalTaxes" value={formData.totalTaxes} readOnly className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">AIT</label>
-                  <input type="number" name="ait" value={formData.ait} readOnly className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white" placeholder="0" />
-                </div>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Commission Rate (%)</label>
-                <input type="number" name="commissionRate" value={formData.commissionRate} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PLB</label>
-                <input type="number" name="plb" value={formData.plb} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Salma Air Service Charge</label>
-                <input type="number" name="salmaAirServiceCharge" value={formData.salmaAirServiceCharge} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor Service Charge</label>
-                <input type="number" name="vendorServiceCharge" value={formData.vendorServiceCharge} onChange={handleInputChange} className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="0" />
-              </div>
-            </div>
-
-            {/* Vendor Finance */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor Amount</label>
-                <input type="number" name="vendorAmount" value={formData.vendorAmount} readOnly className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor Paid (FH)</label>
-                <input
-                  type="number"
-                  name="vendorPaidFh"
-                  value={formData.vendorPaidFh}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vendor Due</label>
-                <input
-                  type="number"
-                  name="vendorDue"
-                  value={formData.vendorDue}
-                  readOnly
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Profit</label>
-                <input
-                  type="number"
-                  name="profit"
-                  value={formData.profit}
-                  readOnly
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
+              <input
+                type="number"
+                name="totalAmount"
+                value={formData.totalAmount}
+                onChange={handleInputChange}
+                className="w-full pl-7 pr-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+              />
             </div>
           </div>
         </div>
@@ -2232,14 +1942,14 @@ const VendorBillGenerate = () => {
               </h2>
 
               {/* Show Special Forms based on bill type */}
-              {isAirTicket ? (
+              {billType === 'old-ticket-reissue' ? (
+                renderOldTicketReissueForm()
+              ) : isAirTicket ? (
                 renderAirTicketForm()
               ) : isHajj || isUmrah ? (
                 renderHajjUmrahForm()
               ) : isHotel ? (
                 renderHotelForm()
-              ) : billType === 'old-ticket-reissue' ? (
-                renderOldTicketReissueForm()
               ) : billType === 'others' ? (
                 renderOthersForm()
               ) : (
