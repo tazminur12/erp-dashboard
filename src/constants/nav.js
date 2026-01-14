@@ -251,13 +251,13 @@ export const navigation = [
     name: 'Account',
     icon: Wallet,
     children: [
-      { name: 'Account Overview', href: '/account', icon: BarChart3 },
-      { name: 'Income Management', href: '/account/income', icon: TrendingUp },
-      { name: 'Expense Management', href: '/account/expense', icon: TrendingDown },
-      { name: 'Savings & Investments', href: '/account/savings', icon: PiggyBank },
+      // { name: 'Account Overview', href: '/account', icon: BarChart3 },
+      // { name: 'Income Management', href: '/account/income', icon: TrendingUp },
+      // { name: 'Expense Management', href: '/account/expense', icon: TrendingDown },
+      // { name: 'Savings & Investments', href: '/account/savings', icon: PiggyBank },
       { name: 'Bank Accounts', href: '/account/bank-accounts', icon: CreditCard },
-      { name: 'Budget Planning', href: '/account/budget', icon: BarChart3Icon },
-      { name: 'Tax Management', href: '/account/tax', icon: Receipt }
+      // { name: 'Budget Planning', href: '/account/budget', icon: BarChart3Icon },
+      // { name: 'Tax Management', href: '/account/tax', icon: Receipt }
     ]
   },
   {
@@ -277,9 +277,9 @@ export const navigation = [
       children: [
         { name: 'Employeers', href: '/office-management/hr/employee/list', icon: Users }, 
         { name: 'Payroll', href: '/office-management/hr/payroll', icon: Receipt },
-        { name: 'Incentive Plan', href: '/office-management/hr/incentive-plan', icon: TrendingUp },
-        { name: 'Provident Fund', href: '/office-management/hr/provident-fund', icon: PiggyBank },
-        { name: 'Employee Sale Target', href: '/office-management/hr/sale-target', icon: BarChart3 },
+        // { name: 'Incentive Plan', href: '/office-management/hr/incentive-plan', icon: TrendingUp },
+        // { name: 'Provident Fund', href: '/office-management/hr/provident-fund', icon: PiggyBank },
+        // { name: 'Employee Sale Target', href: '/office-management/hr/sale-target', icon: BarChart3 },
         { name: 'Employee Attendance', href: '/office-management/hr/attendance', icon: ClipboardList }
       ]
       

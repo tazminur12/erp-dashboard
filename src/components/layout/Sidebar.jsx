@@ -25,6 +25,27 @@ const Sidebar = () => {
 
   const toggleExpanded = (itemName) => {
     const newExpanded = new Set(expandedItems);
+    const isCurrentlyExpanded = newExpanded.has(itemName);
+    
+    // Check if this is a top-level item by checking navigation array
+    const isTopLevelItem = navigation.some(item => item.name === itemName && item.children);
+    
+    // If this is a top-level item being expanded (not collapsed), close all other top-level items
+    if (isTopLevelItem && !isCurrentlyExpanded) {
+      // Get all top-level item names from navigation
+      const topLevelItems = navigation
+        .filter(item => item.children && item.children.length > 0)
+        .map(item => item.name);
+      
+      // Remove all top-level items except the one being toggled
+      topLevelItems.forEach(name => {
+        if (name !== itemName) {
+          newExpanded.delete(name);
+        }
+      });
+    }
+    
+    // Toggle the clicked item
     if (newExpanded.has(itemName)) {
       newExpanded.delete(itemName);
     } else {

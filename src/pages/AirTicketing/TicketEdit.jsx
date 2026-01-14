@@ -31,6 +31,7 @@ const TicketEdit = () => {
     tripType: 'oneway',
     flightType: 'domestic', // International or Domestic
     date: '',
+    ticketId: '', // Auto-generated unique ID (read-only)
     bookingId: '',
     gdsPnr: '',
     airlinePnr: '',
@@ -146,7 +147,8 @@ const TicketEdit = () => {
       tripType: ticket.tripType || 'oneway',
       flightType: ticket.flightType || 'domestic',
       date: toDateInput(ticket.date),
-      bookingId: ticket.bookingId || ticket._id || '',
+      ticketId: ticket.ticketId || '', // Auto-generated unique ID (read-only, cannot be updated)
+      bookingId: ticket.bookingId || '',
       gdsPnr: ticket.gdsPnr || '',
       airlinePnr: ticket.airlinePnr || '',
       airline: ticket.airline || '',
@@ -622,7 +624,8 @@ const TicketEdit = () => {
 
       // Update ticket using mutation
       await updateTicketMutation.mutateAsync({
-        ticketId: id || formData.bookingId,
+        // Use ticketId if available, otherwise fallback to id or bookingId
+        ticketId: formData.ticketId || id || formData.bookingId,
         ticketData,
       });
 
@@ -887,7 +890,21 @@ const TicketEdit = () => {
               )}
             </div>
             
-            {/* Top row: Date, Booking ID, Flight Type, Status */}
+            {/* Top row: Date, Ticket ID, Booking ID, Flight Type, Status */}
+            {formData.ticketId && (
+              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Ticket ID (Unique - Auto-generated)
+                </label>
+                <input
+                  type="text"
+                  value={formData.ticketId}
+                  readOnly
+                  className="block w-full px-3 py-2 border border-blue-300 dark:border-blue-600 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold font-mono cursor-not-allowed"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">This ID is auto-generated and cannot be changed</p>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div>
                 <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selling Date *</label>
@@ -1746,6 +1763,9 @@ const TicketEdit = () => {
               <div className="font-semibold text-gray-900 dark:text-white">Booking</div>
                   <div className="text-gray-700 dark:text-gray-300">Customer: {formData.customerName || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Date: {formData.date || '-'}</div>
+              <div className="text-gray-700 dark:text-gray-300">
+                Ticket ID: <span className="text-blue-600 dark:text-blue-400 font-semibold">{formData.ticketId || 'N/A'}</span>
+              </div>
               <div className="text-gray-700 dark:text-gray-300">Booking ID: {formData.bookingId || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Status: {formData.status}</div>
               <div className="text-gray-700 dark:text-gray-300">Airline: {formData.airline || '-'}</div>

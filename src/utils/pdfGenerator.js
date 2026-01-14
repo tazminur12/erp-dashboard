@@ -165,29 +165,30 @@ const createSinglePageReceipt = (data, showHeader = true) => {
   `;
 
   const createCopyHTML = (isClient) => `
-    <div style="position: relative; padding: 10px 0;">
-      <!-- Copy Label Box - Perfectly Centered -->
-      <div style="width: 100%; text-align: center; margin: 0 auto 8px; padding: 0;">
-        <table style="margin: 0 auto; border: 2px solid #000000; background-color: #f5f5f5; border-radius: 4px; border-collapse: separate; border-spacing: 0;">
-          <tr>
-            <td style="
-              padding: 8px 18px;
-              font-family: 'Kalpurush', 'Noto Sans Bengali', Arial, sans-serif;
-              font-size: 14px;
-              font-weight: bold;
-              color: #000000;
-              text-align: center;
-              vertical-align: middle;
-              white-space: nowrap;
-              line-height: 16px;
-              height: 32px;
-              width: auto;
-            ">
-              ${isClient ? L.clientCopy : L.officeCopy}
-            </td>
-          </tr>
-        </table>
-      </div>
+  <div style="position: relative; padding: 10px 0;">
+    <!-- Copy Label Box - Perfectly Centered -->
+    <div style="width: 100%; text-align: center; margin: 0 auto 8px; padding: 0;">
+      <table style="margin: 0 auto; border: 2px solid #000000; background-color: #f5f5f5; border-radius: 4px; border-collapse: separate; border-spacing: 0;">
+        <tr>
+          <td style="
+            padding: 0 18px;
+            font-family: 'Kalpurush', 'Noto Sans Bengali', Arial, sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            color: #000000;
+            text-align: center;
+            vertical-align: middle;
+            white-space: nowrap;
+            line-height: 32px;
+            height: 32px;
+            width: auto;
+            display: table-cell;
+          ">
+            ${isClient ? L.clientCopy : L.officeCopy}
+          </td>
+        </tr>
+      </table>
+    </div>
 
       <!-- Purpose Box -->
       <div style="position: absolute; top: 10px; right: 0; width: 170px; border: 2px solid black; text-align: center; background: white; border-radius: 4px;">

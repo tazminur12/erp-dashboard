@@ -239,13 +239,15 @@ const TicketList = () => {
   };
 
   const handleViewTicket = (ticket) => {
-    const ticketId = ticket._id || ticket.id || ticket.bookingId;
+    // Priority: ticketId > _id > bookingId
+    const ticketId = ticket.ticketId || ticket._id || ticket.id || ticket.bookingId;
     setSelectedTicketId(ticketId);
     setShowTicketModal(true);
   };
 
   const handleEditTicket = (ticket) => {
-    const ticketId = ticket._id || ticket.id || ticket.bookingId;
+    // Priority: ticketId > _id > bookingId
+    const ticketId = ticket.ticketId || ticket._id || ticket.id || ticket.bookingId;
     navigate(`/air-ticketing/edit-ticket/${ticketId}`);
   };
 
@@ -680,7 +682,8 @@ const TicketList = () => {
   };
 
   const handleCancelTicket = async (ticket) => {
-    const ticketId = ticket._id || ticket.id || ticket.bookingId;
+    // Priority: ticketId > _id > bookingId
+    const ticketId = ticket.ticketId || ticket._id || ticket.id || ticket.bookingId;
     if (window.confirm('Are you sure you want to delete this ticket?')) {
       try {
         await deleteTicketMutation.mutateAsync(ticketId);
@@ -949,8 +952,18 @@ const TicketList = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div style={{ fontFamily: "'Google Sans', sans-serif" }}>
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {ticket.bookingId || ticket._id}
+                          {ticket.ticketId || ticket.bookingId || ticket._id}
                         </div>
+                        {ticket.ticketId && (
+                          <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                            Ticket ID: {ticket.ticketId}
+                          </div>
+                        )}
+                        {ticket.bookingId && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Booking: {ticket.bookingId}
+                          </div>
+                        )}
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           {formatDateShort(ticket.date)}
                         </div>
@@ -1099,7 +1112,7 @@ const TicketList = () => {
                 <>
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                      টিকিট বিবরণ - <span style={{ fontFamily: "'Google Sans', sans-serif" }}>{selectedTicket.bookingId || selectedTicket._id}</span>
+                      টিকিট বিবরণ - <span style={{ fontFamily: "'Google Sans', sans-serif" }}>{selectedTicket.ticketId || selectedTicket.bookingId || selectedTicket._id}</span>
                     </h2>
                     <button
                       onClick={() => {
@@ -1113,6 +1126,40 @@ const TicketList = () => {
                   </div>
 
                   <div className="space-y-6">
+                    {/* Ticket Information */}
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                        <FileText className="w-5 h-5 mr-2 text-purple-600" />
+                        টিকিট তথ্য
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Ticket ID (Unique)</label>
+                          <p className="text-sm text-gray-900 dark:text-white font-mono font-semibold text-blue-600 dark:text-blue-400" style={{ fontFamily: "'Google Sans', monospace" }}>
+                            {selectedTicket.ticketId || '-'}
+                          </p>
+                          {selectedTicket.ticketId && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Auto-generated unique identifier</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Booking ID</label>
+                          <p className="text-sm text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                            {selectedTicket.bookingId || '-'}
+                          </p>
+                          {selectedTicket.bookingId && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Manual booking identifier</p>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">MongoDB ID</label>
+                          <p className="text-sm text-gray-900 dark:text-white font-mono text-xs" style={{ fontFamily: "'Google Sans', monospace" }}>
+                            {selectedTicket._id || '-'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Customer Information */}
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center">
@@ -1185,6 +1232,10 @@ const TicketList = () => {
                         <div>
                           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">এয়ারলাইন</label>
                           <p className="text-sm text-gray-900 dark:text-white">{selectedTicket.airline || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Ticket ID</label>
+                          <p className="text-sm text-gray-900 dark:text-white font-semibold text-blue-600 dark:text-blue-400">{selectedTicket.ticketId || '-'}</p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400">Booking ID</label>

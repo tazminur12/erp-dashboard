@@ -554,7 +554,8 @@ const NewTicket = () => {
     const errs = {};
     if (!values.customerId) errs.customerId = 'Customer is required';
     if (!values.date) errs.date = 'Selling date is required';
-    // Booking ID is now optional
+    // Booking ID is required
+    if (!values.bookingId || !values.bookingId.trim()) errs.bookingId = 'Booking ID is required';
     if (!values.airline) errs.airline = 'Airline is required';
 
     if (values.tripType === 'multicity') {
@@ -1120,16 +1121,25 @@ const NewTicket = () => {
                 </div>
               </div>
               <div>
-                <label htmlFor="bookingId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Booking ID</label>
+                <label htmlFor="bookingId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Booking ID <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   name="bookingId"
                   id="bookingId"
                   value={formData.bookingId}
                   onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Booking reference"
+                  onBlur={() => { markTouched('bookingId'); setValidationErrors(validate(formData)); }}
+                  className={`block w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                    touched.bookingId && validationErrors.bookingId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  placeholder="Booking reference (required)"
+                  required
                 />
+                {touched.bookingId && validationErrors.bookingId && (
+                  <p className="mt-1 text-xs text-red-600">{validationErrors.bookingId}</p>
+                )}
               </div>
               <div>
                 <label htmlFor="flightType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Route Category</label>
@@ -2113,6 +2123,9 @@ const NewTicket = () => {
                   <div className="text-gray-700 dark:text-gray-300">Customer: {formData.customerName || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Date: {formData.date || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Booking ID: {formData.bookingId || '-'}</div>
+              <div className="text-gray-700 dark:text-gray-300">
+                Ticket ID: <span className="text-blue-600 dark:text-blue-400 font-semibold">Auto-generated after creation</span>
+              </div>
               <div className="text-gray-700 dark:text-gray-300">Status: {formData.status}</div>
               <div className="text-gray-700 dark:text-gray-300">Airline: {formData.airline || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Trip: {formData.tripType}</div>

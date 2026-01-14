@@ -549,11 +549,11 @@ const VendorBillGenerate = () => {
   // Handle Search by Ticket ID
   const handleSearchTicket = async () => {
     if (!ticketSearchId.trim()) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'টিকেট আইডি প্রয়োজন',
-        text: 'অনুগ্রহ করে একটি টিকেট আইডি লিখুন',
-      });
+        Swal.fire({
+          icon: 'warning',
+          title: 'টিকেট আইডি প্রয়োজন',
+          text: 'অনুগ্রহ করে Ticket ID (TKT...) বা Booking ID লিখুন',
+        });
       return;
     }
 
@@ -587,7 +587,7 @@ const VendorBillGenerate = () => {
         setFormData(prev => ({
           ...prev,
           // Basic ticket information
-          bookingId: ticket?.bookingId || ticket?._id || '',
+          bookingId: ticket?.bookingId || '',
           gdsPnr: ticket?.gdsPnr || '',
           airlinePnr: ticket?.airlinePnr || '',
           airline: ticket?.airline || '',
@@ -662,7 +662,7 @@ const VendorBillGenerate = () => {
         Swal.fire({
           icon: 'success',
           title: 'টিকেট পাওয়া গেছে!',
-          text: `টিকেট ${ticket?.bookingId || ticket?._id || ticketSearchId} সফলভাবে লোড হয়েছে। সমস্ত তথ্য অটো-ফিল করা হয়েছে।`,
+          text: `টিকেট ${ticket?.ticketId || ticket?.bookingId || ticket?._id || ticketSearchId} সফলভাবে লোড হয়েছে। সমস্ত তথ্য অটো-ফিল করা হয়েছে।`,
           timer: 2000,
           showConfirmButton: false
         });
@@ -1065,7 +1065,7 @@ const VendorBillGenerate = () => {
         <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
             <Search className="w-5 h-5 text-purple-600" />
-            সার্চ বাই টিকেট আইডি
+            সার্চ বাই টিকেট আইডি (Ticket ID / Booking ID)
           </h3>
           <div className="flex gap-3">
             <input
@@ -1073,7 +1073,7 @@ const VendorBillGenerate = () => {
               value={ticketSearchId}
               onChange={(e) => setTicketSearchId(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSearchTicket()}
-              placeholder="টিকেট আইডি বা বুকিং আইডি লিখুন..."
+              placeholder="Ticket ID (TKT...) বা Booking ID লিখুন..."
               className="flex-1 px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
               disabled={searchingTicket}
             />
@@ -1105,8 +1105,13 @@ const VendorBillGenerate = () => {
                     টিকেট সফলভাবে লোড হয়েছে!
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-green-700 dark:text-green-400">
+                    {selectedTicketData?.ticketId && (
+                      <div>
+                        <span className="font-medium">Ticket ID:</span> <strong className="text-blue-600 dark:text-blue-400">{selectedTicketData.ticketId}</strong>
+                      </div>
+                    )}
                     <div>
-                      <span className="font-medium">Booking ID:</span> <strong>{selectedTicketData?.bookingId || selectedTicketData?._id || 'N/A'}</strong>
+                      <span className="font-medium">Booking ID:</span> <strong>{selectedTicketData?.bookingId || 'N/A'}</strong>
                     </div>
                     <div>
                       <span className="font-medium">GDS PNR:</span> <strong>{selectedTicketData?.gdsPnr || 'N/A'}</strong>
