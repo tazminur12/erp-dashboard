@@ -173,10 +173,22 @@ const VendorList = () => {
                   </td>
                 </tr>
               ) : paged.length > 0 ? paged.map((v) => {
-                // Calculate financial totals
-                const totalBill = (v.totalPaid || 0) + (v.totalDue || 0);
-                const paidAmount = v.totalPaid || 0;
-                const dueAmount = v.totalDue || 0;
+                // Calculate financial totals with proper fallbacks
+                // Ensure non-negative values and handle all possible field names
+                const paidAmount = Math.max(0, Number(
+                  v.totalPaid ?? 
+                  v.paidAmount ?? 
+                  v.totalPaidAmount ?? 
+                  0
+                ));
+                const dueAmount = Math.max(0, Number(
+                  v.totalDue ?? 
+                  v.dueAmount ?? 
+                  v.outstandingAmount ?? 
+                  v.totalDueAmount ?? 
+                  0
+                ));
+                const totalBill = Math.max(0, paidAmount + dueAmount);
             
                   return (
                   <tr key={v._id || v.vendorId} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
@@ -206,14 +218,14 @@ const VendorList = () => {
                       <Phone className="w-4 h-4 text-gray-500" /> {v.contactNo || 'N/A'}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
-                    {formatCurrency(totalBill)}
+                  <td className="px-4 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                    {totalBill > 0 ? formatCurrency(totalBill) : '৳0'}
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
-                    {formatCurrency(paidAmount)}
+                    {paidAmount > 0 ? formatCurrency(paidAmount) : '৳0'}
                   </td>
                   <td className="px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400">
-                    {formatCurrency(dueAmount)}
+                    {dueAmount > 0 ? formatCurrency(dueAmount) : '৳0'}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">

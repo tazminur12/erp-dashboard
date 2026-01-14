@@ -231,7 +231,8 @@ const EditVendor = () => {
             contactNo: vendorData.contactNo || '',
             dob: vendorData.dob || '',
             nid: vendorData.nid || '',
-            passport: vendorData.passport || ''
+            passport: vendorData.passport || '',
+            logo: vendorData.logo || ''
           };
           
           setVendor(transformedVendor);
@@ -327,17 +328,22 @@ const EditVendor = () => {
             Vendor Logo
           </label>
           <div className="flex items-center gap-4">
-            {logoPreview || form.logo ? (
+            {(logoPreview || form.logo || vendor?.logo) ? (
               <div className="relative">
                 <img
-                  src={logoPreview || form.logo}
-                  alt="Logo preview"
+                  src={logoPreview || form.logo || vendor?.logo}
+                  alt="Vendor logo"
                   className="w-24 h-24 object-cover rounded-lg border-2 border-gray-300 dark:border-gray-600"
+                  onError={(e) => {
+                    // If image fails to load, hide it and show placeholder
+                    e.target.style.display = 'none';
+                    e.target.nextElementSibling?.classList.remove('hidden');
+                  }}
                 />
                 <button
                   type="button"
                   onClick={removeLogo}
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors z-10"
                 >
                   <X className="w-4 h-4" />
                 </button>

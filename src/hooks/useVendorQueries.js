@@ -40,6 +40,10 @@ export const useVendors = (filters = {}) => {
         nid: vendor.nid || '',
         passport: vendor.passport || '',
         logo: vendor.logo || '',
+        totalPaid: vendor.totalPaid ?? 0,
+        totalDue: vendor.totalDue ?? 0,
+        hajDue: vendor.hajDue ?? 0,
+        umrahDue: vendor.umrahDue ?? 0,
         createdAt: vendor.createdAt || new Date().toISOString(),
         updatedAt: vendor.updatedAt || new Date().toISOString()
       }));
