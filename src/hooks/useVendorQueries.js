@@ -14,6 +14,7 @@ export const vendorKeys = {
   billsList: (filters) => [...vendorKeys.bills(), 'list', { filters }],
   billDetail: (id) => [...vendorKeys.bills(), 'detail', id],
   vendorBills: (vendorId) => [...vendorKeys.bills(), 'vendor', vendorId],
+  analytics: () => [...vendorKeys.all, 'analytics'],
 };
 
 // Hook to fetch all vendors
@@ -337,6 +338,45 @@ export const useVendorFinancials = (vendorId) => {
   });
 };
 
+// Hook to fetch vendor analytics
+// API: GET /vendors/analytics
+// Returns: { success: true, totalVendors, activeVendors, inactiveVendors, newThisMonth, topLocations: [{ location, count }] }
+export const useVendorAnalytics = () => {
+  const axiosSecure = useSecureAxios();
+  
+  return useQuery({
+    queryKey: vendorKeys.analytics(),
+    queryFn: async () => {
+      try {
+        const response = await axiosSecure.get('/vendors/analytics');
+        
+        if (response.data.success) {
+          return {
+            totalVendors: response.data.totalVendors || 0,
+            activeVendors: response.data.activeVendors || 0,
+            inactiveVendors: response.data.inactiveVendors || 0,
+            newThisMonth: response.data.newThisMonth || 0,
+            topLocations: Array.isArray(response.data.topLocations) 
+              ? response.data.topLocations.map(loc => ({
+                  location: loc.location || loc._id || 'Unknown',
+                  count: loc.count || 0
+                }))
+              : []
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to fetch vendor analytics');
+        }
+      } catch (error) {
+        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch vendor analytics';
+        throw new Error(errorMessage);
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+  });
+};
+
 // Hook to fetch vendor activities
 export const useVendorActivities = (vendorId) => {
   const axiosSecure = useSecureAxios();
@@ -459,6 +499,49 @@ export const useVendorBills = (filters = {}) => {
       }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 2,
+  });
+};
+
+// Hook to fetch vendor bills summary/statistics
+// API: GET /vendors/bills/summary
+// Query params: vendorId (optional), startDate (optional), endDate (optional)
+// Returns: { success: true, totalBills, totalAmount, totalPaid, totalDue }
+export const useVendorBillsSummary = (filters = {}) => {
+  const axiosSecure = useSecureAxios();
+  
+  return useQuery({
+    queryKey: [...vendorKeys.bills(), 'summary', filters],
+    queryFn: async () => {
+      try {
+        const params = new URLSearchParams();
+        
+        if (filters.vendorId) params.append('vendorId', filters.vendorId);
+        if (filters.startDate) params.append('startDate', filters.startDate);
+        if (filters.endDate) params.append('endDate', filters.endDate);
+        
+        const queryString = params.toString();
+        const url = `/vendors/bills/summary${queryString ? `?${queryString}` : ''}`;
+        
+        const response = await axiosSecure.get(url);
+        
+        if (response.data.success) {
+          return {
+            totalBills: response.data.totalBills || 0,
+            totalAmount: Number(response.data.totalAmount || 0),
+            totalPaid: Number(response.data.totalPaid || 0),
+            totalDue: Number(response.data.totalDue || 0)
+          };
+        } else {
+          throw new Error(response.data.message || 'Failed to fetch vendor bills summary');
+        }
+      } catch (error) {
+        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch vendor bills summary';
+        throw new Error(errorMessage);
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    cacheTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
   });
 };

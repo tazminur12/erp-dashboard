@@ -70,6 +70,7 @@ const NewLoanReceiving = () => {
     // Additional Information
     commencementDate: new Date().toISOString().split('T')[0], // Default to today
     completionDate: '',
+    commitmentDate: '',
     notes: ''
   });
 
@@ -285,6 +286,7 @@ const NewLoanReceiving = () => {
         emergencyPhone: '',
         commencementDate: new Date().toISOString().split('T')[0],
         completionDate: '',
+        commitmentDate: '',
         notes: ''
       });
       setImagePreview({
@@ -914,6 +916,25 @@ const NewLoanReceiving = () => {
                     type="date"
                     name="completionDate"
                     value={formData.completionDate}
+                    onChange={handleInputChange}
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                      isDark 
+                        ? 'bg-gray-700 border-gray-600 text-white' 
+                        : 'border-gray-300'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  কমিট্মেন্ট তারিখ
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    name="commitmentDate"
+                    value={formData.commitmentDate}
                     onChange={handleInputChange}
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDark 

@@ -35,7 +35,7 @@ import CardWidget from '../../components/common/CardWidget';
 import SmallStat from '../../components/common/SmallStat';
 import useSecureAxios from '../../hooks/UseAxiosSecure.js';
 import useAxios from '../../hooks/Axios.js';
-import { useVendorBills } from '../../hooks/useVendorQueries';
+import { useVendorBills, useVendorAnalytics, useVendorBillsSummary } from '../../hooks/useVendorQueries';
 import Swal from 'sweetalert2';
 
 // Initial stats shape matching API response
@@ -70,29 +70,40 @@ const VendorDashboard = () => {
   
   // Fetch all vendor bills
   const { data: vendorBills = [], isLoading: billsLoading } = useVendorBills();
+  
+  // Fetch vendor bills summary using the hook
+  const { 
+    data: billsSummary, 
+    isLoading: billsSummaryLoading, 
+    error: billsSummaryError 
+  } = useVendorBillsSummary();
+  
+  // Fetch vendor analytics using the hook
+  const { 
+    data: vendorAnalytics, 
+    isLoading: analyticsLoading, 
+    error: analyticsError,
+    refetch: refetchAnalytics 
+  } = useVendorAnalytics();
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch dashboard data in parallel
-      const [vendorAnalyticsRes, orderAnalyticsRes] = await Promise.all([
-        axiosSecure.get('/vendors/analytics'),
-        axiosSecure.get('/orders/analytics')
-      ]);
+      // Fetch order analytics (vendor analytics is handled by hook)
+      const orderAnalyticsRes = await axiosSecure.get('/orders/analytics');
 
-      setDashboardData({
-        overview: null,
-        summary: null,
-        vendorAnalytics: vendorAnalyticsRes.data,
+      setDashboardData(prev => ({
+        ...prev,
         orderAnalytics: orderAnalyticsRes.data
-      });
+      }));
 
     } catch (error) {
-      console.error('Error loading comprehensive dashboard data:', error);
+      console.error('Error loading order analytics:', error);
       // Don't show error for comprehensive data as it's optional
     }
   };
 
   const handleRefresh = () => {
+    refetchAnalytics();
     fetchDashboardData();
   };
 
@@ -132,7 +143,7 @@ const VendorDashboard = () => {
         }));
         setVendors(transformed);
 
-        // Fetch comprehensive dashboard data
+        // Fetch order analytics (vendor analytics is handled by hook)
         await fetchDashboardData();
 
       } catch (error) {
@@ -176,8 +187,19 @@ const VendorDashboard = () => {
 
   const byLocation = useMemo(() => Array.isArray(stats.byLocation) ? stats.byLocation : [], [stats.byLocation]);
   
-  // Calculate vendor bill statistics
+  // Use vendor bills summary from API, fallback to calculated values if not available
   const billStats = useMemo(() => {
+    // Prefer API summary data if available
+    if (billsSummary) {
+      return {
+        totalBills: billsSummary.totalBills || 0,
+        totalAmount: billsSummary.totalAmount || 0,
+        totalPaid: billsSummary.totalPaid || 0,
+        totalDue: billsSummary.totalDue || 0
+      };
+    }
+    
+    // Fallback: Calculate from vendorBills array if summary not available
     if (!Array.isArray(vendorBills) || vendorBills.length === 0) {
       return {
         totalBills: 0,
@@ -190,7 +212,7 @@ const VendorDashboard = () => {
     const totalBills = vendorBills.length;
     const totalAmount = vendorBills.reduce((sum, bill) => sum + (parseFloat(bill.totalAmount) || 0), 0);
     const totalPaid = vendorBills.reduce((sum, bill) => sum + (parseFloat(bill.paidAmount) || 0), 0);
-    const totalDue = totalAmount - totalPaid;
+    const totalDue = Math.max(0, totalAmount - totalPaid);
     
     return {
       totalBills,
@@ -198,7 +220,7 @@ const VendorDashboard = () => {
       totalPaid,
       totalDue
     };
-  }, [vendorBills]);
+  }, [billsSummary, vendorBills]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -249,7 +271,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট ভেন্ডর বিল" 
-          value={billsLoading ? '...' : billStats.totalBills} 
+          value={billsSummaryLoading ? '...' : billStats.totalBills} 
           icon={Receipt} 
           trend="" 
           trendValue="" 
@@ -257,7 +279,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট বিল পরিমাণ" 
-          value={billsLoading ? '...' : `৳${billStats.totalAmount.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          value={billsSummaryLoading ? '...' : `৳${billStats.totalAmount.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
           icon={FileText} 
           trend="" 
           trendValue="" 
@@ -265,7 +287,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট পরিশোধিত" 
-          value={billsLoading ? '...' : `৳${billStats.totalPaid.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          value={billsSummaryLoading ? '...' : `৳${billStats.totalPaid.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
           icon={Wallet} 
           trend="" 
           trendValue="" 
@@ -273,7 +295,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট বাকি" 
-          value={billsLoading ? '...' : `৳${billStats.totalDue.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          value={billsSummaryLoading ? '...' : `৳${billStats.totalDue.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
           icon={TrendingDown} 
           trend="" 
           trendValue="" 
@@ -297,46 +319,64 @@ const VendorDashboard = () => {
       )}
 
       {/* Vendor Analytics */}
-      {showComprehensiveView && dashboardData.vendorAnalytics && (
+      {showComprehensiveView && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Vendor Analytics</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Total Vendors</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">{dashboardData.vendorAnalytics.totalVendors}</span>
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500 dark:text-gray-400">Loading analytics...</div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Active Vendors</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">{dashboardData.vendorAnalytics.activeVendors}</span>
+            ) : analyticsError ? (
+              <div className="text-red-500 dark:text-red-400 text-sm">Failed to load analytics</div>
+            ) : vendorAnalytics ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Vendors</span>
+                  <span className="font-semibold text-gray-900 dark:text-gray-100">{vendorAnalytics.totalVendors || 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Active Vendors</span>
+                  <span className="font-semibold text-green-600 dark:text-green-400">{vendorAnalytics.activeVendors || 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Inactive Vendors</span>
+                  <span className="font-semibold text-red-600 dark:text-red-400">{vendorAnalytics.inactiveVendors || 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">New This Month</span>
+                  <span className="font-semibold text-blue-600 dark:text-blue-400">{vendorAnalytics.newThisMonth || 0}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Inactive Vendors</span>
-                <span className="font-semibold text-red-600 dark:text-red-400">{dashboardData.vendorAnalytics.inactiveVendors}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">New This Month</span>
-                <span className="font-semibold text-blue-600 dark:text-blue-400">{dashboardData.vendorAnalytics.newThisMonth}</span>
-              </div>
-            </div>
+            ) : (
+              <div className="text-gray-500 dark:text-gray-400 text-sm">No analytics data available</div>
+            )}
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top Vendors by Location</h3>
-            <div className="space-y-3">
-              {dashboardData.vendorAnalytics.topLocations?.map((location, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
-                      {location.count}
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500 dark:text-gray-400">Loading locations...</div>
+              </div>
+            ) : analyticsError ? (
+              <div className="text-red-500 dark:text-red-400 text-sm">Failed to load location data</div>
+            ) : vendorAnalytics?.topLocations && vendorAnalytics.topLocations.length > 0 ? (
+              <div className="space-y-3">
+                {vendorAnalytics.topLocations.map((location, index) => (
+                  <div key={index} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
+                        {location.count || 0}
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{location.location || 'Unknown'}</div>
                     </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{location.location}</div>
                   </div>
-                </div>
-              )) || (
-                <div className="text-gray-500 dark:text-gray-400 text-sm">No location data available</div>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-gray-500 dark:text-gray-400 text-sm">No location data available</div>
+            )}
           </div>
         </div>
       )}
@@ -604,7 +644,7 @@ const VendorDashboard = () => {
       )}
 
       {/* No Comprehensive Data State */}
-      {showComprehensiveView && !dashboardData.vendorAnalytics && !dashboardData.orderAnalytics && (
+      {showComprehensiveView && !vendorAnalytics && !dashboardData.orderAnalytics && !analyticsLoading && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
           <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No Dashboard Data</h3>

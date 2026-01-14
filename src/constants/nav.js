@@ -175,6 +175,7 @@ export const navigation = [
       { name: 'B2B Agent', href: '/air-ticketing/agent', icon: Users },
       {
         name: 'Old Ticketing Service',
+        href: '/air-ticketing/old/dashboard',
         icon: History,
         children: [
           { name: 'Dashboard', href: '/air-ticketing/old/dashboard', icon: LayoutDashboard },

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -9,24 +9,28 @@ import {
   X,
   Loader2,
   AlertCircle,
-  TrendingDown,
   Camera,
   Upload,
+  CreditCard,
   MapPin,
+  Building,
   Phone,
-  FileCheck
+  Mail
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import { useCreateGivingLoan } from '../../hooks/useLoanQueries';
+import { useLoan, useUpdateLoan } from '../../hooks/useLoanQueries';
 
-const NewLoanGiving = () => {
+const EditLoanReceiving = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
   const navigate = useNavigate();
+  const { id } = useParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const createGivingLoan = useCreateGivingLoan();
+  const updateLoan = useUpdateLoan();
+  const { data: loanData, isLoading: loanLoading } = useLoan(id);
+  const loan = loanData?.loan;
 
   const [formData, setFormData] = useState({
     // Personal Profile Information
@@ -50,6 +54,14 @@ const NewLoanGiving = () => {
     upazila: '',
     postCode: '',
     
+    // Business Information
+    businessName: '',
+    businessType: '',
+    businessAddress: '',
+    businessRegistration: '',
+    businessExperience: '',
+    
+    
     // Contact Information
     contactPerson: '',
     contactPhone: '',
@@ -58,12 +70,10 @@ const NewLoanGiving = () => {
     emergencyPhone: '',
     
     // Additional Information
-    commencementDate: new Date().toISOString().split('T')[0], // Default to today
+    commencementDate: new Date().toISOString().split('T')[0],
     completionDate: '',
     commitmentDate: '',
-    notes: '',
-    
-  
+    notes: ''
   });
 
   const [errors, setErrors] = useState({});
@@ -78,11 +88,69 @@ const NewLoanGiving = () => {
     nidBackImage: false
   });
 
+  // Load loan data into form
+  useEffect(() => {
+    if (loan) {
+      const formatDate = (date) => {
+        if (!date) return '';
+        if (typeof date === 'string' && date.includes('T')) {
+          return date.split('T')[0];
+        }
+        return date;
+      };
+
+      setFormData({
+        firstName: loan.firstName || '',
+        lastName: loan.lastName || '',
+        fullName: loan.fullName || `${loan.firstName || ''} ${loan.lastName || ''}`.trim(),
+        fatherName: loan.fatherName || '',
+        motherName: loan.motherName || '',
+        dateOfBirth: formatDate(loan.dateOfBirth),
+        gender: loan.gender || '',
+        maritalStatus: loan.maritalStatus || '',
+        nidNumber: loan.nidNumber || '',
+        nidFrontImage: loan.nidFrontImage || '',
+        nidBackImage: loan.nidBackImage || '',
+        profilePhoto: loan.profilePhoto || '',
+        presentAddress: loan.presentAddress || '',
+        permanentAddress: loan.permanentAddress || '',
+        district: loan.district || '',
+        upazila: loan.upazila || '',
+        postCode: loan.postCode || '',
+        businessName: loan.businessName || '',
+        businessType: loan.businessType || '',
+        businessAddress: loan.businessAddress || '',
+        businessRegistration: loan.businessRegistration || '',
+        businessExperience: loan.businessExperience || '',
+        contactPerson: loan.contactPerson || '',
+        contactPhone: loan.contactPhone || '',
+        contactEmail: loan.contactEmail || '',
+        emergencyContact: loan.emergencyContact || '',
+        emergencyPhone: loan.emergencyPhone || '',
+        commencementDate: formatDate(loan.commencementDate) || new Date().toISOString().split('T')[0],
+        completionDate: formatDate(loan.completionDate),
+        commitmentDate: formatDate(loan.commitmentDate),
+        notes: loan.notes || ''
+      });
+
+      // Set image previews if images exist
+      if (loan.profilePhoto) {
+        setImagePreview(prev => ({ ...prev, profilePhoto: loan.profilePhoto }));
+      }
+      if (loan.nidFrontImage) {
+        setImagePreview(prev => ({ ...prev, nidFrontImage: loan.nidFrontImage }));
+      }
+      if (loan.nidBackImage) {
+        setImagePreview(prev => ({ ...prev, nidBackImage: loan.nidBackImage }));
+      }
+    }
+  }, [loan]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => {
       const nextState = { ...prev, [name]: value };
-      // Auto-generate fullName from first and last name
+      // Auto-generate fullName from firstName + lastName
       if (name === 'firstName' || name === 'lastName') {
         const nextFirst = name === 'firstName' ? value : nextState.firstName;
         const nextLast = name === 'lastName' ? value : nextState.lastName;
@@ -102,23 +170,20 @@ const NewLoanGiving = () => {
 
   const uploadToCloudinary = async (file, imageType) => {
     try {
-      // Validate Cloudinary configuration first
       if (!validateCloudinaryConfig()) {
         throw new Error('Cloudinary configuration is incomplete. Please check your .env.local file.');
       }
       
       setImageUploading(prev => ({ ...prev, [imageType]: true }));
       
-      // Validate file
       if (!file || !file.type.startsWith('image/')) {
         throw new Error('Please select a valid image file');
       }
       
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) {
         throw new Error('File size must be less than 5MB');
       }
 
-      // Create preview
       const reader = new FileReader();
       reader.onload = (e) => {
         setImagePreview(prev => ({
@@ -128,13 +193,11 @@ const NewLoanGiving = () => {
       };
       reader.readAsDataURL(file);
       
-      // Create FormData for Cloudinary upload
       const cloudinaryFormData = new FormData();
       cloudinaryFormData.append('file', file);
       cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
       cloudinaryFormData.append('folder', 'loans');
       
-      // Upload to Cloudinary
       const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
         method: 'POST',
         body: cloudinaryFormData,
@@ -148,7 +211,6 @@ const NewLoanGiving = () => {
       const result = await response.json();
       const imageUrl = result.secure_url;
       
-      // Update form data with image URL
       setFormData(prev => ({ ...prev, [imageType]: imageUrl }));
       
       Swal.fire({
@@ -181,21 +243,9 @@ const NewLoanGiving = () => {
     }
   };
 
-  const removeImage = (imageType) => {
-    setImagePreview(prev => ({
-      ...prev,
-      [imageType]: null
-    }));
-    setFormData(prev => ({
-      ...prev,
-      [imageType]: ''
-    }));
-  };
-
   const validateForm = () => {
     const newErrors = {};
 
-    // Required: only first and last name
     if (!formData.firstName.trim()) {
       newErrors.firstName = 'নামের প্রথম অংশ আবশ্যক';
     }
@@ -203,18 +253,16 @@ const NewLoanGiving = () => {
       newErrors.lastName = 'নামের শেষ অংশ আবশ্যক';
     }
 
-    // Optional validations (format-only when provided)
     if (formData.nidNumber && !/^\d{10}$|^\d{13}$|^\d{17}$/.test(formData.nidNumber.replace(/\s/g, ''))) {
       newErrors.nidNumber = 'সঠিক জাতীয় পরিচয়পত্র নম্বর লিখুন';
     }
+
     if (formData.contactPhone && !/^01[3-9]\d{8}$/.test(formData.contactPhone)) {
       newErrors.contactPhone = 'সঠিক মোবাইল নম্বর লিখুন';
     }
+
     if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
       newErrors.contactEmail = 'সঠিক ইমেইল ঠিকানা লিখুন';
-    }
-    if (formData.emergencyPhone && !/^01[3-9]\d{8}$/.test(formData.emergencyPhone)) {
-      newErrors.emergencyPhone = 'সঠিক জরুরি যোগাযোগের মোবাইল নম্বর লিখুন';
     }
 
     setErrors(newErrors);
@@ -236,66 +284,27 @@ const NewLoanGiving = () => {
       return;
     }
 
-    const loanData = {
-      ...formData,
-      loanDirection: 'giving',
-      status: 'Active',
-      createdBy: userProfile?.email || 'unknown_user',
-      branchId: userProfile?.branchId || 'main_branch'
-    };
-
     try {
       setIsSubmitting(true);
-      const result = await createGivingLoan.mutateAsync(loanData);
+      const result = await updateLoan.mutateAsync({
+        loanId: id,
+        payload: formData
+      });
 
       await Swal.fire({
         title: 'সফল!',
-        text: result?.message || 'ঋণ সফলভাবে প্রদান করা হয়েছে।',
+        text: result?.message || 'ঋণের তথ্য সফলভাবে আপডেট করা হয়েছে।',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
-      navigate('/loan/list');
+      navigate(`/loan/details/${id}`);
 
-      // Reset form
-      setFormData({
-        firstName: '',
-        lastName: '',
-        fullName: '',
-        fatherName: '',
-        motherName: '',
-        dateOfBirth: '',
-        gender: '',
-        maritalStatus: '',
-        nidNumber: '',
-        nidFrontImage: '',
-        nidBackImage: '',
-        profilePhoto: '',
-        presentAddress: '',
-        permanentAddress: '',
-        district: '',
-        upazila: '',
-        postCode: '',
-        contactPerson: '',
-        contactPhone: '',
-        contactEmail: '',
-        emergencyContact: '',
-        emergencyPhone: '',
-        commencementDate: new Date().toISOString().split('T')[0],
-        completionDate: '',
-        commitmentDate: '',
-        notes: ''
-      });
-      setImagePreview({
-        profilePhoto: null,
-        nidFrontImage: null,
-        nidBackImage: null
-      });
     } catch (error) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: (error?.response?.data?.message) || error.message || 'ঋণ প্রদানে সমস্যা হয়েছে।',
+        text: (error?.response?.data?.message) || error.message || 'ঋণের তথ্য আপডেট করতে সমস্যা হয়েছে।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -306,11 +315,49 @@ const NewLoanGiving = () => {
     }
   };
 
+  if (loanLoading) {
+    return (
+      <div className={`min-h-screen p-4 lg:p-8 transition-colors duration-300 ${
+        isDark 
+          ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+          : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+      }`}>
+        <div className="max-w-4xl mx-auto flex items-center justify-center h-72">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!loan) {
+    return (
+      <div className={`min-h-screen p-4 lg:p-8 transition-colors duration-300 ${
+        isDark 
+          ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+          : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
+      }`}>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border p-8 text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">ঋণ পাওয়া যায়নি</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">এই ID দিয়ে কোনো ঋণ পাওয়া যায়নি।</p>
+            <button
+              onClick={() => navigate('/loan/list')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              ঋণের তালিকায় ফিরে যান
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen p-4 lg:p-8 transition-colors duration-300 ${
       isDark 
         ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
-        : 'bg-gradient-to-br from-green-50 via-white to-blue-50'
+        : 'bg-gradient-to-br from-blue-50 via-white to-purple-50'
     }`}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
@@ -327,24 +374,24 @@ const NewLoanGiving = () => {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-xl flex items-center justify-center">
-                <TrendingDown className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
+                <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  নতুন ঋণ প্রদান
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  ঋণ আবেদন সম্পাদনা করুন
                 </h1>
                 <p className={`mt-1 text-lg transition-colors duration-300 ${
                   isDark ? 'text-gray-300' : 'text-gray-600'
                 }`}>
-                  ঋণ প্রদানের জন্য প্রয়োজনীয় তথ্য পূরণ করুন
+                  ঋণ আবেদনের তথ্য আপডেট করুন
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Form */}
+        {/* Form - Same structure as NewLoanReceiving */}
         <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border transition-colors duration-300 ${
           isDark ? 'border-gray-700' : 'border-gray-100'
         }`}>
@@ -365,9 +412,9 @@ const NewLoanGiving = () => {
                 </label>
                 <div className="flex items-center gap-4">
                   <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center overflow-hidden">
-                    {imagePreview.profilePhoto ? (
+                    {imagePreview.profilePhoto || formData.profilePhoto ? (
                       <img 
-                        src={imagePreview.profilePhoto} 
+                        src={imagePreview.profilePhoto || formData.profilePhoto} 
                         alt="Profile Preview" 
                         className="w-full h-full object-cover"
                       />
@@ -385,8 +432,8 @@ const NewLoanGiving = () => {
                     />
                     <label
                       htmlFor="profilePhoto"
-                      className={`cursor-pointer bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 ${
-                        imageUploading.profilePhoto ? 'opacity-50 cursor-not-allowed' : ''
+                      className={`flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                        imageUploading.profilePhoto ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
                       }`}
                     >
                       {imageUploading.profilePhoto ? (
@@ -396,15 +443,11 @@ const NewLoanGiving = () => {
                       )}
                       {imageUploading.profilePhoto ? 'আপলোড হচ্ছে...' : 'ছবি আপলোড করুন'}
                     </label>
-                    {imagePreview.profilePhoto && (
-                      <button
-                        type="button"
-                        onClick={() => removeImage('profilePhoto')}
-                        className="ml-2 text-red-500 hover:text-red-700 flex items-center gap-1"
-                      >
-                        <X className="w-4 h-4" />
-                        সরান
-                      </button>
+                    {errors.profilePhoto && (
+                      <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                        <AlertCircle className="w-4 h-4" />
+                        {errors.profilePhoto}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -518,19 +561,11 @@ const NewLoanGiving = () => {
                   onChange={handleInputChange}
                   placeholder="মাতার নাম লিখুন"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                    errors.motherName
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
+                    isDark 
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
+                      : 'border-gray-300'
                   }`}
                 />
-                {errors.motherName && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.motherName}
-                  </p>
-                )}
               </div>
 
               <div>
@@ -609,6 +644,14 @@ const NewLoanGiving = () => {
                 </select>
               </div>
 
+              {/* NID Information */}
+              <div className="lg:col-span-2">
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5 text-green-600" />
+                  জাতীয় পরিচয়পত্র তথ্য
+                </h4>
+              </div>
+
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   জাতীয় পরিচয়পত্র নম্বর
@@ -635,118 +678,119 @@ const NewLoanGiving = () => {
                 )}
               </div>
 
-              {/* NID Images Upload */}
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                  জাতীয় পরিচয়পত্রের ছবি
+              {/* NID Image Uploads */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  জাতীয় পরিচয়পত্রের সামনের ছবি
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* NID Front */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      সামনের দিক
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-                      {imagePreview.nidFrontImage ? (
-                        <div className="relative">
-                          <img 
-                            src={imagePreview.nidFrontImage} 
-                            alt="NID Front Preview" 
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage('nidFrontImage')}
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div>
-                          {imageUploading.nidFrontImage ? (
-                            <Loader2 className="w-8 h-8 text-blue-500 mx-auto mb-2 animate-spin" />
-                          ) : (
-                            <FileCheck className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          )}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(e, 'nidFrontImage')}
-                            className="hidden"
-                            id="nidFrontImage"
-                            disabled={imageUploading.nidFrontImage}
-                          />
-                          <label
-                            htmlFor="nidFrontImage"
-                            className={`cursor-pointer text-blue-500 hover:text-blue-700 ${
-                              imageUploading.nidFrontImage ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                          >
-                            {imageUploading.nidFrontImage ? 'আপলোড হচ্ছে...' : 'ছবি আপলোড করুন'}
-                          </label>
-                        </div>
-                      )}
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center">
+                  {imagePreview.nidFrontImage || formData.nidFrontImage ? (
+                    <div className="mb-2">
+                      <img 
+                        src={imagePreview.nidFrontImage || formData.nidFrontImage} 
+                        alt="NID Front Preview" 
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="py-8">
+                      {imageUploading.nidFrontImage ? (
+                        <Loader2 className="w-12 h-12 text-green-500 mx-auto mb-2 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      )}
+                      <p className="text-gray-500">{imageUploading.nidFrontImage ? 'আপলোড হচ্ছে...' : 'জাতীয় পরিচয়পত্রের সামনের ছবি'}</p>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload(e, 'nidFrontImage')}
+                    className="hidden"
+                    id="nidFrontImage"
+                    disabled={imageUploading.nidFrontImage}
+                  />
+                  <label
+                    htmlFor="nidFrontImage"
+                    className={`inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${
+                      imageUploading.nidFrontImage ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                    }`}
+                  >
+                    {imageUploading.nidFrontImage ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {imageUploading.nidFrontImage ? 'আপলোড হচ্ছে...' : 'আপলোড করুন'}
+                  </label>
+                  {errors.nidFrontImage && (
+                    <p className="mt-2 text-sm text-red-600 flex items-center justify-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.nidFrontImage}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-                  {/* NID Back */}
-                  <div>
-                    <label className="block text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      পিছনের দিক
-                    </label>
-                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center">
-                      {imagePreview.nidBackImage ? (
-                        <div className="relative">
-                          <img 
-                            src={imagePreview.nidBackImage} 
-                            alt="NID Back Preview" 
-                            className="w-full h-32 object-cover rounded-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage('nidBackImage')}
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div>
-                          {imageUploading.nidBackImage ? (
-                            <Loader2 className="w-8 h-8 text-blue-500 mx-auto mb-2 animate-spin" />
-                          ) : (
-                            <FileCheck className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                          )}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(e, 'nidBackImage')}
-                            className="hidden"
-                            id="nidBackImage"
-                            disabled={imageUploading.nidBackImage}
-                          />
-                          <label
-                            htmlFor="nidBackImage"
-                            className={`cursor-pointer text-blue-500 hover:text-blue-700 ${
-                              imageUploading.nidBackImage ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                          >
-                            {imageUploading.nidBackImage ? 'আপলোড হচ্ছে...' : 'ছবি আপলোড করুন'}
-                          </label>
-                        </div>
-                      )}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  জাতীয় পরিচয়পত্রের পিছনের ছবি
+                </label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-4 text-center">
+                  {imagePreview.nidBackImage || formData.nidBackImage ? (
+                    <div className="mb-2">
+                      <img 
+                        src={imagePreview.nidBackImage || formData.nidBackImage} 
+                        alt="NID Back Preview" 
+                        className="w-full h-32 object-cover rounded-lg"
+                      />
                     </div>
-                  </div>
+                  ) : (
+                    <div className="py-8">
+                      {imageUploading.nidBackImage ? (
+                        <Loader2 className="w-12 h-12 text-green-500 mx-auto mb-2 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                      )}
+                      <p className="text-gray-500">{imageUploading.nidBackImage ? 'আপলোড হচ্ছে...' : 'জাতীয় পরিচয়পত্রের পিছনের ছবি'}</p>
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageUpload(e, 'nidBackImage')}
+                    className="hidden"
+                    id="nidBackImage"
+                    disabled={imageUploading.nidBackImage}
+                  />
+                  <label
+                    htmlFor="nidBackImage"
+                    className={`inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${
+                      imageUploading.nidBackImage ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                    }`}
+                  >
+                    {imageUploading.nidBackImage ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    {imageUploading.nidBackImage ? 'আপলোড হচ্ছে...' : 'আপলোড করুন'}
+                  </label>
+                  {errors.nidBackImage && (
+                    <p className="mt-2 text-sm text-red-600 flex items-center justify-center gap-1">
+                      <AlertCircle className="w-4 h-4" />
+                      {errors.nidBackImage}
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Address Information */}
               <div className="lg:col-span-2 mt-6">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-green-600" />
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-purple-600" />
                   ঠিকানা তথ্য
-                </h3>
+                </h4>
               </div>
 
               <div className="lg:col-span-2">
@@ -757,9 +801,9 @@ const NewLoanGiving = () => {
                   name="presentAddress"
                   value={formData.presentAddress}
                   onChange={handleInputChange}
+                  rows="2"
                   placeholder="বর্তমান ঠিকানার বিস্তারিত লিখুন"
-                  rows="3"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 resize-none ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
                     errors.presentAddress
                       ? 'border-red-500 focus:ring-red-500'
                       : isDark 
@@ -775,58 +819,24 @@ const NewLoanGiving = () => {
                 )}
               </div>
 
-              <div className="lg:col-span-2">
+              <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  স্থায়ী ঠিকানা
+                  জেলা
                 </label>
-                <textarea
-                  name="permanentAddress"
-                  value={formData.permanentAddress}
+                <input
+                  type="text"
+                  name="district"
+                  value={formData.district}
                   onChange={handleInputChange}
-                  placeholder="স্থায়ী ঠিকানার বিস্তারিত লিখুন"
-                  rows="3"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 resize-none ${
-                    errors.permanentAddress
+                  placeholder="জেলা লিখুন"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    errors.district
                       ? 'border-red-500 focus:ring-red-500'
                       : isDark 
                         ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                         : 'border-gray-300'
                   }`}
                 />
-                {errors.permanentAddress && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.permanentAddress}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  জেলা
-                </label>
-                <select
-                  name="district"
-                  value={formData.district}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.district
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white' 
-                        : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">জেলা নির্বাচন করুন</option>
-                  <option value="ঢাকা">ঢাকা</option>
-                  <option value="চট্টগ্রাম">চট্টগ্রাম</option>
-                  <option value="সিলেট">সিলেট</option>
-                  <option value="রাজশাহী">রাজশাহী</option>
-                  <option value="খুলনা">খুলনা</option>
-                  <option value="বরিশাল">বরিশাল</option>
-                  <option value="রংপুর">রংপুর</option>
-                  <option value="ময়মনসিংহ">ময়মনসিংহ</option>
-                </select>
                 {errors.district && (
                   <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
@@ -845,7 +855,7 @@ const NewLoanGiving = () => {
                   value={formData.upazila}
                   onChange={handleInputChange}
                   placeholder="উপজেলা লিখুন"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.upazila
                       ? 'border-red-500 focus:ring-red-500'
                       : isDark 
@@ -861,62 +871,12 @@ const NewLoanGiving = () => {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  পোস্ট কোড
-                </label>
-                <input
-                  type="text"
-                  name="postCode"
-                  value={formData.postCode}
-                  onChange={handleInputChange}
-                  placeholder="পোস্ট কোড লিখুন"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    isDark 
-                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                      : 'border-gray-300'
-                  }`}
-                />
-              </div>
-
-              {/* Business Information removed as requested */}
-
-              {/* Loan Details removed as requested */}
-
-              {/* Bank Account Selection removed as requested */}
-
               {/* Contact Information */}
               <div className="lg:col-span-2 mt-6">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Phone className="w-5 h-5 text-green-600" />
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-blue-600" />
                   যোগাযোগের তথ্য
-                </h3>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  যোগাযোগের ব্যক্তির নাম
-                </label>
-                <input
-                  type="text"
-                  name="contactPerson"
-                  value={formData.contactPerson}
-                  onChange={handleInputChange}
-                  placeholder="যোগাযোগের ব্যক্তির নাম লিখুন"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.contactPerson
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.contactPerson && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.contactPerson}
-                  </p>
-                )}
+                </h4>
               </div>
 
               <div>
@@ -929,7 +889,7 @@ const NewLoanGiving = () => {
                   value={formData.contactPhone}
                   onChange={handleInputChange}
                   placeholder="01XXXXXXXXX"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.contactPhone
                       ? 'border-red-500 focus:ring-red-500'
                       : isDark 
@@ -947,7 +907,7 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  ইমেইল ঠিকানা
+                  ইমেইল
                 </label>
                 <input
                   type="email"
@@ -955,7 +915,7 @@ const NewLoanGiving = () => {
                   value={formData.contactEmail}
                   onChange={handleInputChange}
                   placeholder="example@email.com"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                     errors.contactEmail
                       ? 'border-red-500 focus:ring-red-500'
                       : isDark 
@@ -973,66 +933,6 @@ const NewLoanGiving = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  জরুরি যোগাযোগের নাম
-                </label>
-                <input
-                  type="text"
-                  name="emergencyContact"
-                  value={formData.emergencyContact}
-                  onChange={handleInputChange}
-                  placeholder="জরুরি যোগাযোগের নাম লিখুন"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.emergencyContact
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.emergencyContact && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.emergencyContact}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  জরুরি মোবাইল নম্বর
-                </label>
-                <input
-                  type="tel"
-                  name="emergencyPhone"
-                  value={formData.emergencyPhone}
-                  onChange={handleInputChange}
-                  placeholder="01XXXXXXXXX"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
-                    errors.emergencyPhone
-                      ? 'border-red-500 focus:ring-red-500'
-                      : isDark 
-                        ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
-                        : 'border-gray-300'
-                  }`}
-                />
-                {errors.emergencyPhone && (
-                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.emergencyPhone}
-                  </p>
-                )}
-              </div>
-
-              {/* Additional Information */}
-              <div className="lg:col-span-2 mt-6">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-green-600" />
-                  অতিরিক্ত তথ্য
-                </h3>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   লোন শুরুর তারিখ
                 </label>
                 <div className="relative">
@@ -1041,7 +941,7 @@ const NewLoanGiving = () => {
                     name="commencementDate"
                     value={formData.commencementDate}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white' 
                         : 'border-gray-300'
@@ -1060,7 +960,7 @@ const NewLoanGiving = () => {
                     name="completionDate"
                     value={formData.completionDate}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white' 
                         : 'border-gray-300'
@@ -1079,7 +979,7 @@ const NewLoanGiving = () => {
                     name="commitmentDate"
                     value={formData.commitmentDate}
                     onChange={handleInputChange}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       isDark 
                         ? 'bg-gray-700 border-gray-600 text-white' 
                         : 'border-gray-300'
@@ -1090,53 +990,50 @@ const NewLoanGiving = () => {
 
               <div className="lg:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  নোট
+                  অতিরিক্ত নোট
                 </label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleInputChange}
-                  placeholder="অতিরিক্ত নোট বা তথ্য লিখুন..."
-                  rows="4"
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 resize-none ${
+                  rows="3"
+                  placeholder="ঋণ আবেদন সম্পর্কে অতিরিক্ত তথ্য লিখুন..."
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none ${
                     isDark 
                       ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                       : 'border-gray-300'
                   }`}
                 />
               </div>
+            </div>
 
-              {/* Submit Button */}
-              <div className="lg:col-span-2 mt-8">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="flex-1 bg-green-600 text-white py-4 px-8 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 font-semibold text-lg shadow-lg"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        ঋণ প্রদান করা হচ্ছে...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-5 h-5" />
-                        ঋণ প্রদান করুন
-                      </>
-                    )}
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={() => navigate(-1)}
-                    className="sm:w-auto bg-gray-500 text-white py-4 px-8 rounded-xl hover:bg-gray-600 transition-all duration-200 flex items-center justify-center gap-2 font-semibold text-lg"
-                  >
-                    <X className="w-5 h-5" />
-                    বাতিল
-                  </button>
-                </div>
-              </div>
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-600">
+              <button
+                type="button"
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200"
+              >
+                <X className="w-4 h-4" />
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    আপডেট করা হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    আপডেট করুন
+                  </>
+                )}
+              </button>
             </div>
           </form>
         </div>
@@ -1145,4 +1042,4 @@ const NewLoanGiving = () => {
   );
 };
 
-export default NewLoanGiving;
+export default EditLoanReceiving;

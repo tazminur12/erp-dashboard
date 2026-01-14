@@ -311,9 +311,7 @@ const ReceivingList = () => {
                             >
                               {loan.fullName}
                             </button>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {loan.address || loan.fullAddress || 'N/A'}
-                            </div>
+                            
                             <div className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1">
                               <Phone className="w-3 h-3" />
                               {loan.contactPhone}

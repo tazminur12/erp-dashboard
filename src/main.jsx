@@ -129,6 +129,8 @@ const LoanDetails = React.lazy(() => import('./pages/Loan/LoanDetails'));
 const NewLoanReceiving = React.lazy(() => import('./pages/Loan/NewLoanReceiving'));
 const NewLoanGiving = React.lazy(() => import('./pages/Loan/NewLoanGiving'));
 const EditLoan = React.lazy(() => import('./pages/Loan/EditLoan'));
+const EditLoanReceiving = React.lazy(() => import('./pages/Loan/EditLoanReceiving'));
+const EditLoanGiving = React.lazy(() => import('./pages/Loan/EditLoanGiving'));
 
 // Miraj Industries pages - Cattle Management System
 const CattleDashboard = React.lazy(() => import('./pages/MirajIndustries').then(module => ({ default: module.CattleDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -999,6 +1001,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <EditLoan />
+          </Suspense>
+        )
+      },
+      {
+        path: "edit-receiving/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditLoanReceiving />
+          </Suspense>
+        )
+      },
+      {
+        path: "edit-giving/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditLoanGiving />
           </Suspense>
         )
       },
