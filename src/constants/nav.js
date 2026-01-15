@@ -187,17 +187,17 @@ export const navigation = [
     ]
   },
 
-  {
-    name: 'Visa Management',
-    icon: FileTextIcon3,
-    children: [
-      { name: 'Dashboard', href: '/visa-processing', icon: LayoutDashboard },
-      { name: 'Applicant Management', href: '/visa-processing/applicants', icon: Users },
-      { name: 'Visa Tracking', href: '/visa-processing/tracking', icon: Search },
-      { name: 'Payment', href: '/visa-processing/payment', icon: CreditCard },
-      // { name: 'Documents', href: '/visa-processing/documents', icon: FileText },
-    ]
-  },
+  // {
+  //   name: 'Visa Management',
+  //   icon: FileTextIcon3,
+  //   children: [
+  //     { name: 'Dashboard', href: '/visa-processing', icon: LayoutDashboard },
+  //     { name: 'Applicant Management', href: '/visa-processing/applicants', icon: Users },
+  //     { name: 'Visa Tracking', href: '/visa-processing/tracking', icon: Search },
+  //     { name: 'Payment', href: '/visa-processing/payment', icon: CreditCard },
+  //     // { name: 'Documents', href: '/visa-processing/documents', icon: FileText },
+  //   ]
+  // },
   {
     name: 'Additional Services',
     icon: Package,

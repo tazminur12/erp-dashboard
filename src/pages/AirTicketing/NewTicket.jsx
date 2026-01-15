@@ -9,11 +9,13 @@ import {
   Eye,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Search,
   User,
   Building,
   Plane,
   Plus,
+  CheckCircle,
 } from 'lucide-react';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
@@ -98,6 +100,10 @@ const NewTicket = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [touched, setTouched] = useState({});
   const [validationErrors, setValidationErrors] = useState({});
+  
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 5;
   
   // Customer search state
   const [customerQuery, setCustomerQuery] = useState('');
@@ -907,6 +913,37 @@ const NewTicket = () => {
     });
   };
 
+  // Step navigation functions
+  const nextStep = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToStep = (step) => {
+    if (step >= 1 && step <= totalSteps) {
+      setCurrentStep(step);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Step titles
+  const stepTitles = [
+    'গ্রাহক তথ্য',
+    'ফ্লাইট তথ্য',
+    'এজেন্ট ও ভেন্ডর',
+    'যাত্রী ও মূল্য',
+    'ভেন্ডর বিবরণ'
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <Helmet>
@@ -969,15 +1006,69 @@ const NewTicket = () => {
           </div>
         )}
 
+        {/* Step Progress Indicator */}
+        <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            {stepTitles.map((title, index) => {
+              const stepNum = index + 1;
+              const isActive = currentStep === stepNum;
+              const isCompleted = currentStep > stepNum;
+              
+              return (
+                <div key={stepNum} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center flex-1">
+                    <button
+                      type="button"
+                      onClick={() => goToStep(stepNum)}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                        isActive
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : isCompleted
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle className="w-6 h-6" />
+                      ) : (
+                        <span className="font-semibold">{stepNum}</span>
+                      )}
+                    </button>
+                    <span className={`mt-2 text-xs font-medium text-center ${
+                      isActive
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : isCompleted
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {title}
+                    </span>
+                  </div>
+                  {stepNum < totalSteps && (
+                    <div className={`flex-1 h-0.5 mx-2 ${
+                      isCompleted
+                        ? 'bg-green-500'
+                        : currentStep > stepNum
+                        ? 'bg-green-500'
+                        : 'bg-gray-300 dark:bg-gray-600'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Card 1: Booking & Agent Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Receipt className="w-5 h-5 mr-2 text-blue-600" />
-              Booking Details
-            </h2>
-            
-            {/* Customer Selection */}
+          {/* Step 1: Customer Information */}
+          {currentStep === 1 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Receipt className="w-5 h-5 mr-2 text-blue-600" />
+                Step 1: গ্রাহক তথ্য
+              </h2>
+              
+              {/* Customer Selection */}
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
                 <label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -1114,6 +1205,16 @@ const NewTicket = () => {
                 </div>
               )}
             </div>
+            </div>
+          )}
+
+          {/* Step 2: Flight Information */}
+          {currentStep === 2 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Plane className="w-5 h-5 mr-2 text-green-600" />
+                Step 2: ফ্লাইট তথ্য
+              </h2>
             
             {/* Top row: Date, Booking ID, Flight Type, Status */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -1310,6 +1411,177 @@ const NewTicket = () => {
               </div>
             </div>
 
+            {/* Flight Type */}
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trip Type *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tripType: 'oneway' }))}
+                    className={`px-3 py-2 rounded-lg border ${formData.tripType === 'oneway' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                  >
+                    One Way
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tripType: 'roundtrip' }))}
+                    className={`px-3 py-2 rounded-lg border ${formData.tripType === 'roundtrip' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                  >
+                    Round Trip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, tripType: 'multicity' }))}
+                    className={`px-3 py-2 rounded-lg border ${formData.tripType === 'multicity' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                  >
+                    Multi City
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Route and Dates */}
+            {formData.tripType !== 'multicity' ? (
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                  <label htmlFor="origin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Origin *</label>
+                  <input
+                    type="text"
+                    name="origin"
+                    id="origin"
+                    value={formData.origin}
+                    onChange={(e) => { handleChange(e); if (touched.origin) setValidationErrors(validate({ ...formData, origin: e.target.value })); }}
+                    onBlur={() => { markTouched('origin'); setValidationErrors(validate(formData)); }}
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="DAC"
+                    required
+                  />
+                  {touched.origin && validationErrors.origin && (
+                    <p className="mt-1 text-xs text-red-600">{validationErrors.origin}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="destination" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destination *</label>
+                  <input
+                    type="text"
+                    name="destination"
+                    id="destination"
+                    value={formData.destination}
+                    onChange={(e) => { handleChange(e); if (touched.destination) setValidationErrors(validate({ ...formData, destination: e.target.value })); }}
+                    onBlur={() => { markTouched('destination'); setValidationErrors(validate(formData)); }}
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="DXB"
+                    required
+                  />
+                  {touched.destination && validationErrors.destination && (
+                    <p className="mt-1 text-xs text-red-600">{validationErrors.destination}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="flightDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Date *</label>
+                  <input
+                    type="date"
+                    name="flightDate"
+                    id="flightDate"
+                    value={formData.flightDate}
+                    onChange={(e) => { handleChange(e); if (touched.flightDate) setValidationErrors(validate({ ...formData, flightDate: e.target.value })); }}
+                    onBlur={() => { markTouched('flightDate'); setValidationErrors(validate(formData)); }}
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    required
+                  />
+                  {touched.flightDate && validationErrors.flightDate && (
+                    <p className="mt-1 text-xs text-red-600">{validationErrors.flightDate}</p>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="returnDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Return Date{formData.tripType === 'roundtrip' ? ' *' : ''}</label>
+                  <input
+                    type="date"
+                    name="returnDate"
+                    id="returnDate"
+                    value={formData.returnDate}
+                    onChange={(e) => { handleChange(e); if (touched.returnDate) setValidationErrors(validate({ ...formData, returnDate: e.target.value })); }}
+                    onBlur={() => { markTouched('returnDate'); setValidationErrors(validate(formData)); }}
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    required={formData.tripType === 'roundtrip'}
+                  />
+                  {touched.returnDate && validationErrors.returnDate && (
+                    <p className="mt-1 text-xs text-red-600">{validationErrors.returnDate}</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Multi City Segments</h3>
+                  <button
+                    type="button"
+                    onClick={addSegment}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Add Segment
+                  </button>
+                </div>
+                {formData.segments?.map((seg, idx) => (
+                  <div key={idx} className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Origin *</label>
+                      <input
+                        type="text"
+                        value={seg.origin}
+                        onChange={(e) => handleSegmentChange(idx, 'origin', e.target.value)}
+                        className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="DAC"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destination *</label>
+                      <input
+                        type="text"
+                        value={seg.destination}
+                        onChange={(e) => handleSegmentChange(idx, 'destination', e.target.value)}
+                        className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        placeholder="DXB"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Date *</label>
+                      <input
+                        type="date"
+                        value={seg.date}
+                        onChange={(e) => handleSegmentChange(idx, 'date', e.target.value)}
+                        className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                        required
+                      />
+                    </div>
+                    <div className="md:col-span-1 flex md:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => removeSegment(idx)}
+                        disabled={(formData.segments?.length || 0) <= 2}
+                        className={`w-full md:w-auto px-3 py-2 rounded-lg border ${((formData.segments?.length || 0) <= 2) ? 'text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed' : 'text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/10'}`}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            </div>
+          )}
+
+          {/* Step 4: Passenger Count & Customer Pricing */}
+          {currentStep === 4 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <User className="w-5 h-5 mr-2 text-orange-600" />
+                Step 4: যাত্রী ও মূল্য
+              </h2>
 
             {/* Passenger Types */}
             <div className="mt-6">
@@ -1354,8 +1626,67 @@ const NewTicket = () => {
               </div>
             </div>
 
-            {/* Agent, Issued By (Employee), and Vendor */}
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Customer finance */}
+            <div className="mt-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Customer Pricing</h3>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Deal</label>
+                <input
+                  type="number"
+                  name="customerDeal"
+                  value={formData.customerDeal}
+                  onChange={handleChange}
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Paid</label>
+                <input
+                  type="number"
+                  name="customerPaid"
+                  value={formData.customerPaid}
+                  onChange={handleChange}
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Due</label>
+                <input
+                  type="number"
+                  name="customerDue"
+                  value={formData.customerDue}
+                  readOnly
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 focus:outline-none text-gray-900 dark:text-white"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Due Date</label>
+                <input
+                  type="date"
+                  name="dueDate"
+                  value={formData.dueDate}
+                  onChange={handleChange}
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+              </div>
+            </div>
+            </div>
+            </div>
+          )}
+
+          {/* Step 3: Agent & Vendor Information */}
+          {currentStep === 3 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Building className="w-5 h-5 mr-2 text-purple-600" />
+                Step 3: এজেন্ট ও ভেন্ডর
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Agent Name / ID
@@ -1532,7 +1863,7 @@ const NewTicket = () => {
                   </div>
                 )}
               </div>
-
+              
               {/* Vendor Search */}
               <div>
                 <label htmlFor="vendor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1619,234 +1950,20 @@ const NewTicket = () => {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Card 2: Flight Specifics */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Receipt className="w-5 h-5 mr-2 text-green-600" />
-              Flight Specifics
-            </h2>
-
-            {/* Flight Type */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Type *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, tripType: 'oneway' }))}
-                    className={`px-3 py-2 rounded-lg border ${formData.tripType === 'oneway' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                  >
-                    One Way
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, tripType: 'roundtrip' }))}
-                    className={`px-3 py-2 rounded-lg border ${formData.tripType === 'roundtrip' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                  >
-                    Round Trip
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, tripType: 'multicity' }))}
-                    className={`px-3 py-2 rounded-lg border ${formData.tripType === 'multicity' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                  >
-                    Multi City
-                  </button>
-                </div>
               </div>
             </div>
+          )}
 
-            {/* Route and Dates */}
-            {formData.tripType !== 'multicity' ? (
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div>
-                  <label htmlFor="origin" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Origin *</label>
-                  <input
-                    type="text"
-                    name="origin"
-                    id="origin"
-                    value={formData.origin}
-                    onChange={(e) => { handleChange(e); if (touched.origin) setValidationErrors(validate({ ...formData, origin: e.target.value })); }}
-                    onBlur={() => { markTouched('origin'); setValidationErrors(validate(formData)); }}
-                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="DAC"
-                    required
-                  />
-                  {touched.origin && validationErrors.origin && (
-                    <p className="mt-1 text-xs text-red-600">{validationErrors.origin}</p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="destination" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destination *</label>
-                  <input
-                    type="text"
-                    name="destination"
-                    id="destination"
-                    value={formData.destination}
-                    onChange={(e) => { handleChange(e); if (touched.destination) setValidationErrors(validate({ ...formData, destination: e.target.value })); }}
-                    onBlur={() => { markTouched('destination'); setValidationErrors(validate(formData)); }}
-                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="DXB"
-                    required
-                  />
-                  {touched.destination && validationErrors.destination && (
-                    <p className="mt-1 text-xs text-red-600">{validationErrors.destination}</p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="flightDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Date *</label>
-                  <input
-                    type="date"
-                    name="flightDate"
-                    id="flightDate"
-                    value={formData.flightDate}
-                    onChange={(e) => { handleChange(e); if (touched.flightDate) setValidationErrors(validate({ ...formData, flightDate: e.target.value })); }}
-                    onBlur={() => { markTouched('flightDate'); setValidationErrors(validate(formData)); }}
-                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required
-                  />
-                  {touched.flightDate && validationErrors.flightDate && (
-                    <p className="mt-1 text-xs text-red-600">{validationErrors.flightDate}</p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="returnDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Return Date{formData.tripType === 'roundtrip' ? ' *' : ''}</label>
-                  <input
-                    type="date"
-                    name="returnDate"
-                    id="returnDate"
-                    value={formData.returnDate}
-                    onChange={(e) => { handleChange(e); if (touched.returnDate) setValidationErrors(validate({ ...formData, returnDate: e.target.value })); }}
-                    onBlur={() => { markTouched('returnDate'); setValidationErrors(validate(formData)); }}
-                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    required={formData.tripType === 'roundtrip'}
-                  />
-                  {touched.returnDate && validationErrors.returnDate && (
-                    <p className="mt-1 text-xs text-red-600">{validationErrors.returnDate}</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Multi City Segments</h3>
-                  <button
-                    type="button"
-                    onClick={addSegment}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Add Segment
-                  </button>
-                </div>
-                {formData.segments?.map((seg, idx) => (
-                  <div key={idx} className="grid grid-cols-1 md:grid-cols-7 gap-4 items-end bg-gray-50 dark:bg-gray-700/30 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Origin *</label>
-                      <input
-                        type="text"
-                        value={seg.origin}
-                        onChange={(e) => handleSegmentChange(idx, 'origin', e.target.value)}
-                        className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="DAC"
-                        required
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Destination *</label>
-                      <input
-                        type="text"
-                        value={seg.destination}
-                        onChange={(e) => handleSegmentChange(idx, 'destination', e.target.value)}
-                        className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        placeholder="DXB"
-                        required
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Date *</label>
-                      <input
-                        type="date"
-                        value={seg.date}
-                        onChange={(e) => handleSegmentChange(idx, 'date', e.target.value)}
-                        className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                        required
-                      />
-                    </div>
-                    <div className="md:col-span-1 flex md:justify-end">
-                      <button
-                        type="button"
-                        onClick={() => removeSegment(idx)}
-                        disabled={(formData.segments?.length || 0) <= 2}
-                        className={`w-full md:w-auto px-3 py-2 rounded-lg border ${((formData.segments?.length || 0) <= 2) ? 'text-gray-400 border-gray-300 dark:border-gray-600 cursor-not-allowed' : 'text-red-600 border-red-300 hover:bg-red-50 dark:hover:bg-red-900/10'}`}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Card 3: Financial Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Receipt className="w-5 h-5 mr-2 text-purple-600" />
-              Financial Details
-            </h2>
-
-            {/* Customer finance */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Deal</label>
-                <input
-                  type="number"
-                  name="customerDeal"
-                  value={formData.customerDeal}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Paid</label>
-                <input
-                  type="number"
-                  name="customerPaid"
-                  value={formData.customerPaid}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Due</label>
-                <input
-                  type="number"
-                  name="customerDue"
-                  value={formData.customerDue}
-                  readOnly
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 focus:outline-none text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Due Date</label>
-                <input
-                  type="date"
-                  name="dueDate"
-                  value={formData.dueDate}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
+          {/* Step 5: Vendor Breakdown */}
+          {currentStep === 5 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Receipt className="w-5 h-5 mr-2 text-indigo-600" />
+                Step 5: ভেন্ডর বিবরণ
+              </h2>
 
             {/* Vendor Amount Breakdown */}
-            <div className="mt-6">
+            <div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Vendor Amount Breakdown</h3>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
@@ -2082,9 +2199,10 @@ const NewTicket = () => {
               </div>
             </div>
           </div>
+          )}
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6">
+          {/* Step Navigation Buttons */}
+          <div className="flex items-center justify-between pt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={() => navigate('/air-ticketing/tickets')}
@@ -2095,36 +2213,67 @@ const NewTicket = () => {
             </button>
 
             <div className="flex space-x-4">
-              <button
-                type="button"
-                onClick={() => {
-                  const errs = validate(formData);
-                  setValidationErrors(errs);
-                  if (Object.keys(errs).length === 0) setShowPreview(true);
-                }}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
-              >
-                <Eye className="w-5 h-5 mr-2" />
-                প্রিভিউ
-              </button>
-
-              <button
-                type="submit"
-                disabled={loading || createTicketMutation.isPending}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
-              >
-                {(loading || createTicketMutation.isPending) ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    বুক হচ্ছে...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5 mr-2" />
-                    টিকিট বুক করুন
-                  </>
-                )}
-              </button>
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                >
+                  <ChevronLeft className="w-5 h-5 mr-2" />
+                  পূর্ববর্তী
+                </button>
+              )}
+              
+              {currentStep < totalSteps ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                >
+                  পরবর্তী
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                  >
+                    <ChevronLeft className="w-5 h-5 mr-2" />
+                    পূর্ববর্তী
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const errs = validate(formData);
+                      setValidationErrors(errs);
+                      if (Object.keys(errs).length === 0) setShowPreview(true);
+                    }}
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                  >
+                    <Eye className="w-5 h-5 mr-2" />
+                    প্রিভিউ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || createTicketMutation.isPending}
+                    className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {(loading || createTicketMutation.isPending) ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        বুক হচ্ছে...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5 mr-2" />
+                        টিকিট বুক করুন
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </form>
@@ -2133,7 +2282,7 @@ const NewTicket = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div className="space-y-2">
               <div className="font-semibold text-gray-900 dark:text-white">Booking</div>
-                  <div className="text-gray-700 dark:text-gray-300">Customer: {formData.customerName || '-'}</div>
+              <div className="text-gray-700 dark:text-gray-300">Customer: {formData.customerName || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Date: {formData.date || '-'}</div>
               {formData.bookingId && (
                 <div className="text-gray-700 dark:text-gray-300">Booking ID: {formData.bookingId}</div>

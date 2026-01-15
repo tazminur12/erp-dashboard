@@ -2,15 +2,15 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Search, X, Plane, DollarSign } from 'lucide-react';
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 import { useVendors } from '../../hooks/useVendorQueries';
-import useEmployeeQueries from '../../hooks/useEmployeeQueries';
+import { useEmployees } from '../../hooks/useHRQueries';
 import useAirlineQueries from '../../hooks/useAirlineQueries';
 import useOldTicketReissueQueries from '../../hooks/useOldTicketReissueQueries';
 
 export default function OldTicketReissue() {
   const { useSearchAirCustomers } = useAirCustomersQueries();
   const { data: vendors, isLoading: vendorsLoading } = useVendors();
-  const { useEmployees } = useEmployeeQueries();
-  const { data: employees = [], isLoading: employeesLoading } = useEmployees({ status: 'active' });
+  const { data: employeesData, isLoading: employeesLoading } = useEmployees({ status: 'active', limit: 1000 });
+  const employees = employeesData?.employees || [];
   const { useAirlines } = useAirlineQueries();
   const { useCreateOldTicketReissue } = useOldTicketReissueQueries();
   const createMutation = useCreateOldTicketReissue();
@@ -195,11 +195,14 @@ export default function OldTicketReissue() {
     setSubmitting(true);
 
     // Get reservation officer name
-    const selectedOfficer = employees.find(emp => 
-      (emp._id || emp.id || emp.employeeId) === formValues.reservationOfficerId
-    );
+    const selectedOfficer = employees.find(emp => {
+      const empId = emp._id || emp.id || emp.employeeId;
+      return empId === formValues.reservationOfficerId;
+    });
     const reservationOfficerName = selectedOfficer 
-      ? `${selectedOfficer.firstName || ''} ${selectedOfficer.lastName || ''}`.trim() || selectedOfficer.employeeId || ''
+      ? (selectedOfficer.fullName || selectedOfficer.name || 
+         `${selectedOfficer.firstName || ''} ${selectedOfficer.lastName || ''}`.trim() || 
+         selectedOfficer.employeeId || '')
       : '';
 
     // Prepare payload
@@ -756,11 +759,18 @@ export default function OldTicketReissue() {
                 {employeesLoading ? 'লোড হচ্ছে...' : 'অফিসার নির্বাচন করুন'}
               </option>
               {employees && employees.length > 0 ? (
-                employees.map(employee => (
-                  <option key={employee._id} value={employee._id}>
-                    {employee.name} {employee.employeeId ? `(${employee.employeeId})` : ''}
-                  </option>
-                ))
+                employees.map(employee => {
+                  const employeeId = employee._id || employee.id || employee.employeeId;
+                  const firstName = employee.firstName || '';
+                  const lastName = employee.lastName || '';
+                  const fullName = employee.fullName || employee.name || `${firstName} ${lastName}`.trim() || 'N/A';
+                  const empId = employee.employeeId || employee.id || '';
+                  return (
+                    <option key={employeeId} value={employeeId}>
+                      {fullName} {empId ? `(${empId})` : ''}
+                    </option>
+                  );
+                })
               ) : (
                 !employeesLoading && <option value="" disabled>কোন কর্মচারী পাওয়া যায়নি</option>
               )}
