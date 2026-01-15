@@ -4033,7 +4033,7 @@ const NewTransaction = () => {
                             <div>
                               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট ডিপোজিট</p>
                               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                ৳{formData.agentDueInfo?.totalDeposit?.toLocaleString() || '0'}
+                                ৳{Number(formData.agentDueInfo?.totalDeposit || 0).toLocaleString('bn-BD')}
                               </p>
                             </div>
                             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
@@ -4048,7 +4048,7 @@ const NewTransaction = () => {
                             <div>
                               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট বকেয়া</p>
                               <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                                ৳{formData.agentDueInfo?.totalDue?.toLocaleString() || '0'}
+                                ৳{Number(formData.agentDueInfo?.totalDue || 0).toLocaleString('bn-BD')}
                               </p>
                             </div>
                             <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
@@ -4063,7 +4063,7 @@ const NewTransaction = () => {
                             <div>
                               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</p>
                               <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                                ৳{formData.agentDueInfo?.umrahDue?.toLocaleString() || '0'}
+                                ৳{Number(formData.agentDueInfo?.umrahDue || 0).toLocaleString('bn-BD')}
                               </p>
                             </div>
                             <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
@@ -4078,7 +4078,7 @@ const NewTransaction = () => {
                             <div>
                               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</p>
                               <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                ৳{formData.agentDueInfo?.hajDue?.toLocaleString() || '0'}
+                                ৳{Number(formData.agentDueInfo?.hajDue || 0).toLocaleString('bn-BD')}
                               </p>
                             </div>
                             <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
