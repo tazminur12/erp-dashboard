@@ -951,19 +951,9 @@ const TicketList = () => {
                   <tr key={ticket._id || ticket.bookingId} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div style={{ fontFamily: "'Google Sans', sans-serif" }}>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        <div className="text-sm font-bold text-blue-600 dark:text-blue-400">
                           {ticket.ticketId || ticket.bookingId || ticket._id}
                         </div>
-                        {ticket.ticketId && (
-                          <div className="text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                            Ticket ID: {ticket.ticketId}
-                          </div>
-                        )}
-                        {ticket.bookingId && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Booking: {ticket.bookingId}
-                          </div>
-                        )}
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           {formatDateShort(ticket.date)}
                         </div>

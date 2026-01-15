@@ -15,6 +15,9 @@ import {
   FileText,
   Upload,
   X,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle
 } from 'lucide-react';
 import { useCreateUmrah, useUpdateUmrah, useUmrah } from '../../../hooks/UseUmrahQuries';
 import { usePackages } from '../../../hooks/usePackageQueries';
@@ -181,6 +184,37 @@ const AddUmrahHaji = () => {
   const [packages, setPackages] = useState([]);
   const [agents, setAgents] = useState([]);
   const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
+  
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 6;
+  
+  const stepTitles = [
+    'ব্যক্তিগত তথ্য',
+    'যোগাযোগ তথ্য',
+    'প্যাকেজ তথ্য',
+    'আর্থিক তথ্য',
+    'অতিরিক্ত তথ্য',
+    'ডকুমেন্ট'
+  ];
+  
+  const nextStep = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+  
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+  
+  const goToStep = (step) => {
+    if (step >= 1 && step <= totalSteps) {
+      setCurrentStep(step);
+    }
+  };
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [passportUploading, setPassportUploading] = useState(false);
@@ -948,21 +982,64 @@ const AddUmrahHaji = () => {
             <p className="text-gray-600 dark:text-gray-400">{editMode ? 'Update Umrah pilgrim information' : 'Register a new Haji for Umrah'}</p>
           </div>
         </div>
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isSubmitting ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          <span>{isSubmitting ? 'Saving...' : editMode ? 'Update Umrah Haji' : 'Save Umrah Haji'}</span>
-        </button>
+      </div>
+
+      {/* Step Progress Indicator */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 mb-6">
+        <div className="flex items-center justify-between">
+          {stepTitles.map((title, index) => {
+            const stepNum = index + 1;
+            const isActive = currentStep === stepNum;
+            const isCompleted = currentStep > stepNum;
+            
+            return (
+              <div key={stepNum} className="flex items-center flex-1">
+                <div className="flex flex-col items-center flex-1">
+                  <button
+                    type="button"
+                    onClick={() => goToStep(stepNum)}
+                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                      isActive
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : isCompleted
+                        ? 'bg-green-500 border-green-500 text-white'
+                        : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle className="w-6 h-6" />
+                    ) : (
+                      <span className="font-semibold">{stepNum}</span>
+                    )}
+                  </button>
+                  <span className={`mt-2 text-xs font-medium text-center ${
+                    isActive
+                      ? 'text-blue-600 dark:text-blue-400'
+                      : isCompleted
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}>
+                    {title}
+                  </span>
+                </div>
+                {stepNum < totalSteps && (
+                  <div className={`flex-1 h-0.5 mx-2 ${
+                    isCompleted
+                      ? 'bg-green-500'
+                      : currentStep > stepNum
+                      ? 'bg-green-500'
+                      : 'bg-gray-300 dark:bg-gray-600'
+                  }`} />
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Step 1: Personal Information */}
+        {currentStep === 1 && (
         <FormSection title="Personal Information" icon={User}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <InputGroup 
@@ -1089,7 +1166,10 @@ const AddUmrahHaji = () => {
             />
           </div>
         </FormSection>
+        )}
 
+        {/* Step 2: Contact Information */}
+        {currentStep === 2 && (
         <FormSection title="Contact Information" icon={Phone}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputGroup 
@@ -1164,7 +1244,10 @@ const AddUmrahHaji = () => {
             />
           </div>
         </FormSection>
+        )}
 
+        {/* Step 3: Package Information */}
+        {currentStep === 3 && (
         <FormSection title="Package Information" icon={Package}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <SelectGroup 
@@ -1197,7 +1280,10 @@ const AddUmrahHaji = () => {
             />
           </div>
         </FormSection>
+        )}
 
+        {/* Step 4: Financial Information */}
+        {currentStep === 4 && (
         <FormSection title="Financial Information" icon={CreditCard}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <InputGroup 
@@ -1242,7 +1328,10 @@ const AddUmrahHaji = () => {
             />
           </div>
         </FormSection>
+        )}
 
+        {/* Step 5: Additional Information */}
+        {currentStep === 5 && (
         <FormSection title="Additional Information" icon={FileText}>
           <div className="space-y-4">
             <div className="flex items-center space-x-6">
@@ -1289,7 +1378,10 @@ const AddUmrahHaji = () => {
             </div>
           </div>
         </FormSection>
+        )}
 
+        {/* Step 6: Document Upload */}
+        {currentStep === 6 && (
         <FormSection title="Document Upload" icon={Upload}>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <FileUploadGroup
@@ -1324,23 +1416,63 @@ const AddUmrahHaji = () => {
             />
           </div>
         </FormSection>
-      </form>
+        )}
 
-      {/* Extra Save Button after Document Upload */}
-      <div className="flex justify-center pt-6">
-        <button
-          onClick={handleSubmit}
-          disabled={isSubmitting}
-          className="flex items-center space-x-2 px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-lg font-medium"
-        >
-          {isSubmitting ? (
-            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Save className="w-5 h-5" />
-          )}
-          <span>{isSubmitting ? 'Saving...' : editMode ? 'Update Umrah Haji' : 'Save Umrah Haji'}</span>
-        </button>
-      </div>
+        {/* Step Navigation Buttons */}
+        <div className="flex items-center justify-between pt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            onClick={() => navigate('/umrah/haji-list')}
+            className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+          >
+            <ArrowLeft className="w-5 h-5 inline mr-2" />
+            ফিরে যান
+          </button>
+
+          <div className="flex space-x-4">
+            {currentStep > 1 && (
+              <button
+                type="button"
+                onClick={prevStep}
+                className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+              >
+                <ChevronLeft className="w-5 h-5 mr-2" />
+                পূর্ববর্তী
+              </button>
+            )}
+            
+            {currentStep < totalSteps ? (
+              <button
+                type="button"
+                onClick={nextStep}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+              >
+                পরবর্তী
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    সংরক্ষণ হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 mr-2" />
+                    {editMode ? 'উমরাহ্ হাজি আপডেট করুন' : 'উমরাহ্ হাজি সংরক্ষণ করুন'}
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      </form>
     </div>
   );
 };
