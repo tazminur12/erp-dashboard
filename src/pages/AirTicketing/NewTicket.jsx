@@ -384,30 +384,43 @@ const NewTicket = () => {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await axiosSecure.get('/api/employees', { 
-          params: { search: q, status: 'active' } 
-        });
+        // Use the same endpoint as EmployeeList.jsx: /api/hr/employers with search parameter
+        const params = new URLSearchParams();
+        params.append('search', q);
+        params.append('limit', '100'); // Get more results for better search
+        
+        const res = await axiosSecure.get(`/api/hr/employers?${params.toString()}`);
         const data = res?.data;
         
         let list = [];
+        // Handle response structure from /api/hr/employers
         if (data?.success && Array.isArray(data.data)) {
           list = data.data;
+        } else if (data?.success && Array.isArray(data.employees)) {
+          list = data.employees;
         } else if (Array.isArray(data?.data)) {
           list = data.data;
+        } else if (Array.isArray(data?.employees)) {
+          list = data.employees;
         } else if (Array.isArray(data)) {
           list = data;
         }
 
+        // Additional client-side filtering for better search results
         const normalizedQ = q.toLowerCase();
         const filtered = list.filter((emp) => {
           const id = String(emp.employeeId || emp.id || emp._id || '').toLowerCase();
-          const name = String(emp.name || emp.fullName || '').toLowerCase();
+          const firstName = String(emp.firstName || '').toLowerCase();
+          const lastName = String(emp.lastName || '').toLowerCase();
+          const fullName = String(emp.fullName || emp.name || `${firstName} ${lastName}`.trim() || '').toLowerCase();
           const email = String(emp.email || '').toLowerCase();
-          const phone = String(emp.phone || emp.mobile || '');
-          const designation = String(emp.designation || '').toLowerCase();
+          const phone = String(emp.phone || emp.mobile || emp.contactNo || '');
+          const designation = String(emp.designation || emp.position || '').toLowerCase();
           return (
             id.includes(normalizedQ) ||
-            name.includes(normalizedQ) ||
+            firstName.includes(normalizedQ) ||
+            lastName.includes(normalizedQ) ||
+            fullName.includes(normalizedQ) ||
             email.includes(normalizedQ) ||
             phone.includes(q) ||
             designation.includes(normalizedQ)
@@ -416,6 +429,7 @@ const NewTicket = () => {
 
         if (active) setEmployeeResults(filtered.slice(0, 10));
       } catch (err) {
+        console.error('Error fetching employees:', err);
         if (active) setEmployeeResults([]);
       }
     }, 350);
@@ -428,14 +442,17 @@ const NewTicket = () => {
 
   const handleSelectEmployee = (employee) => {
     const employeeId = employee.employeeId || employee.id || employee._id || '';
-    const employeeName = employee.name || employee.fullName || employeeId;
+    const firstName = employee.firstName || '';
+    const lastName = employee.lastName || '';
+    const fullName = employee.fullName || employee.name || 
+      (firstName && lastName ? `${firstName} ${lastName}`.trim() : firstName || lastName || employeeId);
     setFormData(prev => ({
       ...prev,
-      issuedBy: employeeName,
+      issuedBy: fullName,
       issuedById: employeeId
     }));
     setSelectedEmployeeId(employeeId);
-    setEmployeeQuery(employeeName);
+    setEmployeeQuery(fullName);
     setShowEmployeeDropdown(false);
   };
 
@@ -451,27 +468,30 @@ const NewTicket = () => {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await axiosSecure.get('/vendors', { 
-          params: { search: q } 
-        });
+        // Fetch all vendors (backend may not support search param, so we fetch all and filter client-side)
+        const res = await axiosSecure.get('/vendors');
         const data = res?.data;
         
         let list = [];
+        // Handle different response structures
         if (data?.success && Array.isArray(data.vendors)) {
           list = data.vendors;
         } else if (Array.isArray(data?.vendors)) {
           list = data.vendors;
         } else if (Array.isArray(data)) {
           list = data;
+        } else if (data?.data && Array.isArray(data.data)) {
+          list = data.data;
         }
 
+        // Client-side filtering
         const normalizedQ = q.toLowerCase();
         const filtered = list.filter((vendor) => {
           const id = String(vendor.vendorId || vendor.id || vendor._id || '').toLowerCase();
           const tradeName = String(vendor.tradeName || vendor.name || '').toLowerCase();
           const ownerName = String(vendor.ownerName || '').toLowerCase();
-          const contactNo = String(vendor.contactNo || vendor.phone || '');
-          const location = String(vendor.tradeLocation || '').toLowerCase();
+          const contactNo = String(vendor.contactNo || vendor.phone || vendor.contactPhone || '');
+          const location = String(vendor.tradeLocation || vendor.location || '').toLowerCase();
           return (
             id.includes(normalizedQ) ||
             tradeName.includes(normalizedQ) ||
@@ -483,6 +503,7 @@ const NewTicket = () => {
 
         if (active) setVendorResults(filtered.slice(0, 10));
       } catch (err) {
+        console.error('Error fetching vendors:', err);
         if (active) setVendorResults([]);
       }
     }, 350);
@@ -1481,20 +1502,22 @@ const NewTicket = () => {
                                 <User className="w-4 h-4 text-gray-400" />
                                 <div>
                                   <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {emp.name || emp.fullName || 'N/A'}
+                                    {emp.fullName || emp.name || 
+                                      (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}`.trim() : 
+                                      emp.firstName || emp.lastName || 'N/A')}
                                   </div>
                                   <div className="text-xs text-gray-500 dark:text-gray-400">
                                     ID: {emp.employeeId || emp.id || emp._id}
                                   </div>
-                                  {emp.designation && (
+                                  {(emp.designation || emp.position) && (
                                     <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      {emp.designation}
+                                      {emp.designation || emp.position}
                                     </div>
                                   )}
                                 </div>
                               </div>
                               <div className="text-sm text-gray-600 dark:text-gray-300">
-                                {emp.phone || emp.mobile || ''}
+                                {emp.phone || emp.mobile || emp.contactNo || ''}
                               </div>
                             </div>
                           </button>
