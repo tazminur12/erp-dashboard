@@ -3072,16 +3072,16 @@ const NewTransaction = () => {
                   <div className="max-w-4xl mx-auto">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                       {[
-                        { value: 'airCustomer', label: 'Air Customer', icon: '✈️', color: 'blue' },
-                        { value: 'vendor', label: 'Vendor', icon: '🏪', color: 'purple' },
-                        { value: 'agent', label: 'Agent', icon: '👤', color: 'green' },
-                        { value: 'haji', label: 'Haji', icon: '🕋', color: 'amber' },
-                        { value: 'umrah', label: 'Umrah', icon: '🕌', color: 'indigo' },
-                        { value: 'loan', label: 'Loans', icon: '💰', color: 'red' },
-                        { value: 'personalExpense', label: 'Personal Expense', icon: '💳', color: 'pink' },
-                        { value: 'mirajIndustries', label: 'Miraj Industries', icon: '🏭', color: 'orange' },
-                        { value: 'officeExpenses', label: 'Office Expenses', icon: '🏢', color: 'teal' },
-                        { value: 'moneyExchange', label: 'Money Exchange', icon: '💱', color: 'cyan' }
+                        { value: 'airCustomer', label: 'এয়ার কাস্টমার', icon: '✈️', color: 'blue' },
+                        { value: 'vendor', label: 'ভেন্ডর', icon: '🏪', color: 'purple' },
+                        { value: 'agent', label: 'এজেন্ট', icon: '👤', color: 'green' },
+                        { value: 'haji', label: 'হাজি', icon: '🕋', color: 'amber' },
+                        { value: 'umrah', label: 'উমরাহ', icon: '🕌', color: 'indigo' },
+                        { value: 'loan', label: 'ঋণ', icon: '💰', color: 'red' },
+                        { value: 'personalExpense', label: 'ব্যক্তিগত ব্যয়', icon: '💳', color: 'pink' },
+                        { value: 'mirajIndustries', label: 'মিরাজ ইন্ডাস্ট্রিজ', icon: '🏭', color: 'orange' },
+                        { value: 'officeExpenses', label: 'অফিস ব্যয়', icon: '🏢', color: 'teal' },
+                        { value: 'moneyExchange', label: 'মানি এক্সচেঞ্জ', icon: '💱', color: 'cyan' }
                       ].map((type) => (
                         <button
                           key={type.value}
@@ -3252,16 +3252,16 @@ const NewTransaction = () => {
                     <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
                       <p className="text-sm text-blue-700 dark:text-blue-300">
                         নির্বাচিত টাইপ: <span className="font-semibold">
-                          {formData.selectedCustomerType === 'airCustomer' ? 'Air Customer' : 
-                           formData.selectedCustomerType === 'vendor' ? 'Vendor' : 
-                           formData.selectedCustomerType === 'agent' ? 'Agent' :
-                           formData.selectedCustomerType === 'haji' ? 'Haji' :
-                           formData.selectedCustomerType === 'umrah' ? 'Umrah' :
-                           formData.selectedCustomerType === 'loan' ? 'Loans' : 
-                           formData.selectedCustomerType === 'personalExpense' ? 'Personal Expense' :
-                           formData.selectedCustomerType === 'mirajIndustries' ? 'Miraj Industries' :
-                           formData.selectedCustomerType === 'officeExpenses' ? 'Office Expenses' :
-                           formData.selectedCustomerType === 'moneyExchange' ? 'Money Exchange' :
+                          {formData.selectedCustomerType === 'airCustomer' ? 'এয়ার কাস্টমার' : 
+                           formData.selectedCustomerType === 'vendor' ? 'ভেন্ডর' : 
+                           formData.selectedCustomerType === 'agent' ? 'এজেন্ট' :
+                           formData.selectedCustomerType === 'haji' ? 'হাজি' :
+                           formData.selectedCustomerType === 'umrah' ? 'উমরাহ' :
+                           formData.selectedCustomerType === 'loan' ? 'ঋণ' : 
+                           formData.selectedCustomerType === 'personalExpense' ? 'ব্যক্তিগত ব্যয়' :
+                           formData.selectedCustomerType === 'mirajIndustries' ? 'মিরাজ ইন্ডাস্ট্রিজ' :
+                           formData.selectedCustomerType === 'officeExpenses' ? 'অফিস ব্যয়' :
+                           formData.selectedCustomerType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ' :
                            formData.selectedCustomerType}
                         </span>
                       </p>
