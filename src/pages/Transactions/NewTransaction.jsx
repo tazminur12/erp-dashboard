@@ -1611,12 +1611,15 @@ const NewTransaction = () => {
 
     // Log the data being sent for debugging
     console.log('Submitting credit/debit transaction payload:', unifiedTransactionData);
-    console.log('Haji/Umrah Debug Info:', {
+    console.log('Agent Transaction Debug Info:', {
       customerType: formData.customerType,
+      partyType: unifiedTransactionData.partyType,
       partyId: unifiedTransactionData.partyId,
-      linkedCustomerId: unifiedTransactionData.linkedCustomerId,
-      customerId: unifiedTransactionData.customerId,
-      formDataLinkedCustomerId: formData.linkedCustomerId
+      transactionType: unifiedTransactionData.transactionType,
+      serviceCategory: unifiedTransactionData.serviceCategory,
+      selectedOption: formData.selectedOption,
+      amount: amount,
+      meta: unifiedTransactionData.meta
     });
 
     // Capture accountManager before form reset (important for PDF generation)

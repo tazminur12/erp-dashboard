@@ -6,12 +6,16 @@ export const loanKeys = {
   all: ['loans'],
   lists: () => [...loanKeys.all, 'list'],
   list: (filters) => [...loanKeys.lists(), { filters }],
+  giving: () => [...loanKeys.all, 'giving'],
+  givingList: (filters) => [...loanKeys.giving(), 'list', { filters }],
+  receiving: () => [...loanKeys.all, 'receiving'],
+  receivingList: (filters) => [...loanKeys.receiving(), 'list', { filters }],
   details: () => [...loanKeys.all, 'detail'],
   detail: (loanId) => [...loanKeys.details(), loanId],
   dashboard: (filters) => [...loanKeys.all, 'dashboard-summary', { filters }],
 };
 
-// List loans with optional filters: loanDirection, status
+// List all loans with optional filters: loanDirection, status
 export const useLoans = (filters = {}, page = 1, limit = 20) => {
   const axiosSecure = useAxiosSecure();
 
@@ -22,8 +26,6 @@ export const useLoans = (filters = {}, page = 1, limit = 20) => {
       if (filters.loanDirection) params.append('loanDirection', String(filters.loanDirection));
       if (filters.status) params.append('status', String(filters.status));
       if (filters.branchId) params.append('branchId', String(filters.branchId));
-      // Allow filtering by customerId if backend supports it
-      if (filters.customerId) params.append('customerId', String(filters.customerId));
       if (filters.search) params.append('search', String(filters.search));
       if (page) params.append('page', String(page));
       if (limit) params.append('limit', String(limit));
@@ -32,17 +34,75 @@ export const useLoans = (filters = {}, page = 1, limit = 20) => {
       const url = qs ? `/loans?${qs}` : '/loans';
       const response = await axiosSecure.get(url);
       const data = response?.data;
-      // Normalize common response shapes
-      if (data?.success) return data;
-      if (Array.isArray(data)) return { loans: data };
-      if (Array.isArray(data?.loans)) return data;
-      return { loans: [] };
+      if (data?.success) {
+        return {
+          loans: data.loans || [],
+          pagination: data.pagination || { page, limit, total: 0, totalPages: 0 }
+        };
+      }
+      return { loans: [], pagination: { page, limit, total: 0, totalPages: 0 } };
     },
     staleTime: 5 * 60 * 1000,
   });
 };
 
-// Fetch a single loan by loanId
+// List giving loans with pagination and search
+export const useGivingLoans = (filters = {}, page = 1, limit = 20) => {
+  const axiosSecure = useAxiosSecure();
+
+  return useQuery({
+    queryKey: loanKeys.givingList({ ...filters, page, limit }),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', String(filters.status));
+      if (filters.branchId) params.append('branchId', String(filters.branchId));
+      if (filters.search) params.append('search', String(filters.search));
+      params.append('page', String(page));
+      params.append('limit', String(limit));
+
+      const response = await axiosSecure.get(`/loans/giving?${params.toString()}`);
+      const data = response?.data;
+      if (data?.success) {
+        return {
+          loans: data.loans || [],
+          pagination: data.pagination || { page, limit, total: 0, totalPages: 0 }
+        };
+      }
+      throw new Error(data?.message || 'Failed to fetch giving loans');
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// List receiving loans with pagination and search
+export const useReceivingLoans = (filters = {}, page = 1, limit = 20) => {
+  const axiosSecure = useAxiosSecure();
+
+  return useQuery({
+    queryKey: loanKeys.receivingList({ ...filters, page, limit }),
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.status) params.append('status', String(filters.status));
+      if (filters.branchId) params.append('branchId', String(filters.branchId));
+      if (filters.search) params.append('search', String(filters.search));
+      params.append('page', String(page));
+      params.append('limit', String(limit));
+
+      const response = await axiosSecure.get(`/loans/receiving?${params.toString()}`);
+      const data = response?.data;
+      if (data?.success) {
+        return {
+          loans: data.loans || [],
+          pagination: data.pagination || { page, limit, total: 0, totalPages: 0 }
+        };
+      }
+      throw new Error(data?.message || 'Failed to fetch receiving loans');
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Fetch a single loan by loanId (works for both giving and receiving)
 export const useLoan = (loanId) => {
   const axiosSecure = useAxiosSecure();
 
@@ -52,21 +112,67 @@ export const useLoan = (loanId) => {
       if (!loanId) return null;
       const response = await axiosSecure.get(`/loans/${encodeURIComponent(loanId)}`);
       const data = response?.data;
-      // Normalize and ensure new computed totals are always present
-      const loan = data?.loan ?? data ?? null;
-      if (!loan) return null;
-      const totalAmount = Number(loan.totalAmount ?? loan.amount ?? 0) || 0;
-      const paidAmount = Number(loan.paidAmount ?? 0) || 0;
-      const totalDue = Number(loan.totalDue ?? Math.max(0, totalAmount - paidAmount)) || 0;
-      return {
-        loan: {
-          ...loan,
-          totalAmount,
-          paidAmount,
-          totalDue,
-        },
-        success: true,
-      };
+      if (data?.success && data?.loan) {
+        return {
+          loan: data.loan,
+          success: true,
+        };
+      }
+      return null;
+    },
+    enabled: !!loanId,
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error?.response?.status === 404) return false;
+      return failureCount < 2;
+    },
+  });
+};
+
+// Fetch a single giving loan by loanId
+export const useGivingLoan = (loanId) => {
+  const axiosSecure = useAxiosSecure();
+
+  return useQuery({
+    queryKey: [...loanKeys.giving(), 'detail', loanId],
+    queryFn: async () => {
+      if (!loanId) return null;
+      const response = await axiosSecure.get(`/loans/giving/${encodeURIComponent(loanId)}`);
+      const data = response?.data;
+      if (data?.success && data?.loan) {
+        return {
+          loan: data.loan,
+          success: true,
+        };
+      }
+      return null;
+    },
+    enabled: !!loanId,
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error?.response?.status === 404) return false;
+      return failureCount < 2;
+    },
+  });
+};
+
+// Fetch a single receiving loan by loanId
+export const useReceivingLoan = (loanId) => {
+  const axiosSecure = useAxiosSecure();
+
+  return useQuery({
+    queryKey: [...loanKeys.receiving(), 'detail', loanId],
+    queryFn: async () => {
+      if (!loanId) return null;
+      const response = await axiosSecure.get(`/loans/receiving/${encodeURIComponent(loanId)}`);
+      const data = response?.data;
+      if (data?.success && data?.loan) {
+        return {
+          loan: data.loan,
+          success: true,
+        };
+      }
+      return null;
     },
     enabled: !!loanId,
     staleTime: 5 * 60 * 1000,
@@ -119,8 +225,10 @@ export const useCreateGivingLoan = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
-      if (data?.id) {
-        queryClient.invalidateQueries({ queryKey: loanKeys.detail(data.id) });
+      queryClient.invalidateQueries({ queryKey: loanKeys.giving() });
+      if (data?.id || data?.loan?.loanId) {
+        const loanId = data?.id || data?.loan?.loanId;
+        queryClient.invalidateQueries({ queryKey: loanKeys.detail(loanId) });
       }
     },
   });
@@ -140,14 +248,16 @@ export const useCreateReceivingLoan = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
-      if (data?.id) {
-        queryClient.invalidateQueries({ queryKey: loanKeys.detail(data.id) });
+      queryClient.invalidateQueries({ queryKey: loanKeys.receiving() });
+      if (data?.id || data?.loan?.loanId) {
+        const loanId = data?.id || data?.loan?.loanId;
+        queryClient.invalidateQueries({ queryKey: loanKeys.detail(loanId) });
       }
     },
   });
 };
 
-// Update loan by loanId or _id
+// Update loan by loanId (generic - works for both giving and receiving)
 export const useUpdateLoan = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -158,11 +268,13 @@ export const useUpdateLoan = () => {
       const response = await axiosSecure.put(`/loans/${encodeURIComponent(loanId)}`, payload);
       const data = response?.data;
       if (data?.success) return data;
-      return data;
+      throw new Error(data?.message || 'Failed to update loan');
     },
     onSuccess: (data, variables) => {
       // Refresh lists and detail
       queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.giving() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.receiving() });
       if (variables?.loanId) {
         queryClient.invalidateQueries({ queryKey: loanKeys.detail(variables.loanId) });
       }
@@ -170,7 +282,55 @@ export const useUpdateLoan = () => {
   });
 };
 
-// Delete loan by loanId (soft delete)
+// Update giving loan by loanId
+export const useUpdateGivingLoan = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ loanId, payload }) => {
+      if (!loanId) throw new Error('loanId is required');
+      const response = await axiosSecure.put(`/loans/giving/${encodeURIComponent(loanId)}`, payload);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to update giving loan');
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.giving() });
+      if (variables?.loanId) {
+        queryClient.invalidateQueries({ queryKey: loanKeys.detail(variables.loanId) });
+        queryClient.invalidateQueries({ queryKey: [...loanKeys.giving(), 'detail', variables.loanId] });
+      }
+    }
+  });
+};
+
+// Update receiving loan by loanId
+export const useUpdateReceivingLoan = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ loanId, payload }) => {
+      if (!loanId) throw new Error('loanId is required');
+      const response = await axiosSecure.put(`/loans/receiving/${encodeURIComponent(loanId)}`, payload);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to update receiving loan');
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.receiving() });
+      if (variables?.loanId) {
+        queryClient.invalidateQueries({ queryKey: loanKeys.detail(variables.loanId) });
+        queryClient.invalidateQueries({ queryKey: [...loanKeys.receiving(), 'detail', variables.loanId] });
+      }
+    }
+  });
+};
+
+// Delete loan by loanId (soft delete - generic)
 export const useDeleteLoan = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -184,7 +344,48 @@ export const useDeleteLoan = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
-      // Also invalidate dashboard summary as counts/amounts will change
+      queryClient.invalidateQueries({ queryKey: loanKeys.giving() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.receiving() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.all });
+    },
+  });
+};
+
+// Delete giving loan by loanId (soft delete)
+export const useDeleteGivingLoan = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (loanId) => {
+      const response = await axiosSecure.delete(`/loans/giving/${encodeURIComponent(loanId)}`);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to delete giving loan');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.giving() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.all });
+    },
+  });
+};
+
+// Delete receiving loan by loanId (soft delete)
+export const useDeleteReceivingLoan = () => {
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (loanId) => {
+      const response = await axiosSecure.delete(`/loans/receiving/${encodeURIComponent(loanId)}`);
+      const data = response?.data;
+      if (data?.success) return data;
+      throw new Error(data?.message || 'Failed to delete receiving loan');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: loanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: loanKeys.receiving() });
       queryClient.invalidateQueries({ queryKey: loanKeys.all });
     },
   });
@@ -193,12 +394,18 @@ export const useDeleteLoan = () => {
 export default {
   loanKeys,
   useLoans,
+  useGivingLoans,
+  useReceivingLoans,
   useLoan,
+  useGivingLoan,
+  useReceivingLoan,
   useCreateGivingLoan,
   useCreateReceivingLoan,
   useUpdateLoan,
+  useUpdateGivingLoan,
+  useUpdateReceivingLoan,
   useDeleteLoan,
+  useDeleteGivingLoan,
+  useDeleteReceivingLoan,
   useLoanDashboardSummary,
 };
-
-

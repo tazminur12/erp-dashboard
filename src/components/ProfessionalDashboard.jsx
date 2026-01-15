@@ -219,7 +219,7 @@ const ProfessionalDashboard = () => {
       color: "bg-gradient-to-br from-red-500 to-pink-600",
       iconColor: "text-white",
       routes: [
-        { name: "ঋণ তালিকা", path: "/loan/list", icon: List },
+        { name: "ঋণ তালিকা", path: "/loan/dashboard", icon: List },
         { name: "নতুন ঋণ প্রদান", path: "/loan/new-giving", icon: TrendingDown },
         { name: "নতুন ঋণ গ্রহণ", path: "/loan/new-receiving", icon: TrendingUp },
         { name: "ঋণ ড্যাশবোর্ড", path: "/loan", icon: BarChart3 }

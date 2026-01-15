@@ -122,13 +122,11 @@ const VisaDocuments = React.lazy(() => import('./pages/VisaProcessing').then(mod
 
 // Loan pages (direct file imports to surface real errors and avoid masking with catch)
 const LoanDashboard = React.lazy(() => import('./pages/Loan/Dashboard'));
-const LoanList = React.lazy(() => import('./pages/Loan/LoanList'));
 const ReceivingList = React.lazy(() => import('./pages/Loan/ReceivingList'));
 const GivingList = React.lazy(() => import('./pages/Loan/GivingList'));
 const LoanDetails = React.lazy(() => import('./pages/Loan/LoanDetails'));
 const NewLoanReceiving = React.lazy(() => import('./pages/Loan/NewLoanReceiving'));
 const NewLoanGiving = React.lazy(() => import('./pages/Loan/NewLoanGiving'));
-const EditLoan = React.lazy(() => import('./pages/Loan/EditLoan'));
 const EditLoanReceiving = React.lazy(() => import('./pages/Loan/EditLoanReceiving'));
 const EditLoanGiving = React.lazy(() => import('./pages/Loan/EditLoanGiving'));
 
@@ -976,15 +974,7 @@ const router = createBrowserRouter([
         index: true,
         element: (
           <Suspense fallback={<LoadingSpinner />}>
-            <LoanList />
-          </Suspense>
-        )
-      },
-      {
-        path: "list",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <LoanList />
+            <LoanDashboard />
           </Suspense>
         )
       },
@@ -993,14 +983,6 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <LoanDetails />
-          </Suspense>
-        )
-      },
-      {
-        path: "edit/:id",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <EditLoan />
           </Suspense>
         )
       },

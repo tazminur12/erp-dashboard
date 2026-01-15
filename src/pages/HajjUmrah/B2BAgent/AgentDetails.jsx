@@ -8,7 +8,7 @@ import {
   PiggyBank, Calculator, FileSpreadsheet, AlertTriangle, Banknote
 } from 'lucide-react';
 import { useAgent } from '../../../hooks/useAgentQueries';
-import { useAgentPackageList, useDeleteAgentPackage, useAgentPackageTransactions } from '../../../hooks/UseAgentPacakageQueries';
+import { useAgentPackageList, useDeleteAgentPackage } from '../../../hooks/UseAgentPacakageQueries';
 import { useHajiList } from '../../../hooks/UseHajiQueries';
 import { useUmrahList } from '../../../hooks/UseUmrahQuries';
 import Swal from 'sweetalert2';
@@ -120,7 +120,26 @@ const AgentDetails = () => {
   const [activeSummaryView, setActiveSummaryView] = useState('hajj'); // 'all', 'hajj', 'umrah'
   
   // React Query hook for fetching agent details
-  const { data: agent, isLoading, error } = useAgent(id);
+  const { data: agent, isLoading, error, refetch: refetchAgent } = useAgent(id);
+  
+  // Debug: Log agent data to check balance values
+  useEffect(() => {
+    if (agent) {
+      console.log('Agent Details - Balance Data:', {
+        id: agent._id || agent.agentId,
+        name: agent.tradeName,
+        hajDue: agent.hajDue,
+        umrahDue: agent.umrahDue,
+        totalDue: agent.totalDue,
+        fullAgentObject: agent // Log full object to see all fields
+      });
+      console.log('Agent Details - Financial Summary:', {
+        hajjDue: financialSummary.hajj.due,
+        umrahDue: financialSummary.umrah.due,
+        overallDue: financialSummary.overall.due
+      });
+    }
+  }, [agent]);
   
 
   // Fetch agent packages
@@ -130,28 +149,6 @@ const AgentDetails = () => {
   });
   const packages = packagesData?.data || [];
 
-  // Transactions state
-  const [selectedPackageId, setSelectedPackageId] = useState('');
-  const [transactionFilters, setTransactionFilters] = useState({ fromDate: '', toDate: '' });
-  const [transactionPage, setTransactionPage] = useState(1);
-  const [transactionLimit, setTransactionLimit] = useState(10);
-
-// Package transactions query
-const { data: transactionsResponse, isLoading: transactionsLoading, error: transactionsError } = useAgentPackageTransactions({
-  packageId: selectedPackageId,
-  page: transactionPage,
-  limit: transactionLimit,
-  fromDate: transactionFilters.fromDate,
-  toDate: transactionFilters.toDate,
-});
-
-const transactionsData = {
-  items: transactionsResponse?.data || [],
-  totals: transactionsResponse?.totals || { totalCredit: 0, totalDebit: 0, net: 0 },
-  pagination: transactionsResponse?.pagination || { page: transactionPage, limit: transactionLimit, total: 0, totalPages: 0 },
-  agent: transactionsResponse?.agent || null,
-  package: transactionsResponse?.package || null,
-};
 
   // Fetch all Hajj and Umrah customers to calculate counts
   const { data: hajiData } = useHajiList({ limit: 1000 });
@@ -532,32 +529,6 @@ const transactionsData = {
   const availableYears = getAvailableYears();
   const totalPackagesCount = displayPackages.length;
   const activePackagesCount = displayPackages.filter(pkg => pkg?.isActive).length;
-  const transactionTotalPages = transactionsData.pagination.totalPages || 1;
-
-  // Set default selected package when packages load
-  useEffect(() => {
-    if (!selectedPackageId && packages.length > 0) {
-      setSelectedPackageId(packages[0]._id);
-      setTransactionPage(1);
-    }
-  }, [packages, selectedPackageId]);
-
-// Transactions are fetched via useAgentPackageTransactions hook
-
-  const handleFilterChange = (field, value) => {
-    setTransactionPage(1);
-    setTransactionFilters((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handlePackageChange = (value) => {
-    setSelectedPackageId(value);
-    setTransactionPage(1);
-  };
-
-  const handleLimitChange = (value) => {
-    setTransactionLimit(value);
-    setTransactionPage(1);
-  };
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-6">
@@ -885,155 +856,6 @@ const transactionsData = {
                   <p className="text-sm text-gray-900 dark:text-white font-mono">{agent.agentId}</p>
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Transaction History */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-              <div className="flex items-center space-x-2">
-                <Wallet className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agent Package Transactions</h3>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={selectedPackageId}
-                  onChange={(e) => handlePackageChange(e.target.value)}
-                  className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {packages.map((pkg) => (
-                    <option key={pkg._id} value={pkg._id}>
-                      {pkg.packageName || 'Untitled Package'}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="date"
-                  value={transactionFilters.fromDate}
-                  onChange={(e) => handleFilterChange('fromDate', e.target.value)}
-                  className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                <input
-                  type="date"
-                  value={transactionFilters.toDate}
-                  onChange={(e) => handleFilterChange('toDate', e.target.value)}
-                  className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                <select
-                  value={transactionLimit}
-                  onChange={(e) => handleLimitChange(parseInt(e.target.value, 10) || 10)}
-                  className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {[10, 20, 50, 100].map((size) => (
-                    <option key={size} value={size}>{size} / page</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
-                <p className="text-xs text-emerald-700 dark:text-emerald-300">Total Credit</p>
-                <p className="text-lg font-semibold text-emerald-800 dark:text-emerald-200">
-                  {formatCurrency(transactionsData.totals.totalCredit)}
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-900/20">
-                <p className="text-xs text-rose-700 dark:text-rose-300">Total Debit</p>
-                <p className="text-lg font-semibold text-rose-800 dark:text-rose-200">
-                  {formatCurrency(transactionsData.totals.totalDebit)}
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-indigo-50 dark:bg-indigo-900/20">
-                <p className="text-xs text-indigo-700 dark:text-indigo-300">Net</p>
-                <p className="text-lg font-semibold text-indigo-800 dark:text-indigo-200">
-                  {formatCurrency(transactionsData.totals.net)}
-                </p>
-              </div>
-            </div>
-
-            {transactionsError && (
-              <div className="mb-3 text-sm text-red-600 dark:text-red-400">
-                {transactionsError?.message || transactionsError}
-              </div>
-            )}
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Type</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Amount</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Description</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {transactionsLoading ? (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-sm text-gray-600 dark:text-gray-300">
-                        Loading transactions...
-                      </td>
-                    </tr>
-                  ) : transactionsData.items.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="px-3 py-6 text-center text-sm text-gray-600 dark:text-gray-300">
-                        No transactions found
-                      </td>
-                    </tr>
-                  ) : (
-                    transactionsData.items.map((tx) => (
-                      <tr key={tx._id}>
-                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {tx.date ? new Date(tx.date).toLocaleDateString() : '-'}
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            tx.transactionType === 'credit'
-                              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200'
-                              : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-200'
-                          }`}>
-                            {tx.transactionType || '-'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                          {formatCurrency(tx.amount)}
-                        </td>
-                        <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">
-                          {tx.description || '-'}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex items-center justify-between mt-3 text-sm text-gray-700 dark:text-gray-300">
-              <div>
-                Page {transactionsData.pagination.page} of {transactionTotalPages}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTransactionPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={transactionPage <= 1 || transactionsLoading}
-                  className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTransactionPage((prev) => prev + 1)}
-                  disabled={
-                    transactionsLoading ||
-                    transactionPage >= transactionTotalPages
-                  }
-                  className="px-3 py-1 rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
             </div>
           </div>
 

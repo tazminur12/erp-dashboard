@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { useLoans, useDeleteLoan } from '../../hooks/useLoanQueries';
+import { useReceivingLoans, useDeleteReceivingLoan } from '../../hooks/useLoanQueries';
 
 const ReceivingList = () => {
   const { isDark } = useTheme();
@@ -32,16 +32,16 @@ const ReceivingList = () => {
 
   // Build filters object for API
   const filters = {
-    loanDirection: filterType,
     ...(filterStatus !== 'all' && { status: filterStatus }),
     ...(searchTerm && { search: searchTerm })
   };
 
-  // Use the loan query hook
-  const { data: loansData, isLoading: loading } = useLoans(filters, currentPage, 20);
-  const deleteLoanMutation = useDeleteLoan();
+  // Use the receiving loans query hook
+  const { data: loansData, isLoading: loading } = useReceivingLoans(filters, currentPage, 20);
+  const deleteLoanMutation = useDeleteReceivingLoan();
   
   const loans = loansData?.loans || [];
+  const pagination = loansData?.pagination || { page: currentPage, limit: 20, total: 0, totalPages: 0 };
 
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
@@ -234,7 +234,7 @@ const ReceivingList = () => {
               <span className={`text-sm font-medium ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                {loansData?.totalCount || loans.length} টি ঋণ পাওয়া গেছে
+                {pagination.total || loans.length} টি ঋণ পাওয়া গেছে
               </span>
             </div>
           </div>

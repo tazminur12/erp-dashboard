@@ -89,11 +89,26 @@ const LoanDashboard = () => {
     totalDue: 0, 
     netCashFlow: 0,
     cashIn: 0,
-    cashOut: 0,
-    givingDisbursed: 0,
-    givingRepaid: 0,
-    receivingTaken: 0,
-    receivingRepaid: 0
+    cashOut: 0
+  };
+  
+  // Separate giving and receiving financial data
+  const givingFinancial = data?.giving?.financial || {
+    totalAmount: 0,
+    paidAmount: 0,
+    totalDue: 0,
+    disbursed: 0,
+    repaid: 0,
+    netCashFlow: 0
+  };
+  
+  const receivingFinancial = data?.receiving?.financial || {
+    totalAmount: 0,
+    paidAmount: 0,
+    totalDue: 0,
+    taken: 0,
+    repaid: 0,
+    netCashFlow: 0
   };
 
   const directionBreakdown = data?.directionBreakdown || [];
@@ -239,7 +254,7 @@ const LoanDashboard = () => {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">মোট ঋণ গ্রহণ</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
-                  ৳{loading ? '...' : (financial.receivingTaken || 0).toLocaleString()}
+                  ৳{loading ? '...' : (receivingFinancial.taken || 0).toLocaleString()}
                 </p>
               </div>
               <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 text-white flex items-center justify-center">
@@ -253,7 +268,7 @@ const LoanDashboard = () => {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">মোট ঋণ প্রদান</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
-                  ৳{loading ? '...' : (financial.givingDisbursed || 0).toLocaleString()}
+                  ৳{loading ? '...' : (givingFinancial.disbursed || 0).toLocaleString()}
                 </p>
               </div>
               <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 text-white flex items-center justify-center">
@@ -267,7 +282,7 @@ const LoanDashboard = () => {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">গ্রহীত ঋণ পরিশোধ</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
-                  ৳{loading ? '...' : (financial.receivingRepaid || 0).toLocaleString()}
+                  ৳{loading ? '...' : (receivingFinancial.repaid || 0).toLocaleString()}
                 </p>
               </div>
               <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-white flex items-center justify-center">
@@ -281,7 +296,7 @@ const LoanDashboard = () => {
               <div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">প্রদত্ত ঋণ আদায়</p>
                 <p className="text-2xl font-semibold text-gray-900 dark:text-white mt-1">
-                  ৳{loading ? '...' : (financial.givingRepaid || 0).toLocaleString()}
+                  ৳{loading ? '...' : (givingFinancial.repaid || 0).toLocaleString()}
                 </p>
               </div>
               <div className="w-11 h-11 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center">

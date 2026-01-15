@@ -6,6 +6,7 @@ import { opExKeys } from './useOperatingExpensenQuries';
 import { exchangeKeys } from './useMoneyExchangeQueries';
 import { loanKeys } from './useLoanQueries';
 import { airCustomerKeys } from './useAirCustomersQueries';
+import { agentKeys } from './useAgentQueries';
 
 // Query keys
 export const transactionKeys = {
@@ -590,9 +591,15 @@ export const useCreateTransaction = () => {
         });
       }
       
-      // Handle agent party type
+      // Handle agent party type - invalidate agent queries to refresh agent profile (including hajDue/umrahDue)
+      // Backend updates agent.hajDue and agent.umrahDue based on serviceCategory ('hajj' or 'umrah')
       if (partyType === 'agent' && partyId) {
         queryClient.invalidateQueries({ queryKey: transactionKeys.agents() });
+        // Invalidate and force refetch agent detail query to refresh hajDue/umrahDue balances
+        queryClient.invalidateQueries({ queryKey: agentKeys.detail(partyId) });
+        queryClient.invalidateQueries({ queryKey: agentKeys.lists() });
+        // Force refetch to ensure updated balance is shown immediately
+        queryClient.refetchQueries({ queryKey: agentKeys.detail(partyId) });
       }
       
       // Handle haji and umrah party types (these may also sync to customer profiles)

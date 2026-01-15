@@ -238,8 +238,6 @@ const NewLoanGiving = () => {
 
     const loanData = {
       ...formData,
-      loanDirection: 'giving',
-      status: 'Active',
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch'
     };
@@ -256,7 +254,7 @@ const NewLoanGiving = () => {
         confirmButtonColor: '#10B981',
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
-      navigate('/loan/list');
+      navigate('/loan/giving-list');
 
       // Reset form
       setFormData({

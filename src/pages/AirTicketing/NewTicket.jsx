@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {Helmet} from 'react-helmet-async';
 import { 
   Save, 
@@ -554,8 +554,6 @@ const NewTicket = () => {
     const errs = {};
     if (!values.customerId) errs.customerId = 'Customer is required';
     if (!values.date) errs.date = 'Selling date is required';
-    // Booking ID is required
-    if (!values.bookingId || !values.bookingId.trim()) errs.bookingId = 'Booking ID is required';
     if (!values.airline) errs.airline = 'Airline is required';
 
     if (values.tripType === 'multicity') {
@@ -964,14 +962,13 @@ const NewTicket = () => {
                 <label htmlFor="customer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                   Customer * <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowAddCustomerModal(true)}
+                <Link
+                  to="/air-ticketing/new-passenger"
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-lg transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   Add New Customer
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1122,7 +1119,7 @@ const NewTicket = () => {
               </div>
               <div>
                 <label htmlFor="bookingId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Booking ID <span className="text-red-500">*</span>
+                  Booking ID
                 </label>
                 <input
                   type="text"
@@ -1130,16 +1127,9 @@ const NewTicket = () => {
                   id="bookingId"
                   value={formData.bookingId}
                   onChange={handleChange}
-                  onBlur={() => { markTouched('bookingId'); setValidationErrors(validate(formData)); }}
-                  className={`block w-full px-3 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                    touched.bookingId && validationErrors.bookingId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  }`}
-                  placeholder="Booking reference (required)"
-                  required
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Booking reference (optional)"
                 />
-                {touched.bookingId && validationErrors.bookingId && (
-                  <p className="mt-1 text-xs text-red-600">{validationErrors.bookingId}</p>
-                )}
               </div>
               <div>
                 <label htmlFor="flightType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Route Category</label>
@@ -1204,7 +1194,7 @@ const NewTicket = () => {
               </div>
               <div>
                 <label htmlFor="airline" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Airlines * <span className="text-gray-500">(Search by name, ID, code, or country)</span>
+                  Airlines *
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1347,7 +1337,7 @@ const NewTicket = () => {
             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Agent Name / ID <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
+                  Agent Name / ID
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1436,7 +1426,7 @@ const NewTicket = () => {
               {/* Issued By (Employee Search) */}
               <div>
                 <label htmlFor="issuedBy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Issued By (Office Employee) <span className="text-gray-500">(Search by name, ID, or designation)</span>
+                  Issued By (Office Employee)
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -1523,7 +1513,7 @@ const NewTicket = () => {
               {/* Vendor Search */}
               <div>
                 <label htmlFor="vendor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Vendor <span className="text-gray-500">(Search from vendor list)</span>
+                  Vendor Name / ID
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -2122,7 +2112,9 @@ const NewTicket = () => {
               <div className="font-semibold text-gray-900 dark:text-white">Booking</div>
                   <div className="text-gray-700 dark:text-gray-300">Customer: {formData.customerName || '-'}</div>
               <div className="text-gray-700 dark:text-gray-300">Date: {formData.date || '-'}</div>
-              <div className="text-gray-700 dark:text-gray-300">Booking ID: {formData.bookingId || '-'}</div>
+              {formData.bookingId && (
+                <div className="text-gray-700 dark:text-gray-300">Booking ID: {formData.bookingId}</div>
+              )}
               <div className="text-gray-700 dark:text-gray-300">
                 Ticket ID: <span className="text-blue-600 dark:text-blue-400 font-semibold">Auto-generated after creation</span>
               </div>

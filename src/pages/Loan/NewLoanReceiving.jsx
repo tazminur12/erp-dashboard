@@ -235,8 +235,6 @@ const NewLoanReceiving = () => {
 
     const loanData = {
       ...formData,
-      loanDirection: 'receiving',
-      status: 'Pending',
       createdBy: userProfile?.email || 'unknown_user',
       branchId: userProfile?.branchId || 'main_branch'
     };
@@ -253,7 +251,7 @@ const NewLoanReceiving = () => {
         confirmButtonColor: '#10B981',
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
-      navigate('/loan/list');
+      navigate('/loan/receiving-list');
 
       // Reset form
       setFormData({

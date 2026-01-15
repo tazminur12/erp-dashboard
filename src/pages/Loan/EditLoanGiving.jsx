@@ -20,7 +20,7 @@ import {
 import Swal from 'sweetalert2';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import { useLoan, useUpdateLoan } from '../../hooks/useLoanQueries';
+import { useGivingLoan, useUpdateGivingLoan } from '../../hooks/useLoanQueries';
 
 const EditLoanGiving = () => {
   const { isDark } = useTheme();
@@ -28,8 +28,8 @@ const EditLoanGiving = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const updateLoan = useUpdateLoan();
-  const { data: loanData, isLoading: loanLoading } = useLoan(id);
+  const updateLoan = useUpdateGivingLoan();
+  const { data: loanData, isLoading: loanLoading } = useGivingLoan(id);
   const loan = loanData?.loan;
 
   const [formData, setFormData] = useState({
@@ -212,7 +212,7 @@ const EditLoanGiving = () => {
     } catch (error) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error.message || 'ছবি আপলোড করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।',
+        text: 'ছবি আপলোড করতে ব্যর্থ হয়েছে। আবার চেষ্টা করুন।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -280,18 +280,28 @@ const EditLoanGiving = () => {
 
       await Swal.fire({
         title: 'সফল!',
-        text: result?.message || 'ঋণের তথ্য সফলভাবে আপডেট করা হয়েছে।',
+        text: 'ঋণের তথ্য সফলভাবে আপডেট করা হয়েছে।',
         icon: 'success',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#10B981',
         background: isDark ? '#1F2937' : '#F9FAFB'
       });
-      navigate(`/loan/details/${id}`);
+      // Use loanId from loan object (should be available since loan is loaded), or from result, or fallback to id
+      const loanIdToNavigate = loan?.loanId || result?.loan?.loanId || id;
+      if (!loanIdToNavigate) {
+        console.error('No loanId available for navigation');
+        navigate('/loan/dashboard');
+        return;
+      }
+      // Pass loan object in state so LoanDetails can use it immediately
+      navigate(`/loan/details/${loanIdToNavigate}`, { 
+        state: { loan: result?.loan || loan } 
+      });
 
     } catch (error) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: (error?.response?.data?.message) || error.message || 'ঋণের তথ্য আপডেট করতে সমস্যা হয়েছে।',
+        text: 'ঋণের তথ্য আপডেট করতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -329,7 +339,7 @@ const EditLoanGiving = () => {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">ঋণ পাওয়া যায়নি</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">এই ID দিয়ে কোনো ঋণ পাওয়া যায়নি।</p>
             <button
-              onClick={() => navigate('/loan/list')}
+              onClick={() => navigate('/loan/giving-list')}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
             >
               ঋণের তালিকায় ফিরে যান
