@@ -108,8 +108,8 @@ const VendorList = () => {
           <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
         </div>
         <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">ভেন্ডর তালিকা</h1>
-            <p className="text-gray-600 dark:text-gray-400">সব ভেন্ডরের তালিকা</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">ভেন্ডর ও পার্টনার তালিকা</h1>
+            <p className="text-gray-600 dark:text-gray-400">সব ভেন্ডর ও পার্টনারের তালিকা</p>
           </div>
         </div>
 

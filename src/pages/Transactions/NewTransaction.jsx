@@ -6145,9 +6145,9 @@ const NewTransaction = () => {
                           </span>
                         </div>
                         <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">ক্যাটাগরি:</span>
+                          <span className="text-gray-600 dark:text-gray-400">তারিখ:</span>
                           <span className="font-semibold text-gray-900 dark:text-white">
-                            {selectedCategory?.name}
+                            {new Date(formData.date).toLocaleDateString('bn-BD')}
                           </span>
                         </div>
                       </div>
@@ -6181,12 +6181,6 @@ const NewTransaction = () => {
                             </span>
                           </div>
                         )}
-                        <div className="flex justify-between text-xs sm:text-sm">
-                          <span className="text-gray-600 dark:text-gray-400">Date:</span>
-                          <span className="font-semibold text-gray-900 dark:text-white">
-                            {new Date(formData.date).toLocaleDateString('en-US')}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -6324,7 +6318,7 @@ const NewTransaction = () => {
                               onClick={() => setFormData(prev => ({ ...prev, employeeReference: { id: '', name: '', employeeId: '', position: '', department: '' } }))}
                               className="text-red-500 hover:text-red-700 text-sm"
                             >
-                              Remove
+                              সরান
                             </button>
                           </div>
                         </div>
@@ -6703,15 +6697,9 @@ const NewTransaction = () => {
                         </span>
                       </div>
                       <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">ক্যাটাগরি:</span>
+                        <span className="text-gray-600 dark:text-gray-400">তারিখ:</span>
                         <span className="font-semibold text-gray-900 dark:text-white">
-                          {selectedCategory?.name}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">ইনভয়েস:</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {formData.selectedInvoice?.invoiceNumber || 'N/A'}
+                          {new Date(formData.date).toLocaleDateString('bn-BD')}
                         </span>
                       </div>
                     </div>
@@ -6745,12 +6733,6 @@ const NewTransaction = () => {
                           </span>
                         </div>
                       )}
-                      <div className="flex justify-between text-xs sm:text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">Date:</span>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {new Date(formData.date).toLocaleDateString('en-US')}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </div>
