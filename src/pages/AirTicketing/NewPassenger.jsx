@@ -18,7 +18,10 @@ import {
   X,
   MessageCircle,
   Wand2,
-  Upload
+  Upload,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -33,6 +36,35 @@ const NewPassenger = () => {
   
   // Form submission loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 4;
+  
+  const stepTitles = [
+    'কাস্টমার তথ্য',
+    'পাসপোর্ট তথ্য',
+    'পরিবার তথ্য',
+    'ডকুমেন্ট'
+  ];
+  
+  const nextStep = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+  
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
+  
+  const goToStep = (step) => {
+    if (step >= 1 && step <= totalSteps) {
+      setCurrentStep(step);
+    }
+  };
   
   // Air customer mutations
   const createAirCustomerMutation = useCreateAirCustomer();
@@ -908,8 +940,66 @@ const NewPassenger = () => {
           </div>
         </div>
 
+        {/* Step Progress Indicator */}
+        <div className={`mb-8 rounded-xl shadow-lg p-6 border transition-colors duration-300 ${
+          isDark 
+            ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
+            : 'bg-white border-gray-100'
+        }`}>
+          <div className="flex items-center justify-between">
+            {stepTitles.map((title, index) => {
+              const stepNum = index + 1;
+              const isActive = currentStep === stepNum;
+              const isCompleted = currentStep > stepNum;
+              
+              return (
+                <div key={stepNum} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center flex-1">
+                    <button
+                      type="button"
+                      onClick={() => goToStep(stepNum)}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                        isActive
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : isCompleted
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle className="w-6 h-6" />
+                      ) : (
+                        <span className="font-semibold">{stepNum}</span>
+                      )}
+                    </button>
+                    <span className={`mt-2 text-xs font-medium text-center ${
+                      isActive
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : isCompleted
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {title}
+                    </span>
+                  </div>
+                  {stepNum < totalSteps && (
+                    <div className={`flex-1 h-0.5 mx-2 ${
+                      isCompleted
+                        ? 'bg-green-500'
+                        : currentStep > stepNum
+                        ? 'bg-green-500'
+                        : 'bg-gray-300 dark:bg-gray-600'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* কাস্টমার তথ্য Section */}
+          {/* Step 1: কাস্টমার তথ্য Section */}
+          {currentStep === 1 && (
           <div className={`rounded-xl shadow-lg p-4 lg:p-6 border transition-colors duration-300 ${
             isDark 
               ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
@@ -1276,10 +1366,10 @@ const NewPassenger = () => {
               </div>
             </div>
           </div>
+          )}
 
-
-
-          {/* পাসপোর্ট তথ্য Section */}
+          {/* Step 2: পাসপোর্ট তথ্য Section */}
+          {currentStep === 2 && (
           <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
             isDark 
               ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
@@ -1615,8 +1705,10 @@ const NewPassenger = () => {
               </div>
             </div>
           </div>
+          )}
 
-          {/* পরিবার তথ্য Section */}
+          {/* Step 3: পরিবার তথ্য Section */}
+          {currentStep === 3 && (
           <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
             isDark 
               ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
@@ -1681,8 +1773,10 @@ const NewPassenger = () => {
               </div>
             </div>
           </div>
+          )}
 
-          {/* Document Upload Section */}
+          {/* Step 4: Document Upload Section */}
+          {currentStep === 4 && (
           <div className={`rounded-2xl shadow-xl p-6 lg:p-8 border transition-colors duration-300 ${
             isDark 
               ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
@@ -1871,9 +1965,68 @@ const NewPassenger = () => {
               </div>
             </div>
           </div>
+          )}
 
-          {/* Submit Button */}
-          <div className="text-center">
+          {/* Step Navigation Buttons */}
+          <div className={`flex items-center justify-between pt-6 rounded-xl shadow-lg p-6 border transition-colors duration-300 ${
+            isDark 
+              ? 'bg-gray-800 border-gray-700 shadow-gray-900/50' 
+              : 'bg-white border-gray-100'
+          }`}>
+            <button
+              type="button"
+              onClick={() => navigate('/air-ticketing/passengers')}
+              className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+            >
+              <ArrowLeft className="w-5 h-5 inline mr-2" />
+              ফিরে যান
+            </button>
+
+            <div className="flex space-x-4">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                >
+                  <ChevronLeft className="w-5 h-5 mr-2" />
+                  পূর্ববর্তী
+                </button>
+              )}
+              
+              {currentStep < totalSteps ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                >
+                  পরবর্তী
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={createAirCustomerMutation.isPending || isSubmitting || imageUploading || passportCopyUploading || nidCopyUploading}
+                  className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+                >
+                  {(createAirCustomerMutation.isPending || isSubmitting) ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      কাস্টমার যোগ হচ্ছে...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-5 h-5 mr-2" />
+                      কাস্টমার যুক্ত করুন
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Old Submit Button - Hidden */}
+          <div className="text-center hidden">
             <button
               type="submit"
               disabled={createAirCustomerMutation.isPending || isSubmitting || imageUploading || passportCopyUploading || nidCopyUploading}
