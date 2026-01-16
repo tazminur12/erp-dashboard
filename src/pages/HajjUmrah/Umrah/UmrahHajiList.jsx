@@ -268,9 +268,14 @@ const UmrahHajiList = () => {
       partial: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
       pending: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
     };
+    const paymentLabels = {
+      paid: 'পরিশোধিত',
+      partial: 'আংশিক',
+      pending: 'বিচারাধীন'
+    };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${paymentClasses[paymentStatus] || paymentClasses.pending}`}>
-        {paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
+        {paymentLabels[paymentStatus] || paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
       </span>
     );
   };
@@ -294,7 +299,7 @@ const UmrahHajiList = () => {
           ref={(el) => {
             if (el) el.indeterminate = partiallySelected;
           }}
-          aria-label="Select all"
+          aria-label="সব নির্বাচন করুন"
         />
       ),
       render: (value, pilgrim) => (
@@ -304,7 +309,7 @@ const UmrahHajiList = () => {
           checked={selectedIds.includes(pilgrim._id)}
           onChange={() => handleToggleSelect(pilgrim)}
           disabled={!pilgrim._id}
-          aria-label="Select row"
+          aria-label="সারি নির্বাচন করুন"
         />
       )
     },
@@ -410,7 +415,7 @@ const UmrahHajiList = () => {
         <div className="text-sm">
           {getPaymentBadge(pilgrim.paymentStatus || 'pending')}
           <div className="text-gray-500 dark:text-gray-400 mt-1">
-            ৳{(pilgrim.paidAmount || 0).toLocaleString()} / ৳{(pilgrim.totalAmount || 0).toLocaleString()}
+            ৳{Number(pilgrim.paidAmount || 0).toLocaleString('bn-BD')} / ৳{Number(pilgrim.totalAmount || 0).toLocaleString('bn-BD')}
           </div>
         </div>
       )
@@ -423,14 +428,14 @@ const UmrahHajiList = () => {
           <button
             onClick={() => navigate(`/umrah/haji/${pilgrim._id}`)}
             className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg"
-            title="View Details"
+            title="বিবরণ দেখুন"
           >
             <Eye className="w-4 h-4" />
           </button>
           <button
             onClick={() => navigate(`/umrah/haji/${pilgrim._id}/edit`)}
             className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg"
-            title="Edit"
+            title="সম্পাদনা করুন"
           >
             <Edit className="w-4 h-4" />
           </button>
@@ -441,7 +446,7 @@ const UmrahHajiList = () => {
                 ? 'text-gray-400 cursor-not-allowed'
                 : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'
             }`}
-            title={deletingUmrahId === pilgrim._id ? 'Deleting...' : 'Delete'}
+            title={deletingUmrahId === pilgrim._id ? 'মুছে ফেলা হচ্ছে...' : 'মুছুন'}
             disabled={deletingUmrahId === pilgrim._id}
           >
             {deletingUmrahId === pilgrim._id ? (
@@ -457,7 +462,7 @@ const UmrahHajiList = () => {
 
   const filterOptions = [
     {
-      label: 'Status',
+      label: 'স্ট্যাটাস',
       key: 'status',
       options: [
         { value: 'all', label: 'সব স্ট্যাটাস' },
@@ -468,20 +473,20 @@ const UmrahHajiList = () => {
         { value: 'উমরাহ্‌ সম্পন্ন', label: 'উমরাহ্‌ সম্পন্ন' },
         { value: 'রিফান্ডেড', label: 'রিফান্ডেড' },
         { value: 'অন্যান্য', label: 'অন্যান্য' },
-        { value: 'active', label: 'Active' },
-        { value: 'inactive', label: 'Inactive' },
-        { value: 'confirmed', label: 'Confirmed' },
-        { value: 'pending', label: 'Pending' }
+        { value: 'active', label: 'সক্রিয়' },
+        { value: 'inactive', label: 'নিষ্ক্রিয়' },
+        { value: 'confirmed', label: 'নিশ্চিত' },
+        { value: 'pending', label: 'বিচারাধীন' }
       ]
     },
     {
-      label: 'Payment Status',
+      label: 'পেমেন্ট স্ট্যাটাস',
       key: 'paymentStatus',
       options: [
-        { value: 'all', label: 'All Payments' },
-        { value: 'paid', label: 'Paid' },
-        { value: 'partial', label: 'Partial' },
-        { value: 'pending', label: 'Pending' }
+        { value: 'all', label: 'সব পেমেন্ট' },
+        { value: 'paid', label: 'পরিশোধিত' },
+        { value: 'partial', label: 'আংশিক' },
+        { value: 'pending', label: 'বিচারাধীন' }
       ]
     }
   ];
@@ -513,7 +518,7 @@ const UmrahHajiList = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading Umrah pilgrims data...</p>
+            <p className="text-gray-600 dark:text-gray-400">উমরাহ হাজি ডেটা লোড হচ্ছে...</p>
           </div>
         </div>
       </div>
@@ -531,15 +536,15 @@ const UmrahHajiList = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Loading Data</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">ডেটা লোড করতে ত্রুটি</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {error.message || 'Failed to load Umrah pilgrims data. Please try again.'}
+              {error.message || 'উমরাহ হাজি ডেটা লোড করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'}
             </p>
             <button 
               onClick={() => window.location.reload()} 
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Retry
+              আবার চেষ্টা করুন
             </button>
           </div>
         </div>
@@ -550,13 +555,13 @@ const UmrahHajiList = () => {
   return (
     <div className="p-6 space-y-6">
       <Helmet>
-        <title>Umrah Haji List</title>
-        <meta name="description" content="Manage all registered Umrah Haji List" />
+        <title>উমরাহ হাজি তালিকা</title>
+        <meta name="description" content="নিবন্ধিত সব উমরাহ হাজি তালিকা পরিচালনা করুন" />
       </Helmet>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Umrah Haji List</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage all registered Umrah Haji List</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">উমরাহ হাজি তালিকা</h1>
+          <p className="text-gray-600 dark:text-gray-400">নিবন্ধিত সব উমরাহ হাজি তালিকা পরিচালনা করুন</p>
         </div>
         <div className="flex items-center space-x-3 mt-4 sm:mt-0">
           <button
@@ -573,25 +578,25 @@ const UmrahHajiList = () => {
             ) : (
               <Trash2 className="w-4 h-4" />
             )}
-            <span>{bulkDeleting ? 'Deleting...' : 'Delete Selected'}</span>
+            <span>{bulkDeleting ? 'মুছে ফেলা হচ্ছে...' : 'নির্বাচিত মুছুন'}</span>
           </button>
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Download className="w-4 h-4" />
-            <span>Export</span>
+            <span>এক্সপোর্ট</span>
           </button>
           <button 
             onClick={() => setShowExcelUploader(true)}
             className="flex items-center space-x-2 px-4 py-2 text-green-600 dark:text-green-400 border border-green-300 dark:border-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
           >
             <Upload className="w-4 h-4" />
-            <span>Upload Excel</span>
+            <span>এক্সেল আপলোড</span>
           </button>
           <Link
             to="/umrah/haji/add"
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Umrah Haji</span>
+            <span>নতুন উমরাহ হাজি যোগ করুন</span>
           </Link>
         </div>
       </div>
@@ -601,8 +606,8 @@ const UmrahHajiList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Umrah Haji List</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalUmrahPilgrims}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট উমরাহ হাজি</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{Number(totalUmrahPilgrims || 0).toLocaleString('bn-BD')}</p>
             </div>
             <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
@@ -610,9 +615,9 @@ const UmrahHajiList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">সক্রিয়</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {umrahPilgrims.filter(p => p.status === 'active').length}
+                {Number(umrahPilgrims.filter(p => p.status === 'active').length || 0).toLocaleString('bn-BD')}
               </p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -621,9 +626,9 @@ const UmrahHajiList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Paid</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">পরিশোধিত</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {umrahPilgrims.filter(p => p.paymentStatus === 'paid').length}
+                {Number(umrahPilgrims.filter(p => p.paymentStatus === 'paid').length || 0).toLocaleString('bn-BD')}
               </p>
             </div>
             <CreditCard className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -632,9 +637,9 @@ const UmrahHajiList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Bill</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট বিল</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ৳{umrahPilgrims.reduce((sum, p) => sum + (p.totalAmount || 0), 0).toLocaleString()}
+                ৳{Number(umrahPilgrims.reduce((sum, p) => sum + (p.totalAmount || 0), 0) || 0).toLocaleString('bn-BD')}
               </p>
             </div>
             <CreditCard className="w-8 h-8 text-purple-600 dark:text-purple-400" />
@@ -648,7 +653,7 @@ const UmrahHajiList = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by name, passport, mobile, email, Umrah ID, NID, or Manual Serial..."
+              placeholder="নাম, পাসপোর্ট, মোবাইল, ইমেইল, উমরাহ আইডি, NID, বা ম্যানুয়াল সিরিয়াল দিয়ে খুঁজুন..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -676,7 +681,7 @@ const UmrahHajiList = () => {
           isOpen={showExcelUploader}
           onClose={() => setShowExcelUploader(false)}
           onDataProcessed={handleExcelDataProcessed}
-          title="Upload Umrah Haji Data from Excel"
+          title="এক্সেল থেকে উমরাহ হাজি ডেটা আপলোড করুন"
           acceptedFields={[
             'name', 'mobile no', 'fathers name', 'mother\'s name', 'districts', 'upazila', 'area', 'manual serial number', 'pid no', 'ng serial no', 'tracking no'
           ]}

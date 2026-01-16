@@ -17,7 +17,12 @@ import {
   CheckCircle,
   Clock,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Package,
+  Wallet,
+  DollarSign,
+  Users,
+  TrendingDown
 } from 'lucide-react';
 import DataTable from '../../../components/common/DataTable';
 import FilterBar from '../../../components/common/FilterBar';
@@ -351,9 +356,14 @@ const HajiList = () => {
       partial: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
       pending: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
     };
+    const paymentLabels = {
+      paid: 'পরিশোধিত',
+      partial: 'আংশিক',
+      pending: 'বিচারাধীন'
+    };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${paymentClasses[paymentStatus] || paymentClasses.pending}`}>
-        {paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
+        {paymentLabels[paymentStatus] || paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
       </span>
     );
   };
@@ -414,7 +424,7 @@ const HajiList = () => {
           ref={(el) => {
             if (el) el.indeterminate = partiallySelected;
           }}
-          aria-label="Select all"
+          aria-label="সব নির্বাচন করুন"
         />
       ),
       render: (value, haji) => (
@@ -424,7 +434,7 @@ const HajiList = () => {
           checked={selectedIds.includes(haji._id)}
           onChange={() => handleToggleSelect(haji)}
           disabled={!haji._id}
-          aria-label="Select row"
+          aria-label="সারি নির্বাচন করুন"
         />
       )
     },
@@ -527,11 +537,11 @@ const HajiList = () => {
       key: 'payment',
       header: 'পেমেন্ট',
       sortable: true,
-      render: (value, haji) => (
+          render: (value, haji) => (
         <div className="text-sm">
           {getPaymentBadge(haji.paymentStatus || 'pending')}
           <div className="text-gray-500 dark:text-gray-400 mt-1">
-            ৳{(haji.paidAmount || 0).toLocaleString()} / ৳{(haji.totalAmount || 0).toLocaleString()}
+            ৳{Number(haji.paidAmount || 0).toLocaleString('bn-BD')} / ৳{Number(haji.totalAmount || 0).toLocaleString('bn-BD')}
           </div>
         </div>
       )
@@ -544,14 +554,14 @@ const HajiList = () => {
           <button
             onClick={() => handleViewDetails(haji)}
             className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg"
-            title="View Details"
+            title="বিবরণ দেখুন"
           >
             <Eye className="w-4 h-4" />
           </button>
           <button
             onClick={() => handleEdit(haji)}
             className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg"
-            title="Edit"
+            title="সম্পাদনা করুন"
           >
             <Edit className="w-4 h-4" />
           </button>
@@ -562,7 +572,7 @@ const HajiList = () => {
                 ? 'text-gray-400 cursor-not-allowed'
                 : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'
             }`}
-            title={deletingHajiId === haji._id ? 'Deleting...' : 'Delete'}
+            title={deletingHajiId === haji._id ? 'মুছে ফেলা হচ্ছে...' : 'মুছুন'}
             disabled={deletingHajiId === haji._id}
           >
             {deletingHajiId === haji._id ? (
@@ -578,7 +588,7 @@ const HajiList = () => {
 
   const filterOptions = [
     {
-      label: 'Status',
+      label: 'স্ট্যাটাস',
       key: 'status',
       options: [
         { value: 'all', label: 'সব স্ট্যাটাস' },
@@ -590,16 +600,16 @@ const HajiList = () => {
         { value: 'রেডি রিপ্লেস', label: 'রেডি রিপ্লেস' },
         { value: 'রিফান্ডেড', label: 'রিফান্ডেড' },
         { value: 'অন্যান্য', label: 'অন্যান্য' },
-        { value: 'active', label: 'Active' },
-        { value: 'inactive', label: 'Inactive' }
+        { value: 'active', label: 'সক্রিয়' },
+        { value: 'inactive', label: 'নিষ্ক্রিয়' }
       ]
     },
     {
-      label: 'Package',
+      label: 'প্যাকেজ',
       key: 'package',
       options: [
-        { value: 'all', label: 'All Packages' },
-        { value: 'haj', label: 'Haj' }
+        { value: 'all', label: 'সব প্যাকেজ' },
+        { value: 'haj', label: 'হজ্জ' }
       ]
     }
   ];
@@ -611,7 +621,7 @@ const HajiList = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 dark:text-gray-400">Loading Haji data...</p>
+            <p className="text-gray-600 dark:text-gray-400">হাজি ডেটা লোড হচ্ছে...</p>
           </div>
         </div>
       </div>
@@ -629,15 +639,15 @@ const HajiList = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Error Loading Data</h3>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">ডেটা লোড করতে ত্রুটি</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {error.message || 'Failed to load Haji data. Please try again.'}
+              {error.message || 'হাজি ডেটা লোড করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।'}
             </p>
             <button 
               onClick={() => window.location.reload()} 
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              Retry
+              আবার চেষ্টা করুন
             </button>
           </div>
         </div>
@@ -648,14 +658,14 @@ const HajiList = () => {
   return (
     <div className="p-6 space-y-6">
       <Helmet>
-        <title>Haji List</title>
-        <meta name="description" content="Manage all registered Haji including their details, status, and payments." />
+        <title>হাজি তালিকা</title>
+        <meta name="description" content="নিবন্ধিত সব হাজির বিবরণ, স্ট্যাটাস এবং পেমেন্ট পরিচালনা করুন।" />
       </Helmet>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Haji List</h1>
-          <p className="text-gray-600 dark:text-gray-400">Manage all registered Haji</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">হাজি তালিকা</h1>
+          <p className="text-gray-600 dark:text-gray-400">নিবন্ধিত সব হাজি পরিচালনা করুন</p>
         </div>
         <div className="flex items-center space-x-3 mt-4 sm:mt-0">
           <button
@@ -672,36 +682,36 @@ const HajiList = () => {
             ) : (
               <Trash2 className="w-4 h-4" />
             )}
-            <span>{bulkDeleting ? 'Deleting...' : 'Delete Selected'}</span>
+            <span>{bulkDeleting ? 'মুছে ফেলা হচ্ছে...' : 'নির্বাচিত মুছুন'}</span>
           </button>
           <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             <Download className="w-4 h-4" />
-            <span>Export</span>
+            <span>এক্সপোর্ট</span>
           </button>
           <button 
             onClick={handleExcelUpload}
             className="flex items-center space-x-2 px-4 py-2 text-green-600 dark:text-green-400 border border-green-300 dark:border-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
           >
             <Upload className="w-4 h-4" />
-            <span>Upload Excel</span>
+            <span>এক্সেল আপলোড</span>
           </button>
           <Link
             to="/hajj-umrah/haji/add"
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Haji</span>
+            <span>নতুন হাজি যোগ করুন</span>
           </Link>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Haji</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalHajis}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট হাজি</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">{Number(totalHajis || 0).toLocaleString('bn-BD')}</p>
             </div>
             <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
@@ -709,34 +719,80 @@ const HajiList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট হজ্ব পালনকারী</p>
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                {Number(hajis.filter(h => {
+                  const status = h.serviceStatus || h.status || '';
+                  return status.includes('হজ্ব সম্পন্ন') || status.includes('hajj completed') || status === 'হজ্ব সম্পন্ন';
+                }).length || 0).toLocaleString('bn-BD')}
+              </p>
+            </div>
+            <Users className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট প্রাক নিবন্ধিত</p>
+              <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                {Number(hajis.filter(h => {
+                  const status = h.serviceStatus || h.status || '';
+                  return status.includes('প্রাক-নিবন্ধিত') || status === 'প্রাক-নিবন্ধিত';
+                }).length || 0).toLocaleString('bn-BD')}
+              </p>
+            </div>
+            <Clock className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট নিবন্ধিত</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {Number(hajis.filter(h => {
+                  const status = h.serviceStatus || h.status || '';
+                  return status.includes('নিবন্ধিত') || status === 'নিবন্ধিত' || status === 'registered';
+                }).length || 0).toLocaleString('bn-BD')}
+              </p>
+            </div>
+            <CheckCircle className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট প্যাকেজ রেট</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                ৳{Number(hajis.reduce((sum, h) => sum + (h.totalAmount || 0), 0) || 0).toLocaleString('bn-BD')}
+              </p>
+            </div>
+            <Package className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট জমা</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {hajis.filter(h => h.status === 'active').length}
+                ৳{Number(hajis.reduce((sum, h) => sum + (h.paidAmount || 0), 0) || 0).toLocaleString('bn-BD')}
               </p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+            <Wallet className="w-8 h-8 text-green-600 dark:text-green-400" />
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Inactive</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট বকেয়া(হজ্বযাত্রী থেকে পাওনা)</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {hajis.filter(h => h.status === 'inactive').length}
+                ৳{Number(hajis.reduce((sum, h) => {
+                  const total = h.totalAmount || 0;
+                  const paid = h.paidAmount || 0;
+                  return sum + (total - paid);
+                }, 0) || 0).toLocaleString('bn-BD')}
               </p>
             </div>
-            <Clock className="w-8 h-8 text-red-600 dark:text-red-400" />
-          </div>
-        </div>
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                ৳{hajis.reduce((sum, h) => sum + (h.paidAmount || 0), 0).toLocaleString()}
-              </p>
-            </div>
-            <CreditCard className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+            <TrendingDown className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
         </div>
       </div>
@@ -748,7 +804,7 @@ const HajiList = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search by name, passport, mobile, email, Haji ID, NID, or Manual Serial..."
+              placeholder="নাম, পাসপোর্ট, মোবাইল, ইমেইল, হাজি আইডি, NID, বা ম্যানুয়াল সিরিয়াল দিয়ে খুঁজুন..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
@@ -777,28 +833,28 @@ const HajiList = () => {
         <Modal
           isOpen={showModal}
           onClose={() => setShowModal(false)}
-          title="Haji Details"
+          title="হাজি বিবরণ"
           size="lg"
         >
           <div className="space-y-6">
             {/* Personal Information */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Personal Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">ব্যক্তিগত তথ্য</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Name</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">নাম</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.name || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Haji ID</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">হাজি আইডি</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.customerId || selectedHaji._id || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">ম্যানুয়াল সিরিয়াল নম্বর</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.manualSerialNumber || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Mobile</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">মোবাইল</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.mobile || 'N/A'}</p>
                 </div>
                 <div>
@@ -806,28 +862,28 @@ const HajiList = () => {
                   <p className="text-gray-900 dark:text-white">{selectedHaji.whatsappNo || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Email</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">ইমেইল</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.email || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">NID Number</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">NID নম্বর</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.nidNumber || 'N/A'}</p>
                 </div>
                 
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Division</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">বিভাগ</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.division || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">District</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">জেলা</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.district || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Upazila</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">উপজেলা</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.upazila || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Post Code</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">পোস্ট কোড</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.postCode || 'N/A'}</p>
                 </div>
               </div>
@@ -835,28 +891,28 @@ const HajiList = () => {
 
             {/* Passport Information */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Passport Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">পাসপোর্ট তথ্য</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Passport Number</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">পাসপোর্ট নম্বর</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.passportNumber || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Issue Date</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">ইস্যু তারিখ</label>
                   <p className="text-gray-900 dark:text-white">
-                    {selectedHaji.issueDate ? new Date(selectedHaji.issueDate).toLocaleDateString() : 'N/A'}
+                    {selectedHaji.issueDate ? new Date(selectedHaji.issueDate).toLocaleDateString('bn-BD') : 'N/A'}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Expiry Date</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">মেয়াদ শেষ তারিখ</label>
                   <p className="text-gray-900 dark:text-white">
-                    {selectedHaji.expiryDate ? new Date(selectedHaji.expiryDate).toLocaleDateString() : 'N/A'}
+                    {selectedHaji.expiryDate ? new Date(selectedHaji.expiryDate).toLocaleDateString('bn-BD') : 'N/A'}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">জন্ম তারিখ</label>
                   <p className="text-gray-900 dark:text-white">
-                    {selectedHaji.dateOfBirth ? new Date(selectedHaji.dateOfBirth).toLocaleDateString() : 'N/A'}
+                    {selectedHaji.dateOfBirth ? new Date(selectedHaji.dateOfBirth).toLocaleDateString('bn-BD') : 'N/A'}
                   </p>
                 </div>
               </div>
@@ -864,22 +920,22 @@ const HajiList = () => {
 
             {/* Package Information */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Package Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">প্যাকেজ তথ্য</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Package</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">প্যাকেজ</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.packageName || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Reference By</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">রেফারেন্স বাই</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.referenceBy || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Reference Customer ID</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">রেফারেন্স কাস্টমার আইডি</label>
                   <p className="text-gray-900 dark:text-white">{selectedHaji.referenceCustomerId || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Status</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">স্ট্যাটাস</label>
                   <div className="mt-1">{getStatusBadge(selectedHaji.status || 'active')}</div>
                 </div>
               </div>
@@ -887,37 +943,37 @@ const HajiList = () => {
 
             {/* Financial Information */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Financial Information</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">আর্থিক তথ্য</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Total Amount</label>
-                  <p className="text-gray-900 dark:text-white">৳{(selectedHaji.totalAmount || 0).toLocaleString()}</p>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">মোট পরিমাণ</label>
+                  <p className="text-gray-900 dark:text-white">৳{Number(selectedHaji.totalAmount || 0).toLocaleString('bn-BD')}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Paid Amount</label>
-                  <p className="text-gray-900 dark:text-white">৳{(selectedHaji.paidAmount || 0).toLocaleString()}</p>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</label>
+                  <p className="text-gray-900 dark:text-white">৳{Number(selectedHaji.paidAmount || 0).toLocaleString('bn-BD')}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Due Amount</label>
-                  <p className="text-gray-900 dark:text-white">৳{((selectedHaji.totalAmount || 0) - (selectedHaji.paidAmount || 0)).toLocaleString()}</p>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">বাকি পরিমাণ</label>
+                  <p className="text-gray-900 dark:text-white">৳{Number((selectedHaji.totalAmount || 0) - (selectedHaji.paidAmount || 0)).toLocaleString('bn-BD')}</p>
                 </div>
               </div>
             </div>
 
             {/* Dates */}
             <div>
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Important Dates</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">গুরুত্বপূর্ণ তারিখ</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Created At</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">তৈরি হয়েছে</label>
                   <p className="text-gray-900 dark:text-white">
-                    {selectedHaji.createdAt ? new Date(selectedHaji.createdAt).toLocaleDateString() : 'N/A'}
+                    {selectedHaji.createdAt ? new Date(selectedHaji.createdAt).toLocaleDateString('bn-BD') : 'N/A'}
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600 dark:text-gray-400">Updated At</label>
+                  <label className="text-sm text-gray-600 dark:text-gray-400">আপডেট হয়েছে</label>
                   <p className="text-gray-900 dark:text-white">
-                    {selectedHaji.updatedAt ? new Date(selectedHaji.updatedAt).toLocaleDateString() : 'N/A'}
+                    {selectedHaji.updatedAt ? new Date(selectedHaji.updatedAt).toLocaleDateString('bn-BD') : 'N/A'}
                   </p>
                 </div>
               </div>
@@ -932,7 +988,7 @@ const HajiList = () => {
           isOpen={showExcelUploader}
           onClose={() => setShowExcelUploader(false)}
           onDataProcessed={handleExcelDataProcessed}
-          title="Upload Haji Data from Excel"
+          title="এক্সেল থেকে হাজি ডেটা আপলোড করুন"
           acceptedFields={[
             'name', 'mobile no', 'fathers name', 'mother\'s name', 'manual serial number', 'districts', 'upazila', 'area', 'pid no', 'ng serial no', 'tracking no'
           ]}
