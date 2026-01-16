@@ -9,10 +9,12 @@ import {
   Eye,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Search,
   User,
   Building,
-  Plane
+  Plane,
+  CheckCircle
 } from 'lucide-react';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
@@ -87,6 +89,10 @@ const TicketEdit = () => {
     segmentCount: 1,
     flownSegment: false
   });
+
+  // Step management
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 5;
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
@@ -435,7 +441,7 @@ const TicketEdit = () => {
     const errs = {};
     if (!values.customerId) errs.customerId = 'Customer is required';
     if (!values.date) errs.date = 'Selling date is required';
-    if (!values.bookingId) errs.bookingId = 'Booking ID is required';
+    // Booking ID is now optional - removed mandatory validation
     if (!values.airline) errs.airline = 'Airline is required';
 
     if (values.tripType === 'multicity') {
@@ -684,6 +690,37 @@ const TicketEdit = () => {
     });
   };
 
+  // Step navigation functions
+  const nextStep = () => {
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const goToStep = (step) => {
+    if (step >= 1 && step <= totalSteps) {
+      setCurrentStep(step);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Step titles
+  const stepTitles = [
+    'গ্রাহক তথ্য',
+    'ফ্লাইট তথ্য',
+    'এজেন্ট ও ভেন্ডর',
+    'যাত্রী ও মূল্য',
+    'ভেন্ডর বিবরণ'
+  ];
+
   if (!id) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-center px-4">
@@ -783,13 +820,67 @@ const TicketEdit = () => {
           </div>
         )}
 
+        {/* Step Progress Indicator */}
+        <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            {stepTitles.map((title, index) => {
+              const stepNum = index + 1;
+              const isActive = currentStep === stepNum;
+              const isCompleted = currentStep > stepNum;
+
+              return (
+                <div key={stepNum} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center flex-1">
+                    <button
+                      type="button"
+                      onClick={() => goToStep(stepNum)}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                        isActive
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : isCompleted
+                          ? 'bg-green-500 border-green-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle className="w-6 h-6" />
+                      ) : (
+                        <span className="font-semibold">{stepNum}</span>
+                      )}
+                    </button>
+                    <span className={`mt-2 text-xs font-medium text-center ${
+                      isActive
+                        ? 'text-blue-600 dark:text-blue-400'
+                        : isCompleted
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {title}
+                    </span>
+                  </div>
+                  {stepNum < totalSteps && (
+                    <div className={`flex-1 h-0.5 mx-2 ${
+                      isCompleted
+                        ? 'bg-green-500'
+                        : currentStep > stepNum
+                        ? 'bg-green-500'
+                        : 'bg-gray-300 dark:bg-gray-600'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Card 1: Booking & Agent Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Receipt className="w-5 h-5 mr-2 text-blue-600" />
-              Booking Details
-            </h2>
+          {/* Step 1: Customer Information */}
+          {currentStep === 1 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Receipt className="w-5 h-5 mr-2 text-blue-600" />
+                Step 1: গ্রাহক তথ্য
+              </h2>
             
             {/* Customer Selection */}
             <div className="mb-6">
@@ -890,21 +981,33 @@ const TicketEdit = () => {
               )}
             </div>
             
-            {/* Top row: Date, Ticket ID, Booking ID, Flight Type, Status */}
-            {formData.ticketId && (
-              <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Ticket ID (Unique - Auto-generated)
-                </label>
-                <input
-                  type="text"
-                  value={formData.ticketId}
-                  readOnly
-                  className="block w-full px-3 py-2 border border-blue-300 dark:border-blue-600 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold font-mono cursor-not-allowed"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">This ID is auto-generated and cannot be changed</p>
-              </div>
-            )}
+              {/* Ticket ID Display */}
+              {formData.ticketId && (
+                <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Ticket ID (Unique - Auto-generated)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.ticketId}
+                    readOnly
+                    className="block w-full px-3 py-2 border border-blue-300 dark:border-blue-600 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold font-mono cursor-not-allowed"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">This ID is auto-generated and cannot be changed</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: Flight Information */}
+          {currentStep === 2 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Plane className="w-5 h-5 mr-2 text-green-600" />
+                Step 2: ফ্লাইট তথ্য
+              </h2>
+
+            {/* Top row: Date, Booking ID, Flight Type, Status */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div>
                 <label htmlFor="date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selling Date *</label>
@@ -918,7 +1021,7 @@ const TicketEdit = () => {
                     id="date"
                     value={formData.date}
                     onChange={(e) => { handleChange(e); if (touched.date) setValidationErrors(validate({ ...formData, date: e.target.value })); }}
-                    onBlur={() => { markTouched('date'); markTouched('customerId'); setValidationErrors(validate(formData)); }}
+                    onBlur={() => { markTouched('date'); setValidationErrors(validate(formData)); }}
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     required
                   />
@@ -928,21 +1031,18 @@ const TicketEdit = () => {
                 </div>
               </div>
               <div>
-                <label htmlFor="bookingId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Booking ID *</label>
+                <label htmlFor="bookingId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Booking ID <span className="text-gray-500 text-xs">(Optional)</span>
+                </label>
                 <input
                   type="text"
                   name="bookingId"
                   id="bookingId"
                   value={formData.bookingId}
-                    onChange={(e) => { handleChange(e); if (touched.bookingId) setValidationErrors(validate({ ...formData, bookingId: e.target.value })); }}
-                    onBlur={() => { markTouched('bookingId'); markTouched('customerId'); setValidationErrors(validate(formData)); }}
+                  onChange={handleChange}
                   className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Booking reference"
-                  required
+                  placeholder="Booking reference (optional)"
                 />
-                {touched.bookingId && validationErrors.bookingId && (
-                  <p className="mt-1 text-xs text-red-600">{validationErrors.bookingId}</p>
-                )}
               </div>
               <div>
                 <label htmlFor="flightType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Route Category</label>
@@ -976,7 +1076,6 @@ const TicketEdit = () => {
                    <option value="void">Void</option>
                    <option value="unconfirmed">Unconfirmed</option>
                    <option value="in progress">In Progress</option>
-                   
                 </select>
               </div>
             </div>
@@ -1102,163 +1201,8 @@ const TicketEdit = () => {
               </div>
             </div>
 
-
-            {/* Passenger Types */}
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Passenger Types</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Adult</label>
-                  <input
-                    type="number"
-                    name="adultCount"
-                    value={formData.adultCount}
-                    onChange={handleChange}
-                    min="0"
-                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Child</label>
-                  <input
-                    type="number"
-                    name="childCount"
-                    value={formData.childCount}
-                    onChange={handleChange}
-                    min="0"
-                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Infant</label>
-                  <input
-                    type="number"
-                    name="infantCount"
-                    value={formData.infantCount}
-                    onChange={handleChange}
-                    min="0"
-                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Agent and Purpose */}
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Agent Name / ID <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    id="agent"
-                    value={agentQuery}
-                    onChange={(e) => {
-                      setAgentQuery(e.target.value);
-                      setShowAgentDropdown(true);
-                      if (!e.target.value) {
-                        setFormData(prev => ({
-                          ...prev,
-                          agent: '',
-                          agentId: ''
-                        }));
-                        setSelectedAgentId('');
-                      }
-                    }}
-                    onFocus={() => {
-                      if (agentResults.length > 0 || agentQuery.length >= 2) {
-                        setShowAgentDropdown(true);
-                      }
-                    }}
-                    onBlur={() => {
-                      // Delay to allow click event on dropdown items
-                      setTimeout(() => {
-                        setShowAgentDropdown(false);
-                      }, 200);
-                    }}
-                    placeholder="Search agent by name, ID, phone, or email..."
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {showAgentDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {agentLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
-                      ) : agentResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          {agentQuery.length < 2 ? 'Type at least 2 characters to search' : 'No agents found'}
-                        </div>
-                      ) : (
-                        agentResults.map((a) => (
-                          <button
-                            key={String(a.id || a.agentId || a.idCode || a._id)}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => handleSelectAgent(a)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <Building className="w-4 h-4 text-gray-400" />
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {a.name || a.tradeName || a.companyName || a.personalName || 'N/A'}
-                                  </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    ID: {a.agentId || a.idCode || a.id || a._id}
-                                  </div>
-                                  {a.personalName && a.name && (
-                                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      {a.personalName}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-300">
-                                {a.mobile || a.phone || a.contactNo || ''}
-                              </div>
-                            </div>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-                {selectedAgentId && (
-                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Selected Agent ID: <span className="font-medium text-gray-900 dark:text-white">{selectedAgentId}</span>
-                  </div>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Issued By</label>
-                <input
-                  type="text"
-                  name="purposeType"
-                  value={formData.purposeType}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="Enter issuer name"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: Flight Specifics */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Receipt className="w-5 h-5 mr-2 text-green-600" />
-              Flight Specifics
-            </h2>
-
             {/* Flight Type */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Flight Type *</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1417,61 +1361,232 @@ const TicketEdit = () => {
                 ))}
               </div>
             )}
-          </div>
+            </div>
+          )}
 
-          {/* Card 3: Financial Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-              <Receipt className="w-5 h-5 mr-2 text-purple-600" />
-              Financial Details
-            </h2>
+          {/* Step 3: Agent & Vendor Information */}
+          {currentStep === 3 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Building className="w-5 h-5 mr-2 text-purple-600" />
+                Step 3: এজেন্ট ও ভেন্ডর
+              </h2>
 
-            {/* Customer finance */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Agent and Purpose */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Deal</label>
+                <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Agent Name / ID <span className="text-gray-500">(Search by name, ID, phone, or email)</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    id="agent"
+                    value={agentQuery}
+                    onChange={(e) => {
+                      setAgentQuery(e.target.value);
+                      setShowAgentDropdown(true);
+                      if (!e.target.value) {
+                        setFormData(prev => ({
+                          ...prev,
+                          agent: '',
+                          agentId: ''
+                        }));
+                        setSelectedAgentId('');
+                      }
+                    }}
+                    onFocus={() => {
+                      if (agentResults.length > 0 || agentQuery.length >= 2) {
+                        setShowAgentDropdown(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // Delay to allow click event on dropdown items
+                      setTimeout(() => {
+                        setShowAgentDropdown(false);
+                      }, 200);
+                    }}
+                    placeholder="Search agent by name, ID, phone, or email..."
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                  {showAgentDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                      {agentLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
+                      ) : agentResults.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                          {agentQuery.length < 2 ? 'Type at least 2 characters to search' : 'No agents found'}
+                        </div>
+                      ) : (
+                        agentResults.map((a) => (
+                          <button
+                            key={String(a.id || a.agentId || a.idCode || a._id)}
+                            type="button"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => handleSelectAgent(a)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <Building className="w-4 h-4 text-gray-400" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {a.name || a.tradeName || a.companyName || a.personalName || 'N/A'}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    ID: {a.agentId || a.idCode || a.id || a._id}
+                                  </div>
+                                  {a.personalName && a.name && (
+                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                      {a.personalName}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-300">
+                                {a.mobile || a.phone || a.contactNo || ''}
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                {selectedAgentId && (
+                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Selected Agent ID: <span className="font-medium text-gray-900 dark:text-white">{selectedAgentId}</span>
+                  </div>
+                )}
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Issued By</label>
                 <input
-                  type="number"
-                  name="customerDeal"
-                  value={formData.customerDeal}
+                  type="text"
+                  name="purposeType"
+                  value={formData.purposeType}
                   onChange={handleChange}
                   className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Paid</label>
-                <input
-                  type="number"
-                  name="customerPaid"
-                  value={formData.customerPaid}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Due</label>
-                <input
-                  type="number"
-                  name="customerDue"
-                  value={formData.customerDue}
-                  readOnly
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 focus:outline-none text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Due Date</label>
-                <input
-                  type="date"
-                  name="dueDate"
-                  value={formData.dueDate}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder="Enter issuer name"
                 />
               </div>
             </div>
+          </div>
+          )}
+
+          {/* Step 4: Passenger Count & Customer Pricing */}
+          {currentStep === 4 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <User className="w-5 h-5 mr-2 text-orange-600" />
+                Step 4: যাত্রী ও মূল্য
+              </h2>
+
+            {/* Passenger Types */}
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Passenger Types</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Adult</label>
+                  <input
+                    type="number"
+                    name="adultCount"
+                    value={formData.adultCount}
+                    onChange={handleChange}
+                    min="0"
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Child</label>
+                  <input
+                    type="number"
+                    name="childCount"
+                    value={formData.childCount}
+                    onChange={handleChange}
+                    min="0"
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Infant</label>
+                  <input
+                    type="number"
+                    name="infantCount"
+                    value={formData.infantCount}
+                    onChange={handleChange}
+                    min="0"
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Customer finance */}
+            <div className="mt-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Customer Financial Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Deal</label>
+                  <input
+                    type="number"
+                    name="customerDeal"
+                    value={formData.customerDeal}
+                    onChange={handleChange}
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Paid</label>
+                  <input
+                    type="number"
+                    name="customerPaid"
+                    value={formData.customerPaid}
+                    onChange={handleChange}
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Due</label>
+                  <input
+                    type="number"
+                    name="customerDue"
+                    value={formData.customerDue}
+                    readOnly
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 focus:outline-none text-gray-900 dark:text-white"
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    name="dueDate"
+                    value={formData.dueDate}
+                    onChange={handleChange}
+                    className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          )}
+
+          {/* Step 5: Vendor Breakdown */}
+          {currentStep === 5 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Receipt className="w-5 h-5 mr-2 text-indigo-600" />
+                Step 5: ভেন্ডর বিবরণ
+              </h2>
 
             {/* Vendor Amount Breakdown */}
             <div className="mt-6">
@@ -1666,8 +1781,8 @@ const TicketEdit = () => {
                   type="number"
                   name="vendorDue"
                   value={formData.vendorDue}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  readOnly
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 focus:outline-none text-gray-900 dark:text-white"
                   placeholder="0"
                 />
               </div>
@@ -1677,8 +1792,8 @@ const TicketEdit = () => {
                   type="number"
                   name="profit"
                   value={formData.profit}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  readOnly
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 focus:outline-none text-gray-900 dark:text-white"
                   placeholder="0"
                 />
               </div>
@@ -1710,9 +1825,10 @@ const TicketEdit = () => {
               </div>
             </div>
           </div>
+          )}
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6">
+          {/* Step Navigation Buttons */}
+          <div className="flex items-center justify-between pt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={() => navigate('/air-ticketing/tickets')}
@@ -1723,36 +1839,67 @@ const TicketEdit = () => {
             </button>
 
             <div className="flex space-x-4">
-              <button
-                type="button"
-                onClick={() => {
-                  const errs = validate(formData);
-                  setValidationErrors(errs);
-                  if (Object.keys(errs).length === 0) setShowPreview(true);
-                }}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
-              >
-                <Eye className="w-5 h-5 mr-2" />
-                প্রিভিউ
-              </button>
-
-              <button
-                type="submit"
-                disabled={loading || updateTicketMutation.isPending}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
-              >
-                {(loading || updateTicketMutation.isPending) ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    আপডেট হচ্ছে...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-5 h-5 mr-2" />
-                    টিকিট আপডেট করুন
-                  </>
-                )}
-              </button>
+              {currentStep > 1 && currentStep < totalSteps && (
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                >
+                  <ChevronLeft className="w-5 h-5 mr-2" />
+                  পূর্ববর্তী
+                </button>
+              )}
+              
+              {currentStep < totalSteps ? (
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                >
+                  পরবর্তী
+                  <ChevronRight className="w-5 h-5 ml-2" />
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={prevStep}
+                    className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                  >
+                    <ChevronLeft className="w-5 h-5 mr-2" />
+                    পূর্ববর্তী
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const errs = validate(formData);
+                      setValidationErrors(errs);
+                      if (Object.keys(errs).length === 0) setShowPreview(true);
+                    }}
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
+                  >
+                    <Eye className="w-5 h-5 mr-2" />
+                    প্রিভিউ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading || updateTicketMutation.isPending}
+                    className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {(loading || updateTicketMutation.isPending) ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                        আপডেট হচ্ছে...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5 mr-2" />
+                        টিকিট আপডেট করুন
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </form>
