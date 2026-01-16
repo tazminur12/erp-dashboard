@@ -157,6 +157,17 @@ const HajiDetails = () => {
     return 'N/A';
   };
 
+  // Helper function to format date as "28 Sep, 2025"
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    const d = new Date(date);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = d.getDate();
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month}, ${year}`;
+  };
+
   // Family summary (only meaningful for Haji)
   const { data: familySummaryData } = useHajiFamilySummary(!isUmrah ? id : undefined);
 
@@ -283,9 +294,14 @@ const HajiDetails = () => {
       partial: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400',
       pending: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
     };
+    const paymentLabels = {
+      paid: 'পরিশোধিত',
+      partial: 'আংশিক',
+      pending: 'বিচারাধীন'
+    };
     return (
       <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${paymentClasses[paymentStatus] || paymentClasses.pending}`}>
-        {paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
+        {paymentLabels[paymentStatus] || paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
       </span>
     );
   };
@@ -318,16 +334,16 @@ const HajiDetails = () => {
   const addRelationMutation = useAddHajiRelation();
   const deleteHajiRelationMutation = useDeleteHajiRelation();
   const relationTypeOptions = [
-    { value: 'mother', label: 'Mother' },
-    { value: 'father', label: 'Father' },
-    { value: 'wife', label: 'Wife' },
-    { value: 'husband', label: 'Husband' },
-    { value: 'brother', label: 'Brother' },
-    { value: 'sister', label: 'Sister' },
-    { value: 'son', label: 'Son' },
-    { value: 'daughter', label: 'Daughter' },
-    { value: 'relative', label: 'Relative' },
-    { value: 'other', label: 'Other' },
+    { value: 'mother', label: 'মা' },
+    { value: 'father', label: 'বাবা' },
+    { value: 'wife', label: 'স্ত্রী' },
+    { value: 'husband', label: 'স্বামী' },
+    { value: 'brother', label: 'ভাই' },
+    { value: 'sister', label: 'বোন' },
+    { value: 'son', label: 'ছেলে' },
+    { value: 'daughter', label: 'মেয়ে' },
+    { value: 'relative', label: 'আত্মীয়' },
+    { value: 'other', label: 'অন্যান্য' },
   ];
 
   // SMS helpers for sending due reminders
@@ -397,13 +413,13 @@ const HajiDetails = () => {
   };
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: User },
-    { id: 'personal', label: 'Personal Info', icon: FileText },
-    { id: 'package', label: 'Package Info', icon: Package },
-    { id: 'financial', label: 'Financial', icon: CreditCard },
-    { id: 'documents', label: 'Documents', icon: ImageIcon },
-    { id: 'relations', label: 'Relation With', icon: Users },
-    { id: 'transactions', label: 'Transaction History', icon: Receipt }
+    { id: 'overview', label: 'ওভারভিউ', icon: User },
+    { id: 'personal', label: 'ব্যক্তিগত তথ্য', icon: FileText },
+    { id: 'package', label: 'প্যাকেজ তথ্য', icon: Package },
+    { id: 'financial', label: 'আর্থিক', icon: CreditCard },
+    { id: 'documents', label: 'ডকুমেন্ট', icon: ImageIcon },
+    { id: 'relations', label: 'সম্পর্ক', icon: Users },
+    { id: 'transactions', label: 'লেনদেনের ইতিহাস', icon: Receipt }
   ];
 
   // Navigate to the Haji list for linking relations
@@ -427,8 +443,8 @@ const HajiDetails = () => {
       
       <div className="p-6 text-center">
          <Helmet>
-                <title>Haji List</title>
-                <meta name="description" content="Manage all registered Haji including their details, status, and payments." />
+                <title>{isUmrah ? 'উমরাহ' : 'হাজি'} বিবরণ</title>
+                <meta name="description" content={`নিবন্ধিত ${isUmrah ? 'উমরাহ' : 'হাজি'}-এর সম্পূর্ণ বিবরণ, স্ট্যাটাস এবং পেমেন্ট পরিচালনা করুন।`} />
               </Helmet>
         
         <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -494,7 +510,7 @@ const HajiDetails = () => {
               <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">{getPackageName(haji) || 'Haj'}</p>
               {haji.primaryHolderName && (
                 <p className="text-xs text-blue-600 dark:text-blue-400">
-                  Assigned With: <span className="font-semibold">{haji.primaryHolderName}</span>
+                  নিয়োগকৃত: <span className="font-semibold">{haji.primaryHolderName}</span>
                 </p>
               )}
             </div>
@@ -507,7 +523,7 @@ const HajiDetails = () => {
               <p className="text-gray-600 dark:text-gray-400 mb-2">{getPackageName(haji) || 'Haj'}</p>
               {haji.primaryHolderName && (
                 <p className="text-sm text-blue-600 dark:text-blue-400 mb-4">
-                  Assigned With: <span className="font-semibold">{haji.primaryHolderName}</span>
+                  নিয়োগকৃত: <span className="font-semibold">{haji.primaryHolderName}</span>
                 </p>
               )}
             </div>
@@ -538,8 +554,8 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{isUmrah ? 'Umrah' : 'Haji'} ID</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.customerId || haji._id || haji.id || 'N/A'}</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{isUmrah ? 'উমরাহ' : 'হাজি'} আইডি</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate" style={{ fontFamily: "'Google Sans', sans-serif" }}>{haji.customerId || haji._id || haji.id || 'N/A'}</p>
             </div>
             <User className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
           </div>
@@ -548,7 +564,7 @@ const HajiDetails = () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
             <div className="flex items-center justify-between">
               <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Assigned With</p>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">নিয়োগকৃত</p>
                 <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">{haji.primaryHolderName}</p>
               </div>
               <User className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
@@ -558,10 +574,11 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Manual Serial Number</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">ম্যানুয়াল সিরিয়াল নম্বর</p>
               <button
                 onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')}
                 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 title="কপি করতে ক্লিক করুন"
               >
                 {haji.manualSerialNumber || 'N/A'}
@@ -577,6 +594,7 @@ const HajiDetails = () => {
               <button
                 onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')}
                 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 title="কপি করতে ক্লিক করুন"
               >
                 {haji.pidNo || 'N/A'}
@@ -592,6 +610,7 @@ const HajiDetails = () => {
               <button
                 onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')}
                 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 title="কপি করতে ক্লিক করুন"
               >
                 {haji.ngSerialNo || 'N/A'}
@@ -603,10 +622,11 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Tracking No</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">ট্র্যাকিং নম্বর</p>
               <button
                 onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')}
                 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer text-left w-full"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
                 title="কপি করতে ক্লিক করুন"
               >
                 {haji.trackingNo || 'N/A'}
@@ -623,9 +643,9 @@ const HajiDetails = () => {
                     ? 'bg-gradient-to-r from-cyan-500 to-emerald-500 text-white shadow-sm hover:from-cyan-600 hover:to-emerald-600 focus:ring-2 focus:ring-cyan-300 dark:focus:ring-cyan-700'
                     : 'border border-gray-300 text-gray-400 cursor-not-allowed dark:border-gray-700 dark:text-gray-500'
                 }`}
-                title={haji.trackingNo ? 'Verify tracking on pilgrim portal' : 'No tracking number'}
+                title={haji.trackingNo ? 'হাজি পোর্টালে ট্র্যাকিং যাচাই করুন' : 'ট্র্যাকিং নম্বর নেই'}
               >
-                Verify
+                যাচাই করুন
               </button>
             </div>
           </div>
@@ -633,8 +653,8 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{getPackageName(haji)}</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্যাকেজ</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate" style={{ fontFamily: getPackageName(haji) === 'N/A' ? "'Google Sans', sans-serif" : "inherit" }}>{getPackageName(haji)}</p>
             </div>
             <Plane className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400 flex-shrink-0" />
           </div>
@@ -642,8 +662,8 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">License</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate">{getLicenseName(haji)}</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">লাইসেন্স</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white truncate" style={{ fontFamily: getLicenseName(haji) === 'N/A' ? "'Google Sans', sans-serif" : "inherit" }}>{getLicenseName(haji)}</p>
             </div>
             <Shield className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400 flex-shrink-0" />
           </div>
@@ -651,8 +671,8 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString()}</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মোট পরিমাণ</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString('bn-BD')}</p>
             </div>
             <CreditCard className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0" />
           </div>
@@ -660,9 +680,9 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Created</p>
-              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white">
-                {haji.createdAt ? new Date(haji.createdAt).toLocaleDateString() : 'N/A'}
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">তৈরি হয়েছে</p>
+              <p className="text-sm sm:text-lg font-bold text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+                {formatDate(haji.createdAt)}
               </p>
             </div>
             <Calendar className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600 dark:text-orange-400 flex-shrink-0" />
@@ -672,19 +692,19 @@ const HajiDetails = () => {
 
       {/* Financial Summary (Quick View) */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Financial Summary</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">আর্থিক সারাংশ</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString()}</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মোট পরিমাণ</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString('bn-BD')}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Paid Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(haji.paidAmount || 0).toLocaleString()}</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(haji.paidAmount || 0).toLocaleString('bn-BD')}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Number((typeof haji.due === 'number' ? haji.due : Math.max((Number(haji.totalAmount || 0) - Number(haji.paidAmount || 0)), 0))).toLocaleString()}</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">বকেয়া পরিমাণ</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Number((typeof haji.due === 'number' ? haji.due : Math.max((Number(haji.totalAmount || 0) - Number(haji.paidAmount || 0)), 0))).toLocaleString('bn-BD')}</p>
           </div>
         </div>
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -713,7 +733,7 @@ const HajiDetails = () => {
               }`}
             >
               <MessageCircle className="w-4 h-4" />
-              <span>{isSendingDueSms ? 'পাঠানো হচ্ছে...' : 'Due SMS পাঠান'}</span>
+              <span>{isSendingDueSms ? 'পাঠানো হচ্ছে...' : 'বকেয়া SMS পাঠান'}</span>
             </button>
           </div>
         </div>
@@ -726,22 +746,22 @@ const HajiDetails = () => {
     <div className="space-y-4 sm:space-y-6">
       {/* Personal Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Personal Information</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">ব্যক্তিগত তথ্য</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Full Name</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পূর্ণ নাম</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{haji.name || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">First Name</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্রথম নাম</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.firstName || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Last Name</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">শেষ নাম</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.lastName || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{isUmrah ? 'Umrah' : 'Haji'} ID</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{isUmrah ? 'উমরাহ' : 'হাজি'} আইডি</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.customerId || haji._id || haji.id || 'N/A'}</p>
           </div>
           <div>
@@ -758,13 +778,13 @@ const HajiDetails = () => {
             </div>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Date of Birth</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">
-              {haji.dateOfBirth ? new Date(haji.dateOfBirth).toLocaleDateString() : 'N/A'}
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">জন্ম তারিখ</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+              {formatDate(haji.dateOfBirth)}
             </p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Gender</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">লিঙ্গ</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{haji.gender || 'N/A'}</p>
           </div>
           <div>
@@ -772,33 +792,33 @@ const HajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.serviceStatus || haji.status || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Marital Status</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">বৈবাহিক অবস্থা</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{haji.maritalStatus || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Nationality</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">জাতীয়তা</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.nationality || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Occupation</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পেশা</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.occupation || 'N/A'}</p>
           </div>
         </div>
         
         {/* Family Information */}
         <div className="mt-6">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Family Information</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">পারিবারিক তথ্য</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Father's Name</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পিতার নাম</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.fatherName || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Mother's Name</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মাতার নাম</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.motherName || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Spouse Name</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">স্বামী/স্ত্রীর নাম</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.spouseName || 'N/A'}</p>
             </div>
           </div>
@@ -806,22 +826,22 @@ const HajiDetails = () => {
         
         {/* Status and Reference Information */}
         <div className="mt-6">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Status & Reference Information</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">স্ট্যাটাস ও রেফারেন্স তথ্য</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{getPackageName(haji)}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Status</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">স্ট্যাটাস</label>
               <div className="mt-1">{getStatusBadge(haji.status || 'active')}</div>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Reference By</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">রেফারেন্স বাই</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.referenceBy || 'N/A'}</p>
             </div>
             <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Reference Haji ID</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">রেফারেন্স হাজি আইডি</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.referenceHajiId || 'N/A'}</p>
             </div>
           </div>
@@ -830,10 +850,10 @@ const HajiDetails = () => {
 
       {/* Contact Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Contact Information</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">যোগাযোগের তথ্য</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Mobile</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মোবাইল</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.mobile || haji.phone || 'N/A'}</p>
           </div>
           <div>
@@ -841,21 +861,21 @@ const HajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.whatsappNo || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Email</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">ইমেইল</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.email || 'N/A'}</p>
           </div>
         </div>
         
         {/* Emergency Contact Information */}
         <div className="mt-6">
-          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">Emergency Contact</h4>
+          <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-3">জরুরি যোগাযোগ</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Emergency Contact Name</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">জরুরি যোগাযোগের নাম</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.emergencyContact || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Emergency Contact Phone</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">জরুরি যোগাযোগের ফোন</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.emergencyPhone || 'N/A'}</p>
             </div>
           </div>
@@ -866,54 +886,54 @@ const HajiDetails = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Division</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">বিভাগ</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.division || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">District</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">জেলা</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.district || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Upazila</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">উপজেলা</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.upazila || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Area</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">এলাকা</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">{area || 'N/A'}</p>
           </div>
         </div>
         <div className="mt-3 sm:mt-4">
-          <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Post Code</label>
+          <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পোস্ট কোড</label>
           <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.postCode || 'N/A'}</p>
         </div>
       </div>
 
       {/* Passport Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Passport Information</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">পাসপোর্ট তথ্য</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Passport Number</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পাসপোর্ট নম্বর</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.passportNumber || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Passport Type</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পাসপোর্ট টাইপ</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{haji.passportType || 'N/A'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Issue Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">
-              {haji.issueDate ? new Date(haji.issueDate).toLocaleDateString() : 'N/A'}
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+              {formatDate(haji.issueDate)}
             </p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Expiry Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">
-              {haji.expiryDate ? new Date(haji.expiryDate).toLocaleDateString() : 'N/A'}
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মেয়াদ শেষ তারিখ</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+              {formatDate(haji.expiryDate)}
             </p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NID Number</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">NID নম্বর</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.nidNumber || 'N/A'}</p>
           </div>
           <div>
@@ -956,11 +976,11 @@ const HajiDetails = () => {
             </div>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Passport First Name</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পাসপোর্ট প্রথম নাম</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.passportFirstName || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Passport Last Name</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পাসপোর্ট শেষ নাম</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.passportLastName || 'N/A'}</p>
           </div>
         </div>
@@ -976,38 +996,38 @@ const HajiDetails = () => {
       <div className="space-y-4 sm:space-y-6">
         {/* Package Information */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Package Information</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">প্যাকেজ তথ্য</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্যাকেজ নাম</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white font-medium break-words">{getPackageName(haji)}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package ID</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্যাকেজ আইডি</label>
               <p className="text-xs text-gray-900 dark:text-white break-all font-mono">{packageInfo.packageId || haji.packageId || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Type</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্যাকেজ টাইপ</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.packageType || haji.packageType || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Custom Package Type</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">কাস্টম প্যাকেজ টাইপ</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.customPackageType || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Year</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্যাকেজ বছর</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.packageYear || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Month</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্যাকেজ মাস</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white">{packageInfo.packageMonth || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Travel Agent</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">ট্রাভেল এজেন্ট</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.agent || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Agent Contact</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">এজেন্ট যোগাযোগ</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{haji.agentContact || 'N/A'}</p>
             </div>
             <div>
@@ -1015,25 +1035,25 @@ const HajiDetails = () => {
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{getLicenseName(haji)}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Departure Date</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">প্রস্থান তারিখ</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.departureDate || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Return Date</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">ফেরত তারিখ</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.returnDate || 'N/A'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Hajj Experience</label>
-              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousHajj ? 'Yes' : 'No'}</p>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পূর্ববর্তী হজ্ব অভিজ্ঞতা</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousHajj ? 'হ্যাঁ' : 'না'}</p>
             </div>
             <div>
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Umrah Experience</label>
-              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'Yes' : 'No'}</p>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পূর্ববর্তী উমরাহ অভিজ্ঞতা</label>
+              <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'হ্যাঁ' : 'না'}</p>
             </div>
           </div>
           {(haji.specialRequirements || packageInfo.specialRequirements) && (
             <div className="mt-4">
-              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Special Requirements</label>
+              <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">বিশেষ প্রয়োজনীয়তা</label>
               <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.specialRequirements || packageInfo.specialRequirements}</p>
             </div>
           )}
@@ -1041,7 +1061,7 @@ const HajiDetails = () => {
 
       {/* Service Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Service Information</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">সেবা তথ্য</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Service Type</label>
@@ -1052,21 +1072,21 @@ const HajiDetails = () => {
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{haji.serviceStatus || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Customer Type</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">কাস্টমার টাইপ</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{haji.customerType || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Registration Status</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">নিবন্ধন স্ট্যাটাস</label>
             <div className="mt-1">{getStatusBadge(haji.status || 'active')}</div>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Payment Status</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পেমেন্ট স্ট্যাটাস</label>
             <div className="mt-1">{getPaymentBadge(haji.paymentStatus || 'pending')}</div>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Registration Date</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">
-              {haji.createdAt ? new Date(haji.createdAt).toLocaleDateString() : 'N/A'}
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">নিবন্ধন তারিখ</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+              {formatDate(haji.createdAt)}
             </p>
           </div>
         </div>
@@ -1079,19 +1099,19 @@ const HajiDetails = () => {
     <div className="space-y-4 sm:space-y-6">
       {/* Financial Summary */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Financial Summary</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">আর্থিক সারাংশ</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="text-center p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString()}</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মোট পরিমাণ</p>
+            <p className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">৳{Number(haji.totalAmount || 0).toLocaleString('bn-BD')}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Paid Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(haji.paidAmount || 0).toLocaleString()}</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</p>
+            <p className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400">৳{Number(haji.paidAmount || 0).toLocaleString('bn-BD')}</p>
           </div>
           <div className="text-center p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Due Amount</p>
-            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Number((typeof haji.due === 'number' ? haji.due : Math.max((Number(haji.totalAmount || 0) - Number(haji.paidAmount || 0)), 0))).toLocaleString()}</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">বকেয়া পরিমাণ</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-600 dark:text-red-400">৳{Number((typeof haji.due === 'number' ? haji.due : Math.max((Number(haji.totalAmount || 0) - Number(haji.paidAmount || 0)), 0))).toLocaleString('bn-BD')}</p>
           </div>
         </div>
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1120,7 +1140,7 @@ const HajiDetails = () => {
               }`}
             >
               <MessageCircle className="w-4 h-4" />
-              <span>{isSendingDueSms ? 'পাঠানো হচ্ছে...' : 'Due SMS পাঠান'}</span>
+              <span>{isSendingDueSms ? 'পাঠানো হচ্ছে...' : 'বকেয়া SMS পাঠান'}</span>
             </button>
           </div>
         </div>
@@ -1128,14 +1148,14 @@ const HajiDetails = () => {
 
       {/* Payment Details */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Payment Details</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">পেমেন্ট বিবরণ</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Payment Method</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পেমেন্ট মেথড</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white capitalize">{haji.paymentMethod || 'N/A'}</p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Payment Status</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পেমেন্ট স্ট্যাটাস</label>
             <div className="mt-1">{getPaymentBadge(haji.paymentStatus || 'pending')}</div>
           </div>
         </div>
@@ -1143,7 +1163,7 @@ const HajiDetails = () => {
 
       {/* Package Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Package Information</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">প্যাকেজ তথ্য</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Package Name</label>
@@ -1171,11 +1191,11 @@ const HajiDetails = () => {
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Hajj Experience</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousHajj ? 'Yes' : 'No'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousHajj ? 'হ্যাঁ' : 'না'}</p>
           </div>
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Previous Umrah Experience</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'Yes' : 'No'}</p>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white">{haji.previousUmrah ? 'হ্যাঁ' : 'না'}</p>
           </div>
         </div>
         {haji.packageInfo?.specialRequirements && (
@@ -1188,12 +1208,12 @@ const HajiDetails = () => {
 
       {/* Additional Information */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Additional Information</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">অতিরিক্ত তথ্য</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Created At</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">
-              {haji.createdAt ? new Date(haji.createdAt).toLocaleString() : 'N/A'}
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">তৈরি হয়েছে</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+              {haji.createdAt ? formatDate(haji.createdAt) : 'N/A'}
             </p>
           </div>
           <div>
@@ -1230,15 +1250,15 @@ const HajiDetails = () => {
             </div>
           )}
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Updated At</label>
-            <p className="text-sm sm:text-base text-gray-900 dark:text-white">
-              {haji.updatedAt ? new Date(haji.updatedAt).toLocaleString() : 'N/A'}
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">আপডেট হয়েছে</label>
+            <p className="text-sm sm:text-base text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+              {haji.updatedAt ? formatDate(haji.updatedAt) : 'N/A'}
             </p>
           </div>
           <div>
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Is Active</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">সক্রিয়</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white">
-              {haji.isActive ? 'Yes' : 'No'}
+              {haji.isActive ? 'হ্যাঁ' : 'না'}
             </p>
           </div>
           <div>
@@ -1252,7 +1272,7 @@ const HajiDetails = () => {
         </div>
         {haji.notes && (
           <div className="mt-4">
-            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Notes</label>
+            <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">নোট</label>
             <p className="text-sm sm:text-base text-gray-900 dark:text-white break-words">{haji.notes}</p>
           </div>
         )}
@@ -1264,14 +1284,14 @@ const HajiDetails = () => {
     <div className="space-y-4 sm:space-y-6">
       {/* Uploaded Photos and Documents */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">Uploaded Photos & Documents</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4">আপলোড করা ছবি ও ডকুমেন্ট</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Photo */}
           {(() => {
             const photoUrl = haji.photo || haji.photoUrl || haji.image;
             return photoUrl ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Photo</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">ছবি</label>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                   <img 
                     src={photoUrl} 
@@ -1289,7 +1309,7 @@ const HajiDetails = () => {
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-block"
                 >
-                  View Full Size
+                  পূর্ণ আকারে দেখুন
                 </a>
               </div>
             ) : null;
@@ -1300,13 +1320,13 @@ const HajiDetails = () => {
             const passportUrl = haji.passportCopy || haji.passportCopyUrl;
             return passportUrl ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Passport Copy</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">পাসপোর্ট কপি</label>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                   {passportUrl.match(/\.pdf(\?|$)/i) ? (
                     <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                       <div className="text-center">
                         <FileText className="w-12 h-12 text-red-500 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600 dark:text-gray-400">PDF Document</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">PDF ডকুমেন্ট</p>
                       </div>
                     </div>
                   ) : (
@@ -1327,7 +1347,7 @@ const HajiDetails = () => {
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-block"
                 >
-                  {passportUrl.match(/\.pdf(\?|$)/i) ? 'View PDF' : 'View Full Size'}
+                  {passportUrl.match(/\.pdf(\?|$)/i) ? 'PDF দেখুন' : 'পূর্ণ আকারে দেখুন'}
                 </a>
               </div>
             ) : null;
@@ -1338,13 +1358,13 @@ const HajiDetails = () => {
             const nidUrl = haji.nidCopy || haji.nidCopyUrl;
             return nidUrl ? (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">NID Copy</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">NID কপি</label>
                 <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                   {nidUrl.match(/\.pdf(\?|$)/i) ? (
                     <div className="w-full h-48 bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                       <div className="text-center">
                         <FileText className="w-12 h-12 text-red-500 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600 dark:text-gray-400">PDF Document</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">PDF ডকুমেন্ট</p>
                       </div>
                     </div>
                   ) : (
@@ -1365,7 +1385,7 @@ const HajiDetails = () => {
                   rel="noopener noreferrer"
                   className="text-xs text-blue-600 dark:text-blue-400 hover:underline inline-block"
                 >
-                  {nidUrl.match(/\.pdf(\?|$)/i) ? 'View PDF' : 'View Full Size'}
+                  {nidUrl.match(/\.pdf(\?|$)/i) ? 'PDF দেখুন' : 'পূর্ণ আকারে দেখুন'}
                 </a>
               </div>
             ) : null;
@@ -1376,7 +1396,7 @@ const HajiDetails = () => {
         {!haji.photo && !haji.photoUrl && !haji.image && !haji.passportCopy && !haji.passportCopyUrl && !haji.nidCopy && !haji.nidCopyUrl && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
             <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No photos or documents uploaded yet</p>
+            <p className="text-sm">এখনও কোনো ছবি বা ডকুমেন্ট আপলোড করা হয়নি</p>
           </div>
         )}
       </div>
@@ -1419,7 +1439,7 @@ const HajiDetails = () => {
         relation.customerName ||
         relation.fullName ||
         relation.relationWith;
-      return found?.name || fallback || 'Unknown Haji';
+      return found?.name || fallback || 'অজানা হাজি';
     };
 
     const resolveRelationType = (relation) => {
@@ -1590,14 +1610,14 @@ const HajiDetails = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div>
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Relation With</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Assign or view linked Hajis for this profile.</p>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">সম্পর্ক</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">এই প্রোফাইলের সাথে লিঙ্ক করা হাজি নির্ধারণ বা দেখুন।</p>
             </div>
             <button
               onClick={() => setShowRelationPicker(true)}
               className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm sm:text-base hover:bg-blue-700"
             >
-              Assign Relation Haji
+              সম্পর্কযুক্ত হাজি নির্ধারণ করুন
             </button>
           </div>
           {haji.primaryHolderName && (
@@ -1605,7 +1625,7 @@ const HajiDetails = () => {
               <div className="flex items-center gap-2">
                 <User className="w-4 h-4 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Assigned By</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">নির্ধারণ করেছেন</p>
                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{haji.primaryHolderName}</p>
                 </div>
               </div>
@@ -1617,28 +1637,28 @@ const HajiDetails = () => {
         {familySummaryData && (
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Family Total</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পরিবারের মোট</p>
               <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
-                ৳{Number(familySummaryData.familyTotal || 0).toLocaleString()}
+                ৳{Number(familySummaryData.familyTotal || 0).toLocaleString('bn-BD')}
               </p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Family Paid</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পরিবারের পরিশোধিত</p>
               <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">
-                ৳{Number(familySummaryData.familyPaid || 0).toLocaleString()}
+                ৳{Number(familySummaryData.familyPaid || 0).toLocaleString('bn-BD')}
               </p>
             </div>
             <div>
-              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Family Due</p>
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">পরিবারের বকেয়া</p>
               <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
-                ৳{Number(familySummaryData.familyDue || 0).toLocaleString()}
+                ৳{Number(familySummaryData.familyDue || 0).toLocaleString('bn-BD')}
               </p>
             </div>
           </div>
         )}
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-3">Linked Hajis</h4>
+          <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white mb-3">লিঙ্ক করা হাজি</h4>
           {relationsState.length > 0 ? (
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {relationsState.map((relation, idx) => {
@@ -1681,7 +1701,7 @@ const HajiDetails = () => {
                       onClick={() => handleDeleteRelation(relId)}
                       disabled={isDeleting}
                       className="ml-3 p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Remove relation"
+                      title="সম্পর্ক সরান"
                     >
                       <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
@@ -1691,7 +1711,7 @@ const HajiDetails = () => {
             </div>
           ) : (
             <div className="text-center text-sm text-gray-600 dark:text-gray-400 py-6">
-              No relations added yet. Use the button above to assign related Hajis.
+              এখনও কোনো সম্পর্ক যোগ করা হয়নি। সম্পর্কযুক্ত হাজি নির্ধারণ করতে উপরের বাটন ব্যবহার করুন।
             </div>
           )}
         </div>
@@ -1703,8 +1723,8 @@ const HajiDetails = () => {
               <div className="p-4 sm:p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Assign Relation Haji</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">Search and pick a Haji to link.</p>
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">সম্পর্কযুক্ত হাজি নির্ধারণ করুন</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">লিঙ্ক করার জন্য একটি হাজি খুঁজুন এবং নির্বাচন করুন।</p>
                   </div>
                   <button
                     onClick={() => setShowRelationPicker(false)}
@@ -1718,13 +1738,13 @@ const HajiDetails = () => {
                   type="text"
                   value={relationSearch}
                   onChange={(e) => setRelationSearch(e.target.value)}
-                  placeholder="Search by name, mobile or ID"
+                  placeholder="নাম, মোবাইল বা আইডি দিয়ে খুঁজুন"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
                 />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Relation Type
+                    সম্পর্কের ধরন
                   </label>
                   <select
                     value={selectedRelationType}
@@ -1741,10 +1761,10 @@ const HajiDetails = () => {
 
                 <div className="max-h-96 overflow-y-auto divide-y divide-gray-200 dark:divide-gray-700">
                   {hajiListLoading && (
-                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">Loading hajis...</div>
+                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">হাজি লোড হচ্ছে...</div>
                   )}
                   {!hajiListLoading && filteredHajiList.length === 0 && (
-                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">No hajis found.</div>
+                    <div className="p-4 text-sm text-gray-600 dark:text-gray-400">কোনো হাজি পাওয়া যায়নি।</div>
                   )}
                   {!hajiListLoading &&
                     filteredHajiList.map((item) => {
@@ -1804,11 +1824,11 @@ const HajiDetails = () => {
                             <p className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white truncate">
                               {item.name}
                               {alreadyLinked && (
-                                <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(Added)</span>
+                                <span className="ml-2 text-xs text-green-600 dark:text-green-400 font-normal">(যোগ করা হয়েছে)</span>
                               )}
                             </p>
                             <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                              ID: {idValue || 'N/A'} • {item.mobile || item.phone || 'No phone'}
+                              আইডি: {idValue || 'N/A'} • {item.mobile || item.phone || 'ফোন নেই'}
                             </p>
                           </div>
                           <button
@@ -1824,7 +1844,7 @@ const HajiDetails = () => {
                                 : 'bg-blue-600 hover:bg-blue-700 text-white'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                           >
-                            {alreadyLinked ? 'Added' : isCurrentHaji ? 'Current' : addRelationMutation.isPending ? 'Saving...' : 'Select'}
+                            {alreadyLinked ? 'যোগ করা হয়েছে' : isCurrentHaji ? 'বর্তমান' : addRelationMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'নির্বাচন করুন'}
                           </button>
                         </div>
                       );
@@ -1990,22 +2010,23 @@ const HajiDetails = () => {
       return (
         <div className="p-6 text-center">
           <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">Transaction history is only available for Haji profiles.</p>
+          <p className="text-gray-600 dark:text-gray-400">লেনদেনের ইতিহাস শুধুমাত্র হাজি প্রোফাইলের জন্য উপলব্ধ।</p>
         </div>
       );
     }
 
     const formatAmount = (amount) => {
-      return `৳${Number(amount || 0).toLocaleString()}`;
+      return `৳${Number(amount || 0).toLocaleString('bn-BD')}`;
     };
 
-    const formatDate = (date) => {
+    const formatDateLocal = (date) => {
       if (!date) return 'N/A';
-      return new Date(date).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
+      const d = new Date(date);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const day = d.getDate();
+      const month = months[d.getMonth()];
+      const year = d.getFullYear();
+      return `${day} ${month}, ${year}`;
     };
 
     return (
@@ -2013,25 +2034,25 @@ const HajiDetails = () => {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Transactions</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মোট লেনদেন</p>
             <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
               {transactionSummary.totalTransactions || 0}
             </p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Credit</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মোট ক্রেডিট</p>
             <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400">
               {formatAmount(transactionSummary.totalCredit)}
             </p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Total Debit</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">মোট ডেবিট</p>
             <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">
               {formatAmount(transactionSummary.totalDebit)}
             </p>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
-            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Net Amount</p>
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">নেট পরিমাণ</p>
             <p className={`text-lg sm:text-xl font-bold ${
               (transactionSummary.netAmount || 0) >= 0 
                 ? 'text-green-600 dark:text-green-400' 
@@ -2044,10 +2065,10 @@ const HajiDetails = () => {
 
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">ফিল্টার</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div>
-              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">From Date</label>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">শুরুর তারিখ</label>
               <input
                 type="date"
                 value={transactionFilters.fromDate}
@@ -2056,7 +2077,7 @@ const HajiDetails = () => {
               />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">To Date</label>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">শেষ তারিখ</label>
               <input
                 type="date"
                 value={transactionFilters.toDate}
@@ -2065,15 +2086,15 @@ const HajiDetails = () => {
               />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">Transaction Type</label>
+              <label className="block text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-1">লেনদেনের ধরন</label>
               <select
                 value={transactionFilters.transactionType}
                 onChange={(e) => setTransactionFilters({ ...transactionFilters, transactionType: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
               >
-                <option value="">All Types</option>
-                <option value="credit">Credit</option>
-                <option value="debit">Debit</option>
+                <option value="">সব ধরন</option>
+                <option value="credit">ক্রেডিট</option>
+                <option value="debit">ডেবিট</option>
               </select>
             </div>
             <div className="flex items-end">
@@ -2084,7 +2105,7 @@ const HajiDetails = () => {
                 }}
                 className="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm"
               >
-                Clear Filters
+                ফিল্টার সাফ করুন
               </button>
             </div>
           </div>
@@ -2092,16 +2113,16 @@ const HajiDetails = () => {
 
         {/* Transaction List */}
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">Transaction History</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-4">লেনদেনের ইতিহাস</h3>
           {transactionsLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Loading transactions...</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">লেনদেন লোড হচ্ছে...</p>
             </div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-8">
               <Receipt className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-600 dark:text-gray-400">No transactions found</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">কোনো লেনদেন পাওয়া যায়নি</p>
             </div>
           ) : (
             <>
@@ -2109,19 +2130,19 @@ const HajiDetails = () => {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Date</th>
-                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Type</th>
-                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Amount</th>
-                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Category</th>
-                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Payment Method</th>
-                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">Notes</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">তারিখ</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">ধরন</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">পরিমাণ</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">ক্যাটাগরি</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">পেমেন্ট মেথড</th>
+                      <th className="text-left py-3 px-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300">নোট</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.map((tx) => (
                       <tr key={tx._id} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="py-3 px-2 text-xs sm:text-sm text-gray-900 dark:text-white">
-                          {formatDate(tx.date)}
+                          {formatDateLocal(tx.date)}
                         </td>
                         <td className="py-3 px-2">
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
@@ -2134,7 +2155,7 @@ const HajiDetails = () => {
                             ) : (
                               <ArrowDown className="w-3 h-3" />
                             )}
-                            {tx.transactionType?.toUpperCase() || 'N/A'}
+                            {tx.transactionType === 'credit' ? 'ক্রেডিট' : tx.transactionType === 'debit' ? 'ডেবিট' : 'N/A'}
                           </span>
                         </td>
                         <td className={`py-3 px-2 text-xs sm:text-sm font-semibold ${
@@ -2166,7 +2187,7 @@ const HajiDetails = () => {
               {transactionPagination.totalPages > 1 && (
                 <div className="mt-4 flex items-center justify-between">
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                    Page {transactionPagination.page} of {transactionPagination.totalPages} ({transactionPagination.total} total)
+                    পৃষ্ঠা {transactionPagination.page} / {transactionPagination.totalPages} (মোট {transactionPagination.total})
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -2174,14 +2195,14 @@ const HajiDetails = () => {
                       disabled={transactionPagination.page <= 1}
                       className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                     >
-                      Previous
+                      পূর্ববর্তী
                     </button>
                     <button
                       onClick={() => setTransactionPage(prev => Math.min(transactionPagination.totalPages, prev + 1))}
                       disabled={transactionPagination.page >= transactionPagination.totalPages}
                       className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                     >
-                      Next
+                      পরবর্তী
                     </button>
                   </div>
                 </div>
@@ -2227,10 +2248,10 @@ const HajiDetails = () => {
           </button>
           <div className="min-w-0 flex-1">
             <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white truncate">
-              {isUmrah ? 'Umrah' : 'Haji'} Details - {haji.name || 'N/A'}
+              {isUmrah ? 'উমরাহ' : 'হাজি'} বিবরণ - {haji.name || 'N/A'}
             </h1>
             <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 hidden sm:block">
-              Complete information about the {isUmrah ? 'Umrah Haji' : 'Haji'}
+              {isUmrah ? 'উমরাহ হাজি' : 'হাজি'}-এর সম্পূর্ণ তথ্য
             </p>
           </div>
         </div>
@@ -2240,14 +2261,14 @@ const HajiDetails = () => {
             className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
           >
             <Package className="w-4 h-4" />
-            <span className="hidden sm:inline">Add Package</span>
+            <span className="hidden sm:inline">প্যাকেজ যোগ করুন</span>
           </button>
           <button 
             onClick={() => navigate(isUmrah ? `/umrah/haji/${id}/edit` : `/hajj-umrah/haji/${id}/edit`)}
             className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm sm:text-base"
           >
             <Edit className="w-4 h-4" />
-            <span className="hidden sm:inline">Edit</span>
+            <span className="hidden sm:inline">সম্পাদনা করুন</span>
           </button>
         </div>
       </div>
@@ -2287,7 +2308,7 @@ const HajiDetails = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-3xl w-full mx-4">
             <div className="p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">Select a Package</h3>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">প্যাকেজ নির্বাচন করুন</h3>
                 <button
                   onClick={() => setShowPackagePicker(false)}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -2300,12 +2321,12 @@ const HajiDetails = () => {
                   type="text"
                   value={packageSearch}
                   onChange={(e) => setPackageSearch(e.target.value)}
-                  placeholder="Search by name, type, year..."
+                  placeholder="নাম, টাইপ, বছর দিয়ে খুঁজুন..."
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white text-sm"
                 />
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Passenger Type
+                    যাত্রীর ধরন
                   </label>
                   <select
                     value={selectedPassengerType}
@@ -2342,7 +2363,7 @@ const HajiDetails = () => {
                           </p>
                           {selectedPrice > 0 && (
                             <p className="text-xs font-bold text-purple-600 dark:text-purple-400">
-                              Price: ৳{Number(selectedPrice).toLocaleString()} ({selectedPassengerType})
+                              মূল্য: ৳{Number(selectedPrice).toLocaleString('bn-BD')} ({selectedPassengerType === 'adult' ? 'প্রাপ্তবয়স্ক' : selectedPassengerType === 'child' ? 'শিশু' : 'শিশু'})
                             </p>
                           )}
                         </div>
@@ -2352,7 +2373,7 @@ const HajiDetails = () => {
                             disabled={assignPackageMutation.isPending || !selectedPrice}
                             className="px-3 sm:px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            Select
+                            নির্বাচন করুন
                           </button>
                         </div>
                       </div>
@@ -2367,7 +2388,7 @@ const HajiDetails = () => {
                   onClick={() => setShowPackagePicker(false)}
                   className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
                 >
-                  Close
+                  বন্ধ করুন
                 </button>
               </div>
             </div>

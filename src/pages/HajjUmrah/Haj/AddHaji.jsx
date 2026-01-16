@@ -186,7 +186,6 @@ const AddHaji = () => {
   const [packages, setPackages] = useState([]);
   const [agents, setAgents] = useState([]);
   const [licenses, setLicenses] = useState([]);
-  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   
   // Step management
   const [currentStep, setCurrentStep] = useState(1);
@@ -326,9 +325,21 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
           setNidPreview(nidUrl);
         }
       }
-      setNameManuallyEdited(false);
     }
   }, [editMode, hajiData]);
+
+  // Auto-update Full Name whenever firstName or lastName changes
+  useEffect(() => {
+    const composedFirst = (formData.firstName || '').trim();
+    const composedLast = (formData.lastName || '').trim();
+    const composedFull = `${composedFirst} ${composedLast}`.trim();
+    if (composedFull && formData.name !== composedFull) {
+      setFormData(prev => ({
+        ...prev,
+        name: composedFull
+      }));
+    }
+  }, [formData.firstName, formData.lastName]);
 
   
   const [formData, setFormData] = useState({
@@ -455,24 +466,14 @@ useEffect(() => {
     const { name, value, type, checked } = e.target;
     const nextValue = type === 'checkbox' ? checked : value;
 
-    if (name === 'name') {
-      setNameManuallyEdited(true);
-      setFormData(prev => ({
-        ...prev,
-        name: nextValue
-      }));
-      return;
-    }
-
     if (name === 'firstName' || name === 'lastName') {
       setFormData(prev => {
         const updated = { ...prev, [name]: nextValue };
         const composedFirst = (name === 'firstName' ? nextValue : updated.firstName || '').trim();
         const composedLast = (name === 'lastName' ? nextValue : updated.lastName || '').trim();
         const composedFull = `${composedFirst} ${composedLast}`.trim();
-        if (!nameManuallyEdited || !prev.name?.trim()) {
-          updated.name = composedFull;
-        }
+        // Always auto-update Full Name from First Name and Last Name
+        updated.name = composedFull;
         return updated;
       });
       return;
@@ -503,7 +504,7 @@ useEffect(() => {
       ...prev,
       [name]: nextValue
     }));
-  }, [nameManuallyEdited]);
+  }, []);
 
   const handleFileUpload = useCallback((fieldName) => (e) => {
     const file = e.target.files[0];
@@ -1101,13 +1102,19 @@ useEffect(() => {
               onChange={handleInputChange}
               placeholder="Enter manual serial number"
             />
-            <InputGroup 
-              label="Full Name" 
-              name="name" 
-              required
-              value={formData.name}
-              onChange={handleInputChange}
-            />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Full Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name || `${formData.firstName || ''} ${formData.lastName || ''}`.trim()}
+                readOnly
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed"
+              />
+            </div>
             <InputGroup 
               label="First Name" 
               name="firstName" 
