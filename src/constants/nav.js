@@ -137,7 +137,8 @@ export const navigation = [
           { name: 'Haji List', href: '/hajj-umrah/haji-list', icon: List },
           { name: 'Add New Haji', href: '/hajj-umrah/haji/add', icon: Plus },
           { name: 'HL Manage', href: '/hajj-umrah/license-management', icon: Shield },
-          { name: 'Haj Package', href: '/hajj-umrah/haj-package-list', icon: List }
+          { name: 'Hotel Management', href: '/hajj-umrah/hotel-management', icon: Building2 },
+          { name: 'Haj Package', href: '/hajj-umrah/haj-package-list', icon: List },
         ]
       },
       {

@@ -328,19 +328,6 @@ const isLoading = loading || createHajiMutation.isPending || updateHajiMutation.
     }
   }, [editMode, hajiData]);
 
-  // Auto-update Full Name whenever firstName or lastName changes
-  useEffect(() => {
-    const composedFirst = (formData.firstName || '').trim();
-    const composedLast = (formData.lastName || '').trim();
-    const composedFull = `${composedFirst} ${composedLast}`.trim();
-    if (composedFull && formData.name !== composedFull) {
-      setFormData(prev => ({
-        ...prev,
-        name: composedFull
-      }));
-    }
-  }, [formData.firstName, formData.lastName]);
-
   
   const [formData, setFormData] = useState({
     name: '',
@@ -461,6 +448,18 @@ useEffect(() => {
   }
 }, [licensesResponse]);
 
+  // Auto-update Full Name whenever firstName or lastName changes
+  useEffect(() => {
+    const composedFirst = (formData.firstName || '').trim();
+    const composedLast = (formData.lastName || '').trim();
+    const composedFull = `${composedFirst} ${composedLast}`.trim();
+    if (composedFull && formData.name !== composedFull) {
+      setFormData(prev => ({
+        ...prev,
+        name: composedFull
+      }));
+    }
+  }, [formData.firstName, formData.lastName]);
 
   const handleInputChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
