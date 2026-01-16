@@ -136,7 +136,7 @@ export const navigation = [
         children: [
           { name: 'Haji List', href: '/hajj-umrah/haji-list', icon: List },
           { name: 'Add New Haji', href: '/hajj-umrah/haji/add', icon: Plus },
-          { name: 'HL Manage', href: '/hajj-umrah/license-management', icon: Eye },
+          { name: 'HL Manage', href: '/hajj-umrah/license-management', icon: Shield },
           { name: 'Haj Package', href: '/hajj-umrah/haj-package-list', icon: List }
         ]
       },
