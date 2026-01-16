@@ -151,8 +151,8 @@ const VendorDashboard = () => {
         console.error('Error loading vendor dashboard:', serverMsg);
         Swal.fire({
           icon: 'error',
-          title: 'Load failed',
-          text: `Could not load vendor stats/data. ${serverMsg}`,
+          title: 'লোড ব্যর্থ',
+          text: `ভেন্ডর পরিসংখ্যান/ডেটা লোড করতে পারেনি। ${serverMsg}`,
           confirmButtonColor: '#7c3aed'
         });
       } finally {
@@ -225,8 +225,8 @@ const VendorDashboard = () => {
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <Helmet>
-        <title>Vendor Dashboard</title>
-        <meta name="description" content="Overview of vendor statistics and activities." />
+        <title>ভেন্ডর ড্যাশবোর্ড</title>
+        <meta name="description" content="ভেন্ডর পরিসংখ্যান এবং কার্যক্রমের ওভারভিউ।" />
       </Helmet>
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -235,8 +235,8 @@ const VendorDashboard = () => {
             <Building2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Vendor Dashboard</h1>
-            <p className="text-gray-600 dark:text-gray-400">Manage and monitor vendor relationships</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">ভেন্ডর ও পার্টনার ড্যাশবোর্ড</h1>
+            <p className="text-gray-600 dark:text-gray-400">ভেন্ডর ও পার্টনার সম্পর্ক পরিচালনা এবং পর্যবেক্ষণ করুন</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -245,16 +245,16 @@ const VendorDashboard = () => {
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5"
           >
             <BarChart3 className="w-4 h-4" /> 
-            {showComprehensiveView ? 'Vendor View' : 'Comprehensive View'}
+            {showComprehensiveView ? 'ভেন্ডর ভিউ' : 'বিস্তৃত ভিউ'}
           </button>
           <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5">
-            <Download className="w-4 h-4" /> Export
+            <Download className="w-4 h-4" /> এক্সপোর্ট
           </button>
           <Link
             to="/vendors/add"
             className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5"
           >
-            <Plus className="w-4 h-4" /> Add Vendor
+            <Plus className="w-4 h-4" /> ভেন্ডর যোগ করুন
           </Link>
         </div>
       </div>
@@ -263,7 +263,7 @@ const VendorDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <CardWidget 
           title="মোট ভেন্ডর" 
-          value={stats.total} 
+          value={Number(stats.total || 0).toLocaleString('bn-BD')} 
           icon={Building2} 
           trend="" 
           trendValue="" 
@@ -271,7 +271,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট ভেন্ডর বিল" 
-          value={billsSummaryLoading ? '...' : billStats.totalBills} 
+          value={billsSummaryLoading ? '...' : Number(billStats.totalBills || 0).toLocaleString('bn-BD')} 
           icon={Receipt} 
           trend="" 
           trendValue="" 
@@ -279,7 +279,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট বিল পরিমাণ" 
-          value={billsSummaryLoading ? '...' : `৳${billStats.totalAmount.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          value={billsSummaryLoading ? '...' : `৳${Number(billStats.totalAmount || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
           icon={FileText} 
           trend="" 
           trendValue="" 
@@ -287,7 +287,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট পরিশোধিত" 
-          value={billsSummaryLoading ? '...' : `৳${billStats.totalPaid.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          value={billsSummaryLoading ? '...' : `৳${Number(billStats.totalPaid || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
           icon={Wallet} 
           trend="" 
           trendValue="" 
@@ -295,7 +295,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট বাকি" 
-          value={billsSummaryLoading ? '...' : `৳${billStats.totalDue.toLocaleString('en-BD', { maximumFractionDigits: 0 })}`} 
+          value={billsSummaryLoading ? '...' : `৳${Number(billStats.totalDue || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
           icon={TrendingDown} 
           trend="" 
           trendValue="" 
@@ -307,12 +307,12 @@ const VendorDashboard = () => {
       {showComprehensiveView && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Analytics Dashboard</h3>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">এনালিটিক্স ড্যাশবোর্ড</h3>
             <button 
               onClick={handleRefresh}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-3 py-2"
             >
-              <RefreshCw className="w-4 h-4" /> Refresh
+              <RefreshCw className="w-4 h-4" /> রিফ্রেশ
             </button>
           </div>
         </div>
@@ -322,45 +322,45 @@ const VendorDashboard = () => {
       {showComprehensiveView && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Vendor Analytics</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">ভেন্ডর এনালিটিক্স</h3>
             {analyticsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-gray-500 dark:text-gray-400">Loading analytics...</div>
+                <div className="text-gray-500 dark:text-gray-400">এনালিটিক্স লোড হচ্ছে...</div>
               </div>
             ) : analyticsError ? (
-              <div className="text-red-500 dark:text-red-400 text-sm">Failed to load analytics</div>
+              <div className="text-red-500 dark:text-red-400 text-sm">এনালিটিক্স লোড করতে ব্যর্থ</div>
             ) : vendorAnalytics ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Vendors</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">মোট ভেন্ডর</span>
                   <span className="font-semibold text-gray-900 dark:text-gray-100">{vendorAnalytics.totalVendors || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Active Vendors</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">সক্রিয় ভেন্ডর</span>
                   <span className="font-semibold text-green-600 dark:text-green-400">{vendorAnalytics.activeVendors || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Inactive Vendors</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">নিষ্ক্রিয় ভেন্ডর</span>
                   <span className="font-semibold text-red-600 dark:text-red-400">{vendorAnalytics.inactiveVendors || 0}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">New This Month</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">এই মাসে নতুন</span>
                   <span className="font-semibold text-blue-600 dark:text-blue-400">{vendorAnalytics.newThisMonth || 0}</span>
                 </div>
               </div>
             ) : (
-              <div className="text-gray-500 dark:text-gray-400 text-sm">No analytics data available</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">কোনো এনালিটিক্স ডেটা পাওয়া যায়নি</div>
             )}
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Top Vendors by Location</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">অবস্থান অনুযায়ী শীর্ষ ভেন্ডর</h3>
             {analyticsLoading ? (
               <div className="flex items-center justify-center py-8">
-                <div className="text-gray-500 dark:text-gray-400">Loading locations...</div>
+                <div className="text-gray-500 dark:text-gray-400">অবস্থান লোড হচ্ছে...</div>
               </div>
             ) : analyticsError ? (
-              <div className="text-red-500 dark:text-red-400 text-sm">Failed to load location data</div>
+              <div className="text-red-500 dark:text-red-400 text-sm">অবস্থান ডেটা লোড করতে ব্যর্থ</div>
             ) : vendorAnalytics?.topLocations && vendorAnalytics.topLocations.length > 0 ? (
               <div className="space-y-3">
                 {vendorAnalytics.topLocations.map((location, index) => (
@@ -369,13 +369,13 @@ const VendorDashboard = () => {
                       <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
                         {location.count || 0}
                       </div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{location.location || 'Unknown'}</div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{location.location || 'অজানা'}</div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-gray-500 dark:text-gray-400 text-sm">No location data available</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm">কোনো অবস্থান ডেটা পাওয়া যায়নি</div>
             )}
           </div>
         </div>
@@ -385,41 +385,41 @@ const VendorDashboard = () => {
       {showComprehensiveView && dashboardData.orderAnalytics && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Order Status Overview</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">অর্ডার স্ট্যাটাস ওভারভিউ</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Completed</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">সম্পন্ন</span>
                 <span className="font-semibold text-green-600 dark:text-green-400">{dashboardData.orderAnalytics.completedOrders}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Pending</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">বিচারাধীন</span>
                 <span className="font-semibold text-yellow-600 dark:text-yellow-400">{dashboardData.orderAnalytics.pendingOrders}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Cancelled</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">বাতিল</span>
                 <span className="font-semibold text-red-600 dark:text-red-400">{dashboardData.orderAnalytics.cancelledOrders}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Processing</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">প্রক্রিয়াধীন</span>
                 <span className="font-semibold text-blue-600 dark:text-blue-400">{dashboardData.orderAnalytics.processingOrders}</span>
               </div>
             </div>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Revenue Analytics</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">রাজস্ব এনালিটিক্স</h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</span>
-                <span className="font-semibold text-gray-900 dark:text-gray-100">${dashboardData.orderAnalytics.totalRevenue?.toLocaleString()}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">মোট রাজস্ব</span>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">৳{dashboardData.orderAnalytics.totalRevenue?.toLocaleString('bn-BD')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">This Month</span>
-                <span className="font-semibold text-green-600 dark:text-green-400">${dashboardData.orderAnalytics.monthlyRevenue?.toLocaleString()}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">এই মাস</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">৳{dashboardData.orderAnalytics.monthlyRevenue?.toLocaleString('bn-BD')}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Average Order</span>
-                <span className="font-semibold text-blue-600 dark:text-blue-400">${dashboardData.orderAnalytics.averageOrderValue?.toLocaleString()}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">গড় অর্ডার</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">৳{dashboardData.orderAnalytics.averageOrderValue?.toLocaleString('bn-BD')}</span>
               </div>
             </div>
           </div>
@@ -473,7 +473,7 @@ const VendorDashboard = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Vendors Overview</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">ভেন্ডর ওভারভিউ</h2>
                 <div className="flex items-center gap-3">
                   {/* Search */}
                   <div className="relative">
@@ -485,7 +485,7 @@ const VendorDashboard = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-64 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="Search vendors..."
+                      placeholder="ভেন্ডর খুঁজুন..."
                     />
                   </div>
                   {/* Filter */}
@@ -494,9 +494,9 @@ const VendorDashboard = () => {
                     onChange={(e) => setStatusFilter(e.target.value)}
                     className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="all">সব স্ট্যাটাস</option>
+                    <option value="active">সক্রিয়</option>
+                    <option value="inactive">নিষ্ক্রিয়</option>
                   </select>
                   {/* Sort */}
                   <select
@@ -504,7 +504,7 @@ const VendorDashboard = () => {
                     onChange={(e) => setSortBy(e.target.value)}
                     className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
-                    <option value="tradeName">Sort by Name</option>
+                    <option value="tradeName">নাম অনুযায়ী সাজান</option>
                   </select>
                 </div>
               </div>
@@ -512,9 +512,9 @@ const VendorDashboard = () => {
 
             <div className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
-                <div className="p-6 text-center text-gray-500 dark:text-gray-400">Loading vendors...</div>
+                <div className="p-6 text-center text-gray-500 dark:text-gray-400">ভেন্ডর লোড হচ্ছে...</div>
               ) : filteredVendors.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 dark:text-gray-400">No vendors found</div>
+                <div className="p-6 text-center text-gray-500 dark:text-gray-400">কোনো ভেন্ডর পাওয়া যায়নি</div>
               ) : filteredVendors.map((vendor) => (
                 <div key={vendor._id || vendor.vendorId} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
                   <div className="flex items-center justify-between">
@@ -535,7 +535,7 @@ const VendorDashboard = () => {
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
                               : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
                           }`}>
-                            {vendor.status}
+                            {vendor.status === 'active' ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
                           </span>
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -581,19 +581,19 @@ const VendorDashboard = () => {
         <div className="space-y-6">
           {/* Vendors by Location */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Vendors by Location</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">অবস্থান অনুযায়ী ভেন্ডর</h3>
             <div className="space-y-3">
               {loading ? (
-                <div className="text-gray-500 dark:text-gray-400">Loading...</div>
+                <div className="text-gray-500 dark:text-gray-400">লোড হচ্ছে...</div>
               ) : byLocation.length === 0 ? (
-                <div className="text-gray-500 dark:text-gray-400">No location data</div>
+                <div className="text-gray-500 dark:text-gray-400">কোনো অবস্থান ডেটা নেই</div>
               ) : byLocation.map((loc, idx) => (
                 <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
                       {loc.count}
                     </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{loc._id || 'Unknown'}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{loc._id || 'অজানা'}</div>
                   </div>
                 </div>
               ))}
@@ -602,7 +602,7 @@ const VendorDashboard = () => {
 
           {/* Quick Actions */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Actions</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">দ্রুত কাজ</h3>
             <div className="space-y-3">
               <Link
                 to="/vendors/add"
@@ -612,8 +612,8 @@ const VendorDashboard = () => {
                   <Plus className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Add New Vendor</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Register a new vendor</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">নতুন ভেন্ডর যোগ করুন</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">একটি নতুন ভেন্ডর নিবন্ধন করুন</div>
                 </div>
               </Link>
               <Link
@@ -624,8 +624,8 @@ const VendorDashboard = () => {
                   <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">View All Vendors</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Browse vendor list</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">সব ভেন্ডর দেখুন</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">ভেন্ডর তালিকা ব্রাউজ করুন</div>
                 </div>
               </Link>
               <button className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full">
@@ -633,8 +633,8 @@ const VendorDashboard = () => {
                   <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Generate Report</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">Export vendor data</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100">রিপোর্ট তৈরি করুন</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">ভেন্ডর ডেটা এক্সপোর্ট করুন</div>
                 </div>
               </button>
             </div>
@@ -647,13 +647,13 @@ const VendorDashboard = () => {
       {showComprehensiveView && !vendorAnalytics && !dashboardData.orderAnalytics && !analyticsLoading && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-12 text-center">
           <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">No Dashboard Data</h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">Unable to load comprehensive dashboard data. Please check your connection and try again.</p>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">কোনো ড্যাশবোর্ড ডেটা নেই</h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">বিস্তৃত ড্যাশবোর্ড ডেটা লোড করতে অক্ষম। অনুগ্রহ করে আপনার সংযোগ পরীক্ষা করুন এবং আবার চেষ্টা করুন।</p>
           <button 
             onClick={handleRefresh}
             className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2"
           >
-            <RefreshCw className="w-4 h-4" /> Retry
+            <RefreshCw className="w-4 h-4" /> আবার চেষ্টা করুন
           </button>
         </div>
       )}

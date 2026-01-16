@@ -66,11 +66,11 @@ const DEFAULT_BILL_TYPES = [
   // { value: 'payment', label: 'Payment Voucher', icon: DollarSign, description: 'Record a payment to vendor' },
   // { value: 'service', label: 'Service Bill', icon: FileText, description: 'Create a service bill' },
   // { value: 'expense', label: 'Expense Bill', icon: Receipt, description: 'Record vendor-related expenses' },
-  { value: 'hajj', label: 'Hajj', icon: Building2, description: 'Create Hajj vendor bill' },
-  { value: 'umrah', label: 'Umrah', icon: Building2, description: 'Create Umrah vendor bill' },
-  { value: 'air-ticket', label: 'Air Ticket', icon: Plane, description: 'Create air ticket vendor bill' },
-  { value: 'old-ticket-reissue', label: 'Old Ticket Reissue', icon: Plane, description: 'Create old ticket reissue vendor bill' },
-  { value: 'others', label: 'Others', icon: FileText, description: 'Create other types of vendor bills' }
+  { value: 'hajj', label: 'হজ্জ', icon: Building2, description: 'হজ্জ ভেন্ডর বিল তৈরি করুন' },
+  { value: 'umrah', label: 'উমরাহ', icon: Building2, description: 'উমরাহ ভেন্ডর বিল তৈরি করুন' },
+  { value: 'air-ticket', label: 'এয়ার টিকেট', icon: Plane, description: 'এয়ার টিকেট ভেন্ডর বিল তৈরি করুন' },
+  { value: 'old-ticket-reissue', label: 'পুরাতন টিকেট রি-ইস্যু', icon: Plane, description: 'পুরাতন টিকেট রি-ইস্যু ভেন্ডর বিল তৈরি করুন' },
+  { value: 'others', label: 'অন্যান্য', icon: FileText, description: 'অন্যান্য ধরনের ভেন্ডর বিল তৈরি করুন' }
 ];
 
 const VendorBillGenerate = () => {
@@ -478,15 +478,15 @@ const VendorBillGenerate = () => {
   // Validation
   const errors = useMemo(() => {
     const errs = {};
-    if (!selectedVendor) errs.vendor = 'Vendor selection is required';
-    if (!billType) errs.billType = 'Bill type is required';
-    if (!formData.billDate) errs.billDate = 'Bill date is required';
-    if (!formData.amount || parseFloat(formData.amount) <= 0) errs.amount = 'Valid amount is required';
-    if (billType === 'purchase' && !formData.deliveryDate) errs.deliveryDate = 'Delivery date is required';
-    if (billType === 'payment' && !formData.paymentDate) errs.paymentDate = 'Payment date is required';
-    if (billType === 'payment' && !formData.paymentMethod) errs.paymentMethod = 'Payment method is required';
+    if (!selectedVendor) errs.vendor = 'ভেন্ডর নির্বাচন করা আবশ্যক';
+    if (!billType) errs.billType = 'বিলের ধরন নির্বাচন করা আবশ্যক';
+    if (!formData.billDate) errs.billDate = 'বিলের তারিখ প্রয়োজন';
+    if (!formData.amount || parseFloat(formData.amount) <= 0) errs.amount = 'সঠিক পরিমাণ প্রয়োজন';
+    if (billType === 'purchase' && !formData.deliveryDate) errs.deliveryDate = 'ডেলিভারি তারিখ প্রয়োজন';
+    if (billType === 'payment' && !formData.paymentDate) errs.paymentDate = 'পেমেন্ট তারিখ প্রয়োজন';
+    if (billType === 'payment' && !formData.paymentMethod) errs.paymentMethod = 'পেমেন্ট মেথড প্রয়োজন';
     if (billType === 'others' && !formData.description) errs.description = 'বিলের ধরণ প্রয়োজন';
-    if (billType === 'others' && !formData.totalAmount) errs.totalAmount = 'Total amount is required';
+    if (billType === 'others' && !formData.totalAmount) errs.totalAmount = 'মোট পরিমাণ প্রয়োজন';
     return errs;
   }, [selectedVendor, billType, formData]);
 
@@ -805,8 +805,8 @@ const VendorBillGenerate = () => {
     if (Object.keys(errors).length > 0) {
       Swal.fire({
         icon: 'warning',
-        title: 'Validation Error',
-        text: 'Please fill in all required fields correctly.',
+        title: 'যাচাইকরণ ত্রুটি',
+        text: 'অনুগ্রহ করে সব আবশ্যক ক্ষেত্র সঠিকভাবে পূরণ করুন।',
         confirmButtonColor: '#7c3aed'
       });
       return;
@@ -843,7 +843,7 @@ const VendorBillGenerate = () => {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Delivery Date <span className="text-red-500">*</span>
+                ডেলিভারি তারিখ <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -865,14 +865,14 @@ const VendorBillGenerate = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Items Description
+                আইটেমের বিবরণ
               </label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={3}
-                placeholder="Describe the items or services..."
+                placeholder="আইটেম বা সেবার বিবরণ লিখুন..."
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
@@ -884,14 +884,14 @@ const VendorBillGenerate = () => {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Invoice Number
+                ইনভয়েস নম্বর
               </label>
               <input
                 type="text"
                 name="invoiceNumber"
                 value={formData.invoiceNumber}
                 onChange={handleInputChange}
-                placeholder="Auto-generated"
+                placeholder="স্বয়ংক্রিয়ভাবে তৈরি হবে"
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 readOnly
               />
@@ -899,7 +899,7 @@ const VendorBillGenerate = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Payment Terms
+                পেমেন্ট শর্তাবলী
               </label>
               <select
                 name="terms"
@@ -907,25 +907,25 @@ const VendorBillGenerate = () => {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               >
-                <option value="">Select payment terms</option>
-                <option value="net15">Net 15</option>
-                <option value="net30">Net 30</option>
-                <option value="net45">Net 45</option>
-                <option value="net60">Net 60</option>
-                <option value="due_on_receipt">Due on Receipt</option>
+                <option value="">পেমেন্ট শর্তাবলী নির্বাচন করুন</option>
+                <option value="net15">নেট ১৫</option>
+                <option value="net30">নেট ৩০</option>
+                <option value="net45">নেট ৪৫</option>
+                <option value="net60">নেট ৬০</option>
+                <option value="due_on_receipt">রসিদ পাওয়ার সাথে পরিশোধ</option>
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
+                বিবরণ
               </label>
               <textarea
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={3}
-                placeholder="Invoice description..."
+                placeholder="ইনভয়েস বিবরণ..."
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
@@ -937,7 +937,7 @@ const VendorBillGenerate = () => {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Payment Date <span className="text-red-500">*</span>
+                পেমেন্ট তারিখ <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -959,7 +959,7 @@ const VendorBillGenerate = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Payment Method <span className="text-red-500">*</span>
+                পেমেন্ট মেথড <span className="text-red-500">*</span>
               </label>
               <select
                 name="paymentMethod"
@@ -970,12 +970,12 @@ const VendorBillGenerate = () => {
                   hasError('paymentMethod') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
                 }`}
               >
-                <option value="">Select payment method</option>
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="cheque">Cheque</option>
-                <option value="mobile_banking">Mobile Banking</option>
-                <option value="card">Card Payment</option>
+                <option value="">পেমেন্ট মেথড নির্বাচন করুন</option>
+                <option value="cash">নগদ</option>
+                <option value="bank_transfer">ব্যাংক ট্রান্সফার</option>
+                <option value="cheque">চেক</option>
+                <option value="mobile_banking">মোবাইল ব্যাংকিং</option>
+                <option value="card">কার্ড পেমেন্ট</option>
               </select>
               {hasError('paymentMethod') && (
                 <p className="mt-1 text-sm text-red-600">{errors.paymentMethod}</p>
@@ -984,28 +984,28 @@ const VendorBillGenerate = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Payment Reference
+                পেমেন্ট রেফারেন্স
               </label>
               <input
                 type="text"
                 name="paymentReference"
                 value={formData.paymentReference}
                 onChange={handleInputChange}
-                placeholder="Transaction ID, Cheque No, etc."
+                placeholder="লেনদেন আইডি, চেক নম্বর, ইত্যাদি"
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Bank Account (if applicable)
+                ব্যাংক একাউন্ট (যদি প্রযোজ্য)
               </label>
               <input
                 type="text"
                 name="bankAccount"
                 value={formData.bankAccount}
                 onChange={handleInputChange}
-                placeholder="Bank name and account number"
+                placeholder="ব্যাংকের নাম এবং একাউন্ট নম্বর"
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
@@ -1018,7 +1018,7 @@ const VendorBillGenerate = () => {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Category
+                ক্যাটাগরি
               </label>
               <select
                 name="category"
@@ -1027,7 +1027,7 @@ const VendorBillGenerate = () => {
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 disabled={categoriesLoading}
               >
-                <option value="">Select category</option>
+                <option value="">ক্যাটাগরি নির্বাচন করুন</option>
                 {categories.map((cat) => (
                   <option key={cat.id || cat._id} value={cat.value || cat.label}>
                     {cat.label || cat.value}
@@ -1038,14 +1038,14 @@ const VendorBillGenerate = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
+                বিবরণ
               </label>
               <textarea
                 name="serviceDescription"
                 value={formData.serviceDescription}
                 onChange={handleInputChange}
                 rows={3}
-                placeholder="Describe the service or expense..."
+                placeholder="সেবা বা ব্যয়ের বিবরণ লিখুন..."
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               />
             </div>
@@ -1107,38 +1107,38 @@ const VendorBillGenerate = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-green-700 dark:text-green-400">
                     {selectedTicketData?.ticketId && (
                       <div>
-                        <span className="font-medium">Ticket ID:</span> <strong className="text-blue-600 dark:text-blue-400">{selectedTicketData.ticketId}</strong>
+                        <span className="font-medium">টিকেট আইডি:</span> <strong className="text-blue-600 dark:text-blue-400">{selectedTicketData.ticketId}</strong>
                       </div>
                     )}
                     <div>
-                      <span className="font-medium">Booking ID:</span> <strong>{selectedTicketData?.bookingId || 'N/A'}</strong>
+                      <span className="font-medium">বুকিং আইডি:</span> <strong>{selectedTicketData?.bookingId || 'N/A'}</strong>
                     </div>
                     <div>
                       <span className="font-medium">GDS PNR:</span> <strong>{selectedTicketData?.gdsPnr || 'N/A'}</strong>
                     </div>
                     {selectedTicketData?.airlinePnr && (
                       <div>
-                        <span className="font-medium">Airline PNR:</span> <strong>{selectedTicketData.airlinePnr}</strong>
+                        <span className="font-medium">এয়ারলাইন PNR:</span> <strong>{selectedTicketData.airlinePnr}</strong>
                       </div>
                     )}
                     {formData.vendorAmount > 0 && (
                       <div>
-                        <span className="font-medium">Vendor Amount:</span> <strong>৳{formData.vendorAmount.toLocaleString()}</strong>
+                        <span className="font-medium">ভেন্ডর পরিমাণ:</span> <strong>৳{Number(formData.vendorAmount || 0).toLocaleString('bn-BD')}</strong>
                       </div>
                     )}
                     {formData.totalAmount > 0 && (
                       <div>
-                        <span className="font-medium">Total Amount:</span> <strong>৳{formData.totalAmount.toLocaleString()}</strong>
+                        <span className="font-medium">মোট পরিমাণ:</span> <strong>৳{Number(formData.totalAmount || 0).toLocaleString('bn-BD')}</strong>
                       </div>
                     )}
                     {selectedTicketData?.airline && (
                       <div>
-                        <span className="font-medium">Airline:</span> <strong>{selectedTicketData.airline}</strong>
+                        <span className="font-medium">এয়ারলাইন:</span> <strong>{selectedTicketData.airline}</strong>
                       </div>
                     )}
                     {selectedTicketData?.origin && selectedTicketData?.destination && (
                       <div>
-                        <span className="font-medium">Route:</span> <strong>{selectedTicketData.origin} → {selectedTicketData.destination}</strong>
+                        <span className="font-medium">রুট:</span> <strong>{selectedTicketData.origin} → {selectedTicketData.destination}</strong>
                       </div>
                     )}
                   </div>
@@ -1155,7 +1155,7 @@ const VendorBillGenerate = () => {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-600" />
-            Auto GDS PNR
+            স্বয়ংক্রিয় GDS PNR
           </h3>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1167,7 +1167,7 @@ const VendorBillGenerate = () => {
               value={formData.gdsPnr}
               readOnly
               className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-white"
-              placeholder="Auto-filled from ticket search"
+              placeholder="টিকেট সার্চ থেকে স্বয়ংক্রিয়ভাবে পূরণ হবে"
             />
           </div>
         </div>
@@ -1176,11 +1176,11 @@ const VendorBillGenerate = () => {
         <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-purple-600" />
-            Vendor Bill
+            ভেন্ডর বিল
           </h3>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Vendor Amount <span className="text-red-500">*</span>
+              ভেন্ডর পরিমাণ <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
@@ -1199,11 +1199,11 @@ const VendorBillGenerate = () => {
         <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-purple-600" />
-            Total Amount
+            মোট পরিমাণ
           </h3>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Total Amount <span className="text-red-500">*</span>
+              মোট পরিমাণ <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1244,7 +1244,7 @@ const VendorBillGenerate = () => {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Package className="w-5 h-5 text-purple-600" />
-            {typeLabel} Details
+            {typeLabel} বিবরণ
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1258,7 +1258,7 @@ const VendorBillGenerate = () => {
                 value={formData.hajjYear}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="e.g., 2024, 2025"
+                placeholder="যেমন: ২০২৪, ২০২৫"
               />
             </div>
             
@@ -1318,7 +1318,7 @@ const VendorBillGenerate = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Total Amount
+                  মোট পরিমাণ
                 </label>
                 <div className="relative">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1351,13 +1351,13 @@ const VendorBillGenerate = () => {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Building2 className="w-5 h-5 text-purple-600" />
-            Hotel Details
+            হোটেল বিবরণ
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Hotel Name <span className="text-red-500">*</span>
+                হোটেলের নাম <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -1365,12 +1365,12 @@ const VendorBillGenerate = () => {
                 value={formData.hotelName}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Hotel Name"
+                placeholder="হোটেলের নাম"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Hotel Location
+                হোটেলের অবস্থান
               </label>
               <input
                 type="text"
@@ -1378,7 +1378,7 @@ const VendorBillGenerate = () => {
                 value={formData.hotelLocation}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="Makkah / Madina / Other"
+                placeholder="মক্কা / মদিনা / অন্যান্য"
               />
             </div>
           </div>
@@ -1386,7 +1386,7 @@ const VendorBillGenerate = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Check-in Date <span className="text-red-500">*</span>
+                চেক-ইন তারিখ <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1401,7 +1401,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Check-out Date <span className="text-red-500">*</span>
+                চেক-আউট তারিখ <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1419,7 +1419,7 @@ const VendorBillGenerate = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Number of Nights
+                রাতের সংখ্যা
               </label>
               <input
                 type="number"
@@ -1433,7 +1433,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Number of Rooms <span className="text-red-500">*</span>
+                রুমের সংখ্যা <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -1447,7 +1447,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Room Type
+                রুমের ধরন
               </label>
               <select
                 name="roomType"
@@ -1455,12 +1455,12 @@ const VendorBillGenerate = () => {
                 onChange={handleInputChange}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
-                <option value="">Select Room Type</option>
-                <option value="single">Single</option>
-                <option value="double">Double</option>
-                <option value="triple">Triple</option>
-                <option value="quad">Quad</option>
-                <option value="suite">Suite</option>
+                <option value="">রুমের ধরন নির্বাচন করুন</option>
+                <option value="single">সিঙ্গল</option>
+                <option value="double">ডাবল</option>
+                <option value="triple">ট্রিপল</option>
+                <option value="quad">কোয়াড</option>
+                <option value="suite">স্যুট</option>
               </select>
             </div>
           </div>
@@ -1468,7 +1468,7 @@ const VendorBillGenerate = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Rate per Night <span className="text-red-500">*</span>
+                প্রতি রাতের হার <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1488,7 +1488,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Total Room Cost
+                মোট রুম খরচ
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1510,13 +1510,13 @@ const VendorBillGenerate = () => {
         <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <DollarSign className="w-5 h-5 text-purple-600" />
-            Additional Charges
+            অতিরিক্ত চার্জ
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Visa Fee
+                ভিসা ফি
               </label>
               <input
                 type="number"
@@ -1530,7 +1530,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Service Charge
+                সেবা চার্জ
               </label>
               <input
                 type="number"
@@ -1544,7 +1544,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Ground Service Fee
+                গ্রাউন্ড সেবা ফি
               </label>
               <input
                 type="number"
@@ -1558,7 +1558,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Transport Fee
+                পরিবহন ফি
               </label>
               <input
                 type="number"
@@ -1572,7 +1572,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Other Charges
+                অন্যান্য চার্জ
               </label>
               <input
                 type="number"
@@ -1586,7 +1586,7 @@ const VendorBillGenerate = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Total Amount
+                মোট পরিমাণ
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1614,7 +1614,7 @@ const VendorBillGenerate = () => {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-600" />
-            Bill Details
+            বিলের বিবরণ
           </h3>
           
           <div className="grid grid-cols-1 gap-4">
@@ -1681,7 +1681,7 @@ const VendorBillGenerate = () => {
 
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Total Amount <span className="text-red-500">*</span>
+                মোট পরিমাণ <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1721,13 +1721,13 @@ const VendorBillGenerate = () => {
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <Plane className="w-5 h-5 text-purple-600" />
-            Old Ticket Reissue Details
+            পুরাতন টিকেট রি-ইস্যু বিবরণ
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Airlines <span className="text-red-500">*</span>
+                এয়ারলাইন <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -1735,7 +1735,7 @@ const VendorBillGenerate = () => {
                 value={formData.airlineName}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="e.g. Biman Bangladesh Airlines"
+                placeholder="যেমন: বিমান বাংলাদেশ এয়ারলাইন্স"
               />
             </div>
 
@@ -1749,14 +1749,14 @@ const VendorBillGenerate = () => {
                 value={formData.gdsPnr}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                placeholder="e.g. ABC123"
+                placeholder="যেমন: ABC123"
               />
             </div>
           </div>
 
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Total Amount <span className="text-red-500">*</span>
+              মোট পরিমাণ <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1792,16 +1792,16 @@ const VendorBillGenerate = () => {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-              Vendor Bill Generate
+              ভেন্ডর বিল তৈরি করুন
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">Create and generate vendor bills</p>
+            <p className="text-gray-600 dark:text-gray-400">ভেন্ডর বিল তৈরি এবং জেনারেট করুন</p>
           </div>
         </div>
         <button
           onClick={() => navigate('/vendors')}
           className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2"
         >
-          <ArrowLeft className="w-4 h-4" /> Back
+          <ArrowLeft className="w-4 h-4" /> ফিরে যান
         </button>
       </div>
 
@@ -1812,12 +1812,12 @@ const VendorBillGenerate = () => {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <Building2 className="w-5 h-5 text-purple-600" />
-              Step 1: Select Vendor
+              ধাপ ১: ভেন্ডর নির্বাচন করুন
             </h2>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Vendor <span className="text-red-500">*</span>
+                ভেন্ডর <span className="text-red-500">*</span>
               </label>
               <div className="relative" ref={vendorDropdownRef}>
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -1836,7 +1836,7 @@ const VendorBillGenerate = () => {
                     setTouched(prev => ({ ...prev, vendor: true }));
                   }}
                   onFocus={() => setShowVendorList(true)}
-                  placeholder="Search vendor by ID, name, or contact..."
+                  placeholder="ভেন্ডর আইডি, নাম বা যোগাযোগ দিয়ে খুঁজুন..."
                   className={`w-full pl-10 pr-3 py-2.5 rounded-lg border bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${
                     hasError('vendor') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
                   }`}
@@ -1872,7 +1872,7 @@ const VendorBillGenerate = () => {
                       ))
                     ) : (
                       <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                        No vendors found
+                        কোনো ভেন্ডর পাওয়া যায়নি
                       </div>
                     )}
                   </div>
@@ -1884,7 +1884,7 @@ const VendorBillGenerate = () => {
               {selectedVendor && (
                 <div className="mt-2 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
                   <p className="text-sm font-medium text-purple-900 dark:text-purple-200">
-                    Selected: {selectedVendor.tradeName}
+                    নির্বাচিত: {selectedVendor.tradeName}
                   </p>
                   <p className="text-xs text-purple-700 dark:text-purple-300">
                     {selectedVendor.ownerName} • {selectedVendor.contactNo}
@@ -1898,17 +1898,17 @@ const VendorBillGenerate = () => {
           <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <FileText className="w-5 h-5 text-purple-600" />
-              Step 2: Select Bill Type
+              ধাপ ২: বিলের ধরন নির্বাচন করুন
             </h2>
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Bill Type <span className="text-red-500">*</span>
+                বিলের ধরন <span className="text-red-500">*</span>
               </label>
               {categoriesLoading ? (
                 <div className="flex items-center py-2">
                   <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
-                  <span className="ml-2 text-gray-600 dark:text-gray-400">Loading bill types...</span>
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">বিলের ধরন লোড হচ্ছে...</span>
                 </div>
               ) : (
                 <select
@@ -1920,7 +1920,7 @@ const VendorBillGenerate = () => {
                     hasError('billType') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
                   }`}
                 >
-                  <option value="">Select Bill Type</option>
+                  <option value="">বিলের ধরন নির্বাচন করুন</option>
                   {billTypes.length > 0 ? (
                     billTypes.map((type) => (
                       <option key={type.value} value={type.value}>
@@ -1928,7 +1928,7 @@ const VendorBillGenerate = () => {
                       </option>
                     ))
                   ) : (
-                    <option value="" disabled>No bill types available</option>
+                    <option value="" disabled>কোনো বিলের ধরন পাওয়া যায়নি</option>
                   )}
                 </select>
               )}
@@ -1943,7 +1943,7 @@ const VendorBillGenerate = () => {
             <div className="space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <Receipt className="w-5 h-5 text-purple-600" />
-                Step 3: Fill Bill Details
+                ধাপ ৩: বিলের বিবরণ পূরণ করুন
               </h2>
 
               {/* Show Special Forms based on bill type */}
@@ -1963,7 +1963,7 @@ const VendorBillGenerate = () => {
                 {/* Common Fields */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Bill Date <span className="text-red-500">*</span>
+                    বিলের তারিখ <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1985,14 +1985,14 @@ const VendorBillGenerate = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Bill Number
+                    বিল নম্বর
                   </label>
                   <input
                     type="text"
                     name="billNumber"
                     value={formData.billNumber}
                     onChange={handleInputChange}
-                    placeholder="Auto-generated"
+                    placeholder="স্বয়ংক্রিয়ভাবে তৈরি হবে"
                     className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                     readOnly
                   />
@@ -2000,7 +2000,7 @@ const VendorBillGenerate = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Amount <span className="text-red-500">*</span>
+                    পরিমাণ <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -2027,7 +2027,7 @@ const VendorBillGenerate = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tax
+                    কর
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -2048,7 +2048,7 @@ const VendorBillGenerate = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Discount
+                    ছাড়
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -2069,7 +2069,7 @@ const VendorBillGenerate = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Total Amount
+                    মোট পরিমাণ
                   </label>
                   <div className="relative">
                     <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -2089,7 +2089,7 @@ const VendorBillGenerate = () => {
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Payment Method
+                        পেমেন্ট মেথড
                       </label>
                       <select
                         name="paymentMethod"
@@ -2097,18 +2097,18 @@ const VendorBillGenerate = () => {
                         onChange={handleInputChange}
                         className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       >
-                        <option value="">Select payment method</option>
-                        <option value="cash">Cash</option>
-                        <option value="bank_transfer">Bank Transfer</option>
-                        <option value="cheque">Cheque</option>
-                        <option value="mobile_banking">Mobile Banking</option>
-                        <option value="card">Card Payment</option>
+                        <option value="">পেমেন্ট মেথড নির্বাচন করুন</option>
+                        <option value="cash">নগদ</option>
+                        <option value="bank_transfer">ব্যাংক ট্রান্সফার</option>
+                        <option value="cheque">চেক</option>
+                        <option value="mobile_banking">মোবাইল ব্যাংকিং</option>
+                        <option value="card">কার্ড পেমেন্ট</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Payment Status
+                        পেমেন্ট স্ট্যাটাস
                       </label>
                       <select
                         name="paymentStatus"
@@ -2116,15 +2116,15 @@ const VendorBillGenerate = () => {
                         onChange={handleInputChange}
                         className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       >
-                        <option value="pending">Pending</option>
-                        <option value="partial">Partial</option>
-                        <option value="paid">Paid</option>
+                        <option value="pending">বিচারাধীন</option>
+                        <option value="partial">আংশিক</option>
+                        <option value="paid">পরিশোধিত</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Due Date
+                        পরিশোধের তারিখ
                       </label>
                       <div className="relative">
                         <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -2146,14 +2146,14 @@ const VendorBillGenerate = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Notes
+                  নোট
                 </label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows={3}
-                  placeholder="Additional notes or comments..."
+                  placeholder="অতিরিক্ত নোট বা মন্তব্য..."
                   className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 />
               </div>
@@ -2169,7 +2169,7 @@ const VendorBillGenerate = () => {
               onClick={() => navigate('/vendors')}
               className="px-6 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-              Cancel
+              বাতিল
             </button>
             <button
               type="submit"
@@ -2179,12 +2179,12 @@ const VendorBillGenerate = () => {
               {createVendorBillMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating...
+                  তৈরি হচ্ছে...
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  Generate Bill
+                  বিল তৈরি করুন
                 </>
               )}
             </button>
