@@ -71,6 +71,22 @@ export default function useEmployeeQueries() {
       },
     });
 
+  const useUpdateEmployee = () =>
+    useMutation({
+      mutationFn: async ({ id, ...payload }) => {
+        try {
+          const { data } = await axios.patch(`/api/employees/${id}`, payload);
+          return data;
+        } catch (err) {
+          throw new Error(extractErrorMessage(err));
+        }
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['employees'] });
+        queryClient.invalidateQueries({ queryKey: ['employees', 'stats'] });
+      },
+    });
+
   const useDeleteEmployee = () =>
     useMutation({
       mutationFn: async (id) => {
@@ -123,6 +139,7 @@ export default function useEmployeeQueries() {
     useGetEmployee,
     useEmployeeStats,
     useCreateEmployee,
+    useUpdateEmployee,
     useDeleteEmployee,
     // Attendance
     useAttendance,

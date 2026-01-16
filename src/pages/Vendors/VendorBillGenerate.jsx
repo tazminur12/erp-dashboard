@@ -812,19 +812,27 @@ const VendorBillGenerate = () => {
       return;
     }
 
-    // Prepare bill data
+    // Prepare bill data - ensure all required fields are included
     const billData = {
       vendorId: selectedVendor.vendorId || selectedVendor._id,
       vendorName: selectedVendor.tradeName,
       billType,
-      ...formData,
-      totalAmount: parseFloat(formData.totalAmount) || 0,
-      amount: parseFloat(formData.amount) || 0,
+      billDate: formData.billDate,
+      billNumber: formData.billNumber || '',
+      description: formData.description || '',
+      totalAmount: parseFloat(formData.totalAmount) || parseFloat(formData.amount) || 0,
+      amount: parseFloat(formData.amount) || parseFloat(formData.totalAmount) || 0,
       tax: parseFloat(formData.tax) || 0,
       discount: parseFloat(formData.discount) || 0,
+      paymentMethod: formData.paymentMethod || '',
+      paymentStatus: formData.paymentStatus || 'pending',
+      dueDate: formData.dueDate || '',
+      notes: formData.notes || '',
       createdBy: userProfile?.email || 'unknown',
       branchId: userProfile?.branchId || 'main_branch',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      // Include all other formData fields (air ticket, hajj/umrah, hotel, etc.)
+      ...formData
     };
 
     // Send to API using mutation

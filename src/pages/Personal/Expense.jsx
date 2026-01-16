@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
-import { DollarSign, Utensils, Car, ShoppingCart, Gamepad2, Heart, Book, Home, Plus, Trash2, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { DollarSign, Utensils, Car, ShoppingCart, Gamepad2, Heart, Book, Home, Plus, Trash2, ArrowLeft, Search, Eye, Edit, Loader2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import usePersonalCategoryQueries from '../../hooks/usePersonalCategoryQueries';
 import { useTheme } from '../../contexts/ThemeContext';
+import { Helmet } from 'react-helmet-async';
 
 const iconMap = {
   Utensils,
@@ -16,34 +17,16 @@ const iconMap = {
   DollarSign
 };
 
-const colorPalette = {
-  sky: { from: '#E0F2FE', to: '#BAE6FD', border: '#93C5FD', iconFrom: '#E0F2FE', iconTo: '#BAE6FD', icon: '#0369A1' },
-  blue: { from: '#DBEAFE', to: '#BFDBFE', border: '#93C5FD', iconFrom: '#DBEAFE', iconTo: '#BFDBFE', icon: '#1D4ED8' },
-  red: { from: '#FEE2E2', to: '#FECACA', border: '#FCA5A5', iconFrom: '#FEE2E2', iconTo: '#FECACA', icon: '#B91C1C' },
-  green: { from: '#DCFCE7', to: '#BBF7D0', border: '#86EFAC', iconFrom: '#DCFCE7', iconTo: '#BBF7D0', icon: '#166534' },
-  yellow: { from: '#FEF9C3', to: '#FEF08A', border: '#FDE047', iconFrom: '#FEF9C3', iconTo: '#FEF08A', icon: '#854D0E' },
-  purple: { from: '#E9D5FF', to: '#DDD6FE', border: '#C4B5FD', iconFrom: '#E9D5FF', iconTo: '#DDD6FE', icon: '#6D28D9' },
-  pink: { from: '#FCE7F3', to: '#FBCFE8', border: '#F9A8D4', iconFrom: '#FCE7F3', iconTo: '#FBCFE8', icon: '#9D174D' },
-  orange: { from: '#FFEDD5', to: '#FED7AA', border: '#FDBA74', iconFrom: '#FFEDD5', iconTo: '#FED7AA', icon: '#9A3412' }
-};
-
-const colorPaletteDark = {
-  sky: { from: '#0B1E34', to: '#0F2F46', border: '#38BDF8', iconFrom: '#0EA5E9', iconTo: '#38BDF8', icon: '#E0F2FE' },
-  blue: { from: '#0B1E3A', to: '#0F2F6A', border: '#60A5FA', iconFrom: '#1D4ED8', iconTo: '#3B82F6', icon: '#DBEAFE' },
-  red: { from: '#3F0A0A', to: '#7F1D1D', border: '#F87171', iconFrom: '#DC2626', iconTo: '#EF4444', icon: '#FEE2E2' },
-  green: { from: '#062C1A', to: '#064E3B', border: '#4ADE80', iconFrom: '#16A34A', iconTo: '#22C55E', icon: '#DCFCE7' },
-  yellow: { from: '#422006', to: '#854D0E', border: '#FACC15', iconFrom: '#D97706', iconTo: '#F59E0B', icon: '#FEF9C3' },
-  purple: { from: '#2E1065', to: '#4C1D95', border: '#C4B5FD', iconFrom: '#7C3AED', iconTo: '#8B5CF6', icon: '#E9D5FF' },
-  pink: { from: '#500724', to: '#831843', border: '#F472B6', iconFrom: '#BE185D', iconTo: '#DB2777', icon: '#FCE7F3' },
-  orange: { from: '#451A03', to: '#7C2D12', border: '#FB923C', iconFrom: '#C2410C', iconTo: '#EA580C', icon: '#FFEDD5' }
-};
-
 const PersonalExpense = () => {
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { usePersonalCategories, useDeletePersonalCategory } = usePersonalCategoryQueries();
   const { data: categories = [], isLoading } = usePersonalCategories();
   const deleteCategory = useDeletePersonalCategory();
+  
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
 
   const totals = React.useMemo(() => {
     const grand = (categories || []).reduce((sum, c) => sum + Number(c.totalAmount || 0), 0);
@@ -52,151 +35,259 @@ const PersonalExpense = () => {
     return { grand, byName };
   }, [categories]);
 
-  const onDelete = async (name) => {
+  // Filter categories based on search query
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return Array.isArray(categories) ? categories : [];
+    return Array.isArray(categories) ? categories.filter((c) =>
+      [c.name, c.description]
+        .filter(Boolean)
+        .some((x) => x.toLowerCase().includes(q))
+    ) : [];
+  }, [query, categories]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage]);
+
+  const formatCurrency = (amount = 0) => `৳${Number(amount || 0).toLocaleString('bn-BD')}`;
+
+  const onDelete = async (name, id) => {
     const res = await Swal.fire({
-      title: `Delete ${name}?`,
-      text: 'This action cannot be undone.',
+      title: `${name} মুছে ফেলবেন?`,
+      text: 'এই কাজটি পূর্বাবস্থায় ফিরিয়ে আনা যাবে না।',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Delete'
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+      cancelButtonText: 'বাতিল'
     });
     if (!res.isConfirmed) return;
     try {
-      await deleteCategory.mutateAsync({ name });
-      await Swal.fire({ icon: 'success', title: 'Deleted', timer: 900, showConfirmButton: false });
+      await deleteCategory.mutateAsync({ name, id });
+      await Swal.fire({ icon: 'success', title: 'মুছে ফেলা হয়েছে', timer: 900, showConfirmButton: false });
     } catch (err) {
-      const message = err?.response?.data?.message || 'Failed to delete category';
-      await Swal.fire({ icon: 'error', title: 'Error', text: message, confirmButtonColor: '#ef4444' });
+      const message = err?.response?.data?.message || 'ক্যাটাগরি মুছে ফেলতে ব্যর্থ';
+      await Swal.fire({ icon: 'error', title: 'ত্রুটি', text: message, confirmButtonColor: '#ef4444' });
     }
   };
 
   return (
-    <div className="space-y-6 p-3 sm:p-4 lg:p-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Helmet>
+        <title>পারিবারিক খরচসমূহ</title>
+        <meta name="description" content="পারিবারিক খরচের ক্যাটাগরি তালিকা দেখুন এবং পরিচালনা করুন।" />
+      </Helmet>
+      
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => navigate(-1)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
+          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+            <DollarSign className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Personal Expenses</h1>
-            <p className="text-gray-600 dark:text-gray-400">Track expenses by colorful categories</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">পারিবারিক খরচসমূহ</h1>
+            <p className="text-gray-600 dark:text-gray-400">সব পারিবারিক খরচের ক্যাটাগরি</p>
           </div>
         </div>
-        <button
-          onClick={() => navigate('/personal/expense-categories')}
-          className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Manage Categories</span>
-        </button>
-      </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="rounded-xl p-5 border" style={{ background: `linear-gradient(135deg, ${(isDark ? colorPaletteDark.sky : colorPalette.sky).from}, ${(isDark ? colorPaletteDark.sky : colorPalette.sky).to})`, borderColor: (isDark ? colorPaletteDark.sky : colorPalette.sky).border }}>
-          <p className="text-sm text-gray-700/90 dark:text-gray-200">Total Amount</p>
-          <p className="mt-1 text-3xl font-black text-gray-900 dark:text-white">৳{Number(totals.grand || 0).toLocaleString()}</p>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-none">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => { setPage(1); setQuery(e.target.value); }}
+              className="w-full sm:w-72 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              placeholder="ক্যাটাগরি খুঁজুন..."
+            />
+          </div>
+          <Link
+            to="/personal/expense-categories"
+            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2.5"
+          >
+            <Plus className="w-4 h-4" /> নতুন ক্যাটাগরি
+          </Link>
         </div>
       </div>
 
-      {/* Categories */}
-      {!isLoading && categories.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-xl border border-gray-100 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-gray-800 dark:text-gray-100">Categories</h3>
+      {/* Summary Card */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট ক্যাটাগরি</p>
+              <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {categories.length}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট খরচ</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatCurrency(totals.grand)}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">গড় খরচ</p>
+              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {categories.length > 0 ? formatCurrency(totals.grand / categories.length) : '৳0'}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Categories Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900/50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ক্যাটাগরি</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">বর্ণনা</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মোট খরচ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">শতাংশ</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">সর্বশেষ আপডেট</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      লোড হচ্ছে...
+                    </div>
+                  </td>
+                </tr>
+              ) : paged.length > 0 ? paged.map((c) => {
+                const name = c.name;
+                const Icon = iconMap[c.icon] || DollarSign;
+                const totalForCategory = Number(c.totalAmount || 0);
+                const percent = totals.grand > 0 ? Math.min(100, Math.round((totalForCategory / totals.grand) * 100)) : 0;
+
+                return (
+                  <tr key={c.id || name} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center h-10 w-10 rounded-md bg-purple-100 dark:bg-purple-900/30 flex-shrink-0">
+                          <Icon className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{name}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {c.description || '—'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400">
+                      {formatCurrency(totalForCategory)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div 
+                            className="h-2 bg-purple-600 dark:bg-purple-400 rounded-full transition-all"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-600 dark:text-gray-400 min-w-[3rem] text-right">
+                          {percent}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                      {c.lastUpdated ? new Date(c.lastUpdated).toLocaleDateString('bn-BD') : '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        {c.id && (
+                          <Link
+                            to={`/personal/expense-categories/${c.id}`}
+                            className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            title="বিস্তারিত দেখুন"
+                          >
+                            <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                          </Link>
+                        )}
+                        <button
+                          onClick={() => onDelete(name, c.id)}
+                          disabled={deleteCategory.isPending}
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-60 disabled:cursor-not-allowed"
+                          title="মুছে ফেলুন"
+                        >
+                          {deleteCategory.isPending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                    {query ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই। নতুন ক্যাটাগরি তৈরি করুন।'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            দেখানো হচ্ছে <span className="font-medium">{paged.length}</span> এর <span className="font-medium">{filtered.length}</span> ক্যাটাগরি
+          </p>
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate('/personal/expense-categories')}
-              className="text-sm px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
             >
-              Manage
+              আগে
+            </button>
+            <span className="text-sm text-gray-700 dark:text-gray-200">পৃষ্ঠা {currentPage} এর {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+            >
+              পরে
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.map((c) => {
-              const name = c.name;
-              const colorKey = c.color && c.color !== 'gray' ? c.color : 'sky';
-              const pal = (isDark ? colorPaletteDark : colorPalette)[colorKey] || (isDark ? colorPaletteDark.sky : colorPalette.sky);
-              const Icon = iconMap[c.icon] || DollarSign;
-              const totalForCategory = Number(c.totalAmount || 0);
-              const percent = totals.grand > 0 ? Math.min(100, Math.round((totalForCategory / totals.grand) * 100)) : 0;
-
-              return (
-                <div
-                  key={name}
-                  className="rounded-2xl p-5 border-2 transition-all duration-200 hover:shadow-2xl hover:scale-[1.01]"
-                  style={{ background: `linear-gradient(135deg, ${pal.from}, ${pal.to})`, borderColor: pal.border }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center ring-2 shadow-lg"
-                      style={{ background: `linear-gradient(135deg, ${pal.iconFrom}, ${pal.iconTo})`, boxShadow: '0 10px 20px rgba(0,0,0,0.06)', borderColor: pal.border }}
-                    >
-                      <Icon className="w-6 h-6" style={{ color: pal.icon }} />
-                    </div>
-                    <button
-                      onClick={() => onDelete(name)}
-                      className="text-red-600 hover:text-red-700"
-                      title="Delete category"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-base font-bold text-gray-900 dark:text-white">{name}</h4>
-                      <button
-                        onClick={() => c.id && navigate(`/personal/expense-categories/${c.id}`)}
-                        className="text-xs px-2.5 py-1 rounded-full border text-gray-800 bg-white/70 hover:bg-white"
-                        style={{ borderColor: pal.border }}
-                        title="View details"
-                      >
-                        View
-                      </button>
-                    </div>
-
-                    {c.description && (
-                      <p className="text-xs text-gray-700/90 dark:text-gray-300 mt-1 line-clamp-1">{c.description}</p>
-                    )}
-
-                    {c.lastUpdated && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Updated: {new Date(c.lastUpdated).toLocaleDateString()}</p>
-                    )}
-
-                    <div className="mt-3">
-                      <p className="text-xs text-gray-700/90 dark:text-gray-300">Total</p>
-                      <p className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">৳{totalForCategory.toLocaleString()}</p>
-                      <div className="mt-2 h-2 rounded-full overflow-hidden" style={{ background: '#FFFFFF80' }}>
-                        <div className="h-2 rounded-full" style={{ width: `${percent}%`, background: `linear-gradient(90deg, ${pal.border}, ${pal.icon})` }} />
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <span className="text-xs text-gray-700/80">{percent}% of total</span>
-                        <span className="text-xs text-gray-700/80">৳{Number(totals.grand || 0).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
-      )}
-
-      {!isLoading && categories.length === 0 && (
-        <div className="flex items-center justify-between p-3 sm:p-4 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700">
-          <p className="text-sm text-amber-800 dark:text-amber-200">No personal expense categories found. Create categories to start tracking expenses.</p>
-          <button onClick={() => navigate('/personal/expense-categories')} className="px-3 py-1.5 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700">Manage Categories</button>
-        </div>
-      )}
+      </div>
     </div>
   );
 };
 
 export default PersonalExpense;
-
-

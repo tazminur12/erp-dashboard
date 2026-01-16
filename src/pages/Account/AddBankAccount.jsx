@@ -556,6 +556,7 @@ const AddBankAccount = () => {
                     <option value="BDT">BDT (Bangladeshi Taka)</option>
                     <option value="USD">USD (US Dollar)</option>
                     <option value="EUR">EUR (Euro)</option>
+                    <option value="SAR">SAR(Saudi Riyal)</option>
                   </select>
                 </div>
 

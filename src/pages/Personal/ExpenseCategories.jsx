@@ -28,18 +28,18 @@ const ExpenseCategoriesPage = () => {
     e.preventDefault();
     const name = categoryForm.name.trim();
     if (!name) return;
-    if (categories.some((c) => (c?.name || '').toLowerCase() === name.toLowerCase())) {
-      await Swal.fire({ icon: 'error', title: 'Already exists', text: 'A category with this name already exists.', confirmButtonColor: '#ef4444' });
-      return;
-    }
+      if (categories.some((c) => (c?.name || '').toLowerCase() === name.toLowerCase())) {
+        await Swal.fire({ icon: 'error', title: 'ইতিমধ্যে বিদ্যমান', text: 'এই নামে একটি ক্যাটাগরি ইতিমধ্যে রয়েছে।', confirmButtonColor: '#ef4444' });
+        return;
+      }
     try {
       setSaving(true);
       await createMutation.mutateAsync({ name, icon: categoryForm.icon, description: categoryForm.description.trim() });
       setCategoryForm({ name: '', icon: 'DollarSign', description: '' });
-      await Swal.fire({ icon: 'success', title: 'Category added', text: `${name} has been created.`, timer: 1200, showConfirmButton: false });
+      await Swal.fire({ icon: 'success', title: 'ক্যাটাগরি যোগ করা হয়েছে', text: `${name} সফলভাবে তৈরি করা হয়েছে।`, timer: 1200, showConfirmButton: false });
     } catch (err) {
-      const message = err?.response?.data?.message || 'Failed to create category';
-      await Swal.fire({ icon: 'error', title: 'Error', text: message, confirmButtonColor: '#ef4444' });
+      const message = err?.response?.data?.message || 'ক্যাটাগরি তৈরি করতে ব্যর্থ';
+      await Swal.fire({ icon: 'error', title: 'ত্রুটি', text: message, confirmButtonColor: '#ef4444' });
     } finally {
       setSaving(false);
     }
@@ -57,8 +57,8 @@ const ExpenseCategoriesPage = () => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Personal Expense Categories</h1>
-            <p className="text-gray-600 dark:text-gray-400 text-lg mt-1">Create personal expense categories</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">পারিবারিক খরচের ক্যাটাগরি</h1>
+            <p className="text-gray-600 dark:text-gray-400 text-lg mt-1">পারিবারিক খরচের ক্যাটাগরি তৈরি করুন</p>
           </div>
         </div>
       </div>
@@ -68,14 +68,14 @@ const ExpenseCategoriesPage = () => {
           {/* Category Name */}
           <div>
             <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Category Name <span className="text-red-500">*</span>
+              ক্যাটাগরি নাম <span className="text-red-500">*</span>
             </label>
             <input 
               type="text" 
               value={categoryForm.name} 
               onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })} 
               className="w-full px-5 py-4 text-lg border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all" 
-              placeholder="e.g., Groceries, Transportation, Entertainment" 
+              placeholder="যেমন: খাবার, পরিবহন, বিনোদন" 
               required 
             />
           </div>
@@ -83,7 +83,7 @@ const ExpenseCategoriesPage = () => {
           {/* Icon Picker */}
           <div>
             <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Select Icon
+              আইকন নির্বাচন করুন
             </label>
             <div className="mb-4 p-6 bg-gray-50 dark:bg-gray-900/50 rounded-xl border-2 border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-center space-x-4">
@@ -91,7 +91,7 @@ const ExpenseCategoriesPage = () => {
                   <SelectedIcon className="w-8 h-8 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">Selected Icon</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">নির্বাচিত আইকন</p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-white">{categoryForm.icon}</p>
                 </div>
               </div>
@@ -131,14 +131,14 @@ const ExpenseCategoriesPage = () => {
           {/* Description */}
           <div>
             <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Description
+              বর্ণনা
             </label>
             <input 
               type="text" 
               value={categoryForm.description} 
               onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })} 
               className="w-full px-5 py-4 text-lg border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all" 
-              placeholder="e.g., Monthly grocery expenses, Daily transportation costs" 
+              placeholder="যেমন: মাসিক খাবারের খরচ, দৈনিক পরিবহন খরচ" 
             />
           </div>
 
@@ -152,12 +152,12 @@ const ExpenseCategoriesPage = () => {
               {saving ? (
                 <>
                   <RefreshCw className="w-5 h-5 animate-spin" />
-                  <span>Adding Category...</span>
+                  <span>ক্যাটাগরি যোগ করা হচ্ছে...</span>
                 </>
               ) : (
                 <>
                   <Plus className="w-5 h-5" />
-                  <span>Add Category</span>
+                  <span>ক্যাটাগরি যোগ করুন</span>
                 </>
               )}
             </button>

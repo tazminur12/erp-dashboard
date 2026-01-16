@@ -187,10 +187,27 @@ const VendorDashboard = () => {
 
   const byLocation = useMemo(() => Array.isArray(stats.byLocation) ? stats.byLocation : [], [stats.byLocation]);
   
-  // Use vendor bills summary from API, fallback to calculated values if not available
+  // Calculate from vendorBills array to ensure accurate values
+  // Use billsSummary API as fallback if vendorBills array is empty or still loading
   const billStats = useMemo(() => {
-    // Prefer API summary data if available
-    if (billsSummary) {
+    // If vendorBills array has data, calculate from it (most accurate)
+    if (Array.isArray(vendorBills) && vendorBills.length > 0) {
+      const totalBills = vendorBills.length;
+      const totalAmount = vendorBills.reduce((sum, bill) => sum + (Number(bill.totalAmount) || 0), 0);
+      // Only use paidAmount, not amount field (which might be totalAmount)
+      const totalPaid = vendorBills.reduce((sum, bill) => sum + (Number(bill.paidAmount) || 0), 0);
+      const totalDue = Math.max(0, totalAmount - totalPaid);
+      
+      return {
+        totalBills,
+        totalAmount,
+        totalPaid,
+        totalDue
+      };
+    }
+    
+    // Fallback: Use API summary if available (when vendorBills is empty or still loading)
+    if (billsSummary && (billsSummary.totalBills > 0 || billsSummary.totalAmount > 0)) {
       return {
         totalBills: billsSummary.totalBills || 0,
         totalAmount: billsSummary.totalAmount || 0,
@@ -199,28 +216,14 @@ const VendorDashboard = () => {
       };
     }
     
-    // Fallback: Calculate from vendorBills array if summary not available
-    if (!Array.isArray(vendorBills) || vendorBills.length === 0) {
-      return {
-        totalBills: 0,
-        totalAmount: 0,
-        totalPaid: 0,
-        totalDue: 0
-      };
-    }
-    
-    const totalBills = vendorBills.length;
-    const totalAmount = vendorBills.reduce((sum, bill) => sum + (parseFloat(bill.totalAmount) || 0), 0);
-    const totalPaid = vendorBills.reduce((sum, bill) => sum + (parseFloat(bill.paidAmount) || 0), 0);
-    const totalDue = Math.max(0, totalAmount - totalPaid);
-    
+    // Default: return zeros if no data available
     return {
-      totalBills,
-      totalAmount,
-      totalPaid,
-      totalDue
+      totalBills: 0,
+      totalAmount: 0,
+      totalPaid: 0,
+      totalDue: 0
     };
-  }, [billsSummary, vendorBills]);
+  }, [vendorBills, billsSummary]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -271,7 +274,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট ভেন্ডর বিল" 
-          value={billsSummaryLoading ? '...' : Number(billStats.totalBills || 0).toLocaleString('bn-BD')} 
+          value={(billsLoading || billsSummaryLoading) ? '...' : Number(billStats.totalBills || 0).toLocaleString('bn-BD')} 
           icon={Receipt} 
           trend="" 
           trendValue="" 
@@ -279,7 +282,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট বিল পরিমাণ" 
-          value={billsSummaryLoading ? '...' : `৳${Number(billStats.totalAmount || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
+          value={(billsLoading || billsSummaryLoading) ? '...' : `৳${Number(billStats.totalAmount || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
           icon={FileText} 
           trend="" 
           trendValue="" 
@@ -287,7 +290,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট পরিশোধিত" 
-          value={billsSummaryLoading ? '...' : `৳${Number(billStats.totalPaid || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
+          value={(billsLoading || billsSummaryLoading) ? '...' : `৳${Number(billStats.totalPaid || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
           icon={Wallet} 
           trend="" 
           trendValue="" 
@@ -295,7 +298,7 @@ const VendorDashboard = () => {
         />
         <CardWidget 
           title="মোট বাকি" 
-          value={billsSummaryLoading ? '...' : `৳${Number(billStats.totalDue || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
+          value={(billsLoading || billsSummaryLoading) ? '...' : `৳${Number(billStats.totalDue || 0).toLocaleString('bn-BD', { maximumFractionDigits: 0 })}`} 
           icon={TrendingDown} 
           trend="" 
           trendValue="" 

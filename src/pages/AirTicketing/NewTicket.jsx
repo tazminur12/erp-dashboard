@@ -134,6 +134,7 @@ const NewTicket = () => {
   // Vendor search state
   const [vendorQuery, setVendorQuery] = useState('');
   const [vendorResults, setVendorResults] = useState([]);
+  const [vendorLoading, setVendorLoading] = useState(false);
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const [selectedVendorId, setSelectedVendorId] = useState('');
 
@@ -467,21 +468,27 @@ const NewTicket = () => {
     const q = vendorQuery.trim();
     if (!q || q.length < 2) {
       setVendorResults([]);
+      setVendorLoading(false);
       return;
     }
 
     let active = true;
+    setVendorLoading(true);
 
     const timer = setTimeout(async () => {
       try {
-        // Fetch all vendors (backend may not support search param, so we fetch all and filter client-side)
-        const res = await axiosSecure.get('/vendors');
+        // Fetch vendors with search parameter if supported, otherwise fetch all and filter
+        const res = await axiosSecure.get('/vendors', {
+          params: q ? { q, limit: 100 } : { limit: 100 }
+        });
         const data = res?.data;
         
         let list = [];
         // Handle different response structures
         if (data?.success && Array.isArray(data.vendors)) {
           list = data.vendors;
+        } else if (data?.success && Array.isArray(data.data)) {
+          list = data.data;
         } else if (Array.isArray(data?.vendors)) {
           list = data.vendors;
         } else if (Array.isArray(data)) {
@@ -490,7 +497,7 @@ const NewTicket = () => {
           list = data.data;
         }
 
-        // Client-side filtering
+        // Client-side filtering for better search results
         const normalizedQ = q.toLowerCase();
         const filtered = list.filter((vendor) => {
           const id = String(vendor.vendorId || vendor.id || vendor._id || '').toLowerCase();
@@ -507,10 +514,16 @@ const NewTicket = () => {
           );
         });
 
-        if (active) setVendorResults(filtered.slice(0, 10));
+        if (active) {
+          setVendorResults(filtered.slice(0, 10));
+          setVendorLoading(false);
+        }
       } catch (err) {
         console.error('Error fetching vendors:', err);
-        if (active) setVendorResults([]);
+        if (active) {
+          setVendorResults([]);
+          setVendorLoading(false);
+        }
       }
     }, 350);
 
@@ -1904,7 +1917,9 @@ const NewTicket = () => {
                   />
                   {showVendorDropdown && (
                     <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {vendorResults.length === 0 ? (
+                      {vendorLoading ? (
+                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
+                      ) : vendorResults.length === 0 ? (
                         <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
                           {vendorQuery.length < 2 ? 'Type at least 2 characters to search' : 'No vendors found'}
                         </div>
@@ -1935,7 +1950,7 @@ const NewTicket = () => {
                                 </div>
                               </div>
                               <div className="text-sm text-gray-600 dark:text-gray-300">
-                                {v.contactNo || v.phone || ''}
+                                {v.contactNo || v.phone || v.contactPhone || ''}
                               </div>
                             </div>
                           </button>
@@ -2213,7 +2228,7 @@ const NewTicket = () => {
             </button>
 
             <div className="flex space-x-4">
-              {currentStep > 1 && (
+              {currentStep > 1 && currentStep < totalSteps && (
                 <button
                   type="button"
                   onClick={prevStep}

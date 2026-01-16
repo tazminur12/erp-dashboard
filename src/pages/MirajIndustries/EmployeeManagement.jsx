@@ -34,6 +34,8 @@ const EmployeeManagement = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDate, setFilterDate] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   // Load queries
@@ -41,6 +43,7 @@ const EmployeeManagement = () => {
     useEmployees,
     useEmployeeStats,
     useCreateEmployee,
+    useUpdateEmployee,
     useDeleteEmployee,
     useAttendance,
     useCreateAttendance
@@ -58,6 +61,7 @@ const EmployeeManagement = () => {
   });
 
   const createEmployeeMutation = useCreateEmployee();
+  const updateEmployeeMutation = useUpdateEmployee();
   const deleteEmployeeMutation = useDeleteEmployee();
   const createAttendanceMutation = useCreateAttendance();
 
@@ -114,6 +118,14 @@ const EmployeeManagement = () => {
     return employees || [];
   }, [employees]);
 
+  // Calculate total monthly salary from employees array
+  const totalMonthlySalary = useMemo(() => {
+    return (filteredEmployees || []).reduce((sum, emp) => {
+      const salary = Number(emp.salary) || 0;
+      return sum + salary;
+    }, 0);
+  }, [filteredEmployees]);
+
   const handleAddEmployee = async () => {
     try {
       await createEmployeeMutation.mutateAsync({
@@ -132,6 +144,47 @@ const EmployeeManagement = () => {
       resetForm();
     } catch (error) {
       alert(error.message || 'কর্মচারী যোগ করতে সমস্যা হয়েছে');
+    }
+  };
+
+  const handleEditEmployee = (employee) => {
+    setEditingEmployee(employee);
+    setNewEmployee({
+      name: employee.name || '',
+      position: employee.position || '',
+      phone: employee.phone || '',
+      email: employee.email || '',
+      address: employee.address || '',
+      joinDate: employee.joinDate ? new Date(employee.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      salary: employee.salary || '',
+      workHours: employee.workHours || '',
+      status: employee.status || 'active',
+      notes: employee.notes || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateEmployee = async () => {
+    if (!editingEmployee) return;
+    try {
+      await updateEmployeeMutation.mutateAsync({
+        id: editingEmployee.id,
+        name: newEmployee.name,
+        position: newEmployee.position,
+        phone: newEmployee.phone,
+        email: newEmployee.email || '',
+        address: newEmployee.address || '',
+        joinDate: newEmployee.joinDate,
+        salary: Number(newEmployee.salary),
+        workHours: Number(newEmployee.workHours),
+        status: newEmployee.status,
+        notes: newEmployee.notes || ''
+      });
+      setShowEditModal(false);
+      setEditingEmployee(null);
+      resetForm();
+    } catch (error) {
+      alert(error.message || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে');
     }
   };
 
@@ -267,7 +320,7 @@ const EmployeeManagement = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">মাসিক বেতন</p>
-              <p className="text-2xl font-bold text-gray-900">৳{(stats.totalSalary || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">৳{totalMonthlySalary.toLocaleString('bn-BD')}</p>
             </div>
             <div className="bg-green-100 p-3 rounded-full">
               <DollarSign className="w-6 h-6 text-green-600" />
@@ -436,13 +489,28 @@ const EmployeeManagement = () => {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => navigate(`/miraj-industries/employee/${employee.id}`)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="বিস্তারিত দেখুন"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDeleteEmployee(employee.id)}
-                        className="text-red-600 hover:text-red-900"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/miraj-industries/employee/${employee.id}/edit`);
+                        }}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                        title="সম্পাদনা করুন"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteEmployee(employee.id);
+                        }}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="মুছে ফেলুন"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

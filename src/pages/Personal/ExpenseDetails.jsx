@@ -58,16 +58,16 @@ const ExpenseDetails = () => {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Category Details</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ক্যাটাগরি বিবরণ</h1>
         </div>
       </div>
 
       <div className="rounded-2xl p-5 shadow-xl border" style={{ background: `linear-gradient(135deg, ${palette.from}, ${palette.to})`, borderColor: palette.border }}>
         {isLoading && (
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+          <p className="text-gray-600 dark:text-gray-300">লোড হচ্ছে...</p>
         )}
         {isError && (
-          <p className="text-red-600">{error?.message || 'Failed to load category'}</p>
+          <p className="text-red-600">{error?.message || 'ক্যাটাগরি লোড করতে ব্যর্থ'}</p>
         )}
         {!isLoading && !isError && category && (
           <div className="space-y-5">
@@ -82,22 +82,22 @@ const ExpenseDetails = () => {
             </div>
             {category.description && (
               <div className="p-4 rounded-xl bg-white/70">
-                <p className="text-xs text-gray-600">Description</p>
+                <p className="text-xs text-gray-600">বর্ণনা</p>
                 <p className="text-gray-900 font-medium mt-1">{category.description}</p>
               </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-xl bg-white/70">
-                <p className="text-xs text-gray-600">Icon</p>
+                <p className="text-xs text-gray-600">আইকন</p>
                 <p className="text-gray-900 font-medium">{category.icon}</p>
               </div>
               <div className="p-4 rounded-xl bg-white/70">
-                <p className="text-xs text-gray-600">Total Amount</p>
-                <p className="text-gray-900 font-semibold">৳{Number(category.totalAmount || 0).toLocaleString()}</p>
+                <p className="text-xs text-gray-600">মোট খরচ</p>
+                <p className="text-gray-900 font-semibold">৳{Number(category.totalAmount || 0).toLocaleString('bn-BD')}</p>
               </div>
               <div className="p-4 rounded-xl bg-white/70">
-                <p className="text-xs text-gray-600">Last Updated</p>
-                <p className="text-gray-900 font-medium">{category.lastUpdated ? new Date(category.lastUpdated).toLocaleDateString() : '—'}</p>
+                <p className="text-xs text-gray-600">সর্বশেষ আপডেট</p>
+                <p className="text-gray-900 font-medium">{category.lastUpdated ? new Date(category.lastUpdated).toLocaleDateString('bn-BD') : '—'}</p>
               </div>
             </div>
           </div>

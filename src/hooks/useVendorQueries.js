@@ -493,7 +493,15 @@ export const useVendorBills = (filters = {}) => {
       const response = await axiosSecure.get(`/vendors/bills?${params.toString()}`);
       
       if (response.data.success) {
-        return response.data.bills || [];
+        // Ensure all bills have paidAmount and totalAmount fields properly set
+        const bills = (response.data.bills || []).map(bill => ({
+          ...bill,
+          paidAmount: bill.paidAmount !== undefined 
+            ? Number(bill.paidAmount || 0) 
+            : 0,
+          totalAmount: Number(bill.totalAmount || bill.amount || 0)
+        }));
+        return bills;
       } else {
         throw new Error(response.data.message || 'Failed to fetch vendor bills');
       }
@@ -615,6 +623,8 @@ export const useCreateVendorBill = () => {
       queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
       queryClient.invalidateQueries({ queryKey: vendorKeys.bills() });
       queryClient.invalidateQueries({ queryKey: vendorKeys.billsList() });
+      // Invalidate bills summary to refresh dashboard stats
+      queryClient.invalidateQueries({ queryKey: [...vendorKeys.bills(), 'summary'] });
       
       if (variables.vendorId) {
         queryClient.invalidateQueries({ queryKey: vendorKeys.detail(variables.vendorId) });
@@ -626,8 +636,8 @@ export const useCreateVendorBill = () => {
       // Show success message
       Swal.fire({
         icon: 'success',
-        title: 'Bill generated successfully',
-        text: 'Vendor bill has been created successfully.',
+        title: 'বিল তৈরি হয়েছে',
+        text: 'ভেন্ডর বিল সফলভাবে তৈরি করা হয়েছে।',
         confirmButtonColor: '#7c3aed',
         timer: 2000
       });
@@ -664,6 +674,8 @@ export const useUpdateVendorBill = () => {
       queryClient.invalidateQueries({ queryKey: vendorKeys.bills() });
       queryClient.invalidateQueries({ queryKey: vendorKeys.billDetail(variables.billId) });
       queryClient.invalidateQueries({ queryKey: vendorKeys.billsList() });
+      // Invalidate bills summary to refresh dashboard stats
+      queryClient.invalidateQueries({ queryKey: [...vendorKeys.bills(), 'summary'] });
       
       // Update the specific bill in cache
       if (data.bill) {
@@ -677,13 +689,14 @@ export const useUpdateVendorBill = () => {
       if (data.bill?.vendorId) {
         queryClient.invalidateQueries({ queryKey: vendorKeys.vendorBills(data.bill.vendorId) });
         queryClient.invalidateQueries({ queryKey: vendorKeys.detail(data.bill.vendorId) });
+        queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(data.bill.vendorId), 'financials'] });
       }
       
       // Show success message
       Swal.fire({
         icon: 'success',
-        title: 'Bill updated successfully',
-        text: 'Vendor bill has been updated successfully.',
+        title: 'বিল আপডেট হয়েছে',
+        text: 'ভেন্ডর বিল সফলভাবে আপডেট করা হয়েছে।',
         confirmButtonColor: '#7c3aed',
         timer: 2000
       });
@@ -719,15 +732,21 @@ export const useDeleteVendorBill = () => {
       // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: vendorKeys.bills() });
       queryClient.invalidateQueries({ queryKey: vendorKeys.billsList() });
+      // Invalidate bills summary to refresh dashboard stats
+      queryClient.invalidateQueries({ queryKey: [...vendorKeys.bills(), 'summary'] });
       
       // Remove the bill from cache
       queryClient.removeQueries({ queryKey: vendorKeys.billDetail(billId) });
       
+      // If we have bill data, invalidate vendor-specific queries
+      // Note: The backend should return bill data in the response for this to work
+      // If not, we might need to fetch the bill first before deleting
+      
       // Show success message
       Swal.fire({
         icon: 'success',
-        title: 'Bill deleted successfully',
-        text: 'Vendor bill has been deleted successfully.',
+        title: 'বিল মুছে ফেলা হয়েছে',
+        text: 'ভেন্ডর বিল সফলভাবে মুছে ফেলা হয়েছে।',
         confirmButtonColor: '#7c3aed',
         timer: 2000
       });

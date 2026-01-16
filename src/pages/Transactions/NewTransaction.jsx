@@ -32,7 +32,8 @@ import {
   X,
   Plus,
   Package,
-  MessageCircle
+  MessageCircle,
+  Users
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -57,8 +58,8 @@ import { vendorKeys } from '../../hooks/useVendorQueries';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
 import { useEmployeeSearch } from '../../hooks/useHRQueries';
 import { useCategoryQueries } from '../../hooks/useCategoryQueries';
-import { useHajiList } from '../../hooks/UseHajiQueries';
-import { useUmrahList } from '../../hooks/UseUmrahQuries';
+import { useHajiList, useHaji, useHajiFamilySummary } from '../../hooks/UseHajiQueries';
+import { useUmrahList, useUmrah } from '../../hooks/UseUmrahQuries';
 import { useLoans } from '../../hooks/useLoanQueries';
 import { useAgentPackageList } from '../../hooks/UseAgentPacakageQueries';
 import { generateSalmaReceiptPDF } from '../../utils/pdfGenerator';
@@ -375,6 +376,24 @@ const NewTransaction = () => {
       : {}
   );
   const agentPackages = agentPackagesData?.data || [];
+
+  // Fetch hajji data when hajji is selected
+  const { data: hajjiDetailData, isLoading: hajjiDetailLoading } = useHaji(
+    formData.customerType === 'haji' && formData.customerId ? formData.customerId : null
+  );
+  const hajjiDetail = hajjiDetailData || null;
+
+  // Fetch hajji family summary for relations
+  const { data: hajjiFamilySummaryData, isLoading: hajjiFamilyLoading } = useHajiFamilySummary(
+    formData.customerType === 'haji' && formData.customerId ? formData.customerId : null
+  );
+  const hajjiFamilySummary = hajjiFamilySummaryData || null;
+
+  // Fetch umrah data when umrah is selected
+  const { data: umrahDetailData, isLoading: umrahDetailLoading } = useUmrah(
+    formData.customerType === 'umrah' && formData.customerId ? formData.customerId : null
+  );
+  const umrahDetail = umrahDetailData || null;
   const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
 
   // Loans search list for the "Loans" selector tab
@@ -634,6 +653,16 @@ const NewTransaction = () => {
           { number: 2, title: 'কাস্টমার টাইপ', description: 'কাস্টমার টাইপ নির্বাচন করুন' },
           { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
           { number: 4, title: 'এজেন্টের ব্যালেন্স তথ্য', description: 'এজেন্টের বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন' },
+          { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
+          { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
+        ];
+      } else if (formData.customerType === 'haji' || formData.customerType === 'umrah') {
+        // For hajji/umrah credit transactions, add balance information step
+        return [
+          { number: 1, title: 'লেনদেন টাইপ', description: 'ক্রেডিট (আয়) নির্বাচন করুন' },
+          { number: 2, title: 'কাস্টমার টাইপ', description: 'কাস্টমার টাইপ নির্বাচন করুন' },
+          { number: 3, title: 'কাস্টমার নির্বাচন', description: 'কাস্টমার সিলেক্ট করুন' },
+          { number: 4, title: formData.customerType === 'haji' ? 'হাজ্বীর ব্যালেন্স তথ্য' : 'উমরাহ যাত্রীর ব্যালেন্স তথ্য', description: formData.customerType === 'haji' ? 'হাজ্বীর বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন' : 'উমরাহ যাত্রীর বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন' },
           { number: 5, title: 'পেমেন্ট মেথড', description: 'পেমেন্টের ধরন নির্বাচন করুন' },
           { number: 6, title: 'কনফার্মেশন', description: 'তথ্য যাচাই এবং সংরক্ষণ' }
         ];
@@ -1086,19 +1115,20 @@ const NewTransaction = () => {
           }
           break;
         case 4:
-          // Agent balance step - no validation needed, just display
+          // Agent/Hajji/Umrah balance step - no validation needed, just display
           if (formData.customerType === 'agent') {
             // For agents, validate selectedOption
             if (!formData.selectedOption) {
               newErrors.selectedOption = 'পেমেন্টের ধরন নির্বাচন করুন';
             }
           }
-          // For credit non-agent, step 4 is skipped, so no validation needed here
+          // For hajji/umrah, no validation needed at balance step
+          // For credit non-agent/hajji/umrah, step 4 is skipped, so no validation needed here
           break;
         case 5:
-          // For credit non-agent: step 5 is payment method (step 4 is skipped)
-          // For credit agent: step 5 is payment method validation
-          if (formData.customerType === 'agent') {
+          // For credit non-agent/hajji/umrah: step 5 is payment method (step 4 is skipped for non-agent/hajji/umrah)
+          // For credit agent/hajji/umrah: step 5 is payment method validation
+          if (formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') {
             // For credit agent: step 5 is payment method validation
             if (!formData.paymentMethod) {
               newErrors.paymentMethod = 'পেমেন্ট মেথড নির্বাচন করুন';
@@ -1158,16 +1188,16 @@ const NewTransaction = () => {
       } else if (formData.transactionType === 'debit') {
         maxSteps = 5;
       } else {
-        // Credit flow: for agents, 6 steps (balance info, payment method, confirmation)
-        maxSteps = formData.customerType === 'agent' ? 6 : 6;
+        // Credit flow: for agents/hajji/umrah, 6 steps (balance info, payment method, confirmation)
+        maxSteps = (formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') ? 6 : 6;
       }
       
-      // For credit non-agent, skip step 4 (invoice selection) and go directly to step 5 (payment method) from step 3
-      if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && currentStep === 3) {
+      // For credit non-agent/hajji/umrah, skip step 4 (invoice selection) and go directly to step 5 (payment method) from step 3
+      if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && formData.customerType !== 'haji' && formData.customerType !== 'umrah' && currentStep === 3) {
         setCurrentStep(5); // Skip step 4, go directly to payment method
-      } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 4) {
+      } else if (formData.transactionType === 'credit' && (formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') && currentStep === 4) {
         setCurrentStep(5); // Go to payment method from balance display
-      } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
+      } else if (formData.transactionType === 'credit' && (formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') && currentStep === 5) {
         setCurrentStep(6); // Go to confirmation from payment method
       } else if (formData.transactionType === 'debit' && currentStep === 4) {
         // For debit, go directly to step 5 (confirmation) from step 4
@@ -1179,12 +1209,12 @@ const NewTransaction = () => {
   };
 
   const prevStep = () => {
-    // For credit non-agent, skip step 4 (invoice selection) and go back to step 3 (customer selection) from step 5
-    if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && currentStep === 5) {
+    // For credit non-agent/hajji/umrah, skip step 4 (invoice selection) and go back to step 3 (customer selection) from step 5
+    if (formData.transactionType === 'credit' && formData.customerType !== 'agent' && formData.customerType !== 'haji' && formData.customerType !== 'umrah' && currentStep === 5) {
       setCurrentStep(3); // Skip step 4, go back to customer selection
-    } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 6) {
+    } else if (formData.transactionType === 'credit' && (formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') && currentStep === 6) {
       setCurrentStep(5); // Go back from confirmation to payment method
-    } else if (formData.transactionType === 'credit' && formData.customerType === 'agent' && currentStep === 5) {
+    } else if (formData.transactionType === 'credit' && (formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') && currentStep === 5) {
       setCurrentStep(4); // Go back from payment method to balance display
     } else if (formData.transactionType === 'debit' && currentStep === 5) {
       // For debit, go back from step 5 to step 4
@@ -1209,7 +1239,7 @@ const NewTransaction = () => {
       paymentMethod: formData.paymentMethod,
       amount: formData?.paymentDetails?.amount,
     });
-    const finalStep = formData.transactionType === 'credit' && formData.customerType === 'agent' ? 7 : 6;
+    const finalStep = formData.transactionType === 'credit' && (formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') ? 7 : 6;
     const isValid = validateStep(finalStep);
     if (!isValid) {
       console.warn('TXN validation failed at final step', { finalStep, errors });
@@ -3970,9 +4000,9 @@ const NewTransaction = () => {
               )}
             </div>
           )}
-          {/* Step 4: Agent Balance Display (for credit with agent) or Invoice Selection (for credit with customer) or Account Manager Selection (for transfer) or Payment Method (for debit) */}
-          {/* Skip step 4 for credit non-agent transactions - invoice selection is removed */}
-          {currentStep === 4 && !(formData.transactionType === 'credit' && formData.customerType !== 'agent') && (
+          {/* Step 4: Agent Balance Display (for credit with agent) or Hajji/Umrah Balance Display (for credit with hajji/umrah) or Invoice Selection (for credit with customer) or Account Manager Selection (for transfer) or Payment Method (for debit) */}
+          {/* Skip step 4 for credit non-agent/hajji/umrah transactions - invoice selection is removed */}
+          {currentStep === 4 && !(formData.transactionType === 'credit' && formData.customerType !== 'agent' && formData.customerType !== 'haji' && formData.customerType !== 'umrah') && (
             <div className="p-3 sm:p-4 lg:p-6">
               {formData.transactionType === 'credit' && formData.customerType === 'agent' ? (
                 // Agent Balance Display
@@ -3982,6 +4012,16 @@ const NewTransaction = () => {
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                     এজেন্টের বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন
+                  </p>
+                </div>
+              ) : formData.transactionType === 'credit' && (formData.customerType === 'haji' || formData.customerType === 'umrah') ? (
+                // Hajji/Umrah Balance Display
+                <div className="text-center mb-4 sm:mb-6">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    {formData.customerType === 'haji' ? 'হাজ্বীর ব্যালেন্স তথ্য' : 'উমরাহ যাত্রীর ব্যালেন্স তথ্য'}
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    {formData.customerType === 'haji' ? 'হাজ্বীর বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন' : 'উমরাহ যাত্রীর বর্তমান ব্যালেন্স এবং বকেয়া পরিমাণ দেখুন'}
                   </p>
                 </div>
               ) : formData.transactionType === 'transfer' ? (
@@ -4217,6 +4257,191 @@ const NewTransaction = () => {
                         </div>
                       )}
                     </div>
+                  </div>
+                ) : formData.transactionType === 'credit' && (formData.customerType === 'haji' || formData.customerType === 'umrah') ? (
+                  // Hajji/Umrah Balance Display
+                  <div className="space-y-4 sm:space-y-6">
+                    {(hajjiDetailLoading || umrahDetailLoading || hajjiFamilyLoading) ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+                        <span className="ml-3 text-gray-600 dark:text-gray-400">লোড হচ্ছে...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-4 sm:p-6 border border-blue-200 dark:border-blue-700">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                            <User className="w-5 h-5 text-blue-600" />
+                            {formData.customerName} - ব্যালেন্স তথ্য
+                          </h3>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Total Amount */}
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট বিল</p>
+                                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                    ৳{Number(
+                                      formData.customerType === 'haji' 
+                                        ? (hajjiDetail?.totalAmount || 0)
+                                        : (umrahDetail?.totalAmount || umrahDetail?.displayTotalAmount || 0)
+                                    ).toLocaleString('bn-BD')}
+                                  </p>
+                                </div>
+                                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                  <DollarSign className="w-6 h-6 text-blue-600" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Paid Amount */}
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">পরিশোধিত</p>
+                                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                    ৳{Number(
+                                      formData.customerType === 'haji'
+                                        ? (hajjiDetail?.paidAmount || 0)
+                                        : (umrahDetail?.paidAmount || umrahDetail?.displayPaidAmount || 0)
+                                    ).toLocaleString('bn-BD')}
+                                  </p>
+                                </div>
+                                <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                                  <CheckCircle className="w-6 h-6 text-green-600" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Total Due */}
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট বকেয়া</p>
+                                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                                    ৳{Number(
+                                      formData.customerType === 'haji'
+                                        ? (hajjiDetail?.due || 0)
+                                        : (umrahDetail?.due || umrahDetail?.displayDue || 0)
+                                    ).toLocaleString('bn-BD')}
+                                  </p>
+                                </div>
+                                <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
+                                  <AlertCircle className="w-6 h-6 text-orange-600" />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Hajj/Umrah Due */}
+                            {formData.customerType === 'haji' ? (
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</p>
+                                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                                      ৳{Number(hajjiDetail?.hajjDue || 0).toLocaleString('bn-BD')}
+                                    </p>
+                                  </div>
+                                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                                    <Building className="w-6 h-6 text-red-600" />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</p>
+                                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                                      ৳{Number(umrahDetail?.due || umrahDetail?.displayDue || 0).toLocaleString('bn-BD')}
+                                    </p>
+                                  </div>
+                                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                                    <Calendar className="w-6 h-6 text-purple-600" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Family Summary for Hajji */}
+                          {formData.customerType === 'haji' && hajjiFamilySummary && (hajjiFamilySummary.members?.length > 0 || hajjiFamilySummary.familyTotal > 0) && (
+                            <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
+                              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                                <Users className="w-4 h-4 text-purple-600" />
+                                পরিবারের তথ্য
+                              </h4>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">পরিবারের মোট</p>
+                                  <p className="text-lg font-bold text-gray-900 dark:text-white">
+                                    ৳{Number(hajjiFamilySummary.familyTotal || 0).toLocaleString('bn-BD')}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">পরিবারের পরিশোধিত</p>
+                                  <p className="text-lg font-bold text-green-600 dark:text-green-400">
+                                    ৳{Number(hajjiFamilySummary.familyPaid || 0).toLocaleString('bn-BD')}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-gray-600 dark:text-gray-400">পরিবারের বকেয়া</p>
+                                  <p className="text-lg font-bold text-red-600 dark:text-red-400">
+                                    ৳{Number(hajjiFamilySummary.familyDue || 0).toLocaleString('bn-BD')}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Relations Display */}
+                          {formData.customerType === 'haji' && hajjiFamilySummary && hajjiFamilySummary.members && hajjiFamilySummary.members.length > 0 && (
+                            <div className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
+                              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                                <Users className="w-4 h-4 text-indigo-600" />
+                                লিঙ্ক করা হাজ্বী ({hajjiFamilySummary.members.length} জন)
+                              </h4>
+                              <div className="space-y-2 max-h-48 overflow-y-auto">
+                                {hajjiFamilySummary.members.map((member, idx) => (
+                                  <div key={member._id || member.id || idx} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-600">
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                        {member.name || `${member.firstName || ''} ${member.lastName || ''}`.trim() || 'N/A'}
+                                      </p>
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                                        {member.mobile || member.phone || 'N/A'} | {member.relationType || 'সম্পর্ক'}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-xs text-gray-600 dark:text-gray-400">বকেয়া</p>
+                                      <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                                        ৳{Number(member.due || 0).toLocaleString('bn-BD')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                            <div className="flex items-start gap-3">
+                              <Info className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                              <div className="text-sm text-blue-800 dark:text-blue-200">
+                                <p className="font-medium mb-1">ব্যালেন্স তথ্য সম্পর্কে:</p>
+                                <ul className="space-y-1 text-xs">
+                                  <li>• মোট বিল: {formData.customerType === 'haji' ? 'হাজ্বীর' : 'উমরাহ যাত্রীর'} মোট বিল পরিমাণ</li>
+                                  <li>• পরিশোধিত: {formData.customerType === 'haji' ? 'হাজ্বীর' : 'উমরাহ যাত্রীর'} পরিশোধিত পরিমাণ</li>
+                                  <li>• মোট বকেয়া: {formData.customerType === 'haji' ? 'হাজ্বীর' : 'উমরাহ যাত্রীর'} মোট বকেয়া পরিমাণ</li>
+                                  {formData.customerType === 'haji' && <li>• হজ্জ বকেয়া: হজ্জ প্যাকেজের জন্য বকেয়া</li>}
+                                  {formData.customerType === 'haji' && hajjiFamilySummary?.members?.length > 0 && <li>• লিঙ্ক করা হাজ্বী: এই হাজ্বীর একাউন্টে যুক্ত হাজ্বীদের তালিকা</li>}
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : formData.transactionType === 'transfer' ? (
                   // Transfer: Transfer Details first, then Account Manager Selection
@@ -6953,9 +7178,9 @@ const NewTransaction = () => {
 
           <button
             onClick={nextStep}
-            disabled={currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 6 : 6) : 5)}
+            disabled={currentStep === (formData.transactionType === 'credit' ? ((formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') ? 6 : 6) : 5)}
             className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium transition-all duration-200 text-sm sm:text-base ${
-              currentStep === (formData.transactionType === 'credit' ? (formData.customerType === 'agent' ? 6 : 6) : 5)
+              currentStep === (formData.transactionType === 'credit' ? ((formData.customerType === 'agent' || formData.customerType === 'haji' || formData.customerType === 'umrah') ? 6 : 6) : 5)
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             }`}

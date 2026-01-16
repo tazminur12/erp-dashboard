@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit, Trash2, Shield, Upload, X, Image as ImageIcon, Users, CheckCircle, Clock, Archive, RefreshCw, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Search, Edit, Trash2, Shield, Upload, X, Image as ImageIcon, Users, CheckCircle, Clock, Archive, RefreshCw, ArrowDownCircle, ArrowUpCircle, ArrowRightLeft } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import DataTable from '../../components/common/DataTable';
 import useLicenseQueries from '../../hooks/useLicenseQueries';
+import { useHajiList, useUpdateHaji } from '../../hooks/UseHajiQueries';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary';
 import Swal from 'sweetalert2';
 
@@ -15,17 +16,48 @@ const LicenseManagement = () => {
   const createLicense = useCreateLicense();
   const updateLicense = useUpdateLicense();
   const deleteLicense = useDeleteLicense();
+  const updateHaji = useUpdateHaji();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [editingLicense, setEditingLicense] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoUploading, setLogoUploading] = useState(false);
+  
+  // Transfer modal states - must be declared before useHajiList hook
+  const [transferFormData, setTransferFormData] = useState({
+    requestNumber: '',
+    fromLicenseId: '',
+    toLicenseId: '',
+    status: 'প্রাক-নিবন্ধিত'
+  });
+  const [selectedHajjis, setSelectedHajjis] = useState([]);
+  const [transferring, setTransferring] = useState(false);
+  
+  // Fetch hajjis for transfer
+  const { data: hajjiData, isLoading: hajjiLoading } = useHajiList({
+    limit: 20000,
+    page: 1,
+    ...(transferFormData.fromLicenseId ? { licenseId: transferFormData.fromLicenseId } : {})
+  });
+  const allHajjis = useMemo(() => hajjiData?.data || [], [hajjiData?.data]);
+  
+  // Filter hajjis based on selected license and status
+  const filteredHajjisForTransfer = useMemo(() => {
+    if (!transferFormData.fromLicenseId) return [];
+    
+    return allHajjis.filter(hajji => {
+      const licenseId = hajji.licenseId || hajji.license?._id || hajji.license?.id;
+      const matchesLicense = String(licenseId) === String(transferFormData.fromLicenseId);
+      const matchesStatus = hajji.serviceStatus === transferFormData.status;
+      return matchesLicense && matchesStatus;
+    });
+  }, [allHajjis, transferFormData.fromLicenseId, transferFormData.status]);
   const [formData, setFormData] = useState({
     logo: '',
     licenseNumber: '',
     licenseName: '',
-    agencyName: '',
     ownerName: '',
     mobileNumber: '',
     email: '',
@@ -37,7 +69,6 @@ const LicenseManagement = () => {
       logo: '',
       licenseNumber: '',
       licenseName: '',
-      agencyName: '',
       ownerName: '',
       mobileNumber: '',
       email: '',
@@ -134,7 +165,6 @@ const LicenseManagement = () => {
       logo: license.logo || '',
       licenseNumber: license.licenseNumber || '',
       licenseName: license.licenseName || '',
-      agencyName: license.agencyName || '',
       ownerName: license.ownerName || '',
       mobileNumber: license.mobileNumber || '',
       email: license.email || '',
@@ -163,7 +193,6 @@ const LicenseManagement = () => {
         logo: formData.logo || '',
         licenseNumber: formData.licenseNumber.trim(),
         licenseName: formData.licenseName.trim(),
-        agencyName: formData.agencyName.trim() || '',
         ownerName: formData.ownerName.trim() || '',
         mobileNumber: formData.mobileNumber.trim() || '',
         email: formData.email.trim() || '',
@@ -449,13 +478,30 @@ const LicenseManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">লাইসেন্স ব্যবস্থাপনা</h1>
           <p className="text-gray-600 dark:text-gray-400">সকল লাইসেন্স ব্যবস্থাপনা করুন</p>
         </div>
+        <div className="flex items-center space-x-2 mt-4 sm:mt-0">
         <button
-          onClick={handleOpenModal}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mt-4 sm:mt-0"
-        >
-          <Plus className="w-4 h-4" />
-          <span>লাইসেন্স তৈরি করুন</span>
-        </button>
+            onClick={() => {
+              setTransferFormData({
+                requestNumber: '',
+                fromLicenseId: '',
+                toLicenseId: '',
+                status: 'প্রাক-নিবন্ধিত'
+              });
+              setSelectedHajjis([]);
+              setIsTransferModalOpen(true);
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+            <Users className="w-4 h-4" />
+            <span>হাজ্বী হস্তান্তর</span>
+          </button>
+          <button
+            onClick={handleOpenModal}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            <span>লাইসেন্স তৈরি করুন</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -661,19 +707,6 @@ const LicenseManagement = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              এজেন্সির নাম
-            </label>
-            <input
-              type="text"
-              value={formData.agencyName}
-              onChange={(e) => setFormData({ ...formData, agencyName: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="এজেন্সির নাম লিখুন"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               মালিকের নাম
             </label>
             <input
@@ -738,6 +771,285 @@ const LicenseManagement = () => {
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {createLicense.isPending || updateLicense.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+            </button>
+          </ModalFooter>
+        </form>
+      </Modal>
+
+      {/* Transfer Modal */}
+      <Modal
+        isOpen={isTransferModalOpen}
+        onClose={() => {
+          setIsTransferModalOpen(false);
+          setTransferFormData({
+            requestNumber: '',
+            fromLicenseId: '',
+            toLicenseId: '',
+            status: 'প্রাক-নিবন্ধিত'
+          });
+          setSelectedHajjis([]);
+        }}
+        title="হাজ্বী হস্তান্তর"
+        size="xl"
+      >
+        <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              রিকোএস্ট নং <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={transferFormData.requestNumber}
+              onChange={(e) => setTransferFormData({ ...transferFormData, requestNumber: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              placeholder="রিকোএস্ট নং লিখুন"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                কোন লাইসেন্স থেকে <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={transferFormData.fromLicenseId}
+                onChange={(e) => {
+                  setTransferFormData({ ...transferFormData, fromLicenseId: e.target.value });
+                  setSelectedHajjis([]);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                required
+              >
+                <option value="">লাইসেন্স নির্বাচন করুন</option>
+                {licenses.map((license) => (
+                  <option key={license._id || license.id} value={license._id || license.id}>
+                    {license.licenseNumber} - {license.licenseName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                কোন লাইসেন্স এ <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={transferFormData.toLicenseId}
+                onChange={(e) => setTransferFormData({ ...transferFormData, toLicenseId: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                required
+              >
+                <option value="">লাইসেন্স নির্বাচন করুন</option>
+                {licenses.map((license) => (
+                  <option key={license._id || license.id} value={license._id || license.id}>
+                    {license.licenseNumber} - {license.licenseName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              প্রাকনিবন্ধিত/নিবন্ধিত <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={transferFormData.status}
+              onChange={(e) => {
+                setTransferFormData({ ...transferFormData, status: e.target.value });
+                setSelectedHajjis([]);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              required
+            >
+              <option value="প্রাক-নিবন্ধিত">প্রাক-নিবন্ধিত</option>
+              <option value="নিবন্ধিত">নিবন্ধিত</option>
+            </select>
+          </div>
+
+          {/* Hajji List */}
+          {transferFormData.fromLicenseId && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                হাজ্বী নির্বাচন করুন ({filteredHajjisForTransfer.length} টি পাওয়া গেছে)
+              </label>
+              <div className="border border-gray-300 dark:border-gray-600 rounded-lg max-h-96 overflow-y-auto">
+                {hajjiLoading ? (
+                  <div className="p-4 text-center text-gray-600 dark:text-gray-400">
+                    লোড হচ্ছে...
+                  </div>
+                ) : filteredHajjisForTransfer.length === 0 ? (
+                  <div className="p-4 text-center text-gray-600 dark:text-gray-400">
+                    কোন হাজ্বী পাওয়া যায়নি
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                    {filteredHajjisForTransfer.map((hajji) => {
+                      const hajjiId = hajji._id || hajji.id;
+                      const isSelected = selectedHajjis.includes(hajjiId);
+                      return (
+                        <div
+                          key={hajjiId}
+                          className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer ${
+                            isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                          }`}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedHajjis(selectedHajjis.filter(id => id !== hajjiId));
+                            } else {
+                              setSelectedHajjis([...selectedHajjis, hajjiId]);
+                            }
+                          }}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                {hajji.name || `${hajji.firstName || ''} ${hajji.lastName || ''}`.trim() || 'N/A'}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {hajji.mobile || hajji.phone || 'N/A'} | {hajji.passportNumber || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => {
+                setIsTransferModalOpen(false);
+                setTransferFormData({
+                  requestNumber: '',
+                  fromLicenseId: '',
+                  toLicenseId: '',
+                  status: 'প্রাক-নিবন্ধিত'
+                });
+                setSelectedHajjis([]);
+              }}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              বাতিল
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!transferFormData.requestNumber.trim()) {
+                  Swal.fire({
+                    title: 'ত্রুটি!',
+                    text: 'অনুগ্রহ করে রিকোএস্ট নং পূরণ করুন।',
+                    icon: 'error',
+                    confirmButtonText: 'ঠিক আছে',
+                    confirmButtonColor: '#EF4444',
+                  });
+                  return;
+                }
+
+                if (!transferFormData.fromLicenseId || !transferFormData.toLicenseId) {
+                  Swal.fire({
+                    title: 'ত্রুটি!',
+                    text: 'অনুগ্রহ করে উৎস এবং গন্তব্য লাইসেন্স নির্বাচন করুন।',
+                    icon: 'error',
+                    confirmButtonText: 'ঠিক আছে',
+                    confirmButtonColor: '#EF4444',
+                  });
+                  return;
+                }
+
+                if (selectedHajjis.length === 0) {
+                  Swal.fire({
+                    title: 'ত্রুটি!',
+                    text: 'অনুগ্রহ করে অন্তত একটি হাজ্বী নির্বাচন করুন।',
+                    icon: 'error',
+                    confirmButtonText: 'ঠিক আছে',
+                    confirmButtonColor: '#EF4444',
+                  });
+                  return;
+                }
+
+                if (transferFormData.fromLicenseId === transferFormData.toLicenseId) {
+                  Swal.fire({
+                    title: 'ত্রুটি!',
+                    text: 'উৎস এবং গন্তব্য লাইসেন্স একই হতে পারবে না।',
+                    icon: 'error',
+                    confirmButtonText: 'ঠিক আছে',
+                    confirmButtonColor: '#EF4444',
+                  });
+                  return;
+                }
+
+                const result = await Swal.fire({
+                  title: 'নিশ্চিত করুন',
+                  text: `${selectedHajjis.length} টি হাজ্বী ${transferFormData.fromLicenseId === transferFormData.toLicenseId ? 'একই' : 'অন্য'} লাইসেন্সে স্থানান্তর করতে চান?`,
+                  icon: 'question',
+                  showCancelButton: true,
+                  confirmButtonText: 'হ্যাঁ, ট্রান্সফার করুন',
+                  cancelButtonText: 'বাতিল',
+                  confirmButtonColor: '#10B981',
+                  cancelButtonColor: '#6B7280',
+                });
+
+                if (!result.isConfirmed) return;
+
+                setTransferring(true);
+                try {
+                  const transferPromises = selectedHajjis.map(hajjiId => {
+                    return updateHaji.mutateAsync({
+                      id: hajjiId,
+                      updates: {
+                        licenseId: transferFormData.toLicenseId
+                      }
+                    });
+                  });
+
+                  await Promise.all(transferPromises);
+
+                  Swal.fire({
+                    title: 'সফল!',
+                    text: `${selectedHajjis.length} টি হাজ্বী সফলভাবে স্থানান্তর করা হয়েছে।`,
+                    icon: 'success',
+                    confirmButtonText: 'ঠিক আছে',
+                    confirmButtonColor: '#10B981',
+                  });
+
+                  setIsTransferModalOpen(false);
+                  setTransferFormData({
+                    requestNumber: '',
+                    fromLicenseId: '',
+                    toLicenseId: '',
+                    status: 'প্রাক-নিবন্ধিত'
+                  });
+                  setSelectedHajjis([]);
+                } catch (error) {
+                  Swal.fire({
+                    title: 'ত্রুটি!',
+                    text: error.message || 'হাজ্বী স্থানান্তর করতে সমস্যা হয়েছে।',
+                    icon: 'error',
+                    confirmButtonText: 'ঠিক আছে',
+                    confirmButtonColor: '#EF4444',
+                  });
+                } finally {
+                  setTransferring(false);
+                }
+              }}
+              disabled={transferring || updateHaji.isPending}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
+              <span>{transferring || updateHaji.isPending ? 'ট্রান্সফার হচ্ছে...' : 'ট্রান্সফার করুন'}</span>
             </button>
           </ModalFooter>
         </form>

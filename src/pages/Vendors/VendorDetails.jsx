@@ -77,7 +77,7 @@ const VendorDetails = () => {
     }
 
     const totalBillAmount = vendorBills.reduce((sum, bill) => sum + (Number(bill.totalAmount) || 0), 0);
-    const totalPaid = vendorBills.reduce((sum, bill) => sum + (Number(bill.paidAmount || bill.amount) || 0), 0);
+    const totalPaid = vendorBills.reduce((sum, bill) => sum + (Number(bill.paidAmount) || 0), 0);
     const totalDue = Math.max(0, totalBillAmount - totalPaid); // Ensure non-negative
 
     return {
@@ -274,7 +274,7 @@ const VendorDetails = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {vendorBills.length > 0 
                   ? `${vendorBills.filter(b => {
-                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount || b.amount) || 0);
+                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount) || 0);
                       return due <= 0;
                     }).length} টি বিল পরিশোধিত`
                   : 'কোনো বিল নেই'}
@@ -297,7 +297,7 @@ const VendorDetails = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {vendorBills.length > 0 
                   ? `${vendorBills.filter(b => {
-                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount || b.amount) || 0);
+                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount) || 0);
                       return due > 0;
                     }).length} টি বিল বকেয়া`
                   : 'কোনো বিল নেই'}
@@ -540,7 +540,7 @@ const VendorDetails = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                       {vendorBills.map((bill) => {
-                        const dueAmount = (bill.totalAmount || 0) - (bill.paidAmount || bill.amount || 0);
+                        const dueAmount = (Number(bill.totalAmount) || 0) - (Number(bill.paidAmount) || 0);
                         return (
                           <tr key={bill._id || bill.billId} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
                             <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
@@ -553,7 +553,7 @@ const VendorDetails = () => {
                               {formatCurrency(bill.totalAmount || 0)}
                             </td>
                             <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
-                              {formatCurrency(bill.paidAmount || bill.amount || 0)}
+                              {formatCurrency(bill.paidAmount || 0)}
                             </td>
                             <td className="px-4 py-3 text-sm font-semibold text-red-600 dark:text-red-400">
                               {formatCurrency(dueAmount)}

@@ -15,7 +15,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Tag
+  Tag,
+  Edit
 } from 'lucide-react';
 import useEmployeeQueries from '../../hooks/useEmployeeQueries';
 
@@ -102,6 +103,13 @@ const EmployeeDetails = () => {
         >
           <ArrowLeft className="w-5 h-5" />
           ফিরে যান
+        </button>
+        <button
+          onClick={() => navigate(`/miraj-industries/employee/${id}/edit`)}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        >
+          <Edit className="w-4 h-4" />
+          সম্পাদনা করুন
         </button>
       </div>
 

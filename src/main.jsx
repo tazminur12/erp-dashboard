@@ -146,6 +146,7 @@ const ExpenseEditMI = React.lazy(() => import('./pages/MirajIndustries/ExpenseEd
 const IncomeEditMI = React.lazy(() => import('./pages/MirajIndustries/IncomeEdit'));
 const CattleDetails = React.lazy(() => import('./pages/MirajIndustries/CattleDetails'));
 const EmployeeDetails = React.lazy(() => import('./pages/MirajIndustries/EmployeeDetails'));
+const EditEmployeeMI = React.lazy(() => import('./pages/MirajIndustries/EditEmployee'));
 
 
 // Account pages
@@ -1156,6 +1157,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <EmployeeDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "employee/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditEmployeeMI />
           </Suspense>
         )
       },
