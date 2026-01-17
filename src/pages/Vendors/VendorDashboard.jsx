@@ -234,8 +234,8 @@ const VendorDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-xl flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
+            <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">ভেন্ডর ও পার্টনার ড্যাশবোর্ড</h1>
@@ -255,7 +255,7 @@ const VendorDashboard = () => {
           </button>
           <Link
             to="/vendors/add"
-            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 transition-colors"
           >
             <Plus className="w-4 h-4" /> ভেন্ডর যোগ করুন
           </Link>
@@ -271,6 +271,7 @@ const VendorDashboard = () => {
           trend="" 
           trendValue="" 
           trendType="neutral" 
+          iconColor="blue"
         />
         <CardWidget 
           title="মোট ভেন্ডর বিল" 
@@ -279,6 +280,7 @@ const VendorDashboard = () => {
           trend="" 
           trendValue="" 
           trendType="neutral" 
+          iconColor="gray"
         />
         <CardWidget 
           title="মোট বিল পরিমাণ" 
@@ -287,6 +289,7 @@ const VendorDashboard = () => {
           trend="" 
           trendValue="" 
           trendType="neutral" 
+          iconColor="orange"
         />
         <CardWidget 
           title="মোট পরিশোধিত" 
@@ -295,6 +298,8 @@ const VendorDashboard = () => {
           trend="" 
           trendValue="" 
           trendType="up" 
+          iconColor="green"
+          valueColor="text-green-600 dark:text-green-400"
         />
         <CardWidget 
           title="মোট বাকি" 
@@ -303,6 +308,8 @@ const VendorDashboard = () => {
           trend="" 
           trendValue="" 
           trendType="down" 
+          iconColor="red"
+          valueColor="text-red-600 dark:text-red-400"
         />
       </div>
 
@@ -369,7 +376,7 @@ const VendorDashboard = () => {
                 {vendorAnalytics.topLocations.map((location, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400">
                         {location.count || 0}
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{location.location || 'অজানা'}</div>
@@ -487,7 +494,7 @@ const VendorDashboard = () => {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-64 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      className="w-64 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       placeholder="ভেন্ডর খুঁজুন..."
                     />
                   </div>
@@ -495,7 +502,7 @@ const VendorDashboard = () => {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="all">সব স্ট্যাটাস</option>
                     <option value="active">সক্রিয়</option>
@@ -505,7 +512,7 @@ const VendorDashboard = () => {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="tradeName">নাম অনুযায়ী সাজান</option>
                   </select>
@@ -522,14 +529,14 @@ const VendorDashboard = () => {
                 <div key={vendor._id || vendor.vendorId} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                      <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                        <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Link 
                             to={`/vendors/${vendor._id || vendor.vendorId}`}
-                            className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400"
+                            className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           >
                             {vendor.tradeName}
                           </Link>
@@ -593,7 +600,7 @@ const VendorDashboard = () => {
               ) : byLocation.map((loc, idx) => (
                 <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center text-sm font-bold text-purple-700 dark:text-purple-400">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400">
                       {loc.count}
                     </div>
                     <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{loc._id || 'অজানা'}</div>
@@ -632,8 +639,8 @@ const VendorDashboard = () => {
                 </div>
               </Link>
               <button className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full">
-                <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <div className="w-10 h-10 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">রিপোর্ট তৈরি করুন</div>
@@ -654,7 +661,7 @@ const VendorDashboard = () => {
           <p className="text-gray-600 dark:text-gray-400 mb-4">বিস্তৃত ড্যাশবোর্ড ডেটা লোড করতে অক্ষম। অনুগ্রহ করে আপনার সংযোগ পরীক্ষা করুন এবং আবার চেষ্টা করুন।</p>
           <button 
             onClick={handleRefresh}
-            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2"
+            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 transition-colors"
           >
             <RefreshCw className="w-4 h-4" /> আবার চেষ্টা করুন
           </button>

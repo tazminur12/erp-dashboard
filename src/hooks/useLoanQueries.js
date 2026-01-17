@@ -16,32 +16,82 @@ export const loanKeys = {
 };
 
 // List all loans with optional filters: loanDirection, status
-export const useLoans = (filters = {}, page = 1, limit = 20) => {
+// Since backend doesn't have /loans endpoint, we fetch from both /loans/giving and /loans/receiving
+export const useLoans = (filters = {}, page = 1, limit = 20, options = {}) => {
   const axiosSecure = useAxiosSecure();
 
+  // Normalize filters - ensure it's always an object, not null
+  const normalizedFilters = filters && typeof filters === 'object' ? filters : {};
+
   return useQuery({
-    queryKey: loanKeys.list({ ...filters, page, limit }),
+    queryKey: loanKeys.list({ ...normalizedFilters, page, limit }),
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (filters.loanDirection) params.append('loanDirection', String(filters.loanDirection));
-      if (filters.status) params.append('status', String(filters.status));
-      if (filters.branchId) params.append('branchId', String(filters.branchId));
-      if (filters.search) params.append('search', String(filters.search));
-      if (page) params.append('page', String(page));
-      if (limit) params.append('limit', String(limit));
-
+      if (normalizedFilters.status) params.append('status', String(normalizedFilters.status));
+      if (normalizedFilters.branchId) params.append('branchId', String(normalizedFilters.branchId));
+      if (normalizedFilters.search) params.append('search', String(normalizedFilters.search));
+      if (normalizedFilters.customerId) params.append('customerId', String(normalizedFilters.customerId));
+      params.append('page', String(page));
+      params.append('limit', String(Math.ceil(limit / 2))); // Split limit between giving and receiving
+      
       const qs = params.toString();
-      const url = qs ? `/loans?${qs}` : '/loans';
-      const response = await axiosSecure.get(url);
-      const data = response?.data;
-      if (data?.success) {
-        return {
-          loans: data.loans || [],
-          pagination: data.pagination || { page, limit, total: 0, totalPages: 0 }
-        };
+      
+      // Fetch both giving and receiving loans in parallel
+      const [givingResponse, receivingResponse] = await Promise.all([
+        axiosSecure.get(`/loans/giving?${qs}`).catch(() => ({ data: { success: true, loans: [], pagination: { page, limit: 0, total: 0, totalPages: 0 } } })),
+        axiosSecure.get(`/loans/receiving?${qs}`).catch(() => ({ data: { success: true, loans: [], pagination: { page, limit: 0, total: 0, totalPages: 0 } } }))
+      ]);
+      
+      const givingData = givingResponse?.data;
+      const receivingData = receivingResponse?.data;
+      
+      const givingLoans = (givingData?.success && givingData?.loans) ? givingData.loans.map(loan => ({
+        ...loan,
+        loanDirection: 'giving',
+        direction: 'giving'
+      })) : [];
+      
+      const receivingLoans = (receivingData?.success && receivingData?.loans) ? receivingData.loans.map(loan => ({
+        ...loan,
+        loanDirection: 'receiving',
+        direction: 'receiving'
+      })) : [];
+      
+      // Combine loans and apply loanDirection filter if specified
+      let allLoans = [...givingLoans, ...receivingLoans];
+      if (normalizedFilters.loanDirection) {
+        allLoans = allLoans.filter(loan => 
+          (loan.loanDirection || loan.direction) === normalizedFilters.loanDirection
+        );
       }
-      return { loans: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+      
+      // Apply search filter client-side if backend doesn't support it
+      if (normalizedFilters.search && normalizedFilters.search.trim()) {
+        const searchTerm = normalizedFilters.search.toLowerCase().trim();
+        allLoans = allLoans.filter(loan => {
+          const name = (loan.customerName || loan.borrowerName || loan.fullName || loan.businessName || loan.tradeName || loan.ownerName || loan.name || '').toLowerCase();
+          const id = (loan.loanId || loan.id || loan._id || '').toString().toLowerCase();
+          return name.includes(searchTerm) || id.includes(searchTerm);
+        });
+      }
+      
+      // Combine pagination info
+      const givingPagination = givingData?.pagination || { total: 0 };
+      const receivingPagination = receivingData?.pagination || { total: 0 };
+      const totalCount = givingPagination.total + receivingPagination.total;
+      
+      return {
+        loans: allLoans,
+        data: allLoans, // Also return as 'data' for compatibility
+        pagination: {
+          page,
+          limit,
+          total: allLoans.length,
+          totalPages: Math.ceil(allLoans.length / limit)
+        }
+      };
     },
+    enabled: options.enabled !== false && normalizedFilters !== null,
     staleTime: 5 * 60 * 1000,
   });
 };

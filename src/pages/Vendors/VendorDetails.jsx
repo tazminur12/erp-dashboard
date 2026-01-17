@@ -12,7 +12,7 @@ import { useVendor, useVendorFinancials, useVendorBillsByVendor } from '../../ho
 
 const VendorDetails = () => {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState('financial'); // 'information', 'financial', 'bills' - Start with financial tab
+  const [activeTab, setActiveTab] = useState('bills'); // 'information', 'financial', 'bills' - Start with bills tab (default)
 
   // Use React Query hooks to fetch vendor data
   const { 
@@ -106,7 +106,7 @@ const VendorDetails = () => {
     return apiFinancial;
   }, [financialData, calculatedFinancials]);
 
-  const formatCurrency = (amount = 0) => `৳${Number(amount || 0).toLocaleString()}`;
+  const formatCurrency = (amount = 0) => `৳${Number(amount || 0).toLocaleString('bn-BD')}`;
 
   const recentTransactions = vendor?.recentActivity?.transactions || [];
   const recentBills = vendor?.recentActivity?.bills || [];
@@ -114,8 +114,8 @@ const VendorDetails = () => {
   const activityItems = useMemo(() => {
     const txItems = recentTransactions.map((tx, idx) => ({
       id: `tx-${tx.transactionId || idx}`,
-      title: tx.transactionType ? tx.transactionType.toUpperCase() : 'Transaction',
-      description: `${tx.reference || 'Ref'} • ${formatCurrency(tx.amount)}${tx.paymentMethod ? ` • ${tx.paymentMethod}` : ''}`,
+      title: tx.transactionType ? (tx.transactionType === 'credit' ? 'ক্রেডিট' : tx.transactionType === 'debit' ? 'ডেবিট' : tx.transactionType.toUpperCase()) : 'লেনদেন',
+      description: `${tx.reference || 'রেফারেন্স'} • ${formatCurrency(tx.amount)}${tx.paymentMethod ? ` • ${tx.paymentMethod}` : ''}`,
       time: tx.createdAt || tx.date || new Date().toISOString(),
       icon: tx.transactionType === 'debit' ? TrendingDown : TrendingUp,
       tone: tx.transactionType === 'debit' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
@@ -123,8 +123,8 @@ const VendorDetails = () => {
 
     const billItems = recentBills.map((bill, idx) => ({
       id: `bill-${bill.billId || idx}`,
-      title: bill.billType || 'Bill',
-      description: `${bill.billNumber || '—'} • ${formatCurrency(bill.totalAmount)} • Paid ${formatCurrency(bill.paidAmount)}`,
+      title: bill.billType || 'বিল',
+      description: `${bill.billNumber || '—'} • ${formatCurrency(bill.totalAmount)} • পরিশোধিত ${formatCurrency(bill.paidAmount)}`,
       time: bill.createdAt || bill.billDate || new Date().toISOString(),
       icon: Receipt,
       tone: 'text-purple-600 dark:text-purple-400',
@@ -154,7 +154,7 @@ const VendorDetails = () => {
         <div className="flex items-center justify-center h-64">
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            <div className="text-gray-500 dark:text-gray-400">Loading vendor details...</div>
+            <div className="text-gray-500 dark:text-gray-400">ভেন্ডর তথ্য লোড হচ্ছে...</div>
           </div>
         </div>
       </div>
@@ -167,9 +167,9 @@ const VendorDetails = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <div className="text-gray-500 dark:text-gray-400 text-lg">Vendor not found</div>
+            <div className="text-gray-500 dark:text-gray-400 text-lg">ভেন্ডর পাওয়া যায়নি</div>
             <Link to="/vendors" className="text-purple-600 hover:text-purple-700 mt-2 inline-block">
-              ← Back to Vendor List
+              ← ভেন্ডর তালিকায় ফিরে যান
             </Link>
           </div>
         </div>
@@ -221,21 +221,21 @@ const VendorDetails = () => {
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
             >
               <CreditCard className="w-4 h-4" />
-              Bank Accounts
+              ব্যাংক একাউন্ট
             </Link>
             <Link 
               to={`/vendors/${vendor._id || vendor.vendorId}/edit`} 
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
             >
               <Edit className="w-4 h-4" />
-              Edit Vendor
+              ভেন্ডর সম্পাদনা
             </Link>
             <Link 
               to="/vendors" 
               className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to List
+              তালিকায় ফিরে যান
             </Link>
           </div>
         </div>
@@ -251,7 +251,7 @@ const VendorDetails = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">ভেন্ডর বিল</p>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                ৳{calculatedFinancials.totalBillAmount.toLocaleString()}
+                ৳{calculatedFinancials.totalBillAmount.toLocaleString('bn-BD')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 মোট {vendorBills.length} টি বিল
@@ -269,7 +269,7 @@ const VendorDetails = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">পরিশোধ</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                ৳{calculatedFinancials.totalPaid.toLocaleString()}
+                ৳{calculatedFinancials.totalPaid.toLocaleString('bn-BD')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {vendorBills.length > 0 
@@ -292,7 +292,7 @@ const VendorDetails = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">বকেয়া</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                ৳{calculatedFinancials.totalDue.toLocaleString()}
+                ৳{calculatedFinancials.totalDue.toLocaleString('bn-BD')}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {vendorBills.length > 0 
@@ -452,7 +452,7 @@ const VendorDetails = () => {
                       <div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</div>
                         <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                          ৳{Number(financial.paidAmount || calculatedFinancials.totalPaid || 0).toLocaleString()}
+                          ৳{Number(financial.paidAmount || calculatedFinancials.totalPaid || 0).toLocaleString('bn-BD')}
                         </div>
                       </div>
                       <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -461,7 +461,7 @@ const VendorDetails = () => {
                       <div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">বকেয়া পরিমাণ</div>
                         <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                          ৳{Number(financial.outstandingAmount || calculatedFinancials.totalDue || 0).toLocaleString()}
+                          ৳{Number(financial.outstandingAmount || calculatedFinancials.totalDue || 0).toLocaleString('bn-BD')}
                         </div>
                       </div>
                       <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
@@ -470,7 +470,7 @@ const VendorDetails = () => {
                       <div>
                         <div className="text-sm text-gray-600 dark:text-gray-400">মোট বিল পরিমাণ</div>
                         <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                          ৳{Number(financial.totalAmount || calculatedFinancials.totalBillAmount || 0).toLocaleString()}
+                          ৳{Number(financial.totalAmount || calculatedFinancials.totalBillAmount || 0).toLocaleString('bn-BD')}
                         </div>
                       </div>
                       <Receipt className="w-8 h-8 text-blue-600 dark:text-blue-400" />
@@ -480,11 +480,11 @@ const VendorDetails = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                           <div className="text-xs text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</div>
-                          <div className="text-lg font-semibold text-red-600 dark:text-red-400">৳{Number(vendor?.hajDue ?? 0).toLocaleString()}</div>
+                          <div className="text-lg font-semibold text-red-600 dark:text-red-400">৳{Number(vendor?.hajDue ?? 0).toLocaleString('bn-BD')}</div>
                         </div>
                         <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
                           <div className="text-xs text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</div>
-                          <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">৳{Number(vendor?.umrahDue ?? 0).toLocaleString()}</div>
+                          <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">৳{Number(vendor?.umrahDue ?? 0).toLocaleString('bn-BD')}</div>
                         </div>
                       </div>
                     )}
@@ -492,7 +492,7 @@ const VendorDetails = () => {
                 <div className="space-y-4">
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div className="text-sm text-gray-600 dark:text-gray-400">ক্রেডিট লিমিট</div>
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">৳{Number(financial.creditLimit ?? 0).toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">৳{Number(financial.creditLimit ?? 0).toLocaleString('bn-BD')}</div>
                   </div>
                 </div>
                 </div>

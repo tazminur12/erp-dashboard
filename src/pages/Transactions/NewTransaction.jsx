@@ -397,10 +397,14 @@ const NewTransaction = () => {
   const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
 
   // Loans search list for the "Loans" selector tab
+  // Use effectiveSearchType if in step 3, otherwise use selectedSearchType
+  const shouldSearchLoans = (currentStep === 3 && formData.selectedCustomerType === 'loan') || 
+                            (currentStep !== 3 && selectedSearchType === 'loans');
   const { data: loansSearchData, isLoading: loansSearchLoading } = useLoans(
-    selectedSearchType === 'loans' && searchTerm ? { search: searchTerm } : {},
+    shouldSearchLoans ? (searchTerm ? { search: searchTerm } : {}) : {},
     1,
-    50
+    50,
+    { enabled: shouldSearchLoans }
   );
   const loansSearch = (loansSearchData && (loansSearchData.loans || loansSearchData.data || [])) || [];
   
@@ -3102,13 +3106,13 @@ const NewTransaction = () => {
                   <div className="max-w-4xl mx-auto">
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                       {[
-                        { value: 'airCustomer', label: 'এয়ার কাস্টমার', icon: '✈️', color: 'blue' },
-                        { value: 'vendor', label: 'ভেন্ডর', icon: '🏪', color: 'purple' },
+                        { value: 'airCustomer', label: 'এয়ার টিকেটিং', icon: '✈️', color: 'blue' },
+                        { value: 'vendor', label: 'ভেন্ডর ও পার্টনার', icon: '🏪', color: 'purple' },
                         { value: 'agent', label: 'এজেন্ট', icon: '👤', color: 'green' },
-                        { value: 'haji', label: 'হাজি', icon: '🕋', color: 'amber' },
+                        { value: 'haji', label: 'হজ্ব', icon: '🕋', color: 'amber' },
                         { value: 'umrah', label: 'উমরাহ', icon: '🕌', color: 'indigo' },
-                        { value: 'loan', label: 'ঋণ', icon: '💰', color: 'red' },
-                        { value: 'personalExpense', label: 'ব্যক্তিগত ব্যয়', icon: '💳', color: 'pink' },
+                        { value: 'loan', label: 'ঋণ ও স্বল্পমেয়াদী লেনদেন', icon: '💰', color: 'red' },
+                        { value: 'personalExpense', label: 'ব্যক্তিগত/ পারিবারিক', icon: '💳', color: 'pink' },
                         { value: 'mirajIndustries', label: 'মিরাজ ইন্ডাস্ট্রিজ', icon: '🏭', color: 'orange' },
                         { value: 'officeExpenses', label: 'অফিস ব্যয়', icon: '🏢', color: 'teal' },
                         { value: 'moneyExchange', label: 'মানি এক্সচেঞ্জ', icon: '💱', color: 'cyan' }
@@ -3306,21 +3310,21 @@ const NewTransaction = () => {
                     <input
                       type="text"
                       placeholder={
-                        selectedSearchType === 'airCustomer'
+                        effectiveSearchType === 'airCustomer'
                           ? 'এয়ার কাস্টমার খুঁজুন... (নাম/ফোন/ইমেইল)'
-                          : selectedSearchType === 'vendor'
+                          : effectiveSearchType === 'vendor'
                           ? 'ভেন্ডর খুঁজুন... (নাম/ফোন)'
-                          : selectedSearchType === 'agent'
+                          : effectiveSearchType === 'agent'
                           ? 'এজেন্ট খুঁজুন... (নাম/ফোন)'
-                          : selectedSearchType === 'haji'
+                          : effectiveSearchType === 'haji'
                           ? 'হাজি খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
-                          : selectedSearchType === 'umrah'
+                          : effectiveSearchType === 'umrah'
                           ? 'উমরাহ খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
-                          : selectedSearchType === 'loans'
+                          : effectiveSearchType === 'loans'
                           ? 'লোন খুঁজুন... (আইডি/নাম)'
-                          : selectedSearchType === 'office'
+                          : effectiveSearchType === 'office'
                           ? 'Office Expenses – ক্যাটাগরি আইডি/নাম খুঁজুন'
-                          : selectedSearchType === 'moneyExchange'
+                          : effectiveSearchType === 'moneyExchange'
                           ? 'মানি এক্সচেঞ্জ আইডি/নাম খুঁজুন'
                           : 'Miraj Industries – ক্যাটাগরি/অপশন খুঁজুন'
                       }
@@ -3951,10 +3955,11 @@ const NewTransaction = () => {
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                         {effectiveSearchType === 'airCustomer' ? (searchTerm ? 'কোন এয়ার কাস্টমার পাওয়া যায়নি' : 'কোন এয়ার কাস্টমার নেই') : 
-                         effectiveSearchType === 'vendor' ? 'কোন ভেন্ডর পাওয়া যায়নি' : 
-                         effectiveSearchType === 'agent' ? 'কোন এজেন্ট পাওয়া যায়নি' :
+                         effectiveSearchType === 'vendor' ? (searchTerm ? 'কোন ভেন্ডর পাওয়া যায়নি' : 'কোন ভেন্ডর নেই') : 
+                         effectiveSearchType === 'agent' ? (searchTerm ? 'কোন এজেন্ট পাওয়া যায়নি' : 'কোন এজেন্ট নেই') :
                          effectiveSearchType === 'haji' ? (searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই') :
                           effectiveSearchType === 'umrah' ? (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই') :
+                          effectiveSearchType === 'loans' ? (searchTerm ? 'কোন লোন পাওয়া যায়নি' : 'কোন লোন নেই') :
                           effectiveSearchType === 'moneyExchange' ? (exchangeTypeFilter ? 'কোন মানি এক্সচেঞ্জ ডেটা নেই' : 'লেনদেনের ধরন নির্বাচন করুন') :
                          'কোন ডেটা নেই'}
                       </div>
@@ -4274,7 +4279,7 @@ const NewTransaction = () => {
                             {formData.customerName} - ব্যালেন্স তথ্য
                           </h3>
                           
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                             {/* Total Amount */}
                             <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
                               <div className="flex items-center justify-between">
@@ -4331,37 +4336,6 @@ const NewTransaction = () => {
                                 </div>
                               </div>
                             </div>
-
-                            {/* Hajj/Umrah Due */}
-                            {formData.customerType === 'haji' ? (
-                              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</p>
-                                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                                      ৳{Number(hajjiDetail?.hajjDue || 0).toLocaleString('bn-BD')}
-                                    </p>
-                                  </div>
-                                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
-                                    <Building className="w-6 h-6 text-red-600" />
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</p>
-                                    <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                                      ৳{Number(umrahDetail?.due || umrahDetail?.displayDue || 0).toLocaleString('bn-BD')}
-                                    </p>
-                                  </div>
-                                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                                    <Calendar className="w-6 h-6 text-purple-600" />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                           </div>
 
                           {/* Family Summary for Hajji */}
