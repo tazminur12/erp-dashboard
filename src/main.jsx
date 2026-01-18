@@ -183,6 +183,11 @@ const FlyOvalAudit = React.lazy(() => import('./pages/FlyOval').then(module => (
 const FlyovalTransaction = React.lazy(() => import('./pages/FlyOval/FlyovalTransaction'));
 const FlyOvalCustomers = React.lazy(() => import('./pages/FlyOval/Customers'));
 const AddFlyOvalCustomer = React.lazy(() => import('./pages/FlyOval/AddCustomer'));
+const FlyOvalCustomerDetails = React.lazy(() => import('./pages/FlyOval/CustomerDetails'));
+const FlyOvalAccountList = React.lazy(() => import('./pages/FlyOval/Account/FlyOvalAccountList'));
+const AddFlyOvalAccount = React.lazy(() => import('./pages/FlyOval/Account/AddFlyOvalAccount'));
+const FlyOvalAccountDetails = React.lazy(() => import('./pages/FlyOval/Account/FlyOvalAccountDetails'));
+const EditFlyOvalAccount = React.lazy(() => import('./pages/FlyOval/Account/EditFlyOvalAccount'));
 
 // Excel Upload page
 const ExcelUploadPage = React.lazy(() => import('./pages/ExcelUpload/ExcelUploadPage'));
@@ -1439,6 +1444,46 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <AddFlyOvalCustomer />
+          </Suspense>
+        )
+      },
+      {
+        path: "customers/details/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalCustomerDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "account",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalAccountList />
+          </Suspense>
+        )
+      },
+      {
+        path: "account/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddFlyOvalAccount />
+          </Suspense>
+        )
+      },
+      {
+        path: "account/details/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FlyOvalAccountDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "account/edit/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditFlyOvalAccount />
           </Suspense>
         )
       }

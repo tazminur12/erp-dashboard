@@ -104,6 +104,31 @@ nav > div > button > span {
   font-family: 'Google Sans', sans-serif !important;
 }
 
+/* FlyOval Customer Pages - Google Sans for all text */
+[class*="FlyOval"] [class*="Customer"],
+[class*="AddCustomer"],
+[class*="Customers"] {
+  font-family: 'Google Sans', sans-serif !important;
+}
+
+/* Ensure all FlyOval Customer page elements use Google Sans */
+.fly-oval-customer-page,
+.fly-oval-customer-page *,
+.fly-oval-customer-page input,
+.fly-oval-customer-page button,
+.fly-oval-customer-page select,
+.fly-oval-customer-page textarea,
+.fly-oval-customer-page label,
+.fly-oval-customer-page span,
+.fly-oval-customer-page p,
+.fly-oval-customer-page h1,
+.fly-oval-customer-page h2,
+.fly-oval-customer-page h3,
+.fly-oval-customer-page h4,
+.fly-oval-customer-page div {
+  font-family: 'Google Sans', sans-serif !important;
+}
+
 /* Custom Sidebar Scrollbar */
 .sidebar-scrollbar {
   scrollbar-width: thin;

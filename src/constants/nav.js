@@ -229,6 +229,7 @@ export const navigation = [
       { name: 'Transactions', href: '/fly-oval/transaction', icon: CreditCard },
       { name: 'Customers', href: '/fly-oval/customers', icon: Users },
       { name: 'Agent List', href: '/fly-oval/agents', icon: Users },
+      { name: 'Account', href: '/fly-oval/account', icon: User },
       { name: 'TopUp History', href: '/fly-oval/topup-history', icon: TrendingUp },
       { name: 'Ledger', href: '/fly-oval/ledger', icon: BookOpen },
       { name: 'Reports', href: '/fly-oval/reports', icon: BarChart3 },

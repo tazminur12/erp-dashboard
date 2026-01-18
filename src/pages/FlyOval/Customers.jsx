@@ -432,8 +432,7 @@ const Customers = () => {
   };
 
   const handleViewCustomer = (customer) => {
-    setSelectedCustomer(customer);
-    setShowViewModal(true);
+    navigate(`/fly-oval/customers/details/${customer.id}`);
   };
 
   const handleDeleteCustomer = (customer) => {
@@ -514,34 +513,35 @@ const Customers = () => {
   };
 
   return (
-    <div className="space-y-6 p-3 sm:p-4 lg:p-6">
+    <div className="space-y-6 p-3 sm:p-4 lg:p-6 font-english fly-oval-customer-page" style={{ fontFamily: "'Google Sans', sans-serif" }}>
       <Helmet>
         <title>Customers - Fly Oval Limited</title>
       </Helmet>
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between space-y-4 sm:space-y-0" style={{ fontFamily: "'Google Sans', sans-serif" }}>
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
             <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>
               Customers
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400" style={{ fontFamily: "'Google Sans', sans-serif" }}>
               Manage B2B and B2C customers for Fly Oval Limited
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+        <div className="flex items-center space-x-3" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+          <button className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700" style={{ fontFamily: "'Google Sans', sans-serif" }}>
             <Download className="w-4 h-4" />
             <span>Export</span>
           </button>
           <button 
             onClick={() => setShowExcelUploader(true)}
             className="flex items-center space-x-2 px-4 py-2 text-green-600 dark:text-green-400 border border-green-300 dark:border-green-600 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+            style={{ fontFamily: "'Google Sans', sans-serif" }}
           >
             <Upload className="w-4 h-4" />
             <span>Upload Excel</span>
@@ -549,6 +549,7 @@ const Customers = () => {
           <button 
             onClick={handleAddCustomer}
             className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            style={{ fontFamily: "'Google Sans', sans-serif" }}
           >
             <Plus className="w-4 h-4" />
             <span>Add Customer</span>
@@ -557,8 +558,8 @@ const Customers = () => {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex space-x-8">
+      <div className="border-b border-gray-200 dark:border-gray-700" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+        <nav className="flex space-x-8" style={{ fontFamily: "'Google Sans', sans-serif" }}>
           <button
             onClick={() => setActiveTab('B2B')}
             className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -566,6 +567,7 @@ const Customers = () => {
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
+            style={{ fontFamily: "'Google Sans', sans-serif" }}
           >
             <div className="flex items-center space-x-2">
               <Building2 className="w-4 h-4" />
@@ -582,6 +584,7 @@ const Customers = () => {
                 ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
             }`}
+            style={{ fontFamily: "'Google Sans', sans-serif" }}
           >
             <div className="flex items-center space-x-2">
               <User className="w-4 h-4" />
@@ -623,7 +626,7 @@ const Customers = () => {
       </div>
 
       {/* Search Bar */}
-      <div className="flex items-center space-x-3">
+      <div className="flex items-center space-x-3" style={{ fontFamily: "'Google Sans', sans-serif" }}>
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
@@ -632,6 +635,7 @@ const Customers = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+            style={{ fontFamily: "'Google Sans', sans-serif" }}
           />
         </div>
       </div>

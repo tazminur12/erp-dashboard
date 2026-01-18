@@ -237,17 +237,18 @@ const AddCustomer = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 font-english fly-oval-customer-page" style={{ fontFamily: "'Google Sans', sans-serif" }}>
       <Helmet>
         <title>Add Customer - Fly Oval Limited</title>
       </Helmet>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8" style={{ fontFamily: "'Google Sans', sans-serif" }}>
         {/* Header */}
         <div className="mb-6">
           <button
             onClick={() => navigate('/fly-oval/customers')}
             className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4"
+            style={{ fontFamily: "'Google Sans', sans-serif" }}
           >
             <ArrowLeft className="w-5 h-5 mr-2" />
             Back to Customers
@@ -257,16 +258,16 @@ const AddCustomer = () => {
               <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Add Customer</h1>
-              <p className="text-gray-600 dark:text-gray-400">Create a new B2B or B2C customer</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white" style={{ fontFamily: "'Google Sans', sans-serif" }}>Add Customer</h1>
+              <p className="text-gray-600 dark:text-gray-400" style={{ fontFamily: "'Google Sans', sans-serif" }}>Create a new B2B or B2C customer</p>
             </div>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm mb-6" style={{ fontFamily: "'Google Sans', sans-serif" }}>
           <div className="border-b border-gray-200 dark:border-gray-700">
-            <nav className="flex space-x-8 px-6">
+            <nav className="flex space-x-8 px-6" style={{ fontFamily: "'Google Sans', sans-serif" }}>
               <button
                 onClick={() => {
                   setActiveTab('B2B');
@@ -277,6 +278,7 @@ const AddCustomer = () => {
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
               >
                 <div className="flex items-center space-x-2">
                   <Building2 className="w-4 h-4" />
@@ -293,6 +295,7 @@ const AddCustomer = () => {
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
               >
                 <div className="flex items-center space-x-2">
                   <User className="w-4 h-4" />
@@ -303,12 +306,12 @@ const AddCustomer = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-5 sm:p-6 md:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+          <form onSubmit={handleSubmit} className="p-5 sm:p-6 md:p-8" style={{ fontFamily: "'Google Sans', sans-serif" }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6" style={{ fontFamily: "'Google Sans', sans-serif" }}>
               {activeTab === 'B2B' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                       Agent ID <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -322,14 +325,15 @@ const AddCustomer = () => {
                       }`}
                       placeholder="Enter agent ID"
                       autoComplete="off"
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
                     />
                     {hasError('agentId') && (
-                      <p className="mt-1 text-sm text-red-600">{errors.agentId}</p>
+                      <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.agentId}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                       Agency Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -343,14 +347,15 @@ const AddCustomer = () => {
                       }`}
                       placeholder="Enter agency name"
                       autoComplete="organization"
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
                     />
                     {hasError('agencyName') && (
-                      <p className="mt-1 text-sm text-red-600">{errors.agencyName}</p>
+                      <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.agencyName}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                       Owner's Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -364,16 +369,17 @@ const AddCustomer = () => {
                       }`}
                       placeholder="Enter owner's name"
                       autoComplete="name"
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
                     />
                     {hasError('ownersName') && (
-                      <p className="mt-1 text-sm text-red-600">{errors.ownersName}</p>
+                      <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.ownersName}</p>
                     )}
                   </div>
                 </>
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                       Customer ID <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -387,14 +393,15 @@ const AddCustomer = () => {
                       }`}
                       placeholder="Enter customer ID"
                       autoComplete="off"
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
                     />
                     {hasError('customerId') && (
-                      <p className="mt-1 text-sm text-red-600">{errors.customerId}</p>
+                      <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.customerId}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                       First Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -408,14 +415,15 @@ const AddCustomer = () => {
                       }`}
                       placeholder="Enter first name"
                       autoComplete="given-name"
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
                     />
                     {hasError('firstName') && (
-                      <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                      <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.firstName}</p>
                     )}
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                       Last Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -429,9 +437,10 @@ const AddCustomer = () => {
                       }`}
                       placeholder="Enter last name"
                       autoComplete="family-name"
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
                     />
                     {hasError('lastName') && (
-                      <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                      <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.lastName}</p>
                     )}
                   </div>
                 </>
@@ -439,7 +448,7 @@ const AddCustomer = () => {
 
               {/* Common fields */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                   Email <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -453,14 +462,15 @@ const AddCustomer = () => {
                   }`}
                   placeholder="Enter email address"
                   autoComplete="email"
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 />
                 {hasError('email') && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.email}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                   Contact No <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -474,14 +484,15 @@ const AddCustomer = () => {
                   }`}
                   placeholder="Enter contact number"
                   autoComplete="tel"
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 />
                 {hasError('contactNo') && (
-                  <p className="mt-1 text-sm text-red-600">{errors.contactNo}</p>
+                  <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.contactNo}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                   Division <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -492,6 +503,7 @@ const AddCustomer = () => {
                   className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     hasError('division') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
                   }`}
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 >
                   <option value="">Select Division</option>
                   {divisionOptions.map((division) => (
@@ -501,12 +513,12 @@ const AddCustomer = () => {
                   ))}
                 </select>
                 {hasError('division') && (
-                  <p className="mt-1 text-sm text-red-600">{errors.division}</p>
+                  <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.division}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                   District <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -518,6 +530,7 @@ const AddCustomer = () => {
                   className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     hasError('district') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
                   } ${!form.division ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 >
                   <option value="">Select District</option>
                   {districtOptions.map((district) => (
@@ -527,12 +540,12 @@ const AddCustomer = () => {
                   ))}
                 </select>
                 {hasError('district') && (
-                  <p className="mt-1 text-sm text-red-600">{errors.district}</p>
+                  <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.district}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                   Upazila <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -544,6 +557,7 @@ const AddCustomer = () => {
                   className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                     hasError('upazila') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'
                   } ${!form.district ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 >
                   <option value="">Select Upazila</option>
                   {upazilaOptions.map((upazila) => (
@@ -553,12 +567,12 @@ const AddCustomer = () => {
                   ))}
                 </select>
                 {hasError('upazila') && (
-                  <p className="mt-1 text-sm text-red-600">{errors.upazila}</p>
+                  <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.upazila}</p>
                 )}
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                   Address <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -572,14 +586,15 @@ const AddCustomer = () => {
                   }`}
                   placeholder="Enter full address"
                   autoComplete="street-address"
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 />
                 {hasError('address') && (
-                  <p className="mt-1 text-sm text-red-600">{errors.address}</p>
+                  <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.address}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" style={{ fontFamily: "'Google Sans', sans-serif" }}>
                   ZIP Code
                 </label>
                 <input
@@ -593,19 +608,21 @@ const AddCustomer = () => {
                   }`}
                   placeholder="Enter ZIP code"
                   autoComplete="postal-code"
+                  style={{ fontFamily: "'Google Sans', sans-serif" }}
                 />
                 {hasError('zipCode') && (
-                  <p className="mt-1 text-sm text-red-600">{errors.zipCode}</p>
+                  <p className="mt-1 text-sm text-red-600" style={{ fontFamily: "'Google Sans', sans-serif" }}>{errors.zipCode}</p>
                 )}
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end space-x-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-end space-x-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700" style={{ fontFamily: "'Google Sans', sans-serif" }}>
               <button
                 type="button"
                 onClick={handleCancel}
                 className="px-5 py-2.5 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
               >
                 Cancel
               </button>
@@ -613,6 +630,7 @@ const AddCustomer = () => {
                 type="button"
                 onClick={handleReset}
                 className="px-5 py-2.5 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center space-x-2"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
               >
                 <RotateCcw className="w-4 h-4" />
                 <span>Reset</span>
@@ -621,6 +639,7 @@ const AddCustomer = () => {
                 type="submit"
                 disabled={submitting}
                 className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                style={{ fontFamily: "'Google Sans', sans-serif" }}
               >
                 {submitting ? (
                   <>
