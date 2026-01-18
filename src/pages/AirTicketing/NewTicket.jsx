@@ -20,12 +20,23 @@ import {
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import { useCreateAirTicket } from '../../hooks/useAirTicketQueries';
+import { useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 
 const NewTicket = () => {
   const navigate = useNavigate();
   const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
   const createTicketMutation = useCreateAirTicket();
+  
+  // Get today's date in YYYY-MM-DD format for default value
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   
   const [formData, setFormData] = useState({
     customerId: '',
@@ -33,7 +44,7 @@ const NewTicket = () => {
     customerPhone: '',
     tripType: 'oneway',
     flightType: 'domestic', // International or Domestic
-    date: '',
+    date: getTodayDate(),
     bookingId: '',
     gdsPnr: '',
     airlinePnr: '',
@@ -904,7 +915,93 @@ const NewTicket = () => {
 
       // Create ticket using mutation
       console.log('Calling mutation with ticketData:', ticketData);
-      await createTicketMutation.mutateAsync(ticketData);
+      const ticketResponse = await createTicketMutation.mutateAsync(ticketData);
+      const createdTicket = ticketResponse?.ticket || ticketResponse?.data?.ticket;
+
+      // If vendor is selected, create a vendor bill automatically
+      if (formData.vendorId && formData.vendorId.trim() !== '') {
+        try {
+          const billData = {
+            vendorId: formData.vendorId,
+            vendorName: formData.vendor || '',
+            billType: 'air-ticket',
+            billDate: formData.date || getTodayDate(),
+            billNumber: formData.bookingId || createdTicket?.ticketId || createdTicket?.bookingId || '',
+            description: `এয়ার টিকিট: ${formData.origin || ''} → ${formData.destination || ''} | ${formData.airline || ''}`,
+            totalAmount: toNumber(formData.vendorAmount),
+            amount: toNumber(formData.vendorAmount),
+            paidAmount: toNumber(formData.vendorPaidFh),
+            paymentStatus: toNumber(formData.vendorPaidFh) >= toNumber(formData.vendorAmount) ? 'paid' : 'pending',
+            dueDate: formData.dueDate || '',
+            notes: `Ticket ID: ${createdTicket?.ticketId || createdTicket?.bookingId || 'N/A'} | Booking ID: ${formData.bookingId || 'N/A'}`,
+            // Air ticket specific fields
+            tripType: formData.tripType || 'oneway',
+            flightType: formData.flightType || 'domestic',
+            bookingId: formData.bookingId || '',
+            gdsPnr: formData.gdsPnr || '',
+            airlinePnr: formData.airlinePnr || '',
+            airline: formData.airline || '',
+            origin: formData.origin || '',
+            destination: formData.destination || '',
+            flightDate: formData.flightDate || '',
+            returnDate: formData.returnDate || '',
+            segments: Array.isArray(formData.segments) ? formData.segments : [],
+            agent: formData.agent || '',
+            purposeType: formData.purposeType || '',
+            adultCount: toNumber(formData.adultCount),
+            childCount: toNumber(formData.childCount),
+            infantCount: toNumber(formData.infantCount),
+            customerDeal: toNumber(formData.customerDeal),
+            customerPaid: toNumber(formData.customerPaid),
+            customerDue: toNumber(formData.customerDue),
+            baseFare: toNumber(formData.baseFare),
+            taxBD: toNumber(formData.taxBD),
+            e5: toNumber(formData.e5),
+            e7: toNumber(formData.e7),
+            g8: toNumber(formData.g8),
+            ow: toNumber(formData.ow),
+            p7: toNumber(formData.p7),
+            p8: toNumber(formData.p8),
+            ts: toNumber(formData.ts),
+            ut: toNumber(formData.ut),
+            yq: toNumber(formData.yq),
+            taxes: toNumber(formData.taxes),
+            totalTaxes: toNumber(formData.totalTaxes),
+            ait: toNumber(formData.ait),
+            commissionRate: toNumber(formData.commissionRate),
+            plb: toNumber(formData.plb),
+            salmaAirServiceCharge: toNumber(formData.salmaAirServiceCharge),
+            vendorServiceCharge: toNumber(formData.vendorServiceCharge),
+            vendorAmount: toNumber(formData.vendorAmount),
+            vendorPaidFh: toNumber(formData.vendorPaidFh),
+            vendorDue: toNumber(formData.vendorDue),
+            profit: toNumber(formData.profit),
+            segmentCount: toNumber(formData.segmentCount) || 1,
+            flownSegment: Boolean(formData.flownSegment),
+            // Reference to ticket
+            ticketId: createdTicket?.ticketId || createdTicket?._id || '',
+            ticketReference: createdTicket?.ticketId || createdTicket?.bookingId || formData.bookingId || ''
+          };
+
+          // Create vendor bill directly via API (without showing SweetAlert)
+          const billResponse = await axiosSecure.post('/vendors/bills', billData);
+          
+          if (billResponse.data.success) {
+            // Invalidate vendor queries to refresh data (silently, no alert)
+            queryClient.invalidateQueries({ queryKey: ['vendors'] });
+            queryClient.invalidateQueries({ queryKey: ['vendor-bills'] });
+            if (formData.vendorId) {
+              queryClient.invalidateQueries({ queryKey: ['vendors', formData.vendorId, 'bills'] });
+              queryClient.invalidateQueries({ queryKey: ['vendors', formData.vendorId] });
+            }
+            console.log('Vendor bill created successfully for ticket');
+          }
+        } catch (billError) {
+          console.error('Error creating vendor bill:', billError);
+          // Don't fail the ticket creation if bill creation fails
+          // Just log the error silently - ticket is already created
+        }
+      }
 
       setSuccess('Booking saved successfully!');
       
@@ -916,7 +1013,7 @@ const NewTicket = () => {
           customerPhone: '',
           tripType: 'oneway',
           flightType: 'domestic',
-          date: '',
+          date: getTodayDate(),
           bookingId: '',
           gdsPnr: '',
           airlinePnr: '',
@@ -1057,8 +1154,89 @@ const NewTicket = () => {
     });
   };
 
+  // Step-specific validation functions
+  const validateStep = (step) => {
+    const errors = [];
+    
+    if (step === 1) {
+      // Step 1: Customer Information
+      if (!formData.customerId) {
+        errors.push('গ্রাহক নির্বাচন করুন');
+      }
+    } else if (step === 2) {
+      // Step 2: Flight Information
+      if (!formData.date) {
+        errors.push('বিক্রয় তারিখ নির্বাচন করুন');
+      }
+      if (!formData.airline) {
+        errors.push('এয়ারলাইন নির্বাচন করুন');
+      }
+      
+      if (formData.tripType === 'multicity') {
+        if (!formData.segments || formData.segments.length < 2) {
+          errors.push('অন্তত ২টি সেগমেন্ট যোগ করুন');
+        } else {
+          formData.segments.forEach((seg, idx) => {
+            if (!seg.origin || !seg.destination || !seg.date) {
+              errors.push(`সেগমেন্ট ${idx + 1}: উৎপত্তি, গন্তব্য এবং তারিখ পূরণ করুন`);
+            }
+          });
+        }
+      } else {
+        if (!formData.origin) {
+          errors.push('উৎপত্তি স্থান (Origin) প্রয়োজন');
+        }
+        if (!formData.destination) {
+          errors.push('গন্তব্য স্থান (Destination) প্রয়োজন');
+        }
+        if (!formData.flightDate) {
+          errors.push('ফ্লাইট তারিখ প্রয়োজন');
+        }
+        if (formData.tripType === 'roundtrip' && !formData.returnDate) {
+          errors.push('রিটার্ন তারিখ প্রয়োজন (Round Trip এর জন্য)');
+        }
+      }
+    }
+    // Steps 3, 4, 5 have no required fields
+    
+    return errors;
+  };
+
   // Step navigation functions
   const nextStep = () => {
+    // Validate current step before moving forward
+    const stepErrors = validateStep(currentStep);
+    
+    if (stepErrors.length > 0) {
+      // Mark all fields as touched for the current step
+      if (currentStep === 1) {
+        markTouched('customerId');
+      } else if (currentStep === 2) {
+        markTouched('date');
+        markTouched('airline');
+        markTouched('origin');
+        markTouched('destination');
+        markTouched('flightDate');
+        markTouched('returnDate');
+      }
+      
+      // Update validation errors
+      const errs = validate(formData);
+      setValidationErrors(errs);
+      
+      // Show SweetAlert with errors
+      Swal.fire({
+        title: 'আবশ্যক তথ্য অনুপস্থিত!',
+        html: `অনুগ্রহ করে নিম্নলিখিত তথ্যগুলো পূরণ করুন:<br><br>${stepErrors.map(err => `• ${err}`).join('<br>')}`,
+        icon: 'warning',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      
+      return; // Don't proceed to next step
+    }
+    
+    // If validation passes, proceed to next step
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1074,6 +1252,44 @@ const NewTicket = () => {
 
   const goToStep = (step) => {
     if (step >= 1 && step <= totalSteps) {
+      // Only allow going to previous steps or current step
+      // For forward steps, validate all previous steps first
+      if (step > currentStep) {
+        // Validate all steps from current to target step
+        for (let s = currentStep; s < step; s++) {
+          const stepErrors = validateStep(s);
+          if (stepErrors.length > 0) {
+            // Mark fields as touched
+            if (s === 1) {
+              markTouched('customerId');
+            } else if (s === 2) {
+              markTouched('date');
+              markTouched('airline');
+              markTouched('origin');
+              markTouched('destination');
+              markTouched('flightDate');
+              markTouched('returnDate');
+            }
+            
+            // Update validation errors
+            const errs = validate(formData);
+            setValidationErrors(errs);
+            
+            // Show SweetAlert with errors
+            Swal.fire({
+              title: 'আবশ্যক তথ্য অনুপস্থিত!',
+              html: `স্টেপ ${s} এ নিম্নলিখিত তথ্যগুলো পূরণ করুন:<br><br>${stepErrors.map(err => `• ${err}`).join('<br>')}`,
+              icon: 'warning',
+              confirmButtonText: 'ঠিক আছে',
+              confirmButtonColor: '#EF4444',
+            });
+            
+            return; // Don't proceed
+          }
+        }
+      }
+      
+      // If validation passes or going backwards, proceed
       setCurrentStep(step);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }

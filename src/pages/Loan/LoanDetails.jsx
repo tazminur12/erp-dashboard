@@ -30,6 +30,34 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
+// Convert Arabic numerals to Bengali numerals
+const toBengaliNumeral = (num) => {
+  if (num === null || num === undefined || num === '...') return num;
+  
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const numStr = String(num);
+  
+  // If it's a formatted number with commas, preserve the commas
+  if (numStr.includes(',')) {
+    return numStr.split(',').map(part => {
+      return part.split('').map(char => {
+        if (char >= '0' && char <= '9') {
+          return bengaliDigits[parseInt(char)];
+        }
+        return char;
+      }).join('');
+    }).join(',');
+  }
+  
+  // Convert each digit (only Arabic digits 0-9, leave other characters unchanged)
+  return numStr.split('').map(char => {
+    if (char >= '0' && char <= '9') {
+      return bengaliDigits[parseInt(char)];
+    }
+    return char;
+  }).join('');
+};
+
 const LoanDetails = () => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
@@ -110,11 +138,15 @@ const LoanDetails = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-BD', {
+    const formatted = new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0
     }).format(amount || 0);
+    // Convert the numeric part to Bengali numerals, keep the currency symbol
+    return formatted.replace(/([৳\s])([\d,]+)/g, (match, symbol, numbers) => {
+      return symbol + toBengaliNumeral(numbers);
+    });
   };
 
   const formatDate = (date) => {
@@ -632,7 +664,7 @@ const LoanDetails = () => {
                   পরিশোধের অগ্রগতি
                 </h3>
                 <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-                  {progressPercentage.toFixed(1)}%
+                  {toBengaliNumeral(progressPercentage.toFixed(1))}%
                 </span>
               </div>
               
@@ -674,7 +706,7 @@ const LoanDetails = () => {
                     লেনদেনের ইতিহাস
                   </h3>
                   <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-semibold">
-                    {transactionSummary.count} টি
+                    {toBengaliNumeral(transactionSummary.count)} টি
                   </span>
                 </div>
                 

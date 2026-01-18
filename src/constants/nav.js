@@ -296,7 +296,8 @@ export const navigation = [
     children: [
       { name: 'Dashboard', href: '/money-exchange/dashboard', icon: LayoutDashboard },
       { name: 'New Exchange', href: '/money-exchange/new', icon: Plus },
-      { name: 'List', href: '/money-exchange/list', icon: List }
+      { name: 'List', href: '/money-exchange/list', icon: List },
+      { name: 'Dilar List', href: '/money-exchange/dilar-list', icon: List }
     ]
   },
   {

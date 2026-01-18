@@ -19,6 +19,34 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { useReceivingLoans, useDeleteReceivingLoan } from '../../hooks/useLoanQueries';
 
+// Convert Arabic numerals to Bengali numerals
+const toBengaliNumeral = (num) => {
+  if (num === null || num === undefined || num === '...') return num;
+  
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const numStr = String(num);
+  
+  // If it's a formatted number with commas, preserve the commas
+  if (numStr.includes(',')) {
+    return numStr.split(',').map(part => {
+      return part.split('').map(char => {
+        if (char >= '0' && char <= '9') {
+          return bengaliDigits[parseInt(char)];
+        }
+        return char;
+      }).join('');
+    }).join(',');
+  }
+  
+  // Convert each digit (only Arabic digits 0-9, leave other characters unchanged)
+  return numStr.split('').map(char => {
+    if (char >= '0' && char <= '9') {
+      return bengaliDigits[parseInt(char)];
+    }
+    return char;
+  }).join('');
+};
+
 const ReceivingList = () => {
   const { isDark } = useTheme();
   const { userProfile } = useAuth();
@@ -78,11 +106,15 @@ const ReceivingList = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-BD', {
+    const formatted = new Intl.NumberFormat('en-BD', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 0
     }).format(amount);
+    // Convert the numeric part to Bengali numerals, keep the currency symbol
+    return formatted.replace(/([৳\s])([\d,]+)/g, (match, symbol, numbers) => {
+      return symbol + toBengaliNumeral(numbers);
+    });
   };
 
   const handleViewLoan = (loan) => {
@@ -234,7 +266,7 @@ const ReceivingList = () => {
               <span className={`text-sm font-medium ${
                 isDark ? 'text-gray-300' : 'text-gray-600'
               }`}>
-                {pagination.total || loans.length} টি ঋণ পাওয়া গেছে
+                {toBengaliNumeral(pagination.total || loans.length)} টি ঋণ পাওয়া গেছে
               </span>
             </div>
           </div>

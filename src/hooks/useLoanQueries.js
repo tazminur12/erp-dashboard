@@ -171,7 +171,8 @@ export const useLoan = (loanId) => {
       return null;
     },
     enabled: !!loanId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // Always consider data stale to refetch on mount
+    refetchOnMount: 'always', // Always refetch when component mounts
     retry: (failureCount, error) => {
       if (error?.response?.status === 404) return false;
       return failureCount < 2;
@@ -198,7 +199,8 @@ export const useGivingLoan = (loanId) => {
       return null;
     },
     enabled: !!loanId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // Always consider data stale to refetch on mount
+    refetchOnMount: 'always', // Always refetch when component mounts
     retry: (failureCount, error) => {
       if (error?.response?.status === 404) return false;
       return failureCount < 2;
@@ -225,7 +227,8 @@ export const useReceivingLoan = (loanId) => {
       return null;
     },
     enabled: !!loanId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // Always consider data stale to refetch on mount
+    refetchOnMount: 'always', // Always refetch when component mounts
     retry: (failureCount, error) => {
       if (error?.response?.status === 404) return false;
       return failureCount < 2;

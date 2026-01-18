@@ -7,12 +7,15 @@ import {
   Briefcase, Globe, Mail, Hash, Calendar as CalendarIcon, Star, Loader2
 } from 'lucide-react';
 import { useVendor, useVendorFinancials, useVendorBillsByVendor } from '../../hooks/useVendorQueries';
+import { useTransactions } from '../../hooks/useTransactionQueries';
 
 
 
 const VendorDetails = () => {
   const { id } = useParams();
-  const [activeTab, setActiveTab] = useState('bills'); // 'information', 'financial', 'bills' - Start with bills tab (default)
+  const [activeTab, setActiveTab] = useState('bills'); // 'information', 'financial', 'bills', 'transactions' - Start with bills tab (default)
+  const [transactionPage, setTransactionPage] = useState(1);
+  const transactionLimit = 10;
 
   // Use React Query hooks to fetch vendor data
   const { 
@@ -37,18 +40,33 @@ const VendorDetails = () => {
     refetch: refetchBills
   } = useVendorBillsByVendor(id);
 
+  // Fetch vendor transactions
+  const {
+    data: transactionsData,
+    isLoading: transactionsLoading,
+    error: transactionsError,
+    refetch: refetchTransactions
+  } = useTransactions(
+    { partyType: 'vendor', partyId: id },
+    transactionPage,
+    transactionLimit
+  );
+
   // Handle refresh - refetch all data
   const handleRefresh = async () => {
     try {
       await Promise.all([
         refetchVendor(),
         refetchFinancials(),
-        refetchBills()
+        refetchBills(),
+        refetchTransactions()
       ]);
     } catch (error) {
       console.error('Error refreshing vendor data:', error);
     }
   };
+
+  const transactions = transactionsData?.transactions || [];
 
   // Default financial data for fallback
   const defaultFinancialData = {
@@ -379,6 +397,19 @@ const VendorDetails = () => {
                 ভেন্ডর বিল
               </div>
             </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'transactions'
+                  ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                লেনদেনের ইতিহাস
+              </div>
+            </button>
           </nav>
         </div>
 
@@ -603,6 +634,121 @@ const VendorDetails = () => {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Transaction History Tab */}
+          {activeTab === 'transactions' && (
+            <div className="space-y-6">
+              {transactionsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                    <span className="text-gray-600 dark:text-gray-400">লেনদেন লোড হচ্ছে...</span>
+                  </div>
+                </div>
+              ) : transactionsError ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-2" />
+                    <p className="text-red-600 dark:text-red-400">লেনদেন লোড করতে সমস্যা হয়েছে</p>
+                  </div>
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Clock className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500 dark:text-gray-400">কোনো লেনদেন পাওয়া যায়নি</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-900/50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">লেনদেন আইডি</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">ধরন</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">পরিমাণ</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">পদ্ধতি</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">রেফারেন্স</th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">তারিখ</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {transactions.map((transaction) => {
+                          const isDebit = transaction.transactionType === 'debit' || transaction.type === 'debit';
+                          const amount = Number(transaction.amount || 0);
+                          return (
+                            <tr key={transaction._id || transaction.transactionId} className="hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                {transaction.transactionId || transaction._id || '—'}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                                  isDebit
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                    : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                }`}>
+                                  {isDebit ? 'ডেবিট' : 'ক্রেডিট'}
+                                </span>
+                              </td>
+                              <td className={`px-4 py-3 text-sm font-semibold ${
+                                isDebit 
+                                  ? 'text-red-600 dark:text-red-400' 
+                                  : 'text-green-600 dark:text-green-400'
+                              }`}>
+                                {isDebit ? '-' : '+'}{formatCurrency(amount)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                {transaction.paymentMethod || transaction.paymentDetails?.method || '—'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                                {transaction.reference || transaction.paymentDetails?.reference || '—'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                                {transaction.createdAt || transaction.date
+                                  ? new Date(transaction.createdAt || transaction.date).toLocaleDateString('bn-BD', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })
+                                  : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Pagination */}
+                  {transactionsData && transactionsData.totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        পৃষ্ঠা {transactionPage} এর {transactionsData.totalPages} ({transactionsData.totalCount} টি লেনদেন)
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setTransactionPage(prev => Math.max(1, prev - 1))}
+                          disabled={transactionPage === 1}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          পূর্ববর্তী
+                        </button>
+                        <button
+                          onClick={() => setTransactionPage(prev => Math.min(transactionsData.totalPages, prev + 1))}
+                          disabled={transactionPage >= transactionsData.totalPages}
+                          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          পরবর্তী
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

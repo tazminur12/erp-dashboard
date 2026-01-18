@@ -181,9 +181,9 @@ const FlyOvalLedger = React.lazy(() => import('./pages/FlyOval').then(module => 
 const FlyOvalReports = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Reports })).catch(() => ({ default: () => <div>Component not found</div> })));
 const FlyOvalAudit = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Audit })).catch(() => ({ default: () => <div>Component not found</div> })));
 const FlyovalTransaction = React.lazy(() => import('./pages/FlyOval/FlyovalTransaction'));
-const FlyOvalCustomers = React.lazy(() => import('./pages/FlyOval/Customers'));
-const AddFlyOvalCustomer = React.lazy(() => import('./pages/FlyOval/AddCustomer'));
-const FlyOvalCustomerDetails = React.lazy(() => import('./pages/FlyOval/CustomerDetails'));
+const FlyOvalCustomers = React.lazy(() => import('./pages/FlyOval/Customer/Customers'));
+const AddFlyOvalCustomer = React.lazy(() => import('./pages/FlyOval/Customer/AddCustomer'));
+const FlyOvalCustomerDetails = React.lazy(() => import('./pages/FlyOval/Customer/CustomerDetails'));
 const FlyOvalAccountList = React.lazy(() => import('./pages/FlyOval/Account/FlyOvalAccountList'));
 const AddFlyOvalAccount = React.lazy(() => import('./pages/FlyOval/Account/AddFlyOvalAccount'));
 const FlyOvalAccountDetails = React.lazy(() => import('./pages/FlyOval/Account/FlyOvalAccountDetails'));
@@ -214,6 +214,8 @@ const NewExchange = React.lazy(() => import('./pages/MoneyExchange/NewExchange')
 const List = React.lazy(() => import('./pages/MoneyExchange/List'));
 const EditExchange = React.lazy(() => import('./pages/MoneyExchange/EditExchange'));
 const ExchangeDetails = React.lazy(() => import('./pages/MoneyExchange/Details'));
+const AddDilar = React.lazy(() => import('./pages/MoneyExchange/AddDilar'));
+const DilarList = React.lazy(() => import('./pages/MoneyExchange/DilarList'));
 
 // Marketing pages
 const SmsMarketing = React.lazy(() => import('./pages/Marketing/SmsMarketing'));
@@ -1650,6 +1652,22 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <ExchangeDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "dilar-list",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <DilarList />
+          </Suspense>
+        )
+      },
+      {
+        path: "dilar/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddDilar />
           </Suspense>
         )
       }
