@@ -250,6 +250,21 @@ const EmployeeManagement = () => {
     return statusObj ? statusObj.color : 'text-gray-600 bg-gray-100';
   };
 
+  // Calculate service duration in months
+  const calculateServiceMonths = (joinDate) => {
+    if (!joinDate) return 0;
+    const join = new Date(joinDate);
+    const now = new Date();
+    const months = (now.getFullYear() - join.getFullYear()) * 12 + (now.getMonth() - join.getMonth());
+    return Math.max(0, months);
+  };
+
+  // Calculate total salary received
+  const calculateTotalSalaryReceived = (joinDate, monthlySalary) => {
+    const months = calculateServiceMonths(joinDate);
+    return months * (Number(monthlySalary) || 0);
+  };
+
   const generateReport = () => {
     // Generate report logic
     alert('রিপোর্ট তৈরি করা হচ্ছে...');
@@ -409,115 +424,131 @@ const EmployeeManagement = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  কর্মচারী
+                  কর্মচারীর নাম
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  পদ
+                  পদবী
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  যোগাযোগ
+                  মোবাইল নং
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  বেতন
+                  যোগদানের তারিখ
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  যোগদান তারিখ
+                  চাকরীরত(মাস)
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  মাসিক বেতন
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  মোট গৃহীত বেতন
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   অবস্থা
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ক্রিয়া
+                  একশন
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees.map((employee) => (
-                <tr key={employee.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-12 w-12">
-                        <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
-                          <Camera className="w-6 h-6 text-gray-500" />
+              {filteredEmployees.map((employee) => {
+                const serviceMonths = calculateServiceMonths(employee.joinDate);
+                const totalSalaryReceived = calculateTotalSalaryReceived(employee.joinDate, employee.salary);
+                
+                return (
+                  <tr key={employee.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                            <User className="w-5 h-5 text-gray-500" />
+                          </div>
+                        </div>
+                        <div className="ml-3">
+                          <div className="text-sm font-medium text-gray-900">{employee.name || 'N/A'}</div>
                         </div>
                       </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                        <div className="text-sm text-gray-500">ID: {employee.id}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <Briefcase className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-900">{employee.position || 'N/A'}</span>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Briefcase className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-900">{employee.position}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="space-y-1">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-gray-400" />
-                        <span className="text-sm text-gray-900">{employee.phone}</span>
+                        <Phone className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-900">{employee.phone || 'N/A'}</span>
                       </div>
-                      {employee.email && (
-                        <div className="flex items-center gap-1">
-                          <Mail className="w-3 h-3 text-gray-400" />
-                          <span className="text-sm text-gray-500">{employee.email}</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-semibold text-gray-900">৳{employee.salary.toLocaleString()}</span>
-                    </div>
-                    <div className="text-xs text-gray-500">{employee.workHours} ঘণ্টা/দিন</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <CalendarIcon className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm text-gray-900">{new Date(employee.joinDate).toLocaleDateString('bn-BD')}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(employee.status)}`}>
-                      {statusOptions.find(opt => opt.value === employee.status)?.label}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => navigate(`/miraj-industries/employee/${employee.id}`)}
-                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="বিস্তারিত দেখুন"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/miraj-industries/employee/${employee.id}/edit`);
-                        }}
-                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="সম্পাদনা করুন"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteEmployee(employee.id);
-                        }}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="মুছে ফেলুন"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <CalendarIcon className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm text-gray-900">
+                          {employee.joinDate ? new Date(employee.joinDate).toLocaleDateString('bn-BD') : 'N/A'}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-gray-900">{serviceMonths} মাস</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-semibold text-gray-900">
+                          ৳{Number(employee.salary || 0).toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="w-4 h-4 text-green-500" />
+                        <span className="text-sm font-semibold text-green-600">
+                          ৳{totalSalaryReceived.toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusClass(employee.status)}`}>
+                        {statusOptions.find(opt => opt.value === employee.status)?.label || 'N/A'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => navigate(`/miraj-industries/employee/${employee.id}`)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="বিস্তারিত দেখুন"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/miraj-industries/employee/${employee.id}/edit`);
+                          }}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="সম্পাদনা করুন"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEmployee(employee.id);
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

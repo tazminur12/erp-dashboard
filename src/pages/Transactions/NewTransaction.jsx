@@ -33,7 +33,14 @@ import {
   Plus,
   Package,
   MessageCircle,
-  Users
+  Users,
+  Utensils,
+  Car,
+  ShoppingCart,
+  Gamepad2,
+  Heart,
+  Book,
+  Home
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -57,6 +64,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { vendorKeys } from '../../hooks/useVendorQueries';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
 import { useEmployeeSearch } from '../../hooks/useHRQueries';
+import useEmployeeQueries from '../../hooks/useEmployeeQueries';
 import { useCategoryQueries } from '../../hooks/useCategoryQueries';
 import { useHajiList, useHaji, useHajiFamilySummary } from '../../hooks/UseHajiQueries';
 import { useUmrahList, useUmrah } from '../../hooks/UseUmrahQuries';
@@ -329,7 +337,7 @@ const NewTransaction = () => {
       'haji': 'haji',
       'umrah': 'umrah',
       'loan': 'loans',
-      'personalExpense': 'personal',
+      'personalExpense': 'personal', // Show personal expense categories
       'mirajIndustries': 'miraj',
       'officeExpenses': 'office',
       'moneyExchange': 'moneyExchange'
@@ -411,6 +419,14 @@ const NewTransaction = () => {
   // Miraj Industries finance lists (positioned after selectedSearchType/searchTerm declarations)
   const { data: mirajExpenses = [], isLoading: mirajExpensesLoading } = useFarmExpenses({ search: effectiveSearchType === 'miraj' ? (searchTerm || '') : '' });
   const { data: mirajIncomes = [], isLoading: mirajIncomesLoading } = useFarmIncomes({ search: effectiveSearchType === 'miraj' ? (searchTerm || '') : '' });
+  
+  // Miraj Industries employees
+  const employeeQueries = useEmployeeQueries();
+  const { data: mirajEmployeesData = [], isLoading: mirajEmployeesLoading } = employeeQueries.useEmployees({
+    search: effectiveSearchType === 'miraj' ? (searchTerm || '') : '',
+    status: 'all'
+  });
+  const mirajEmployees = Array.isArray(mirajEmployeesData) ? mirajEmployeesData : (mirajEmployeesData?.employees || []);
   // Office expenses categories
   const { data: opExCategories = [], isLoading: opExLoading } = useOpExCategories();
   // Money exchange listings
@@ -756,6 +772,8 @@ const NewTransaction = () => {
         name: customer.name || customer.categoryName || '',
         categoryName: customer.name || customer.categoryName || ''
       } : undefined,
+      // Store category name for personal expense
+      ...(resolvedType === 'personal-expense' && customer.category ? { category: customer.category } : {}),
       moneyExchangeInfo: resolvedType === 'money-exchange'
         ? (customer.moneyExchangeInfo || null)
         : null,
@@ -3322,10 +3340,14 @@ const NewTransaction = () => {
                           ? 'উমরাহ খুঁজুন... (নাম/ফোন/পাসপোর্ট)'
                           : effectiveSearchType === 'loans'
                           ? 'লোন খুঁজুন... (আইডি/নাম)'
+                          : effectiveSearchType === 'personal'
+                          ? 'ক্যাটাগরি খুঁজুন... (নাম/বর্ণনা)'
                           : effectiveSearchType === 'office'
                           ? 'Office Expenses – ক্যাটাগরি আইডি/নাম খুঁজুন'
                           : effectiveSearchType === 'moneyExchange'
                           ? 'মানি এক্সচেঞ্জ আইডি/নাম খুঁজুন'
+                          : effectiveSearchType === 'miraj'
+                          ? 'কর্মচারী খুঁজুন... (নাম/পদ/মোবাইল)'
                           : 'Miraj Industries – ক্যাটাগরি/অপশন খুঁজুন'
                       }
                       value={searchTerm}
@@ -3347,7 +3369,9 @@ const NewTransaction = () => {
                      (effectiveSearchType === 'umrah' && (umrahLoading || searchLoading)) ||
                      (effectiveSearchType === 'loans' && (loansSearchLoading || searchLoading)) ||
                     (effectiveSearchType === 'office' && (opExLoading || searchLoading)) ||
-                    (effectiveSearchType === 'moneyExchange' && (moneyExchangeLoading || searchLoading)) ? (
+                    (effectiveSearchType === 'moneyExchange' && (moneyExchangeLoading || searchLoading)) ||
+                    (effectiveSearchType === 'personal' && (personalCatsLoading || searchLoading)) ||
+                    (effectiveSearchType === 'miraj' && (mirajEmployeesLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
                         <span className="ml-2 text-gray-600 dark:text-gray-400 text-sm sm:text-base">
@@ -3356,6 +3380,8 @@ const NewTransaction = () => {
                            effectiveSearchType === 'agent' ? 'এজেন্ট লোড হচ্ছে...' :
                            effectiveSearchType === 'haji' ? 'হাজি লোড হচ্ছে...' :
                            effectiveSearchType === 'umrah' ? 'উমরাহ লোড হচ্ছে...' :
+                           effectiveSearchType === 'personal' ? 'ক্যাটাগরি লোড হচ্ছে...' :
+                           effectiveSearchType === 'miraj' ? 'কর্মচারী লোড হচ্ছে...' :
                            effectiveSearchType === 'office' ? 'অফিস খরচ ক্যাটাগরি লোড হচ্ছে...' :
                            effectiveSearchType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ ডেটা লোড হচ্ছে...' :
                            'লোন লোড হচ্ছে...'}
@@ -3796,65 +3822,248 @@ const NewTransaction = () => {
                         <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন লোন পাওয়া যায়নি</div>
                       )
                     ) : effectiveSearchType === 'miraj' ? (
-                      // Miraj Industries: show incomes for credit, expenses for debit
-                      (
-                        formData.transactionType === 'credit' ? mirajIncomes : mirajExpenses
-                      ).length > 0 ? (
-                        (
-                          formData.transactionType === 'credit' ? mirajIncomes : mirajExpenses
-                        )
-                          .map((item) => (
-                            <button
-                              key={`miraj-${item.id}`}
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleCustomerSelect({
-                                  id: item.id,
-                                  name: formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense'),
-                                  customerType: formData.transactionType === 'credit' ? 'miraj-income' : 'miraj-expense'
-                                });
-                              }}
-                              className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 ${
-                                formData.customerId === item.id
-                                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                  : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                              }`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                  <div className={`w-8 h-8 sm:w-10 sm:h-10 ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'} rounded-full flex items-center justify-center flex-shrink-0`}>
-                                    <Receipt className={`w-4 h-4 ${formData.transactionType === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
-                                  </div>
-                                  <div className="text-left min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                                        {formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense')}
-                                      </h3>
-                                      <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
-                                        {formData.transactionType === 'credit' ? 'Income' : 'Expense'}
-                                      </span>
-                                    </div>
-                                    {item.description && (
-                                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{item.description}</p>
-                                    )}
-                                  </div>
+                      // Miraj Industries: show employees and income/expense categories
+                      (() => {
+                        const filteredEmployees = mirajEmployees.filter(emp => {
+                          if (!searchTerm) return true;
+                          const term = searchTerm.toLowerCase();
+                          return (emp.name || '').toLowerCase().includes(term) ||
+                                 (emp.position || '').toLowerCase().includes(term) ||
+                                 (emp.phone || '').includes(searchTerm);
+                        });
+
+                        const mirajItems = formData.transactionType === 'credit' ? mirajIncomes : mirajExpenses;
+                        const filteredItems = mirajItems.filter(item => {
+                          if (!searchTerm) return true;
+                          const term = searchTerm.toLowerCase();
+                          const name = formData.transactionType === 'credit' 
+                            ? (item.customer || item.source || '') 
+                            : (item.vendor || '');
+                          return name.toLowerCase().includes(term) ||
+                                 (item.description || '').toLowerCase().includes(term);
+                        });
+
+                        const hasEmployees = filteredEmployees.length > 0;
+                        const hasItems = filteredItems.length > 0;
+
+                        if (!hasEmployees && !hasItems) {
+                          return (
+                            <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                              {searchTerm ? 'কোন ডেটা পাওয়া যায়নি' : 'কোন ডেটা নেই'}
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <>
+                            {/* Employees Section */}
+                            {hasEmployees && (
+                              <>
+                                <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">
+                                  কর্মচারী
                                 </div>
-                                {typeof item.amount !== 'undefined' && (
-                                  <div className="text-right">
-                                    <p className={`text-sm font-semibold ${formData.transactionType === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                                      {formData.transactionType === 'credit' ? '+' : '-'}৳{Number(item.amount || 0).toLocaleString()}
-                                    </p>
+                                {filteredEmployees.map((employee) => (
+                                  <button
+                                    key={`miraj-employee-${employee.id || employee._id}`}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleCustomerSelect({
+                                        id: employee.id || employee._id,
+                                        name: employee.name || 'N/A',
+                                        customerType: 'miraj-employee',
+                                        phone: employee.phone || '',
+                                        email: employee.email || '',
+                                        address: employee.address || ''
+                                      });
+                                    }}
+                                    className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 mb-2 ${
+                                      formData.customerId === (employee.id || employee._id)
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 dark:bg-orange-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                          <User className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 dark:text-orange-400" />
+                                        </div>
+                                        <div className="text-left min-w-0 flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                              {employee.name || 'N/A'}
+                                            </h3>
+                                          </div>
+                                          {employee.position && (
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                              {employee.position}
+                                            </p>
+                                          )}
+                                          {employee.phone && (
+                                            <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                              📞 {employee.phone}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {formData.customerId === (employee.id || employee._id) && (
+                                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0" />
+                                      )}
+                                    </div>
+                                  </button>
+                                ))}
+                              </>
+                            )}
+
+                            {/* Income/Expense Categories Section */}
+                            {hasItems && (
+                              <>
+                                {hasEmployees && (
+                                  <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4">
+                                    {formData.transactionType === 'credit' ? 'আয়' : 'ব্যয়'}
                                   </div>
                                 )}
-                              </div>
-                            </button>
-                          ))
-                      ) : (
-                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন ডেটা নেই</div>
-                      )
-                    ) : filteredCustomers.length > 0 ? (
+                                {filteredItems.map((item) => (
+                                  <button
+                                    key={`miraj-${item.id}`}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleCustomerSelect({
+                                        id: item.id,
+                                        name: formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense'),
+                                        customerType: formData.transactionType === 'credit' ? 'miraj-income' : 'miraj-expense'
+                                      });
+                                    }}
+                                    className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 mb-2 ${
+                                      formData.customerId === item.id
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className={`w-8 h-8 sm:w-10 sm:h-10 ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'} rounded-full flex items-center justify-center flex-shrink-0`}>
+                                          <Receipt className={`w-4 h-4 ${formData.transactionType === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                                        </div>
+                                        <div className="text-left min-w-0 flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                              {formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense')}
+                                            </h3>
+                                            <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
+                                              {formData.transactionType === 'credit' ? 'Income' : 'Expense'}
+                                            </span>
+                                          </div>
+                                          {item.description && (
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{item.description}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {typeof item.amount !== 'undefined' && (
+                                        <div className="text-right">
+                                          <p className={`text-sm font-semibold ${formData.transactionType === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                                            {formData.transactionType === 'credit' ? '+' : '-'}৳{Number(item.amount || 0).toLocaleString()}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {formData.customerId === item.id && (
+                                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0 ml-2" />
+                                      )}
+                                    </div>
+                                  </button>
+                                ))}
+                              </>
+                            )}
+                          </>
+                        );
+                      })()
+                    ) : effectiveSearchType === 'personal' ? (
+                      // Personal Expense Categories - show as selectable cards
+                      (() => {
+                        const filteredCategories = (personalExpenseCategories || []).filter(cat => {
+                          if (!searchTerm) return true;
+                          const term = searchTerm.toLowerCase();
+                          return (cat.name || '').toLowerCase().includes(term) || 
+                                 (cat.description || '').toLowerCase().includes(term);
+                        });
+
+                        return filteredCategories.length > 0 ? (
+                          filteredCategories.map((cat) => {
+                            // Get icon component
+                            const iconMap = {
+                              DollarSign: DollarSign,
+                              Utensils: Utensils || DollarSign,
+                              Car: Car || DollarSign,
+                              ShoppingCart: ShoppingCart || DollarSign,
+                              Gamepad2: Gamepad2 || DollarSign,
+                              Heart: Heart || DollarSign,
+                              Book: Book || DollarSign,
+                              Home: Home || DollarSign
+                            };
+                            const IconComponent = iconMap[cat.icon] || DollarSign;
+                            
+                            return (
+                              <button
+                                key={cat.id}
+                                type="button"
+                                onClick={() => handleCustomerSelect({
+                                  id: cat.id,
+                                  name: cat.name,
+                                  customerType: 'personal-expense',
+                                  category: cat.name
+                                })}
+                                className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
+                                  formData.customerId === cat.id
+                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                    : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                      formData.customerId === cat.id
+                                        ? 'bg-blue-100 dark:bg-blue-800'
+                                        : 'bg-pink-100 dark:bg-pink-900/20'
+                                    }`}>
+                                      <IconComponent className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                        formData.customerId === cat.id
+                                          ? 'text-blue-600 dark:text-blue-400'
+                                          : 'text-pink-600 dark:text-pink-400'
+                                      }`} />
+                                    </div>
+                                    <div className="text-left min-w-0 flex-1">
+                                      <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                        {cat.name || 'Unnamed'}
+                                      </h3>
+                                      {cat.description && (
+                                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate mt-1">
+                                          {cat.description}
+                                        </p>
+                                      )}
+                                      {cat.totalAmount !== undefined && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                          মোট: ৳{Number(cat.totalAmount || 0).toLocaleString('bn-BD')}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  {formData.customerId === cat.id && (
+                                    <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                            {searchTerm ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই'}
+                          </div>
+                        );
+                      })()
+                    ) : filteredCustomers.length > 0 && effectiveSearchType === 'airCustomer' ? (
                       filteredCustomers.map((customer) => (
                       <button
                           key={customer.id || customer.customerId}
@@ -3916,42 +4125,6 @@ const NewTransaction = () => {
                         </div>
                       </button>
                       ))
-                      ) : effectiveSearchType === 'personal' ? (
-                      // Personal Expense Categories
-                      <div className="max-w-4xl mx-auto w-full">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100">Personal Expense Categories</h3>
-                          {personalCatsLoading && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Loading...</span>
-                          )}
-                        </div>
-                        {personalCatsLoading ? (
-                          <div className="flex items-center justify-center py-6">
-                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                            <span className="ml-2 text-gray-600 dark:text-gray-400">লোড হচ্ছে...</span>
-                          </div>
-                        ) : personalExpenseCategories.length === 0 ? (
-                          <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোনো পার্সোনাল ক্যাটাগরি নেই</div>
-                        ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {personalExpenseCategories.map((cat) => (
-                              <button
-                                key={cat.id}
-                                type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, category: prev.category === cat.name ? '' : cat.name }))}
-                                className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                                  formData.category === cat.name
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:border-blue-400'
-                                }`}
-                                title={cat.name}
-                              >
-                                {cat.name}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     ) : (
                       <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                         {effectiveSearchType === 'airCustomer' ? (searchTerm ? 'কোন এয়ার কাস্টমার পাওয়া যায়নি' : 'কোন এয়ার কাস্টমার নেই') : 
@@ -3960,6 +4133,7 @@ const NewTransaction = () => {
                          effectiveSearchType === 'haji' ? (searchTerm ? 'কোন হাজি পাওয়া যায়নি' : 'কোন হাজি নেই') :
                           effectiveSearchType === 'umrah' ? (searchTerm ? 'কোন উমরাহ পাওয়া যায়নি' : 'কোন উমরাহ নেই') :
                           effectiveSearchType === 'loans' ? (searchTerm ? 'কোন লোন পাওয়া যায়নি' : 'কোন লোন নেই') :
+                          effectiveSearchType === 'miraj' ? (searchTerm ? 'কোন কর্মচারী পাওয়া যায়নি' : 'কোন কর্মচারী নেই') :
                           effectiveSearchType === 'moneyExchange' ? (exchangeTypeFilter ? 'কোন মানি এক্সচেঞ্জ ডেটা নেই' : 'লেনদেনের ধরন নির্বাচন করুন') :
                          'কোন ডেটা নেই'}
                       </div>

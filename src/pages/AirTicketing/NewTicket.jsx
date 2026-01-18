@@ -236,19 +236,15 @@ const NewTicket = () => {
   // Debounced backend search for agents by id/name/phone/email
   useEffect(() => {
     const q = agentQuery.trim();
-    if (!q || q.length < 2) {
-      setAgentResults([]);
-      return;
-    }
-
+    
     let active = true;
     setAgentLoading(true);
 
     const timer = setTimeout(async () => {
       try {
-        // Query backend for air agents
+        // Query backend for air agents - fetch all if no query, otherwise search
         const res = await axiosSecure.get('/api/air-ticketing/agents', { 
-          params: { q, limit: 20, page: 1 } 
+          params: q.length >= 2 ? { q, limit: 20, page: 1 } : { limit: 10, page: 1 }
         });
         const responseData = res?.data;
         
@@ -263,35 +259,68 @@ const NewTicket = () => {
           list = responseData;
         }
 
-        // Fallback: filter locally if backend returned full list without filtering
-        const normalizedQ = q.toLowerCase();
-        const filtered = list.filter((a) => {
-          const id = String(a.id || a.agentId || a.idCode || a._id || '').toLowerCase();
-          const name = String(a.name || a.tradeName || a.companyName || a.personalName || '').toLowerCase();
-          const phone = String(a.phone || a.contactNo || a.mobile || '');
-          const email = String(a.email || '').toLowerCase();
-          return (
-            id.includes(normalizedQ) ||
-            name.includes(normalizedQ) ||
-            phone.includes(q) ||
-            email.includes(normalizedQ)
-          );
-        });
-
-        if (active) setAgentResults(filtered.slice(0, 10));
+        // If query exists, filter locally
+        if (q.length >= 2) {
+          const normalizedQ = q.toLowerCase();
+          const filtered = list.filter((a) => {
+            const id = String(a.id || a.agentId || a.idCode || a._id || '').toLowerCase();
+            const name = String(a.name || a.tradeName || a.companyName || a.personalName || '').toLowerCase();
+            const phone = String(a.phone || a.contactNo || a.mobile || '');
+            const email = String(a.email || '').toLowerCase();
+            return (
+              id.includes(normalizedQ) ||
+              name.includes(normalizedQ) ||
+              phone.includes(q) ||
+              email.includes(normalizedQ)
+            );
+          });
+          if (active) setAgentResults(filtered.slice(0, 10));
+        } else {
+          // Show first 10 agents when no query
+          if (active) setAgentResults(list.slice(0, 10));
+        }
       } catch (err) {
         // Silent fail; keep results empty
         if (active) setAgentResults([]);
       } finally {
         if (active) setAgentLoading(false);
       }
-    }, 350);
+    }, q.length >= 2 ? 350 : 100); // Faster for initial load
 
     return () => {
       active = false;
       clearTimeout(timer);
     };
   }, [agentQuery, axiosSecure]);
+
+  // Fetch initial agents when dropdown is shown
+  useEffect(() => {
+    if (showAgentDropdown && agentResults.length === 0 && agentQuery.length < 2 && !agentLoading) {
+      // Trigger initial fetch by setting a flag or directly fetching
+      const fetchInitialAgents = async () => {
+        try {
+          const res = await axiosSecure.get('/api/air-ticketing/agents', { 
+            params: { limit: 10, page: 1 } 
+          });
+          const responseData = res?.data;
+          
+          let list = [];
+          if (responseData?.success && Array.isArray(responseData.data)) {
+            list = responseData.data;
+          } else if (Array.isArray(responseData?.data)) {
+            list = responseData.data;
+          } else if (Array.isArray(responseData)) {
+            list = responseData;
+          }
+          
+          setAgentResults(list.slice(0, 10));
+        } catch (err) {
+          // Silent fail
+        }
+      };
+      fetchInitialAgents();
+    }
+  }, [showAgentDropdown, agentResults.length, agentQuery, agentLoading, axiosSecure]);
 
   const handleSelectAgent = (agent) => {
     const agentId = agent.id || agent.agentId || agent.idCode || agent._id || '';
@@ -466,20 +495,15 @@ const NewTicket = () => {
   // Debounced backend search for vendors
   useEffect(() => {
     const q = vendorQuery.trim();
-    if (!q || q.length < 2) {
-      setVendorResults([]);
-      setVendorLoading(false);
-      return;
-    }
 
     let active = true;
     setVendorLoading(true);
 
     const timer = setTimeout(async () => {
       try {
-        // Fetch vendors with search parameter if supported, otherwise fetch all and filter
+        // Fetch vendors - get all if no query, otherwise search
         const res = await axiosSecure.get('/vendors', {
-          params: q ? { q, limit: 100 } : { limit: 100 }
+          params: q.length >= 2 ? { q, limit: 100 } : { limit: 10 }
         });
         const data = res?.data;
         
@@ -497,26 +521,33 @@ const NewTicket = () => {
           list = data.data;
         }
 
-        // Client-side filtering for better search results
-        const normalizedQ = q.toLowerCase();
-        const filtered = list.filter((vendor) => {
-          const id = String(vendor.vendorId || vendor.id || vendor._id || '').toLowerCase();
-          const tradeName = String(vendor.tradeName || vendor.name || '').toLowerCase();
-          const ownerName = String(vendor.ownerName || '').toLowerCase();
-          const contactNo = String(vendor.contactNo || vendor.phone || vendor.contactPhone || '');
-          const location = String(vendor.tradeLocation || vendor.location || '').toLowerCase();
-          return (
-            id.includes(normalizedQ) ||
-            tradeName.includes(normalizedQ) ||
-            ownerName.includes(normalizedQ) ||
-            contactNo.includes(q) ||
-            location.includes(normalizedQ)
-          );
-        });
-
-        if (active) {
-          setVendorResults(filtered.slice(0, 10));
-          setVendorLoading(false);
+        // If query exists, filter locally
+        if (q.length >= 2) {
+          const normalizedQ = q.toLowerCase();
+          const filtered = list.filter((vendor) => {
+            const id = String(vendor.vendorId || vendor.id || vendor._id || '').toLowerCase();
+            const tradeName = String(vendor.tradeName || vendor.name || '').toLowerCase();
+            const ownerName = String(vendor.ownerName || '').toLowerCase();
+            const contactNo = String(vendor.contactNo || vendor.phone || vendor.contactPhone || '');
+            const location = String(vendor.tradeLocation || vendor.location || '').toLowerCase();
+            return (
+              id.includes(normalizedQ) ||
+              tradeName.includes(normalizedQ) ||
+              ownerName.includes(normalizedQ) ||
+              contactNo.includes(q) ||
+              location.includes(normalizedQ)
+            );
+          });
+          if (active) {
+            setVendorResults(filtered.slice(0, 10));
+            setVendorLoading(false);
+          }
+        } else {
+          // Show first 10 vendors when no query
+          if (active) {
+            setVendorResults(list.slice(0, 10));
+            setVendorLoading(false);
+          }
         }
       } catch (err) {
         console.error('Error fetching vendors:', err);
@@ -525,13 +556,46 @@ const NewTicket = () => {
           setVendorLoading(false);
         }
       }
-    }, 350);
+    }, q.length >= 2 ? 350 : 100); // Faster for initial load
 
     return () => {
       active = false;
       clearTimeout(timer);
     };
   }, [vendorQuery, axiosSecure]);
+
+  // Fetch initial vendors when dropdown is shown
+  useEffect(() => {
+    if (showVendorDropdown && vendorResults.length === 0 && vendorQuery.length < 2 && !vendorLoading) {
+      // Trigger initial fetch
+      const fetchInitialVendors = async () => {
+        try {
+          const res = await axiosSecure.get('/vendors', {
+            params: { limit: 10 }
+          });
+          const data = res?.data;
+          
+          let list = [];
+          if (data?.success && Array.isArray(data.vendors)) {
+            list = data.vendors;
+          } else if (data?.success && Array.isArray(data.data)) {
+            list = data.data;
+          } else if (Array.isArray(data?.vendors)) {
+            list = data.vendors;
+          } else if (Array.isArray(data)) {
+            list = data;
+          } else if (data?.data && Array.isArray(data.data)) {
+            list = data.data;
+          }
+          
+          setVendorResults(list.slice(0, 10));
+        } catch (err) {
+          // Silent fail
+        }
+      };
+      fetchInitialVendors();
+    }
+  }, [showVendorDropdown, vendorResults.length, vendorQuery, vendorLoading, axiosSecure]);
 
   const handleSelectVendor = (vendor) => {
     const vendorId = vendor.vendorId || vendor.id || vendor._id || '';
@@ -952,9 +1016,9 @@ const NewTicket = () => {
   const stepTitles = [
     'গ্রাহক তথ্য',
     'ফ্লাইট তথ্য',
-    'এজেন্ট ও ভেন্ডর',
+    'ভেন্ডর খুঁজুন',
     'যাত্রী ও মূল্য',
-    'ভেন্ডর বিবরণ'
+    'এজেন্ট ও ভেন্ডর'
   ];
 
   return (
@@ -1691,12 +1755,12 @@ const NewTicket = () => {
             </div>
           )}
 
-          {/* Step 3: Agent & Vendor Information */}
+          {/* Step 3: Vendor Search */}
           {currentStep === 3 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                 <Building className="w-5 h-5 mr-2 text-purple-600" />
-                Step 3: এজেন্ট ও ভেন্ডর
+                Step 3: ভেন্ডর খুঁজুন
               </h2>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1725,20 +1789,18 @@ const NewTicket = () => {
                       }
                     }}
                     onFocus={() => {
-                      if (agentResults.length > 0 || agentQuery.length >= 2) {
-                        setShowAgentDropdown(true);
-                      }
+                      setShowAgentDropdown(true);
                     }}
                     onBlur={() => {
                       setTimeout(() => {
                         setShowAgentDropdown(false);
                       }, 200);
                     }}
-                    placeholder="Search agent by name, ID, phone, or email..."
+                    placeholder="এজেন্ট খুঁজুন... (নাম/ফোন/আইডি)"
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                   {showAgentDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto p-2">
                       {agentLoading ? (
                         <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
                       ) : agentResults.length === 0 ? (
@@ -1746,37 +1808,49 @@ const NewTicket = () => {
                           {agentQuery.length < 2 ? 'Type at least 2 characters to search' : 'No agents found'}
                         </div>
                       ) : (
-                        agentResults.map((a) => (
-                          <button
-                            key={String(a.id || a.agentId || a.idCode || a._id)}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => handleSelectAgent(a)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <Building className="w-4 h-4 text-gray-400" />
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {a.name || a.tradeName || a.companyName || a.personalName || 'N/A'}
+                        agentResults.map((a) => {
+                          const photoUrl = a.photo || a.photoUrl || a.image || a.logo || a.avatar || a.profilePicture || '';
+                          const agentName = a.name || a.tradeName || a.companyName || a.personalName || 'N/A';
+                          const agentPhone = a.mobile || a.phone || a.contactNo || '';
+                          const agentId = a.agentId || a.idCode || a.id || a._id || '';
+                          
+                          return (
+                            <button
+                              key={String(agentId)}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handleSelectAgent(a)}
+                              className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors mb-2 last:mb-0"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                  {photoUrl ? (
+                                    <img 
+                                      src={photoUrl} 
+                                      alt={agentName} 
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${photoUrl ? 'hidden' : 'flex'}`}>
+                                    <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                                   </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    ID: {a.agentId || a.idCode || a.id || a._id}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                                    {agentName}
                                   </div>
-                                  {a.personalName && a.name && (
-                                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      {a.personalName}
-                                    </div>
-                                  )}
+                                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    {agentPhone || agentId}
+                                  </div>
                                 </div>
                               </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-300">
-                                {a.mobile || a.phone || a.contactNo || ''}
-                              </div>
-                            </div>
-                          </button>
-                        ))
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   )}
@@ -1903,20 +1977,18 @@ const NewTicket = () => {
                       }
                     }}
                     onFocus={() => {
-                      if (vendorResults.length > 0 || vendorQuery.length >= 2) {
-                        setShowVendorDropdown(true);
-                      }
+                      setShowVendorDropdown(true);
                     }}
                     onBlur={() => {
                       setTimeout(() => {
                         setShowVendorDropdown(false);
                       }, 200);
                     }}
-                    placeholder="Search vendor by trade name, owner, or location..."
+                    placeholder="ভেন্ডর খুঁজুন... (নাম/ফোন/আইডি)"
                     className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                   {showVendorDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto p-2">
                       {vendorLoading ? (
                         <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
                       ) : vendorResults.length === 0 ? (
@@ -1924,37 +1996,49 @@ const NewTicket = () => {
                           {vendorQuery.length < 2 ? 'Type at least 2 characters to search' : 'No vendors found'}
                         </div>
                       ) : (
-                        vendorResults.map((v) => (
-                          <button
-                            key={String(v.vendorId || v.id || v._id)}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => handleSelectVendor(v)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <Building className="w-4 h-4 text-gray-400" />
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {v.tradeName || v.name || 'N/A'}
+                        vendorResults.map((v) => {
+                          const logoUrl = v.logo || v.photo || v.photoUrl || v.image || v.avatar || v.profilePicture || '';
+                          const vendorName = v.tradeName || v.name || 'N/A';
+                          const vendorPhone = v.contactNo || v.phone || v.contactPhone || '';
+                          const vendorId = v.vendorId || v.id || v._id || '';
+                          
+                          return (
+                            <button
+                              key={String(vendorId)}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => handleSelectVendor(v)}
+                              className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors mb-2 last:mb-0"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                  {logoUrl ? (
+                                    <img 
+                                      src={logoUrl} 
+                                      alt={vendorName} 
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.style.display = 'none';
+                                        e.target.nextSibling.style.display = 'flex';
+                                      }}
+                                    />
+                                  ) : null}
+                                  <div className={`w-full h-full bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center ${logoUrl ? 'hidden' : 'flex'}`}>
+                                    <Building className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                                   </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    ID: {v.vendorId || v.id || v._id}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-gray-900 dark:text-white text-sm">
+                                    {vendorName}
                                   </div>
-                                  {v.ownerName && (
-                                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      Owner: {v.ownerName}
-                                    </div>
-                                  )}
+                                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                                    {vendorPhone || vendorId}
+                                  </div>
                                 </div>
                               </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-300">
-                                {v.contactNo || v.phone || v.contactPhone || ''}
-                              </div>
-                            </div>
-                          </button>
-                        ))
+                            </button>
+                          );
+                        })
                       )}
                     </div>
                   )}
@@ -1969,12 +2053,12 @@ const NewTicket = () => {
             </div>
           )}
 
-          {/* Step 5: Vendor Breakdown */}
+          {/* Step 5: Agent & Vendor */}
           {currentStep === 5 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                 <Receipt className="w-5 h-5 mr-2 text-indigo-600" />
-                Step 5: ভেন্ডর বিবরণ
+                Step 5: এজেন্ট ও ভেন্ডর
               </h2>
 
             {/* Vendor Amount Breakdown */}
