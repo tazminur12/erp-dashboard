@@ -391,26 +391,7 @@ const Customers = () => {
   ];
 
   const handleAddCustomer = () => {
-    setFormData({
-      customerId: '',
-      companyName: '',
-      contactPerson: '',
-      businessType: '',
-      registrationNumber: '',
-      taxId: '',
-      name: '',
-      nid: '',
-      dob: '',
-      occupation: '',
-      email: '',
-      phone: '',
-      address: '',
-      division: '',
-      district: '',
-      upazila: '',
-      status: 'Active'
-    });
-    setShowAddModal(true);
+    navigate('/fly-oval/customers/add');
   };
 
   const handleEditCustomer = (customer) => {

@@ -182,6 +182,7 @@ const FlyOvalReports = React.lazy(() => import('./pages/FlyOval').then(module =>
 const FlyOvalAudit = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.Audit })).catch(() => ({ default: () => <div>Component not found</div> })));
 const FlyovalTransaction = React.lazy(() => import('./pages/FlyOval/FlyovalTransaction'));
 const FlyOvalCustomers = React.lazy(() => import('./pages/FlyOval/Customers'));
+const AddFlyOvalCustomer = React.lazy(() => import('./pages/FlyOval/AddCustomer'));
 
 // Excel Upload page
 const ExcelUploadPage = React.lazy(() => import('./pages/ExcelUpload/ExcelUploadPage'));
@@ -1430,6 +1431,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <FlyOvalCustomers />
+          </Suspense>
+        )
+      },
+      {
+        path: "customers/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddFlyOvalCustomer />
           </Suspense>
         )
       }
