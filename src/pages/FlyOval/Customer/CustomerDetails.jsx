@@ -29,9 +29,9 @@ import {
   History,
   BarChart3
 } from 'lucide-react';
-import useSecureAxios from '../../hooks/UseAxiosSecure';
+import useSecureAxios from '../../../hooks/UseAxiosSecure';
 import Swal from 'sweetalert2';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../../contexts/ThemeContext';
 
 const CustomerDetails = () => {
   const { id } = useParams();

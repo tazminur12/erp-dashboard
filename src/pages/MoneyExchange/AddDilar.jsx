@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Save, RotateCcw, X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Building2, Save, RotateCcw, X, Upload, Image as ImageIcon, ArrowLeft } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { useCreateDilar } from '../../hooks/useDilarQueries';
@@ -7,13 +7,9 @@ import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudi
 import Swal from 'sweetalert2';
 
 const initialFormState = {
-  tradeName: '',
-  tradeLocation: '',
   ownerName: '',
   contactNo: '',
-  dob: '',
-  nid: '',
-  passport: '',
+  tradeLocation: '',
   logo: ''
 };
 
@@ -27,26 +23,15 @@ const AddDilar = () => {
 
   const errors = useMemo(() => {
     const newErrors = {};
-    if (!form.tradeName.trim()) newErrors.tradeName = 'Trade Name is required';
-    if (!form.tradeLocation.trim()) newErrors.tradeLocation = 'Trade Location is required';
-    if (!form.ownerName.trim()) newErrors.ownerName = "Owner's Name is required";
+    if (!form.ownerName.trim()) newErrors.ownerName = 'নাম আবশ্যক';
+    if (!form.tradeLocation.trim()) newErrors.tradeLocation = 'ঠিকানা আবশ্যক';
 
     if (!form.contactNo.trim()) {
-      newErrors.contactNo = 'Contact No is required';
+      newErrors.contactNo = 'মোবাইল নাম্বার আবশ্যক';
     } else {
       const phone = form.contactNo.trim();
       const phoneRegex = /^\+?[0-9\-()\s]{6,20}$/;
-      if (!phoneRegex.test(phone)) newErrors.contactNo = 'Enter a valid phone number';
-    }
-
-    if (form.nid.trim()) {
-      const nidRegex = /^[0-9]{8,20}$/;
-      if (!nidRegex.test(form.nid.trim())) newErrors.nid = 'NID should be 8-20 digits';
-    }
-
-    if (form.passport.trim()) {
-      const passportRegex = /^[A-Za-z0-9]{6,12}$/;
-      if (!passportRegex.test(form.passport.trim())) newErrors.passport = 'Passport should be 6-12 chars';
+      if (!phoneRegex.test(phone)) newErrors.contactNo = 'সঠিক মোবাইল নাম্বার দিন';
     }
 
     return newErrors;
@@ -117,20 +102,20 @@ const AddDilar = () => {
       setForm(prev => ({ ...prev, logo: imageUrl }));
       
       Swal.fire({
-        title: 'Success!',
-        text: 'Logo uploaded successfully!',
+        title: 'সফল!',
+        text: 'ছবি সফলভাবে আপলোড হয়েছে!',
         icon: 'success',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#7c3aed',
         timer: 1500
       });
       
     } catch (error) {
       Swal.fire({
-        title: 'Error!',
-        text: error.message || 'Failed to upload logo. Please try again.',
+        title: 'ত্রুটি!',
+        text: error.message || 'ছবি আপলোড করতে ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
         icon: 'error',
-        confirmButtonText: 'OK',
+        confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444'
       });
     } finally {
@@ -157,13 +142,9 @@ const AddDilar = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setTouched({
-      tradeName: true,
-      tradeLocation: true,
       ownerName: true,
       contactNo: true,
-      dob: touched.dob || false,
-      nid: touched.nid || false,
-      passport: touched.passport || false
+      tradeLocation: true
     });
 
     if (Object.keys(errors).length > 0) return;
@@ -179,16 +160,25 @@ const AddDilar = () => {
   return (
     <div className="space-y-6 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <Helmet>
-        <title>Add Dilar</title>
-        <meta name="description" content="Create a new dilar profile." />
+        <title>ডিলার যোগ করুন</title>
+        <meta name="description" content="নতুন ডিলার প্রোফাইল তৈরি করুন।" />
       </Helmet>
-      <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
-          <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-        </div>
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Add Dilar</h1>
-          <p className="text-gray-600 dark:text-gray-400">Create a new dilar profile</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleCancel}
+            className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            title="পিছনে যান"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </button>
+          <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+            <Building2 className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">ডিলার যোগ করুন</h1>
+            <p className="text-gray-600 dark:text-gray-400">নতুন ডিলার প্রোফাইল তৈরি করুন</p>
+          </div>
         </div>
       </div>
       
@@ -196,7 +186,7 @@ const AddDilar = () => {
         {/* Logo Upload Section */}
         <div className="mb-6 pb-6 border-b border-gray-200 dark:border-gray-700">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-            Dilar Logo
+            ছবি <span className="text-red-500">*</span>
           </label>
           <div className="flex items-center gap-4">
             {logoPreview || form.logo ? (
@@ -222,7 +212,7 @@ const AddDilar = () => {
             <div className="flex-1">
               <label className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 <Upload className="w-4 h-4" />
-                {logoUploading ? 'Uploading...' : logoPreview || form.logo ? 'Change Logo' : 'Upload Logo'}
+                {logoUploading ? 'আপলোড হচ্ছে...' : logoPreview || form.logo ? 'ছবি পরিবর্তন করুন' : 'ছবি আপলোড করুন'}
                 <input
                   type="file"
                   accept="image/*"
@@ -232,7 +222,7 @@ const AddDilar = () => {
                 />
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Recommended: Square image, max 5MB (PNG, JPG)
+                সুপারিশ: বর্গাকার ছবি, সর্বোচ্চ ৫MB (PNG, JPG)
               </p>
             </div>
           </div>
@@ -241,45 +231,7 @@ const AddDilar = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Trade Name <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="tradeName"
-              value={form.tradeName}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasError('tradeName') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              placeholder="Enter trade name"
-              autoComplete="organization"
-            />
-            {hasError('tradeName') && (
-              <p className="mt-1 text-sm text-red-600">{errors.tradeName}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Trade Location <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              name="tradeLocation"
-              value={form.tradeLocation}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasError('tradeLocation') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              placeholder="Enter trade location"
-              autoComplete="address-level2"
-            />
-            {hasError('tradeLocation') && (
-              <p className="mt-1 text-sm text-red-600">{errors.tradeLocation}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Owner's Name <span className="text-red-500">*</span>
+              নাম <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -288,7 +240,7 @@ const AddDilar = () => {
               onChange={handleChange}
               onBlur={handleBlur}
               className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasError('ownerName') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              placeholder="Enter owner's name"
+              placeholder="নাম লিখুন"
               autoComplete="name"
             />
             {hasError('ownerName') && (
@@ -297,7 +249,9 @@ const AddDilar = () => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contact No <span className="text-red-500">*</span></label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              মোবাইল নাম্বার <span className="text-red-500">*</span>
+            </label>
             <input
               type="tel"
               name="contactNo"
@@ -305,7 +259,7 @@ const AddDilar = () => {
               onChange={handleChange}
               onBlur={handleBlur}
               className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasError('contactNo') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              placeholder="e.g. +8801XXXXXXXXX"
+              placeholder="উদাহরণ: +8801XXXXXXXXX"
               autoComplete="tel"
             />
             {hasError('contactNo') && (
@@ -313,49 +267,22 @@ const AddDilar = () => {
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date Of Birth</label>
-            <input
-              type="date"
-              name="dob"
-              value={form.dob}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className="w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 border-gray-300 dark:border-gray-700"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">NID</label>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              ঠিকানা <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
-              name="nid"
-              value={form.nid}
+              name="tradeLocation"
+              value={form.tradeLocation}
               onChange={handleChange}
               onBlur={handleBlur}
-              className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasError('nid') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              placeholder="Enter NID number"
-              inputMode="numeric"
+              className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasError('tradeLocation') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
+              placeholder="ঠিকানা লিখুন"
+              autoComplete="address-line1"
             />
-            {hasError('nid') && (
-              <p className="mt-1 text-sm text-red-600">{errors.nid}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Passport</label>
-            <input
-              type="text"
-              name="passport"
-              value={form.passport}
-              onChange={handleChange}
-              onBlur={handleBlur}
-              className={`w-full rounded-lg border px-3 py-2.5 sm:py-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${hasError('passport') ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'}`}
-              placeholder="Enter passport number"
-              autoComplete="off"
-            />
-            {hasError('passport') && (
-              <p className="mt-1 text-sm text-red-600">{errors.passport}</p>
+            {hasError('tradeLocation') && (
+              <p className="mt-1 text-sm text-red-600">{errors.tradeLocation}</p>
             )}
           </div>
         </div>
@@ -366,21 +293,21 @@ const AddDilar = () => {
             onClick={handleCancel}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
-            <X className="w-4 h-4" /> Cancel
+            <X className="w-4 h-4" /> বাতিল
           </button>
           <button
             type="button"
             onClick={handleReset}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
           >
-            <RotateCcw className="w-4 h-4" /> Reset
+            <RotateCcw className="w-4 h-4" /> রিসেট
           </button>
           <button
             type="submit"
             disabled={createDilarMutation.isPending}
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" /> {createDilarMutation.isPending ? 'Saving...' : 'Save Dilar'}
+            <Save className="w-4 h-4" /> {createDilarMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'ডিলার সংরক্ষণ করুন'}
           </button>
       </div>
       </form>

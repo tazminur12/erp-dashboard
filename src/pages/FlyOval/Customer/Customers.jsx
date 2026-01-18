@@ -23,10 +23,10 @@ import {
   Upload,
   FileSpreadsheet
 } from 'lucide-react';
-import DataTable from '../../components/common/DataTable';
-import SmallStat from '../../components/common/SmallStat';
-import ExcelUploader from '../../components/common/ExcelUploader';
-import { useTheme } from '../../contexts/ThemeContext';
+import DataTable from '../../../components/common/DataTable';
+import SmallStat from '../../../components/common/SmallStat';
+import ExcelUploader from '../../../components/common/ExcelUploader';
+import { useTheme } from '../../../contexts/ThemeContext';
 import { Helmet } from 'react-helmet-async';
 
 const Customers = () => {

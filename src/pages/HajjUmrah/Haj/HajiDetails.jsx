@@ -584,7 +584,13 @@ const HajiDetails = () => {
                 {haji.manualSerialNumber || 'N/A'}
               </button>
             </div>
-            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600 dark:text-purple-400 flex-shrink-0 cursor-pointer hover:text-purple-700 dark:hover:text-purple-300" onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')} />
+            <button
+              onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')}
+              className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+              title="কপি করুন"
+            >
+              <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+            </button>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -600,7 +606,13 @@ const HajiDetails = () => {
                 {haji.pidNo || 'N/A'}
               </button>
             </div>
-            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-indigo-600 dark:text-indigo-400 flex-shrink-0 cursor-pointer hover:text-indigo-700 dark:hover:text-indigo-300" onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')} />
+            <button
+              onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')}
+              className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+              title="কপি করুন"
+            >
+              <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+            </button>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -616,7 +628,13 @@ const HajiDetails = () => {
                 {haji.ngSerialNo || 'N/A'}
               </button>
             </div>
-            <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-teal-600 dark:text-teal-400 flex-shrink-0 cursor-pointer hover:text-teal-700 dark:hover:text-teal-300" onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')} />
+            <button
+              onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')}
+              className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+              title="কপি করুন"
+            >
+              <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+            </button>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 sm:p-4">
@@ -633,7 +651,13 @@ const HajiDetails = () => {
               </button>
             </div>
             <div className="flex items-center space-x-2 flex-shrink-0">
-              <Copy className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-600 dark:text-cyan-400 cursor-pointer hover:text-cyan-700 dark:hover:text-cyan-300" onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')} />
+              <button
+                onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')}
+                className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                title="কপি করুন"
+              >
+                <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              </button>
               <button
                 type="button"
                 onClick={handleVerifyTracking}
@@ -774,7 +798,13 @@ const HajiDetails = () => {
               >
                 {haji.manualSerialNumber || 'N/A'}
               </button>
-              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')} />
+              <button
+                onClick={() => handleCopyToClipboard(haji.manualSerialNumber, 'Manual Serial Number')}
+                className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                title="কপি করুন"
+              >
+                <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              </button>
             </div>
           </div>
           <div>
@@ -946,7 +976,13 @@ const HajiDetails = () => {
               >
                 {haji.pidNo || 'N/A'}
               </button>
-              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')} />
+              <button
+                onClick={() => handleCopyToClipboard(haji.pidNo, 'PID No')}
+                className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                title="কপি করুন"
+              >
+                <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              </button>
             </div>
           </div>
           <div>
@@ -959,7 +995,13 @@ const HajiDetails = () => {
               >
                 {haji.ngSerialNo || 'N/A'}
               </button>
-              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')} />
+              <button
+                onClick={() => handleCopyToClipboard(haji.ngSerialNo, 'NG Serial No')}
+                className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                title="কপি করুন"
+              >
+                <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              </button>
             </div>
           </div>
           <div>
@@ -972,7 +1014,13 @@ const HajiDetails = () => {
               >
                 {haji.trackingNo || 'N/A'}
               </button>
-              <Copy className="w-4 h-4 text-gray-500 dark:text-gray-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 flex-shrink-0" onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')} />
+              <button
+                onClick={() => handleCopyToClipboard(haji.trackingNo, 'Tracking No')}
+                className="w-6 h-6 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded-full flex-shrink-0 cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                title="কপি করুন"
+              >
+                <Copy className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
+              </button>
             </div>
           </div>
           <div>
