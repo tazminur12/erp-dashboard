@@ -241,13 +241,17 @@ const NewTransaction = () => {
       id: '',
       name: '',
       phone: '',
-      email: ''
+      email: '',
+      designation: '',
+      department: ''
     },
     creditAccountManager: {
       id: '',
       name: '',
       phone: '',
-      email: ''
+      email: '',
+      designation: '',
+      department: ''
     },
     
     // Account Transfer Fields
@@ -274,7 +278,9 @@ const NewTransaction = () => {
       id: '',
       name: '',
       phone: '',
-      email: ''
+      email: '',
+      designation: '',
+      department: ''
     },
     
     // Transfer Details
@@ -402,7 +408,14 @@ const NewTransaction = () => {
     formData.customerType === 'umrah' && formData.customerId ? formData.customerId : null
   );
   const umrahDetail = umrahDetailData || null;
-  const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(accountManagerSearchTerm, !!accountManagerSearchTerm?.trim());
+  // Account Manager search using HR employees
+  // Use useEmployeeSearch hook
+  const accountManagerSearchTermStr = accountManagerSearchTerm ? String(accountManagerSearchTerm).trim() : '';
+  const shouldSearch = accountManagerSearchTermStr.length >= 2;
+  const { data: employeeSearchResults = [], isLoading: employeeLoading, error: employeeSearchError } = useEmployeeSearch(
+    accountManagerSearchTermStr,
+    shouldSearch
+  );
 
   // Loans search list for the "Loans" selector tab
   // Use effectiveSearchType if in step 3, otherwise use selectedSearchType
@@ -944,7 +957,9 @@ const NewTransaction = () => {
           id: managerId,
           name: managerName,
           phone: managerPhone,
-          email: managerEmail
+          email: managerEmail,
+          designation: manager.designation || manager.position || '',
+          department: manager.department || ''
         }
       }));
       
@@ -6691,7 +6706,7 @@ const NewTransaction = () => {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="একাউন্ট ম্যানেজার খুঁজুন... (নাম, পদবী, ফোন, ইমেইল)"
+                          placeholder="একাউন্ট ম্যানেজার খুঁজুন... (কমপক্ষে ২টি অক্ষর টাইপ করুন)"
                           value={accountManagerSearchTerm}
                           onChange={(e) => setAccountManagerSearchTerm(e.target.value)}
                           className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
@@ -6700,10 +6715,15 @@ const NewTransaction = () => {
                               : 'border-gray-300'
                           }`}
                         />
+                        {accountManagerSearchTerm && accountManagerSearchTerm.trim().length < 2 && (
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            কমপক্ষে ২টি অক্ষর টাইপ করুন
+                          </p>
+                        )}
                       </div>
 
                       {/* Account Manager List */}
-                      {accountManagerSearchTerm && (
+                      {shouldSearch && (
                         <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2">
                           {employeeLoading ? (
                             <div className="flex items-center justify-center py-4">
@@ -6712,100 +6732,146 @@ const NewTransaction = () => {
                             </div>
                           ) : employeeSearchError ? (
                             <div className="text-center py-4 text-red-500 dark:text-red-400 text-sm">
-                              <div className="flex items-center justify-center gap-2">
-                                <AlertCircle className="w-4 h-4" />
-                                <span>খোঁজার সময় সমস্যা হয়েছে। আবার চেষ্টা করুন।</span>
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="w-5 h-5" />
+                                <span>খোঁজার সময় সমস্যা হয়েছে</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-500">
+                                  {employeeSearchError?.message || 'Backend endpoint error. Please try again.'}
+                                </span>
                               </div>
                             </div>
                           ) : employeeSearchResults.length === 0 ? (
                             <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">
-                              {accountManagerSearchTerm ? 'কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি' : 'একাউন্ট ম্যানেজার খুঁজতে টাইপ করুন'}
+                              কোনো একাউন্ট ম্যানেজার পাওয়া যায়নি
                             </div>
                           ) : (
-                            employeeSearchResults.map((employee) => (
-                              <button
-                                key={employee._id || employee.id}
-                                onClick={() => {
-                                  setFormData(prev => ({
-                                    ...prev,
-                                    employeeReference: {
-                                      id: employee._id || employee.id,
-                                      name: employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim(),
-                                      employeeId: employee.employeeId || employee.id,
-                                      position: employee.designation || employee.position || '',
-                                      department: employee.department || ''
-                                    }
-                                  }));
-                                  setAccountManagerSearchTerm('');
-                                }}
-                                className={`w-full p-3 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
-                                  formData.employeeReference?.id === employee._id
-                                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                                    : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
-                                }`}
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                                    formData.employeeReference?.id === employee._id
-                                      ? 'bg-blue-100 dark:bg-blue-800'
-                                      : 'bg-gray-100 dark:bg-gray-700'
-                                  }`}>
-                                    <User className={`w-5 h-5 ${
-                                      formData.employeeReference?.id === employee._id
-                                        ? 'text-blue-600 dark:text-blue-400'
-                                        : 'text-gray-600 dark:text-gray-400'
-                                    }`} />
-                                  </div>
-                                  <div className="flex-1 text-left">
-                                    <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                                      {employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই'}
-                                    </h4>
-                                    <p className="text-xs text-gray-600 dark:text-gray-400">
-                                      {employee.designation || employee.position || 'পদবী নেই'}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2 mt-1">
-                                      {(employee.phone || employee.phoneNumber) && (
-                                        <span className="text-xs text-blue-600 dark:text-blue-400">
-                                          📞 {employee.phone || employee.phoneNumber}
-                                        </span>
-                                      )}
-                                      {(employee.email || employee.emailAddress) && (
-                                        <span className="text-xs text-green-600 dark:text-green-400">
-                                          ✉️ {employee.email || employee.emailAddress}
-                                        </span>
-                                      )}
+                            employeeSearchResults.map((employee) => {
+                              const employeeId = employee._id || employee.id || employee.employeeId;
+                              const employeeName = employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'নাম নেই';
+                              const employeePosition = employee.designation || employee.position || employee.position || 'পদবী নেই';
+                              const employeePhone = employee.phone || employee.phoneNumber || '';
+                              const employeeEmail = employee.email || employee.emailAddress || '';
+                              const employeeDepartment = employee.department || '';
+                              
+                              return (
+                                <button
+                                  key={employeeId}
+                                  onClick={() => {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      accountManager: {
+                                        id: employeeId,
+                                        name: employeeName,
+                                        phone: employeePhone,
+                                        email: employeeEmail,
+                                        designation: employeePosition,
+                                        department: employeeDepartment
+                                      }
+                                    }));
+                                    setAccountManagerSearchTerm('');
+                                  }}
+                                  className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.01] ${
+                                    formData.accountManager?.id === employeeId
+                                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                      : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-3 sm:space-x-4">
+                                    <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                      formData.accountManager?.id === employeeId
+                                        ? 'bg-blue-100 dark:bg-blue-800'
+                                        : 'bg-gray-100 dark:bg-gray-700'
+                                    }`}>
+                                      <User className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                        formData.accountManager?.id === employeeId
+                                          ? 'text-blue-600 dark:text-blue-400'
+                                          : 'text-gray-600 dark:text-gray-400'
+                                      }`} />
                                     </div>
+                                    <div className="flex-1 text-left min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                          {employeeName}
+                                        </h4>
+                                        {employee.employeeId && (
+                                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                                            ({employee.employeeId})
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                                        {employeePosition}
+                                      </p>
+                                      {employeeDepartment && (
+                                        <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                          {employeeDepartment}
+                                        </p>
+                                      )}
+                                      <div className="flex flex-wrap gap-2 mt-1">
+                                        {employeePhone && (
+                                          <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                            <Phone className="w-3 h-3" />
+                                            {employeePhone}
+                                          </span>
+                                        )}
+                                        {employeeEmail && (
+                                          <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                            <Mail className="w-3 h-3" />
+                                            {employeeEmail}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {formData.accountManager?.id === employeeId && (
+                                      <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                                    )}
                                   </div>
-                                  {formData.employeeReference?.id === employee._id && (
-                                    <CheckCircle className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                  )}
-                                </div>
-                              </button>
-                            ))
+                                </button>
+                              );
+                            })
                           )}
                         </div>
                       )}
 
                       {/* Selected Account Manager Display */}
-                      {formData.employeeReference?.name && !accountManagerSearchTerm && (
-                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      {formData.accountManager?.name && !accountManagerSearchTerm && (
+                        <div className="mt-2 p-3 sm:p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center">
-                                <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
+                              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-green-100 dark:bg-green-800 flex items-center justify-center flex-shrink-0">
+                                <User className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 dark:text-green-400" />
                               </div>
-                              <div>
-                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm">
-                                  {formData.employeeReference.name}
+                              <div className="min-w-0 flex-1">
+                                <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                                  {formData.accountManager.name}
                                 </h4>
-                                <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  {formData.employeeReference.position}
+                                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate">
+                                  {formData.accountManager.designation || formData.accountManager.position || 'পদবী নেই'}
                                 </p>
+                                {formData.accountManager.department && (
+                                  <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                    {formData.accountManager.department}
+                                  </p>
+                                )}
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                  {formData.accountManager.phone && (
+                                    <span className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                      <Phone className="w-3 h-3" />
+                                      {formData.accountManager.phone}
+                                    </span>
+                                  )}
+                                  {formData.accountManager.email && (
+                                    <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                                      <Mail className="w-3 h-3" />
+                                      {formData.accountManager.email}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <button
-                              onClick={() => setFormData(prev => ({ ...prev, employeeReference: { id: '', name: '', employeeId: '', position: '', department: '' } }))}
-                              className="text-red-500 hover:text-red-700 text-sm"
+                              onClick={() => setFormData(prev => ({ ...prev, accountManager: { id: '', name: '', phone: '', email: '', designation: '', department: '' } }))}
+                              className="text-red-500 hover:text-red-700 text-sm flex-shrink-0 ml-2"
                             >
                               সরান
                             </button>
