@@ -15,13 +15,21 @@ const DilarList = () => {
   const navigate = useNavigate();
   
   // React Query hooks
-  const { data: dilars = [], isLoading: loading, error: dilarsError } = useDilars();
-  const deleteDilarMutation = useDeleteDilar();
-  
-  // Local state
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const pageSize = 10;
+  
+  const { data: dilarsData, isLoading: loading, error: dilarsError } = useDilars({
+    search: query,
+    page: page,
+    limit: pageSize
+  });
+  
+  // Extract dilars array and pagination from response
+  const dilars = dilarsData?.dilars || [];
+  const pagination = dilarsData?.pagination || { page: 1, limit: pageSize, total: 0, pages: 0 };
+  
+  const deleteDilarMutation = useDeleteDilar();
 
   // Show error if dilars failed to load
   useEffect(() => {
@@ -30,22 +38,11 @@ const DilarList = () => {
     }
   }, [dilarsError]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return Array.isArray(dilars) ? dilars : [];
-    return Array.isArray(dilars) ? dilars.filter((d) =>
-      [d.tradeName, d.tradeLocation, d.ownerName, d.contactNo, d.nid, d.passport]
-        .filter(Boolean)
-        .some((x) => x.toLowerCase().includes(q))
-    ) : [];
-  }, [query, dilars]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const paged = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage]);
+  // Backend handles search and pagination, so we use the data directly
+  const filtered = Array.isArray(dilars) ? dilars : [];
+  const totalPages = pagination.pages || 1;
+  const currentPage = pagination.page || 1;
+  const paged = filtered; // Already paginated by backend
 
   const handleDeleteDilar = async (dilar) => {
     const result = await Swal.fire({
@@ -94,9 +91,12 @@ const DilarList = () => {
             <input
               type="text"
               value={query}
-              onChange={(e) => { setPage(1); setQuery(e.target.value); }}
+              onChange={(e) => { 
+                setPage(1); 
+                setQuery(e.target.value); 
+              }}
               className="w-full sm:w-72 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2.5 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              placeholder="ডিলার খুঁজুন..."
+              placeholder="ডিলার খুঁজুন... (নাম, মোবাইল, ঠিকানা)"
             />
           </div>
           <Link
@@ -113,19 +113,17 @@ const DilarList = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-900/50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">আইডি</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ব্যবসায়ীক নাম</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">অবস্থান</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মালিকের নাম</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মোবাইল নং</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">এনআইডি</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ছবি</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">নাম</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মোবাইল</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">নম্বর</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">অ্যাকশন</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       লোড হচ্ছে...
@@ -134,35 +132,29 @@ const DilarList = () => {
                 </tr>
               ) : dilarsError ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-red-500 dark:text-red-400">
+                  <td colSpan={5} className="px-4 py-10 text-center text-red-500 dark:text-red-400">
                     ডিলার লোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।
                   </td>
                 </tr>
-              ) : paged.length > 0 ? paged.map((d) => {
+              ) : paged.length > 0 ? paged.map((d, index) => {
+                  const serialNumber = (currentPage - 1) * pageSize + index + 1;
                   return (
                   <tr key={d._id || d.dilarId} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{d.dilarId || d._id || 'N/A'}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {d.logo && (
-                        <img src={d.logo} alt={d.tradeName} className="w-10 h-10 rounded" />
+                        <img src={d.logo} alt={d.ownerName || 'Dilar'} className="w-10 h-10 rounded object-cover" />
                       )}
                       {!d.logo && (
                         <div className="flex items-center justify-center h-10 w-10 rounded-md bg-purple-100 dark:bg-purple-900/30 flex-shrink-0">
                           <Building2 className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                         </div>
                       )}
-                      <div className="min-w-0 flex-1">
-                        <span className="text-sm font-medium text-gray-900 dark:text-white block truncate">{d.tradeName || 'N/A'}</span>
-                      </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                    {d.tradeLocation || 'N/A'}
-                  </td>
                   <td className="px-4 py-3">
-                    <div className="text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                      <User className="w-4 h-4 text-gray-500" /> {d.ownerName || 'N/A'}
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {d.ownerName || 'N/A'}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -171,19 +163,19 @@ const DilarList = () => {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                    {d.nid || 'N/A'}
+                    {serialNumber}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => navigate(`/money-exchange/dilar/${d._id || d.dilarId}/edit`)}
+                        onClick={() => navigate(`/money-exchange/dilar/${d._id || d.dilarId || d.contactNo}/edit`)}
                         className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                         title="সম্পাদনা করুন"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => navigate(`/money-exchange/dilar/${d._id || d.dilarId}`)}
+                        onClick={() => navigate(`/money-exchange/dilar/${d._id || d.dilarId || d.contactNo}`)}
                         className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                         title="বিস্তারিত দেখুন"
                       >
@@ -193,7 +185,7 @@ const DilarList = () => {
                         onClick={() => handleDeleteDilar(d)}
                         disabled={
                           (() => {
-                            const currentId = d._id || d.id || d.dilarId;
+                            const currentId = d._id || d.id || d.dilarId || d.contactNo;
                             return deleteDilarMutation.isPending && deleteDilarMutation.variables === currentId;
                           })()
                         }
@@ -201,7 +193,7 @@ const DilarList = () => {
                         title="মুছে ফেলুন"
                       >
                         {(() => {
-                          const currentId = d._id || d.id || d.dilarId;
+                          const currentId = d._id || d.id || d.dilarId || d.contactNo;
                           return deleteDilarMutation.isPending && deleteDilarMutation.variables === currentId;
                         })() ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -215,7 +207,7 @@ const DilarList = () => {
                 );
               }) : (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">কোন ডিলার পাওয়া যায়নি</td>
+                  <td colSpan={5} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">কোন ডিলার পাওয়া যায়নি</td>
                 </tr>
               )}
             </tbody>
@@ -224,13 +216,13 @@ const DilarList = () => {
 
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            দেখানো হচ্ছে <span className="font-medium">{paged.length}</span> এর <span className="font-medium">{filtered.length}</span> ডিলার
+            দেখানো হচ্ছে <span className="font-medium">{paged.length}</span> এর <span className="font-medium">{pagination.total || 0}</span> ডিলার
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               আগে
             </button>
@@ -238,7 +230,7 @@ const DilarList = () => {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50"
+              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               পরে
             </button>

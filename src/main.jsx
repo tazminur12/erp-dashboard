@@ -215,6 +215,7 @@ const List = React.lazy(() => import('./pages/MoneyExchange/List'));
 const EditExchange = React.lazy(() => import('./pages/MoneyExchange/EditExchange'));
 const ExchangeDetails = React.lazy(() => import('./pages/MoneyExchange/Details'));
 const AddDilar = React.lazy(() => import('./pages/MoneyExchange/AddDilar'));
+const EditDilar = React.lazy(() => import('./pages/MoneyExchange/EditDilar'));
 const DilarList = React.lazy(() => import('./pages/MoneyExchange/DilarList'));
 
 // Marketing pages
@@ -1668,6 +1669,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <AddDilar />
+          </Suspense>
+        )
+      },
+      {
+        path: "dilar/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditDilar />
           </Suspense>
         )
       }
