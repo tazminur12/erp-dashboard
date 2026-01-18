@@ -765,6 +765,15 @@ const NewTransaction = () => {
       customerEmail: customer.email,
       customerAddress: customer.address || customer.fullAddress || '',
       customerType: resolvedType,
+      // ✅ employeeReference automatically set করুন Miraj Employee select করার সময়
+      employeeReference: customer.employeeReference || 
+        (resolvedType === 'miraj-employee' ? {
+          id: customer.id || customer.customerId,
+          name: customer.name || 'N/A',
+          employeeId: customer.employeeId || customer.id || customer.customerId,
+          position: customer.position || '',
+          department: customer.department || ''
+        } : prev.employeeReference),
       // Store operating expense category ID and object for office expenses
       operatingExpenseCategoryId: resolvedType === 'office' ? String(customer.id || customer.customerId) : undefined,
       operatingExpenseCategory: resolvedType === 'office' ? {
@@ -1769,6 +1778,15 @@ const NewTransaction = () => {
               queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
               queryClient.invalidateQueries({ queryKey: vendorKeys.detail(partyId) });
               queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(partyId), 'financials'] });
+            }
+            
+            // Invalidate employee queries for Miraj Employee transactions
+            const customerType = unifiedTransactionData.customerType || formData.customerType;
+            const employeeId = formData.employeeReference?.id || formData.employeeReference?.employeeId || (customerType === 'miraj-employee' ? partyId : null);
+            if ((customerType === 'miraj-employee' || customerType === 'mirajIndustries') && employeeId) {
+              queryClient.invalidateQueries({ queryKey: ['employees'] });
+              queryClient.invalidateQueries({ queryKey: ['employees', employeeId] });
+              queryClient.invalidateQueries({ queryKey: ['employees', 'stats'] });
             }
 
             // Notify customer via SMS (best-effort)
@@ -3839,7 +3857,7 @@ const NewTransaction = () => {
                         <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন লোন পাওয়া যায়নি</div>
                       )
                     ) : effectiveSearchType === 'miraj' ? (
-                      // Miraj Industries: show employees and income/expense categories
+                      // Miraj Industries: show employees, income, and expense categories
                       (() => {
                         const filteredEmployees = mirajEmployees.filter(emp => {
                           if (!searchTerm) return true;
@@ -3849,21 +3867,29 @@ const NewTransaction = () => {
                                  (emp.phone || '').includes(searchTerm);
                         });
 
-                        const mirajItems = formData.transactionType === 'credit' ? mirajIncomes : mirajExpenses;
-                        const filteredItems = mirajItems.filter(item => {
+                        // Filter incomes
+                        const filteredIncomes = mirajIncomes.filter(item => {
                           if (!searchTerm) return true;
                           const term = searchTerm.toLowerCase();
-                          const name = formData.transactionType === 'credit' 
-                            ? (item.customer || item.source || '') 
-                            : (item.vendor || '');
+                          const name = item.customer || item.source || '';
+                          return name.toLowerCase().includes(term) ||
+                                 (item.description || '').toLowerCase().includes(term);
+                        });
+
+                        // Filter expenses
+                        const filteredExpenses = mirajExpenses.filter(item => {
+                          if (!searchTerm) return true;
+                          const term = searchTerm.toLowerCase();
+                          const name = item.vendor || '';
                           return name.toLowerCase().includes(term) ||
                                  (item.description || '').toLowerCase().includes(term);
                         });
 
                         const hasEmployees = filteredEmployees.length > 0;
-                        const hasItems = filteredItems.length > 0;
+                        const hasIncomes = filteredIncomes.length > 0;
+                        const hasExpenses = filteredExpenses.length > 0;
 
-                        if (!hasEmployees && !hasItems) {
+                        if (!hasEmployees && !hasIncomes && !hasExpenses) {
                           return (
                             <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                               {searchTerm ? 'কোন ডেটা পাওয়া যায়নি' : 'কোন ডেটা নেই'}
@@ -3892,7 +3918,18 @@ const NewTransaction = () => {
                                         customerType: 'miraj-employee',
                                         phone: employee.phone || '',
                                         email: employee.email || '',
-                                        address: employee.address || ''
+                                        address: employee.address || '',
+                                        position: employee.position || '',
+                                        department: employee.department || '',
+                                        employeeId: employee.employeeId || employee.id || employee._id,
+                                        // ✅ employeeReference automatically set করুন
+                                        employeeReference: {
+                                          id: employee.id || employee._id,
+                                          name: employee.name || 'N/A',
+                                          employeeId: employee.employeeId || employee.id || employee._id,
+                                          position: employee.position || '',
+                                          department: employee.department || ''
+                                        }
                                       });
                                     }}
                                     className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 mb-2 ${
@@ -3933,45 +3970,45 @@ const NewTransaction = () => {
                               </>
                             )}
 
-                            {/* Income/Expense Categories Section */}
-                            {hasItems && (
+                            {/* Farm Income Section */}
+                            {hasIncomes && (
                               <>
-                                {hasEmployees && (
+                                {(hasEmployees || hasExpenses) && (
                                   <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4">
-                                    {formData.transactionType === 'credit' ? 'আয়' : 'ব্যয়'}
+                                    খামারের আয়
                                   </div>
                                 )}
-                                {filteredItems.map((item) => (
+                                {filteredIncomes.map((item) => (
                                   <button
-                                    key={`miraj-${item.id}`}
+                                    key={`miraj-income-${item.id}`}
                                     type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
                                       handleCustomerSelect({
                                         id: item.id,
-                                        name: formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense'),
-                                        customerType: formData.transactionType === 'credit' ? 'miraj-income' : 'miraj-expense'
+                                        name: item.customer || item.source || 'Income',
+                                        customerType: 'miraj-income'
                                       });
                                     }}
                                     className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 mb-2 ${
-                                      formData.customerId === item.id
+                                      formData.customerId === item.id && formData.customerType === 'miraj-income'
                                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                                         : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
                                     }`}
                                   >
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                        <div className={`w-8 h-8 sm:w-10 sm:h-10 ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20' : 'bg-red-100 dark:bg-red-900/20'} rounded-full flex items-center justify-center flex-shrink-0`}>
-                                          <Receipt className={`w-4 h-4 ${formData.transactionType === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`} />
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                          <Receipt className="w-4 h-4 text-green-600 dark:text-green-400" />
                                         </div>
                                         <div className="text-left min-w-0 flex-1">
                                           <div className="flex items-center gap-2">
                                             <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
-                                              {formData.transactionType === 'credit' ? (item.customer || item.source || 'Income') : (item.vendor || 'Expense')}
+                                              {item.customer || item.source || 'Income'}
                                             </h3>
-                                            <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full ${formData.transactionType === 'credit' ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400'}`}>
-                                              {formData.transactionType === 'credit' ? 'Income' : 'Expense'}
+                                            <span className="inline-block px-1.5 py-0.5 text-xs rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400">
+                                              আয়
                                             </span>
                                           </div>
                                           {item.description && (
@@ -3981,12 +4018,74 @@ const NewTransaction = () => {
                                       </div>
                                       {typeof item.amount !== 'undefined' && (
                                         <div className="text-right">
-                                          <p className={`text-sm font-semibold ${formData.transactionType === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                                            {formData.transactionType === 'credit' ? '+' : '-'}৳{Number(item.amount || 0).toLocaleString()}
+                                          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                                            +৳{Number(item.amount || 0).toLocaleString()}
                                           </p>
                                         </div>
                                       )}
-                                      {formData.customerId === item.id && (
+                                      {formData.customerId === item.id && formData.customerType === 'miraj-income' && (
+                                        <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0 ml-2" />
+                                      )}
+                                    </div>
+                                  </button>
+                                ))}
+                              </>
+                            )}
+
+                            {/* Farm Expense Section */}
+                            {hasExpenses && (
+                              <>
+                                {(hasEmployees || hasIncomes) && (
+                                  <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mt-4">
+                                    খামারের খরচ
+                                  </div>
+                                )}
+                                {filteredExpenses.map((item) => (
+                                  <button
+                                    key={`miraj-expense-${item.id}`}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleCustomerSelect({
+                                        id: item.id,
+                                        name: item.vendor || 'Expense',
+                                        customerType: 'miraj-expense'
+                                      });
+                                    }}
+                                    className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 hover:scale-102 mb-2 ${
+                                      formData.customerId === item.id && formData.customerType === 'miraj-expense'
+                                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                        : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                          <Receipt className="w-4 h-4 text-red-600 dark:text-red-400" />
+                                        </div>
+                                        <div className="text-left min-w-0 flex-1">
+                                          <div className="flex items-center gap-2">
+                                            <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                              {item.vendor || 'Expense'}
+                                            </h3>
+                                            <span className="inline-block px-1.5 py-0.5 text-xs rounded-full bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400">
+                                              খরচ
+                                            </span>
+                                          </div>
+                                          {item.description && (
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{item.description}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {typeof item.amount !== 'undefined' && (
+                                        <div className="text-right">
+                                          <p className="text-sm font-semibold text-red-600 dark:text-red-400">
+                                            -৳{Number(item.amount || 0).toLocaleString()}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {formData.customerId === item.id && formData.customerType === 'miraj-expense' && (
                                         <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500 flex-shrink-0 ml-2" />
                                       )}
                                     </div>
