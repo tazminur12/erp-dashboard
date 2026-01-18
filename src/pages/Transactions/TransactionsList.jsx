@@ -496,7 +496,38 @@ const TransactionsList = () => {
     // Get raw category value (could be ID or name)
     const raw = t.category || t.categoryId || t.serviceCategory || t.paymentDetails?.category || '';
     
-    if (!raw) return 'N/A';
+    // If category is empty, try to derive from customerType or partyType
+    if (!raw || raw === '') {
+      const customerType = t.customerType || t.partyType || '';
+      if (customerType === 'haji' || customerType === 'hajj') return 'হাজ্জ প্যাকেজ';
+      if (customerType === 'umrah') return 'ওমরাহ প্যাকেজ';
+      if (customerType === 'miraj-employee') return 'মিরাজ ইন্ডাস্ট্রিজ - কর্মচারী';
+      if (customerType === 'miraj-income') return 'মিরাজ ইন্ডাস্ট্রিজ - আয়';
+      if (customerType === 'miraj-expense') return 'মিরাজ ইন্ডাস্ট্রিজ - ব্যয়';
+      if (customerType === 'office' || customerType === 'officeExpenses') {
+        if (t.operatingExpenseCategory && typeof t.operatingExpenseCategory === 'object') {
+          const catName = t.operatingExpenseCategory.name || t.operatingExpenseCategory.categoryName || '';
+          return catName ? `অফিস ব্যয় - ${catName}` : 'অফিস ব্যয়';
+        }
+        return 'অফিস ব্যয়';
+      }
+      if (customerType === 'money-exchange' || customerType === 'moneyExchange') return 'মানি এক্সচেঞ্জ';
+      if (customerType === 'airCustomer') return 'এয়ার টিকেট';
+      if (customerType === 'vendor') return 'ভেন্ডর';
+      if (customerType === 'agent') return 'এজেন্ট';
+      if (customerType === 'loan') {
+        return t.transactionType === 'debit' ? 'ঋণ প্রদান' : 'ঋণ পরিশোধ';
+      }
+      // Check serviceCategory as fallback
+      if (t.serviceCategory) {
+        const svc = String(t.serviceCategory);
+        if (svc === 'hajj') return 'হাজ্জ প্যাকেজ';
+        if (svc === 'umrah') return 'ওমরাহ প্যাকেজ';
+        if (svc === 'loan-giving') return 'ঋণ প্রদান';
+        if (svc === 'loan-repayment') return 'ঋণ পরিশোধ';
+      }
+      return 'N/A';
+    }
     
     // If it's already a readable name (not an ID), return it
     if (typeof raw === 'string' && !raw.match(/^[0-9a-f]{24}$/i) && raw.length < 30) {
@@ -513,6 +544,19 @@ const TransactionsList = () => {
     if (apiCategoryIndex[raw]) {
       return apiCategoryIndex[raw];
     }
+    
+    // If we can't find a name, try to derive from customerType as final fallback
+    const customerType = t.customerType || t.partyType || '';
+    if (customerType === 'haji' || customerType === 'hajj') return 'হাজ্জ প্যাকেজ';
+    if (customerType === 'umrah') return 'ওমরাহ প্যাকেজ';
+    if (customerType === 'miraj-employee') return 'মিরাজ ইন্ডাস্ট্রিজ - কর্মচারী';
+    if (customerType === 'miraj-income') return 'মিরাজ ইন্ডাস্ট্রিজ - আয়';
+    if (customerType === 'miraj-expense') return 'মিরাজ ইন্ডাস্ট্রিজ - ব্যয়';
+    if (customerType === 'office' || customerType === 'officeExpenses') return 'অফিস ব্যয়';
+    if (customerType === 'money-exchange' || customerType === 'moneyExchange') return 'মানি এক্সচেঞ্জ';
+    if (customerType === 'airCustomer') return 'এয়ার টিকেট';
+    if (customerType === 'vendor') return 'ভেন্ডর';
+    if (customerType === 'agent') return 'এজেন্ট';
     
     // If we can't find a name, return "N/A" instead of showing the ID
     return 'N/A';

@@ -1559,6 +1559,23 @@ const NewTransaction = () => {
       // For loans, map by transaction type
       (formData.customerType === 'loan' ? (isDebit ? 'loan-giving' : 'loan-repayment') : formData.category))));
 
+    // Resolve category with fallbacks based on customerType
+    const resolvedCategory = 
+      formData.category && formData.category.trim() 
+        ? formData.category 
+        : (formData.customerType === 'haji' ? 'হাজ্জ প্যাকেজ' :
+           formData.customerType === 'umrah' ? 'ওমরাহ প্যাকেজ' :
+           formData.customerType === 'miraj-employee' ? 'মিরাজ ইন্ডাস্ট্রিজ - কর্মচারী' :
+           formData.customerType === 'miraj-income' ? 'মিরাজ ইন্ডাস্ট্রিজ - আয়' :
+           formData.customerType === 'miraj-expense' ? 'মিরাজ ইন্ডাস্ট্রিজ - ব্যয়' :
+           formData.customerType === 'office' && formData.operatingExpenseCategory 
+             ? `অফিস ব্যয় - ${formData.operatingExpenseCategory.name || formData.operatingExpenseCategory.categoryName || ''}`
+             : formData.customerType === 'money-exchange' ? 'মানি এক্সচেঞ্জ' :
+           formData.customerType === 'airCustomer' ? 'এয়ার টিকেট' :
+           formData.customerType === 'vendor' ? 'ভেন্ডর' :
+           formData.customerType === 'agent' ? 'এজেন্ট' :
+           resolvedServiceCategory || '');
+
     // Prepare moneyExchangeInfo if this is a money-exchange transaction
     let moneyExchangeInfo = null;
     if ((formData.customerType === 'money-exchange' || formData.customerType === 'moneyExchange') && formData.moneyExchangeInfo) {
@@ -1625,7 +1642,7 @@ const NewTransaction = () => {
         charge: getChargeWithSign() || null
       },
       serviceCategory: resolvedServiceCategory,
-      category: formData.category,
+      category: resolvedCategory,
       // subCategory can be extracted from category if it's a subcategory ID
       // (Currently, subcategories are stored in formData.category, so we'll let backend handle it)
       paymentMethod: formData.paymentMethod,
