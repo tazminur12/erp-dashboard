@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useCreateExchange } from '../../hooks/useMoneyExchangeQueries';
+import { useDilars } from '../../hooks/useDilarQueries';
+import { Search, Building2, User, X } from 'lucide-react';
 
 
 const CURRENCIES = [
@@ -35,7 +37,14 @@ const formatBDT = (value) =>
     Number.isFinite(value) ? value : 0
   );
 
+const CUSTOMER_TYPES = [
+  { value: 'normal', labelBn: 'সাধারণ গ্রাহক (Normal Customer)' },
+  { value: 'dilar', labelBn: 'ডিলার (Dilar)' },
+];
+
 const initialForm = {
+  customerType: 'normal', // 'normal' or 'dilar'
+  selectedDilarId: '', // For dilar selection
   date: new Date().toISOString().split('T')[0],
   fullName: '',
   mobileNumber: '',
@@ -74,7 +83,17 @@ const Pill = ({ color = 'gray', children }) => {
 const NewExchange = () => {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
+  const [dilarSearchTerm, setDilarSearchTerm] = useState('');
+  const [showDilarDropdown, setShowDilarDropdown] = useState(false);
   const createExchange = useCreateExchange();
+  
+  // Fetch dilars for dropdown
+  const { data: dilarsData, isLoading: dilarsLoading } = useDilars({
+    search: dilarSearchTerm,
+    page: 1,
+    limit: 10
+  });
+  const dilars = dilarsData?.dilars || [];
 
   useEffect(() => {
     const c = CURRENCIES.find((x) => x.code === form.currencyCode);
@@ -88,6 +107,52 @@ const NewExchange = () => {
     setForm((f) => ({ ...f, quantity: '', exchangeRate: '' }));
     setErrors((e) => ({ ...e, quantity: undefined, exchangeRate: undefined }));
   }, [form.type]);
+
+  // Reset customer fields when customer type changes
+  useEffect(() => {
+    if (form.customerType === 'normal') {
+      setForm((f) => ({ 
+        ...f, 
+        selectedDilarId: '',
+        fullName: '',
+        mobileNumber: '',
+        nid: ''
+      }));
+    } else {
+      setForm((f) => ({ 
+        ...f, 
+        fullName: '',
+        mobileNumber: '',
+        nid: ''
+      }));
+    }
+    setDilarSearchTerm('');
+    setShowDilarDropdown(false);
+  }, [form.customerType]);
+
+  // Handle dilar selection
+  const handleDilarSelect = (dilar) => {
+    setForm((f) => ({
+      ...f,
+      selectedDilarId: dilar._id || dilar.contactNo,
+      fullName: dilar.ownerName || '',
+      mobileNumber: dilar.contactNo || '',
+      nid: dilar.nid || '',
+    }));
+    setDilarSearchTerm(dilar.ownerName || '');
+    setShowDilarDropdown(false);
+  };
+
+  // Filter dilars based on search term
+  const filteredDilars = useMemo(() => {
+    if (!dilarSearchTerm.trim()) return dilars;
+    const searchLower = dilarSearchTerm.toLowerCase();
+    return dilars.filter(d => 
+      (d.ownerName || '').toLowerCase().includes(searchLower) ||
+      (d.contactNo || '').includes(dilarSearchTerm) ||
+      (d.tradeLocation || '').toLowerCase().includes(searchLower)
+    );
+  }, [dilars, dilarSearchTerm]);
 
   const isBuy = form.type === 'Buy';
 
@@ -125,6 +190,17 @@ const NewExchange = () => {
     setForm((f) => ({ ...f, [name]: value }));
     if (errors[name]) setErrors((e) => ({ ...e, [name]: undefined }));
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showDilarDropdown && !event.target.closest('.relative')) {
+        setShowDilarDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDilarDropdown]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -185,7 +261,31 @@ const NewExchange = () => {
         <div className="xl:col-span-2">
           <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
             <form id="exchange-form" onSubmit={handleSubmit} className="space-y-6" noValidate>
-              {/* Type Selection - First */}
+              {/* Customer Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Customer Type (গ্রাহকের ধরণ) <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  {CUSTOMER_TYPES.map((ct) => (
+                    <button
+                      key={ct.value}
+                      type="button"
+                      onClick={() => handleChange('customerType', ct.value)}
+                      disabled={disabled}
+                      className={`px-4 py-3 rounded-md border-2 font-medium transition-all ${
+                        form.customerType === ct.value
+                          ? 'border-purple-500 bg-purple-50 text-purple-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      } disabled:opacity-50`}
+                    >
+                      {ct.labelBn}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Type Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Type (ধরণ) <span className="text-red-500">*</span>
@@ -228,20 +328,87 @@ const NewExchange = () => {
                   {errors.date && <p className="mt-1 text-xs text-red-600">{errors.date}</p>}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Full Name (পূর্ণ নাম) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
-                    placeholder="পূর্ণ নাম লিখুন"
-                    value={form.fullName}
-                    onChange={(e) => handleChange('fullName', e.target.value)}
-                    disabled={disabled}
-                  />
-                  {errors.fullName && <p className="mt-1 text-xs text-red-600">{errors.fullName}</p>}
-                </div>
+                {/* Dilar Selection or Normal Name Input */}
+                {form.customerType === 'dilar' ? (
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dilar (ডিলার) <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="text"
+                        className="mt-1 w-full border rounded-md pl-10 pr-10 py-2 outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="ডিলার খুঁজুন... (নাম, মোবাইল)"
+                        value={dilarSearchTerm}
+                        onChange={(e) => {
+                          setDilarSearchTerm(e.target.value);
+                          setShowDilarDropdown(true);
+                        }}
+                        onFocus={() => setShowDilarDropdown(true)}
+                        disabled={disabled}
+                      />
+                      {form.selectedDilarId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((f) => ({ ...f, selectedDilarId: '', fullName: '', mobileNumber: '', nid: '' }));
+                            setDilarSearchTerm('');
+                          }}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        >
+                          <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                        </button>
+                      )}
+                    </div>
+                    {showDilarDropdown && filteredDilars.length > 0 && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                        {filteredDilars.map((dilar) => (
+                          <button
+                            key={dilar._id || dilar.contactNo}
+                            type="button"
+                            onClick={() => handleDilarSelect(dilar)}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center gap-3"
+                          >
+                            {dilar.logo ? (
+                              <img src={dilar.logo} alt={dilar.ownerName} className="w-8 h-8 rounded object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-purple-100 flex items-center justify-center">
+                                <Building2 className="w-4 h-4 text-purple-600" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">{dilar.ownerName || 'N/A'}</div>
+                              <div className="text-sm text-gray-500 truncate">{dilar.contactNo || ''}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {showDilarDropdown && dilarSearchTerm && filteredDilars.length === 0 && !dilarsLoading && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg p-4 text-center text-gray-500">
+                        কোনো ডিলার পাওয়া যায়নি
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Full Name (পূর্ণ নাম) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="mt-1 w-full border rounded-md px-3 py-2 outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="পূর্ণ নাম লিখুন"
+                      value={form.fullName}
+                      onChange={(e) => handleChange('fullName', e.target.value)}
+                      disabled={disabled}
+                    />
+                    {errors.fullName && <p className="mt-1 text-xs text-red-600">{errors.fullName}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -255,7 +422,7 @@ const NewExchange = () => {
                     placeholder="01XXXXXXXXX"
                     value={form.mobileNumber}
                     onChange={(e) => handleChange('mobileNumber', e.target.value)}
-                    disabled={disabled}
+                    disabled={disabled || form.customerType === 'dilar'}
                   />
                   {errors.mobileNumber && <p className="mt-1 text-xs text-red-600">{errors.mobileNumber}</p>}
                 </div>
@@ -270,7 +437,7 @@ const NewExchange = () => {
                     placeholder="জাতীয় পরিচয়পত্র নম্বর"
                     value={form.nid}
                     onChange={(e) => handleChange('nid', e.target.value)}
-                    disabled={disabled}
+                    disabled={disabled || form.customerType === 'dilar'}
                   />
                   {errors.nid && <p className="mt-1 text-xs text-red-600">{errors.nid}</p>}
                 </div>
