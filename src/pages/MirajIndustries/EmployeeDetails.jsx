@@ -192,6 +192,29 @@ const EmployeeDetails = () => {
           </div>
         </div>
 
+        {/* Financial Information Section */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <div className="bg-green-50 rounded-lg p-4">
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-3">
+              <DollarSign className="w-5 h-5 text-green-600" /> আর্থিক তথ্য
+            </h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">প্রদত্ত পরিমাণ:</span>
+                <span className="font-semibold text-green-600">
+                  ৳{Number(employee.paidAmount || 0).toLocaleString('bn-BD')}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">বকেয়া পরিমাণ:</span>
+                <span className={`font-semibold ${Number(employee.totalDue || 0) > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                  ৳{Number(employee.totalDue || 0).toLocaleString('bn-BD')}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {employee.notes && (
           <div className="mt-6">
             <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-2">

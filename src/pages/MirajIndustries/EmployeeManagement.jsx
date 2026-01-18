@@ -445,6 +445,12 @@ const EmployeeManagement = () => {
                   মোট গৃহীত বেতন
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  প্রদত্ত পরিমাণ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  বকেয়া পরিমাণ
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   অবস্থা
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -507,6 +513,22 @@ const EmployeeManagement = () => {
                         <DollarSign className="w-4 h-4 text-green-500" />
                         <span className="text-sm font-semibold text-green-600">
                           ৳{totalSalaryReceived.toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-semibold text-blue-600">
+                          ৳{Number(employee.paidAmount || 0).toLocaleString('bn-BD')}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <DollarSign className={`w-4 h-4 ${Number(employee.totalDue || 0) > 0 ? 'text-red-500' : 'text-gray-400'}`} />
+                        <span className={`text-sm font-semibold ${Number(employee.totalDue || 0) > 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                          ৳{Number(employee.totalDue || 0).toLocaleString('bn-BD')}
                         </span>
                       </div>
                     </td>
