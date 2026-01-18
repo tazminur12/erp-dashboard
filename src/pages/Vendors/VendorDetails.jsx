@@ -184,7 +184,7 @@ const VendorDetails = () => {
         <meta name="description" content={`Detailed information and financials for vendor ${vendor.tradeName}.`} />
       </Helmet>
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 rounded-2xl p-6 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-purple-100 via-blue-50 to-blue-100 rounded-2xl p-6 text-gray-900 shadow-lg">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             {vendor.logo ? (
@@ -196,19 +196,19 @@ const VendorDetails = () => {
                 />
               </div>
             ) : (
-              <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
-                <Building2 className="w-8 h-8" />
+              <div className="w-16 h-16 bg-white/80 rounded-xl flex items-center justify-center">
+                <Building2 className="w-8 h-8 text-gray-700" />
               </div>
             )}
             <div>
-              <h1 className="text-3xl font-bold">{vendor.tradeName}</h1>
-              <p className="text-purple-100 text-lg">{vendor.ownerName}</p>
+              <h1 className="text-3xl font-bold text-gray-900">{vendor.tradeName}</h1>
+              <p className="text-gray-700 text-lg">{vendor.ownerName}</p>
               <div className="flex items-center gap-4 mt-2">
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/20 rounded-full text-sm">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-white/80 rounded-full text-sm text-gray-900">
                   <Hash className="w-4 h-4" />
                   {vendor.vendorId}
                 </span>
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-500/20 rounded-full text-sm">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 rounded-full text-sm text-gray-900">
                   <CheckCircle className="w-4 h-4" />
                   {financial.status}
                 </span>
@@ -218,21 +218,21 @@ const VendorDetails = () => {
           <div className="flex items-center gap-3">
             <Link 
               to={`/vendors/${vendor._id || vendor.vendorId}/bank-accounts`}
-              className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-white/80 hover:bg-white px-4 py-2 text-sm font-medium transition-colors text-gray-900"
             >
               <CreditCard className="w-4 h-4" />
               ব্যাংক একাউন্ট
             </Link>
             <Link 
               to={`/vendors/${vendor._id || vendor.vendorId}/edit`} 
-              className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-white/80 hover:bg-white px-4 py-2 text-sm font-medium transition-colors text-gray-900"
             >
               <Edit className="w-4 h-4" />
               ভেন্ডর সম্পাদনা
             </Link>
             <Link 
               to="/vendors" 
-              className="inline-flex items-center gap-2 rounded-lg bg-white/20 hover:bg-white/30 px-4 py-2 text-sm font-medium transition-colors"
+              className="inline-flex items-center gap-2 rounded-lg bg-white/80 hover:bg-white px-4 py-2 text-sm font-medium transition-colors text-gray-900"
             >
               <ArrowLeft className="w-4 h-4" />
               তালিকায় ফিরে যান
@@ -245,69 +245,94 @@ const VendorDetails = () => {
 
       {/* Profile Totals - ভেন্ডর বিল, পরিশোধ, বকেয়া */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* ভেন্ডর বিল */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">ভেন্ডর বিল</p>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                ৳{calculatedFinancials.totalBillAmount.toLocaleString('bn-BD')}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                মোট {vendorBills.length} টি বিল
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-              <Receipt className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-          </div>
-        </div>
-        
-        {/* পরিশোধ */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">পরিশোধ</p>
-              <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                ৳{calculatedFinancials.totalPaid.toLocaleString('bn-BD')}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {vendorBills.length > 0 
-                  ? `${vendorBills.filter(b => {
-                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount) || 0);
-                      return due <= 0;
-                    }).length} টি বিল পরিশোধিত`
-                  : 'কোনো বিল নেই'}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-          </div>
-        </div>
-        
-        {/* বকেয়া */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">বকেয়া</p>
-              <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-                ৳{calculatedFinancials.totalDue.toLocaleString('bn-BD')}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {vendorBills.length > 0 
-                  ? `${vendorBills.filter(b => {
-                      const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount) || 0);
-                      return due > 0;
-                    }).length} টি বিল বকেয়া`
-                  : 'কোনো বিল নেই'}
-              </p>
-            </div>
-            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
-              <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
-            </div>
-          </div>
-        </div>
+        {/* Calculate financial totals same way as VendorList */}
+        {(() => {
+          // Use vendor's own financial data (same calculation as VendorList)
+          const paidAmount = Math.max(0, Number(
+            vendor.totalPaid ?? 
+            vendor.paidAmount ?? 
+            vendor.totalPaidAmount ?? 
+            calculatedFinancials.totalPaid ??
+            0
+          ));
+          const dueAmount = Math.max(0, Number(
+            vendor.totalDue ?? 
+            vendor.dueAmount ?? 
+            vendor.outstandingAmount ?? 
+            vendor.totalDueAmount ?? 
+            calculatedFinancials.totalDue ??
+            0
+          ));
+          const totalBill = Math.max(0, paidAmount + dueAmount);
+          
+          return (
+            <>
+              {/* ভেন্ডর বিল */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">ভেন্ডর বিল</p>
+                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                      {totalBill > 0 ? formatCurrency(totalBill) : '৳0'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      মোট {vendorBills.length} টি বিল
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+                    <Receipt className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* পরিশোধ */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">পরিশোধ</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {paidAmount > 0 ? formatCurrency(paidAmount) : '৳0'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {vendorBills.length > 0 
+                        ? `${vendorBills.filter(b => {
+                            const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount) || 0);
+                            return due <= 0;
+                          }).length} টি বিল পরিশোধিত`
+                        : 'কোনো বিল নেই'}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+              </div>
+              
+              {/* বকেয়া */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">বকেয়া</p>
+                    <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                      {dueAmount > 0 ? formatCurrency(dueAmount) : '৳0'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {vendorBills.length > 0 
+                        ? `${vendorBills.filter(b => {
+                            const due = (Number(b.totalAmount) || 0) - (Number(b.paidAmount) || 0);
+                            return due > 0;
+                          }).length} টি বিল বকেয়া`
+                        : 'কোনো বিল নেই'}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-lg flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* Tabs */}

@@ -16,6 +16,8 @@ export const hrKeys = {
 };
 
 // Hook to fetch all employees with pagination and filters
+// Backend: GET /api/hr/employers
+// Supports: page, limit, search, department, status, branch, position, employmentType
 export const useEmployees = (filters = {}) => {
   const axiosSecure = useAxiosSecure();
   
@@ -24,22 +26,21 @@ export const useEmployees = (filters = {}) => {
     queryFn: async () => {
       const params = new URLSearchParams();
       
-      // Add pagination parameters
+      // Add pagination parameters (backend defaults: page=1, limit=1000)
       if (filters.page) params.append('page', filters.page);
       if (filters.limit) params.append('limit', filters.limit);
       
-      // Add filter parameters
+      // Add filter parameters (matches backend query params)
       if (filters.search) params.append('search', filters.search);
       if (filters.department) params.append('department', filters.department);
       if (filters.position) params.append('position', filters.position);
       if (filters.employmentType) params.append('employmentType', filters.employmentType);
       if (filters.status) params.append('status', filters.status);
       if (filters.branch) params.append('branch', filters.branch);
-      if (filters.sortBy) params.append('sortBy', filters.sortBy);
-      if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
       
       const response = await axiosSecure.get(`/api/hr/employers?${params.toString()}`);
       
+      // Backend returns: { success: true, data: employees[], pagination: {...} }
       if (response.data.success) {
         return {
           employees: response.data.data || [],
@@ -66,6 +67,8 @@ export const useEmployees = (filters = {}) => {
 };
 
 // Hook to fetch a single employee by ID
+// Backend: GET /api/hr/employers/:id
+// Supports: _id, employeeId, or employerId (for backward compatibility)
 export const useEmployee = (employeeId) => {
   const axiosSecure = useAxiosSecure();
   
@@ -79,6 +82,7 @@ export const useEmployee = (employeeId) => {
       try {
         const response = await axiosSecure.get(`/api/hr/employers/${employeeId}`);
         
+        // Backend returns: { success: true, data: employee }
         if (response.data.success) {
           return response.data.data;
         } else {
@@ -95,6 +99,9 @@ export const useEmployee = (employeeId) => {
 };
 
 // Hook to fetch employee statistics
+// Backend: GET /api/hr/employers/stats/overview
+// Supports: branch or branchId query params
+// Returns: { totalEmployees, activeEmployees, inactiveEmployees, departmentStats, positionStats, employmentTypeStats }
 export const useEmployeeStats = (filters = {}) => {
   const axiosSecure = useAxiosSecure();
   
@@ -108,6 +115,7 @@ export const useEmployeeStats = (filters = {}) => {
       const url = `/api/hr/employers/stats/overview${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await axiosSecure.get(url);
       
+      // Backend returns: { success: true, data: { totalEmployees, activeEmployees, ... } }
       if (response.data.success) {
         return response.data.data;
       } else {
@@ -160,6 +168,9 @@ export const usePositions = () => {
 };
 
 // Mutation to create a new employee
+// Backend: POST /api/hr/employers
+// Required fields: firstName, lastName, email, phone, employeeId, position, department, branch, joinDate, basicSalary
+// Returns: { success: true, message: "...", data: { id, employeeId, firstName, lastName, ... } }
 export const useCreateEmployee = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -168,6 +179,7 @@ export const useCreateEmployee = () => {
     mutationFn: async (employeeData) => {
       const response = await axiosSecure.post('/api/hr/employers', employeeData);
       
+      // Backend returns: { success: true, message: "...", data: {...} }
       if (response.data.success) {
         return response.data;
       } else {
@@ -202,6 +214,7 @@ export const useCreateEmployee = () => {
       });
     },
     onError: (error) => {
+      // Backend error format: { success: false, error: "...", message: "..." }
       const message = error?.response?.data?.message || error?.response?.data?.error || 'কর্মচারী যোগ করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
       Swal.fire({
         title: 'ত্রুটি!',
@@ -215,6 +228,10 @@ export const useCreateEmployee = () => {
 };
 
 // Mutation to update an employee
+// Backend: PUT /api/hr/employers/:id
+// Supports: _id, employeeId, or employerId (for backward compatibility)
+// Cannot update: _id, employeeId, employerId, createdAt
+// Returns: { success: true, message: "...", data: updatedEmployee }
 export const useUpdateEmployee = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -223,6 +240,7 @@ export const useUpdateEmployee = () => {
     mutationFn: async ({ id, data: employeeData }) => {
       const response = await axiosSecure.put(`/api/hr/employers/${id}`, employeeData);
       
+      // Backend returns: { success: true, message: "...", data: updatedEmployee }
       if (response.data.success) {
         return response.data;
       } else {
@@ -257,6 +275,7 @@ export const useUpdateEmployee = () => {
       });
     },
     onError: (error) => {
+      // Backend error format: { success: false, error: "...", message: "..." }
       const message = error?.response?.data?.message || error?.response?.data?.error || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
       Swal.fire({
         title: 'ত্রুটি!',
@@ -270,6 +289,10 @@ export const useUpdateEmployee = () => {
 };
 
 // Mutation to delete an employee (soft delete)
+// Backend: DELETE /api/hr/employers/:id
+// Supports: _id, employeeId, or employerId (for backward compatibility)
+// Sets: isActive = false, deletedAt = new Date()
+// Returns: { success: true, message: "..." }
 export const useDeleteEmployee = () => {
   const axiosSecure = useAxiosSecure();
   const queryClient = useQueryClient();
@@ -278,6 +301,7 @@ export const useDeleteEmployee = () => {
     mutationFn: async (employeeId) => {
       const response = await axiosSecure.delete(`/api/hr/employers/${employeeId}`);
       
+      // Backend returns: { success: true, message: "..." }
       if (response.data.success) {
         return response.data;
       } else {
@@ -303,6 +327,7 @@ export const useDeleteEmployee = () => {
       });
     },
     onError: (error) => {
+      // Backend error format: { success: false, error: "...", message: "..." }
       const message = error?.response?.data?.message || error?.response?.data?.error || 'কর্মচারী মুছতে সমস্যা হয়েছে। আবার চেষ্টা করুন।';
       Swal.fire({
         title: 'ত্রুটি!',

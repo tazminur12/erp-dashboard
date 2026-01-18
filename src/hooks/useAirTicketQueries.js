@@ -41,12 +41,45 @@ export const airTicketKeys = {
 
 // Helper function to extract error message
 const extractErrorMessage = (error) => {
-  return (
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
-    error?.message ||
-    'Request failed'
-  );
+  console.log('Extracting error message from:', error);
+  
+  // Check for axios error response
+  if (error?.response?.data) {
+    const errorData = error.response.data;
+    console.log('Error response data:', errorData);
+    
+    // Check for MongoDB duplicate key error
+    if (errorData.error && errorData.error.includes('E11000 duplicate key error')) {
+      if (errorData.error.includes('bookingId')) {
+        return 'এই Booking ID ইতিমধ্যে ব্যবহৃত হয়েছে। অনুগ্রহ করে একটি নতুন Booking ID ব্যবহার করুন।';
+      }
+      if (errorData.error.includes('ticketId')) {
+        return 'এই Ticket ID ইতিমধ্যে ব্যবহৃত হয়েছে।';
+      }
+      return 'এই তথ্য ইতিমধ্যে ডাটাবেসে রয়েছে। অনুগ্রহ করে একটি নতুন মান ব্যবহার করুন।';
+    }
+    
+    // Return backend error message
+    return (
+      errorData.message ||
+      errorData.error ||
+      error.response.statusText ||
+      `Server error (${error.response.status})`
+    );
+  }
+  
+  // Check for network error
+  if (error?.request) {
+    console.log('Network error - no response received');
+    return 'Network error: Could not connect to server';
+  }
+  
+  // Check for error message
+  if (error?.message) {
+    return error.message;
+  }
+  
+  return 'Request failed';
 };
 
 // Hook to fetch all Air Tickets with filters and pagination
@@ -219,6 +252,7 @@ export const useCreateAirTicket = () => {
   return useMutation({
     mutationFn: async (ticketData) => {
       try {
+        console.log('Sending ticket data to backend:', ticketData);
         const response = await axiosSecure.post('/api/air-ticketing/tickets', ticketData);
 
         if (response.data.success) {
@@ -227,6 +261,13 @@ export const useCreateAirTicket = () => {
           throw new Error(response.data.message || 'Failed to create air ticket');
         }
       } catch (error) {
+        console.error('Mutation error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          fullError: error
+        });
         const errorMessage = extractErrorMessage(error);
         throw new Error(errorMessage);
       }
@@ -253,12 +294,21 @@ export const useCreateAirTicket = () => {
       });
     },
     onError: (error) => {
+      // Check if it's a duplicate bookingId error
+      const errorMessage = error.message || '';
+      const isDuplicateError = errorMessage.includes('Booking ID ইতিমধ্যে ব্যবহৃত হয়েছে') || 
+                               errorMessage.includes('duplicate key') ||
+                               errorMessage.includes('E11000');
+      
       Swal.fire({
-        title: 'ত্রুটি!',
-        text: error.message || 'এয়ার টিকিট তৈরি করতে সমস্যা হয়েছে।',
+        title: isDuplicateError ? 'Booking ID ডুপ্লিকেট!' : 'ত্রুটি!',
+        text: errorMessage || 'এয়ার টিকিট তৈরি করতে সমস্যা হয়েছে।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
+        ...(isDuplicateError && {
+          footer: 'অনুগ্রহ করে একটি নতুন Booking ID ব্যবহার করুন।'
+        })
       });
     },
   });

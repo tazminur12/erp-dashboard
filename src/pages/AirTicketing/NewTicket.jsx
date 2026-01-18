@@ -10,7 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Search,
+  Search, 
   User,
   Building,
   Plane,
@@ -20,6 +20,7 @@ import {
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import { useCreateAirTicket } from '../../hooks/useAirTicketQueries';
+import Swal from 'sweetalert2';
 
 const NewTicket = () => {
   const navigate = useNavigate();
@@ -777,78 +778,132 @@ const NewTicket = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted!', formData);
     setLoading(true);
     setError('');
     setSuccess('');
     
     const errs = validate(formData);
+    console.log('Validation errors:', errs);
     setValidationErrors(errs);
     if (Object.keys(errs).length > 0) {
+      console.log('Validation failed, cannot submit');
+      
+      // Create Bangla error messages for SweetAlert
+      const errorMessages = {
+        customerId: 'গ্রাহক নির্বাচন করুন',
+        date: 'বিক্রয় তারিখ নির্বাচন করুন',
+        airline: 'এয়ারলাইন নির্বাচন করুন',
+        origin: 'উৎপত্তি স্থান (Origin) প্রয়োজন',
+        destination: 'গন্তব্য স্থান (Destination) প্রয়োজন',
+        flightDate: 'ফ্লাইট তারিখ প্রয়োজন',
+        returnDate: 'রিটার্ন তারিখ প্রয়োজন (Round Trip এর জন্য)',
+        segments: 'অন্তত ২টি সেগমেন্ট যোগ করুন (Multicity এর জন্য)',
+      };
+      
+      // Build error list for SweetAlert
+      const errorList = Object.keys(errs)
+        .filter(key => !key.startsWith('segment_')) // Filter out individual segment errors, we'll handle segments separately
+        .map(key => {
+          const fieldName = errorMessages[key] || key;
+          return `• ${fieldName}`;
+        });
+      
+      // Add segment errors if any
+      const segmentErrors = Object.keys(errs).filter(key => key.startsWith('segment_'));
+      if (segmentErrors.length > 0) {
+        errorList.push('• সেগমেন্টগুলোর উৎপত্তি, গন্তব্য এবং তারিখ পূরণ করুন');
+      }
+      
+      const errorListHtml = errorList.join('<br>');
+      
+      Swal.fire({
+        title: 'আবশ্যক তথ্য অনুপস্থিত!',
+        html: `অনুগ্রহ করে নিম্নলিখিত তথ্যগুলো পূরণ করুন:<br><br>${errorList}`,
+        icon: 'warning',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      
+      setError('Please fix validation errors before submitting');
       setLoading(false);
       return;
     }
 
     try {
       // Prepare ticket data for submission
+      // Ensure all numeric fields are properly formatted
+      const toNumber = (val) => {
+        const num = Number(val);
+        return isNaN(num) ? 0 : num;
+      };
+      
       const ticketData = {
-        customerId: formData.customerId,
-        customerName: formData.customerName,
-        customerPhone: formData.customerPhone,
-        tripType: formData.tripType,
-        flightType: formData.flightType,
-        date: formData.date,
-        bookingId: formData.bookingId || '',
-        gdsPnr: formData.gdsPnr || '',
-        airlinePnr: formData.airlinePnr || '',
-        airline: formData.airline,
-        airlineId: formData.airlineId || '',
+        customerId: String(formData.customerId || '').trim(),
+        customerName: String(formData.customerName || '').trim(),
+        customerPhone: String(formData.customerPhone || '').trim(),
+        tripType: formData.tripType || 'oneway',
+        flightType: formData.flightType || 'domestic',
+        date: formData.date || '',
+        bookingId: String(formData.bookingId || '').trim(),
+        gdsPnr: String(formData.gdsPnr || '').trim(),
+        airlinePnr: String(formData.airlinePnr || '').trim(),
+        airline: String(formData.airline || '').trim(),
+        airlineId: formData.airlineId ? String(formData.airlineId).trim() : '',
         status: formData.status || 'pending',
-        origin: formData.origin || '',
-        destination: formData.destination || '',
+        origin: String(formData.origin || '').trim(),
+        destination: String(formData.destination || '').trim(),
         flightDate: formData.flightDate || '',
         returnDate: formData.returnDate || '',
-        segments: formData.segments || [],
-        agent: formData.agent || '',
-        agentId: formData.agentId || '',
-        issuedBy: formData.issuedBy || '',
-        issuedById: formData.issuedById || '',
-        vendor: formData.vendor || '',
-        vendorId: formData.vendorId || '',
-        purposeType: formData.purposeType || '',
-        adultCount: formData.adultCount || 0,
-        childCount: formData.childCount || 0,
-        infantCount: formData.infantCount || 0,
-        customerDeal: formData.customerDeal || 0,
-        customerPaid: formData.customerPaid || 0,
-        customerDue: formData.customerDue || 0,
+        segments: Array.isArray(formData.segments) ? formData.segments.map(seg => ({
+          origin: String(seg.origin || '').trim(),
+          destination: String(seg.destination || '').trim(),
+          date: String(seg.date || '').trim()
+        })) : [],
+        agent: String(formData.agent || '').trim(),
+        agentId: formData.agentId ? String(formData.agentId).trim() : '',
+        issuedBy: String(formData.issuedBy || '').trim(),
+        issuedById: formData.issuedById ? String(formData.issuedById).trim() : '',
+        vendor: String(formData.vendor || '').trim(),
+        vendorId: formData.vendorId ? String(formData.vendorId).trim() : '',
+        purposeType: String(formData.purposeType || '').trim(),
+        adultCount: toNumber(formData.adultCount),
+        childCount: toNumber(formData.childCount),
+        infantCount: toNumber(formData.infantCount),
+        customerDeal: toNumber(formData.customerDeal),
+        customerPaid: toNumber(formData.customerPaid),
+        customerDue: toNumber(formData.customerDue),
         dueDate: formData.dueDate || '',
-        baseFare: formData.baseFare || 0,
-        taxBD: formData.taxBD || 0,
-        e5: formData.e5 || 0,
-        e7: formData.e7 || 0,
-        g8: formData.g8 || 0,
-        ow: formData.ow || 0,
-        p7: formData.p7 || 0,
-        p8: formData.p8 || 0,
-        ts: formData.ts || 0,
-        ut: formData.ut || 0,
-        yq: formData.yq || 0,
-        taxes: formData.taxes || 0,
-        totalTaxes: formData.totalTaxes || 0,
-        ait: formData.ait || 0,
-        commissionRate: formData.commissionRate || 0,
-        plb: formData.plb || 0,
-        salmaAirServiceCharge: formData.salmaAirServiceCharge || 0,
-        vendorServiceCharge: formData.vendorServiceCharge || 0,
-        vendorAmount: formData.vendorAmount || 0,
-        vendorPaidFh: formData.vendorPaidFh || 0,
-        vendorDue: formData.vendorDue || 0,
-        profit: formData.profit || 0,
-        segmentCount: formData.segmentCount || 1,
-        flownSegment: formData.flownSegment || false,
+        baseFare: toNumber(formData.baseFare),
+        taxBD: toNumber(formData.taxBD),
+        e5: toNumber(formData.e5),
+        e7: toNumber(formData.e7),
+        g8: toNumber(formData.g8),
+        ow: toNumber(formData.ow),
+        p7: toNumber(formData.p7),
+        p8: toNumber(formData.p8),
+        ts: toNumber(formData.ts),
+        ut: toNumber(formData.ut),
+        yq: toNumber(formData.yq),
+        taxes: toNumber(formData.taxes),
+        totalTaxes: toNumber(formData.totalTaxes),
+        ait: toNumber(formData.ait),
+        commissionRate: toNumber(formData.commissionRate),
+        plb: toNumber(formData.plb),
+        salmaAirServiceCharge: toNumber(formData.salmaAirServiceCharge),
+        vendorServiceCharge: toNumber(formData.vendorServiceCharge),
+        vendorAmount: toNumber(formData.vendorAmount),
+        vendorPaidFh: toNumber(formData.vendorPaidFh),
+        vendorDue: toNumber(formData.vendorDue),
+        profit: toNumber(formData.profit),
+        segmentCount: toNumber(formData.segmentCount) || 1,
+        flownSegment: Boolean(formData.flownSegment),
       };
+      
+      console.log('Prepared ticketData:', JSON.stringify(ticketData, null, 2));
 
       // Create ticket using mutation
+      console.log('Calling mutation with ticketData:', ticketData);
       await createTicketMutation.mutateAsync(ticketData);
 
       setSuccess('Booking saved successfully!');
@@ -942,8 +997,20 @@ const NewTicket = () => {
       }, 2000);
 
     } catch (error) {
-      setError(error.message || 'Failed to create ticket');
-    } finally {
+      console.error('Error creating ticket:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        stack: error.stack
+      });
+      const errorMessage = error?.response?.data?.message 
+        || error?.response?.data?.error 
+        || error?.message 
+        || 'Failed to create ticket';
+      console.error('Full error response:', error?.response?.data);
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -1018,7 +1085,7 @@ const NewTicket = () => {
     'ফ্লাইট তথ্য',
     'ভেন্ডর খুঁজুন',
     'যাত্রী ও মূল্য',
-    'এজেন্ট ও ভেন্ডর'
+    'ভেন্ডর বিবরণ' 
   ];
 
   return (
