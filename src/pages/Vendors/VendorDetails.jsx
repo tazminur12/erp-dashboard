@@ -184,7 +184,7 @@ const VendorDetails = () => {
         <meta name="description" content={`Detailed information and financials for vendor ${vendor.tradeName}.`} />
       </Helmet>
       {/* Header Section */}
-      <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-purple-400 via-purple-300 to-blue-400 rounded-2xl p-6 text-white shadow-lg">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             {vendor.logo ? (
