@@ -23,6 +23,7 @@ import {
 import { useAirTickets, useDeleteAirTicket, useAirTicket } from '../../hooks/useAirTicketQueries';
 import useAirlineQueries from '../../hooks/useAirlineQueries';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import Swal from 'sweetalert2';
 
 const TicketList = () => {
   const navigate = useNavigate();
@@ -684,12 +685,33 @@ const TicketList = () => {
   const handleCancelTicket = async (ticket) => {
     // Priority: ticketId > _id > bookingId
     const ticketId = ticket.ticketId || ticket._id || ticket.id || ticket.bookingId;
-    if (window.confirm('Are you sure you want to delete this ticket?')) {
+    const ticketDisplayId = ticket.ticketId || ticket.bookingId || ticket._id || 'N/A';
+    
+    const result = await Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: `টিকিট ${ticketDisplayId} মুছে ফেলা হবে।`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+      cancelButtonText: 'বাতিল',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
       try {
         await deleteTicketMutation.mutateAsync(ticketId);
         refetch();
       } catch (error) {
         console.error('Failed to delete ticket:', error);
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: error?.response?.data?.message || error?.message || 'টিকিট মুছতে সমস্যা হয়েছে।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
       }
     }
   };

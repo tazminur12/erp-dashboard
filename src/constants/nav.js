@@ -226,10 +226,10 @@ export const navigation = [
     icon: Plane,
     children: [
       { name: 'Dashboard', href: '/fly-oval', icon: LayoutDashboard },
+      { name: 'Transactions', href: '/fly-oval/transaction', icon: CreditCard },
+      { name: 'Customers', href: '/fly-oval/customers', icon: Users },
       { name: 'Agent List', href: '/fly-oval/agents', icon: Users },
-      { name: 'Add Agent', href: '/fly-oval/agents/add', icon: Plus },
       { name: 'TopUp History', href: '/fly-oval/topup-history', icon: TrendingUp },
-      { name: 'Sell History', href: '/fly-oval/sell-history', icon: TrendingDown },
       { name: 'Ledger', href: '/fly-oval/ledger', icon: BookOpen },
       { name: 'Reports', href: '/fly-oval/reports', icon: BarChart3 },
       { name: 'Audit', href: '/fly-oval/audit', icon: Eye }
