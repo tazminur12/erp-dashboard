@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useEmployeeQueries from '../../hooks/useEmployeeQueries';
+import useFarmEmployeesQueries from '../../hooks/useFarmEmployeesQueries';
 import { 
   Plus, 
   Search, 
@@ -27,6 +27,7 @@ import {
   Briefcase,
   CreditCard
 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const EmployeeManagement = () => {
   const navigate = useNavigate();
@@ -40,30 +41,36 @@ const EmployeeManagement = () => {
 
   // Load queries
   const {
-    useEmployees,
-    useEmployeeStats,
-    useCreateEmployee,
-    useUpdateEmployee,
-    useDeleteEmployee,
-    useAttendance,
-    useCreateAttendance
-  } = useEmployeeQueries();
+    useFarmEmployees,
+    useFarmEmployeeStats,
+    useCreateFarmEmployee,
+    useUpdateFarmEmployee,
+    useDeleteFarmEmployee
+  } = useFarmEmployeesQueries();
 
-  const { data: employees = [], isLoading: loadingEmployees } = useEmployees({
+  const { data: employeesData, isLoading: loadingEmployees } = useFarmEmployees({
+    page: 1,
+    limit: 1000,
     search: searchTerm,
     status: filterStatus
   });
 
-  const { data: stats = {}, isLoading: loadingStats } = useEmployeeStats();
+  const employees = employeesData?.employees || [];
+  const { data: stats = {}, isLoading: loadingStats } = useFarmEmployeeStats();
 
-  const { data: attendanceRecords = [], isLoading: loadingAttendance } = useAttendance({
-    limit: 20
-  });
+  const createEmployeeMutation = useCreateFarmEmployee();
+  const updateEmployeeMutation = useUpdateFarmEmployee();
+  const deleteEmployeeMutation = useDeleteFarmEmployee();
 
-  const createEmployeeMutation = useCreateEmployee();
-  const updateEmployeeMutation = useUpdateEmployee();
-  const deleteEmployeeMutation = useDeleteEmployee();
-  const createAttendanceMutation = useCreateAttendance();
+  // Attendance functionality removed - use separate attendance API if needed
+  const attendanceRecords = [];
+  const loadingAttendance = false;
+  const createAttendanceMutation = {
+    mutateAsync: async () => {
+      throw new Error('Attendance functionality not available');
+    },
+    isPending: false
+  };
 
   const [newEmployee, setNewEmployee] = useState({
     name: '',
@@ -155,7 +162,7 @@ const EmployeeManagement = () => {
       phone: employee.phone || '',
       email: employee.email || '',
       address: employee.address || '',
-      joinDate: employee.joinDate ? new Date(employee.joinDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      joinDate: employee.joinDate ? (typeof employee.joinDate === 'string' ? employee.joinDate.split('T')[0] : new Date(employee.joinDate).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
       salary: employee.salary || '',
       workHours: employee.workHours || '',
       status: employee.status || 'active',
@@ -167,8 +174,9 @@ const EmployeeManagement = () => {
   const handleUpdateEmployee = async () => {
     if (!editingEmployee) return;
     try {
+      const employeeId = editingEmployee.id || editingEmployee._id;
       await updateEmployeeMutation.mutateAsync({
-        id: editingEmployee.id,
+        id: employeeId,
         name: newEmployee.name,
         position: newEmployee.position,
         phone: newEmployee.phone,
@@ -184,7 +192,12 @@ const EmployeeManagement = () => {
       setEditingEmployee(null);
       resetForm();
     } catch (error) {
-      alert(error.message || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে');
+      Swal.fire({
+        icon: 'error',
+        title: 'ত্রুটি!',
+        text: error.message || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে',
+        confirmButtonText: 'ঠিক আছে'
+      });
     }
   };
 
@@ -206,11 +219,40 @@ const EmployeeManagement = () => {
   };
 
   const handleDeleteEmployee = async (id) => {
-    if (!window.confirm('আপনি কি এই কর্মচারীকে মুছে ফেলতে চান?')) return;
-    try {
-      await deleteEmployeeMutation.mutateAsync(id);
-    } catch (error) {
-      alert(error.message || 'কর্মচারী মুছতে সমস্যা হয়েছে');
+    // Find employee name for better confirmation message
+    const employee = employees.find(emp => emp.id === id);
+    const employeeName = employee?.name || 'এই কর্মচারী';
+    
+    const result = await Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: `${employeeName} কে মুছে ফেলা হবে। এই কাজটি পূর্বাবস্থায় ফিরিয়ে আনা যাবে না।`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন!',
+      cancelButtonText: 'বাতিল',
+      reverseButtons: true
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await deleteEmployeeMutation.mutateAsync(id);
+        Swal.fire({
+          title: 'মুছে ফেলা হয়েছে!',
+          text: `${employeeName} সফলভাবে মুছে ফেলা হয়েছে।`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          timer: 2000
+        });
+      } catch (error) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: error.message || 'কর্মচারী মুছতে সমস্যা হয়েছে',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে'
+        });
+      }
     }
   };
 
@@ -462,9 +504,10 @@ const EmployeeManagement = () => {
               {filteredEmployees.map((employee) => {
                 const serviceMonths = calculateServiceMonths(employee.joinDate);
                 const totalSalaryReceived = calculateTotalSalaryReceived(employee.joinDate, employee.salary);
+                const employeeId = employee.id || employee._id;
                 
                 return (
-                  <tr key={employee.id} className="hover:bg-gray-50">
+                  <tr key={employeeId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -540,7 +583,7 @@ const EmployeeManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => navigate(`/miraj-industries/employee/${employee.id}`)}
+                          onClick={() => navigate(`/miraj-industries/employee/${employeeId}`)}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="বিস্তারিত দেখুন"
                         >
@@ -549,7 +592,7 @@ const EmployeeManagement = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/miraj-industries/employee/${employee.id}/edit`);
+                            navigate(`/miraj-industries/employee/${employeeId}/edit`);
                           }}
                           className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                           title="সম্পাদনা করুন"
@@ -559,7 +602,7 @@ const EmployeeManagement = () => {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteEmployee(employee.id);
+                            handleDeleteEmployee(employeeId);
                           }}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title="মুছে ফেলুন"
@@ -815,9 +858,12 @@ const EmployeeManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">কর্মচারী নির্বাচন করুন</option>
-                  {employees.filter(emp => emp.status === 'active').map(employee => (
-                    <option key={employee.id} value={employee.id}>{employee.name} ({employee.position})</option>
-                  ))}
+                  {employees.filter(emp => emp.status === 'active').map(employee => {
+                    const empId = employee.id || employee._id;
+                    return (
+                      <option key={empId} value={empId}>{employee.name} ({employee.position})</option>
+                    );
+                  })}
                 </select>
               </div>
               

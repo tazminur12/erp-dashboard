@@ -4,10 +4,12 @@ import { Helmet } from 'react-helmet-async';
 import { 
   Building2, Phone, User, MapPin, Calendar, CreditCard, FileText, ArrowLeft, Clock, Edit,
   DollarSign, TrendingUp, TrendingDown, Wallet, Receipt, AlertCircle, CheckCircle,
-  Briefcase, Globe, Mail, Hash, Calendar as CalendarIcon, Star, Loader2
+  Briefcase, Globe, Mail, Hash, Calendar as CalendarIcon, Star, Loader2, Eye, Trash2, X
 } from 'lucide-react';
-import { useVendor, useVendorFinancials, useVendorBillsByVendor } from '../../hooks/useVendorQueries';
+import { useVendor, useVendorFinancials, useVendorBillsByVendor, useVendorBill, useUpdateVendorBill, useDeleteVendorBill } from '../../hooks/useVendorQueries';
 import { useTransactions } from '../../hooks/useTransactionQueries';
+import Modal from '../../components/common/Modal';
+import Swal from 'sweetalert2';
 
 
 
@@ -16,6 +18,21 @@ const VendorDetails = () => {
   const [activeTab, setActiveTab] = useState('bills'); // 'information', 'financial', 'bills', 'transactions' - Start with bills tab (default)
   const [transactionPage, setTransactionPage] = useState(1);
   const transactionLimit = 10;
+  const [selectedBillId, setSelectedBillId] = useState(null);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    billNumber: '',
+    billType: '',
+    billDate: '',
+    totalAmount: '',
+    paidAmount: '',
+    dueDate: '',
+    paymentMethod: '',
+    paymentStatus: 'pending',
+    description: '',
+    notes: ''
+  });
 
   // Use React Query hooks to fetch vendor data
   const { 
@@ -39,6 +56,16 @@ const VendorDetails = () => {
     error: billsError,
     refetch: refetchBills
   } = useVendorBillsByVendor(id);
+
+  // Fetch selected bill for modal view
+  const { 
+    data: selectedBill, 
+    isLoading: billLoading 
+  } = useVendorBill(selectedBillId);
+
+  // Mutations
+  const updateVendorBillMutation = useUpdateVendorBill();
+  const deleteVendorBillMutation = useDeleteVendorBill();
 
   // Fetch vendor transactions
   const {
@@ -125,6 +152,140 @@ const VendorDetails = () => {
   }, [financialData, calculatedFinancials]);
 
   const formatCurrency = (amount = 0) => `৳${Number(amount || 0).toLocaleString('bn-BD')}`;
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('bn-BD', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  // Handle view bill modal
+  const handleViewBill = (billId) => {
+    setSelectedBillId(billId);
+    setShowBillModal(true);
+  };
+
+  // Handle edit bill
+  const handleEditBill = (bill) => {
+    setEditFormData({
+      billNumber: bill.billNumber || bill.billId || '',
+      billType: bill.billType || '',
+      billDate: bill.billDate ? new Date(bill.billDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      totalAmount: bill.totalAmount || bill.amount || '',
+      paidAmount: bill.paidAmount || '',
+      dueDate: bill.dueDate ? new Date(bill.dueDate).toISOString().split('T')[0] : '',
+      paymentMethod: bill.paymentMethod || '',
+      paymentStatus: bill.paymentStatus || 'pending',
+      description: bill.description || '',
+      notes: bill.notes || ''
+    });
+    setSelectedBillId(bill._id || bill.billId);
+    setShowEditModal(true);
+  };
+
+  // Handle edit form change
+  const handleEditFormChange = (field, value) => {
+    setEditFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Handle save edited bill
+  const handleSaveEdit = async () => {
+    // Validate required fields
+    if (!editFormData.billNumber || !editFormData.totalAmount) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'ভালidation',
+        text: 'বিল নম্বর এবং মোট পরিমাণ আবশ্যক',
+        confirmButtonText: 'ঠিক আছে'
+      });
+      return;
+    }
+
+    try {
+      const billId = selectedBillId;
+      await updateVendorBillMutation.mutateAsync({
+        billId,
+        updateData: {
+          billNumber: editFormData.billNumber,
+          billType: editFormData.billType,
+          billDate: editFormData.billDate,
+          totalAmount: Number(editFormData.totalAmount),
+          paidAmount: Number(editFormData.paidAmount || 0),
+          dueDate: editFormData.dueDate || undefined,
+          paymentMethod: editFormData.paymentMethod || undefined,
+          paymentStatus: editFormData.paymentStatus,
+          description: editFormData.description || undefined,
+          notes: editFormData.notes || undefined
+        }
+      });
+      setShowEditModal(false);
+      setSelectedBillId(null);
+      refetchBills();
+      refetchFinancials();
+    } catch (error) {
+      console.error('Failed to update bill:', error);
+    }
+  };
+
+  // Handle close edit modal
+  const handleCloseEditModal = () => {
+    setShowEditModal(false);
+    setSelectedBillId(null);
+    setEditFormData({
+      billNumber: '',
+      billType: '',
+      billDate: '',
+      totalAmount: '',
+      paidAmount: '',
+      dueDate: '',
+      paymentMethod: '',
+      paymentStatus: 'pending',
+      description: '',
+      notes: ''
+    });
+  };
+
+  // Handle delete bill
+  const handleDeleteBill = async (bill) => {
+    const result = await Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: `বিল "${bill.billNumber || bill.billId || 'N/A'}" মুছে ফেলা হবে। এই কাজটি পূর্বাবস্থায় ফিরিয়ে আনা যাবে না।`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন!',
+      cancelButtonText: 'বাতিল'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const billId = bill._id || bill.billId;
+        await deleteVendorBillMutation.mutateAsync(billId);
+        refetchBills();
+        refetchFinancials();
+      } catch (error) {
+        console.error('Failed to delete bill:', error);
+      }
+    }
+  };
+
+  // Close modal
+  const handleCloseModal = () => {
+    setShowBillModal(false);
+    setSelectedBillId(null);
+  };
 
   const recentTransactions = vendor?.recentActivity?.transactions || [];
   const recentBills = vendor?.recentActivity?.bills || [];
@@ -592,6 +753,7 @@ const VendorDetails = () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">বকেয়া</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">স্ট্যাটাস</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">তারিখ</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">অ্যাকশন</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -628,6 +790,36 @@ const VendorDetails = () => {
                                 ? new Date(bill.billDate || bill.createdAt).toLocaleDateString('bn-BD')
                                 : '—'}
                             </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleViewBill(bill._id || bill.billId)}
+                                  className="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                                  title="বিস্তারিত দেখুন"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleEditBill(bill)}
+                                  className="p-2 text-gray-400 hover:text-green-600 dark:hover:text-green-400 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                                  title="সম্পাদনা করুন"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteBill(bill)}
+                                  disabled={deleteVendorBillMutation.isPending}
+                                  className="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                  title="মুছে ফেলুন"
+                                >
+                                  {deleteVendorBillMutation.isPending ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </div>
+                            </td>
                           </tr>
                         );
                       })}
@@ -637,6 +829,299 @@ const VendorDetails = () => {
               )}
             </div>
           )}
+
+          {/* Bill View Modal */}
+          <Modal
+            isOpen={showBillModal}
+            onClose={handleCloseModal}
+            title="বিল বিবরণ"
+            size="lg"
+          >
+            {billLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+                <span className="ml-2 text-gray-600 dark:text-gray-400">বিল লোড হচ্ছে...</span>
+              </div>
+            ) : selectedBill ? (
+              <div className="space-y-6">
+                {/* Bill Header */}
+                <div className="flex items-start justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {selectedBill.billNumber || selectedBill.billId || 'N/A'}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {selectedBill.billType || '—'}
+                    </p>
+                  </div>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                    (selectedBill.paymentStatus === 'paid' || ((Number(selectedBill.totalAmount) || 0) - (Number(selectedBill.paidAmount) || 0)) <= 0)
+                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                  }`}>
+                    {(selectedBill.paymentStatus === 'paid' || ((Number(selectedBill.totalAmount) || 0) - (Number(selectedBill.paidAmount) || 0)) <= 0) ? 'পরিশোধিত' : 'বকেয়া'}
+                  </span>
+                </div>
+
+                {/* Bill Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">বিল তারিখ</label>
+                    <p className="text-gray-900 dark:text-white">{formatDate(selectedBill.billDate || selectedBill.createdAt)}</p>
+                  </div>
+                  {selectedBill.dueDate && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">পরিশোধের তারিখ</label>
+                      <p className="text-gray-900 dark:text-white">{formatDate(selectedBill.dueDate)}</p>
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">মোট পরিমাণ</label>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">{formatCurrency(selectedBill.totalAmount || 0)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">পরিশোধিত</label>
+                    <p className="text-lg font-semibold text-green-600 dark:text-green-400">{formatCurrency(selectedBill.paidAmount || 0)}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">বকেয়া</label>
+                    <p className="text-lg font-semibold text-red-600 dark:text-red-400">
+                      {formatCurrency(Math.max(0, (Number(selectedBill.totalAmount) || 0) - (Number(selectedBill.paidAmount) || 0)))}
+                    </p>
+                  </div>
+                  {selectedBill.paymentMethod && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">পেমেন্ট পদ্ধতি</label>
+                      <p className="text-gray-900 dark:text-white">{selectedBill.paymentMethod}</p>
+                    </div>
+                  )}
+                  {selectedBill.description && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">বিবরণ</label>
+                      <p className="text-gray-900 dark:text-white">{selectedBill.description}</p>
+                    </div>
+                  )}
+                  {selectedBill.notes && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">নোট</label>
+                      <p className="text-gray-900 dark:text-white">{selectedBill.notes}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => {
+                      handleEditBill(selectedBill);
+                      handleCloseModal();
+                    }}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    সম্পাদনা করুন
+                  </button>
+                  <button
+                    onClick={handleCloseModal}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    বন্ধ করুন
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-600 dark:text-gray-400">বিল লোড করতে সমস্যা হয়েছে</p>
+              </div>
+            )}
+          </Modal>
+
+          {/* Edit Bill Modal */}
+          <Modal
+            isOpen={showEditModal}
+            onClose={handleCloseEditModal}
+            title="বিল সম্পাদনা করুন"
+            size="lg"
+          >
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    বিল নম্বর <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.billNumber}
+                    onChange={(e) => handleEditFormChange('billNumber', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="বিল নম্বর"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    বিল ধরন
+                  </label>
+                  <input
+                    type="text"
+                    value={editFormData.billType}
+                    onChange={(e) => handleEditFormChange('billType', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="বিল ধরন"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    বিল তারিখ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={editFormData.billDate}
+                    onChange={(e) => handleEditFormChange('billDate', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    পরিশোধের তারিখ
+                  </label>
+                  <input
+                    type="date"
+                    value={editFormData.dueDate}
+                    onChange={(e) => handleEditFormChange('dueDate', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    মোট পরিমাণ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editFormData.totalAmount}
+                    onChange={(e) => handleEditFormChange('totalAmount', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    পরিশোধিত পরিমাণ
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editFormData.paidAmount}
+                    onChange={(e) => handleEditFormChange('paidAmount', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    পেমেন্ট পদ্ধতি
+                  </label>
+                  <select
+                    value={editFormData.paymentMethod}
+                    onChange={(e) => handleEditFormChange('paymentMethod', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="">নির্বাচন করুন</option>
+                    <option value="cash">নগদ</option>
+                    <option value="bank">ব্যাংক</option>
+                    <option value="mobile-banking">মোবাইল ব্যাংকিং</option>
+                    <option value="check">চেক</option>
+                    <option value="other">অন্যান্য</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    পেমেন্ট স্ট্যাটাস
+                  </label>
+                  <select
+                    value={editFormData.paymentStatus}
+                    onChange={(e) => handleEditFormChange('paymentStatus', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="pending">বকেয়া</option>
+                    <option value="partial">আংশিক</option>
+                    <option value="paid">পরিশোধিত</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    বিবরণ
+                  </label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => handleEditFormChange('description', e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="বিলের বিবরণ"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    নোট
+                  </label>
+                  <textarea
+                    value={editFormData.notes}
+                    onChange={(e) => handleEditFormChange('notes', e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    placeholder="অতিরিক্ত নোট"
+                  />
+                </div>
+              </div>
+
+              {/* Calculated Due Amount */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">বকেয়া পরিমাণ:</span>
+                  <span className="text-lg font-semibold text-red-600 dark:text-red-400">
+                    {formatCurrency(Math.max(0, (Number(editFormData.totalAmount) || 0) - (Number(editFormData.paidAmount) || 0)))}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={handleCloseEditModal}
+                  className="px-4 py-2 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  বাতিল
+                </button>
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={updateVendorBillMutation.isPending}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {updateVendorBillMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      সংরক্ষণ হচ্ছে...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4" />
+                      সংরক্ষণ করুন
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </Modal>
 
           {/* Transaction History Tab */}
           {activeTab === 'transactions' && (

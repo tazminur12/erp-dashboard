@@ -64,7 +64,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { vendorKeys } from '../../hooks/useVendorQueries';
 import { useAccountQueries } from '../../hooks/useAccountQueries';
 import { useEmployeeSearch } from '../../hooks/useHRQueries';
-import useEmployeeQueries from '../../hooks/useEmployeeQueries';
+import useFarmEmployeesQueries from '../../hooks/useFarmEmployeesQueries';
 import { useCategoryQueries } from '../../hooks/useCategoryQueries';
 import { useHajiList, useHaji, useHajiFamilySummary } from '../../hooks/UseHajiQueries';
 import { useUmrahList, useUmrah } from '../../hooks/UseUmrahQuries';
@@ -312,7 +312,17 @@ const NewTransaction = () => {
   });
 
   // Invoice query hook (after formData is initialized)
-  const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useTransactionInvoices(formData.customerId);
+  // Disable invoice fetch for employee transactions (miraj-employee) as they don't have invoices
+  const shouldFetchInvoices = Boolean(
+    formData.customerId && 
+    formData.customerType !== 'miraj-employee' && 
+    formData.customerType !== 'mirajIndustries' &&
+    formData.selectedCustomerType !== 'mirajIndustries'
+  );
+  const { data: invoices = [], isLoading: invoicesLoading, error: invoicesError } = useTransactionInvoices(
+    formData.customerId,
+    { enabled: shouldFetchInvoices }
+  );
 
   // Loans for selected customer (to show loan IDs under customer selection)
   const { data: customerLoansData, isLoading: customerLoansLoading } = useLoans(
@@ -434,12 +444,14 @@ const NewTransaction = () => {
   const { data: mirajIncomes = [], isLoading: mirajIncomesLoading } = useFarmIncomes({ search: effectiveSearchType === 'miraj' ? (searchTerm || '') : '' });
   
   // Miraj Industries employees
-  const employeeQueries = useEmployeeQueries();
-  const { data: mirajEmployeesData = [], isLoading: mirajEmployeesLoading } = employeeQueries.useEmployees({
+  const farmEmployeeQueries = useFarmEmployeesQueries();
+  const { data: mirajEmployeesData, isLoading: mirajEmployeesLoading } = farmEmployeeQueries.useFarmEmployees({
+    page: 1,
+    limit: 1000,
     search: effectiveSearchType === 'miraj' ? (searchTerm || '') : '',
     status: 'all'
   });
-  const mirajEmployees = Array.isArray(mirajEmployeesData) ? mirajEmployeesData : (mirajEmployeesData?.employees || []);
+  const mirajEmployees = Array.isArray(mirajEmployeesData?.employees) ? mirajEmployeesData.employees : [];
   // Office expenses categories
   const { data: opExCategories = [], isLoading: opExLoading } = useOpExCategories();
   // Money exchange listings
@@ -713,6 +725,27 @@ const NewTransaction = () => {
   };
 
   const steps = getSteps();
+
+  // Helper function to get step color for transfer transactions
+  const getStepColor = (stepNumber, isActive, isCompleted) => {
+    if (formData.transactionType === 'transfer') {
+      if (stepNumber === 2) {
+        // Debit Account step - Red
+        if (isActive) return { bg: 'bg-red-100 dark:bg-red-900/20', text: 'text-red-600 dark:text-red-400', circle: 'bg-red-500' };
+        if (isCompleted) return { bg: 'bg-green-100 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400', circle: 'bg-green-500' };
+        return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-500 dark:text-gray-400', circle: 'bg-gray-300 dark:bg-gray-600' };
+      } else if (stepNumber === 3) {
+        // Credit Account step - Green
+        if (isActive) return { bg: 'bg-green-100 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400', circle: 'bg-green-500' };
+        if (isCompleted) return { bg: 'bg-green-100 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400', circle: 'bg-green-500' };
+        return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-500 dark:text-gray-400', circle: 'bg-gray-300 dark:bg-gray-600' };
+      }
+    }
+    // Default colors for other steps
+    if (isActive) return { bg: 'bg-blue-100 dark:bg-blue-900/20', text: 'text-blue-600 dark:text-blue-400', circle: 'bg-blue-500' };
+    if (isCompleted) return { bg: 'bg-green-100 dark:bg-green-900/20', text: 'text-green-600 dark:text-green-400', circle: 'bg-green-500' };
+    return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-500 dark:text-gray-400', circle: 'bg-gray-300 dark:bg-gray-600' };
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -1795,13 +1828,37 @@ const NewTransaction = () => {
               queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(partyId), 'financials'] });
             }
             
-            // Invalidate employee queries for Miraj Employee transactions
+            // Invalidate farmEmployees queries for Miraj Employee transactions
             const customerType = unifiedTransactionData.customerType || formData.customerType;
             const employeeId = formData.employeeReference?.id || formData.employeeReference?.employeeId || (customerType === 'miraj-employee' ? partyId : null);
             if ((customerType === 'miraj-employee' || customerType === 'mirajIndustries') && employeeId) {
-              queryClient.invalidateQueries({ queryKey: ['employees'] });
-              queryClient.invalidateQueries({ queryKey: ['employees', employeeId] });
-              queryClient.invalidateQueries({ queryKey: ['employees', 'stats'] });
+              const employeeIdStr = String(employeeId);
+              // Invalidate farmEmployees queries only (employees collection removed from backend)
+              queryClient.invalidateQueries({ queryKey: ['farmEmployees'] });
+              queryClient.invalidateQueries({ queryKey: ['farmEmployees', employeeIdStr] });
+              queryClient.invalidateQueries({ queryKey: ['farmEmployees', 'stats'] });
+              // Also invalidate queries with employeeId in different formats
+              if (formData.employeeReference?.employeeId) {
+                const refEmployeeIdStr = String(formData.employeeReference.employeeId);
+                queryClient.invalidateQueries({ queryKey: ['farmEmployees', refEmployeeIdStr] });
+                queryClient.refetchQueries({ queryKey: ['farmEmployees', refEmployeeIdStr] });
+              }
+              // Use predicate to catch any farmEmployee queries with this ID
+              queryClient.invalidateQueries({ 
+                predicate: (query) => {
+                  const key = query.queryKey;
+                  if (!Array.isArray(key)) return false;
+                  const hasFarmEmployee = key.some(k => 
+                    typeof k === 'string' && (k === 'farmEmployees' || k.includes('farmEmployee'))
+                  );
+                  const hasEmployeeId = key.includes(employeeIdStr) || 
+                                       key.includes(employeeId) ||
+                                       (formData.employeeReference?.employeeId && key.includes(String(formData.employeeReference.employeeId)));
+                  return hasFarmEmployee && hasEmployeeId;
+                }
+              });
+              // Force refetch farmEmployee detail query to ensure updated balance is shown immediately
+              queryClient.refetchQueries({ queryKey: ['farmEmployees', employeeIdStr] });
             }
 
             // Notify customer via SMS (best-effort)
@@ -1849,14 +1906,78 @@ const NewTransaction = () => {
           },
           onError: (error) => {
             console.error('Transaction completion failed:', error);
+            console.error('Full error object:', JSON.stringify(error, null, 2));
+            
+            // Extract error message from backend
+            let errorMessage = 'লেনদেন তৈরি হয়েছে কিন্তু সম্পূর্ণ করতে সমস্যা হয়েছে।';
+            const backendError = error?.response?.data;
+            const errorStatus = error?.response?.status;
+            
+            // Check for specific backend errors - prioritize backend response
+            if (backendError?.message) {
+              errorMessage = backendError.message;
+            } else if (backendError?.error) {
+              errorMessage = backendError.error;
+            } else if (error?.message) {
+              errorMessage = error.message;
+            }
+            
+            // Check if it's a ReferenceError about employees (check both backend response and error message)
+            const isEmployeesError = 
+              errorMessage.includes('employees is not defined') ||
+              backendError?.message?.includes('employees is not defined') ||
+              backendError?.error?.includes('employees is not defined') ||
+              backendError?.details?.includes('employees is not defined') ||
+              error?.message?.includes('employees is not defined');
+            
+            if (isEmployeesError) {
+              errorMessage = '❌ Backend Error: employees collection is not defined\n\n';
+              errorMessage += 'সমস্যা: Backend-এ এখনো কোথাও `employees` collection reference আছে।\n\n';
+              errorMessage += 'সমাধান: Backend code-এ নিম্নলিখিত endpoints check করুন:\n';
+              errorMessage += '1. POST /api/transactions (transaction create)\n';
+              errorMessage += '2. POST /api/transactions/:id/complete (transaction complete)\n';
+              errorMessage += '3. DELETE /api/transactions/:id (transaction delete)\n\n';
+              errorMessage += 'সব `employees` collection reference `farmEmployees` দিয়ে replace করুন।';
+            }
+            
+            // Add details if available
+            if (backendError?.details) {
+              if (typeof backendError.details === 'string') {
+                errorMessage += `\n\n📋 বিস্তারিত:\n${backendError.details}`;
+              } else if (Array.isArray(backendError.details)) {
+                errorMessage += `\n\n📋 বিস্তারিত:\n${backendError.details.join('\n')}`;
+              } else if (typeof backendError.details === 'object') {
+                errorMessage += `\n\n📋 বিস্তারিত:\n${JSON.stringify(backendError.details, null, 2)}`;
+              }
+            }
+            
+            // Add stack trace if available (for debugging)
+            if (backendError?.stack) {
+              errorMessage += `\n\n🔍 Stack Trace:\n${backendError.stack}`;
+            }
+            
+            // Add status code info
+            if (errorStatus) {
+              errorMessage += `\n\nStatus Code: ${errorStatus}`;
+            }
+            
             Swal.fire({
-              title: 'সতর্কতা!',
-              text: 'লেনদেন তৈরি হয়েছে কিন্তু সম্পূর্ণ করতে সমস্যা হয়েছে। পরবর্তীতে আবার সম্পূর্ণ করার চেষ্টা করুন।',
-              icon: 'warning',
+              title: isEmployeesError ? '❌ Backend Configuration Error' : 'সতর্কতা!',
+              html: `<div style="text-align: left; white-space: pre-wrap; font-family: monospace; font-size: 12px;">${errorMessage}</div>`,
+              icon: isEmployeesError ? 'error' : 'warning',
               confirmButtonText: 'ঠিক আছে',
-              confirmButtonColor: '#F59E0B',
-              background: isDark ? '#1F2937' : '#FEF2F2'
+              confirmButtonColor: isEmployeesError ? '#EF4444' : '#F59E0B',
+              background: isDark ? '#1F2937' : '#FEF2F2',
+              width: '700px'
             });
+            
+            // Still invalidate queries to refresh UI even if completion failed
+            const customerType = unifiedTransactionData.customerType || formData.customerType;
+            const employeeId = formData.employeeReference?.id || formData.employeeReference?.employeeId;
+            if ((customerType === 'miraj-employee' || customerType === 'mirajIndustries') && employeeId) {
+              queryClient.invalidateQueries({ queryKey: ['farmEmployees'] });
+              queryClient.invalidateQueries({ queryKey: ['farmEmployees', String(employeeId)] });
+            }
           }
         });
 
@@ -1865,10 +1986,54 @@ const NewTransaction = () => {
       },
       onError: (error) => {
         console.error('Create transaction failed:', error);
-        const message = error?.response?.data?.message || error?.message || 'লেনদেন তৈরি করতে সমস্যা হয়েছে।';
+        console.error('Full error object:', JSON.stringify(error, null, 2));
+        
+        const backendError = error?.response?.data;
+        const errorStatus = error?.response?.status;
+        let message = backendError?.message || backendError?.error || error?.message || 'লেনদেন তৈরি করতে সমস্যা হয়েছে।';
+        
+        // Check if it's a ReferenceError about employees
+        const isEmployeesError = 
+          message.includes('employees is not defined') ||
+          backendError?.message?.includes('employees is not defined') ||
+          backendError?.error?.includes('employees is not defined') ||
+          backendError?.details?.includes('employees is not defined');
+        
+        if (isEmployeesError) {
+          message = '❌ Backend Error: employees collection is not defined\n\n';
+          message += 'সমস্যা: Backend-এ এখনো কোথাও `employees` collection reference আছে।\n\n';
+          message += 'সমাধান: Backend code-এ নিম্নলিখিত endpoints check করুন:\n';
+          message += '1. POST /api/transactions (transaction create)\n';
+          message += '2. POST /api/transactions/:id/complete (transaction complete)\n';
+          message += '3. DELETE /api/transactions/:id (transaction delete)\n\n';
+          message += 'সব `employees` collection reference `farmEmployees` দিয়ে replace করুন。';
+          
+          if (backendError?.details) {
+            if (typeof backendError.details === 'string') {
+              message += `\n\n📋 বিস্তারিত:\n${backendError.details}`;
+            } else if (typeof backendError.details === 'object') {
+              message += `\n\n📋 বিস্তারিত:\n${JSON.stringify(backendError.details, null, 2)}`;
+            }
+          }
+          
+          if (backendError?.stack) {
+            message += `\n\n🔍 Stack Trace:\n${backendError.stack}`;
+          }
+          
+          if (errorStatus) {
+            message += `\n\nStatus Code: ${errorStatus}`;
+          }
+        } else if (backendError?.details) {
+          if (typeof backendError.details === 'string') {
+            message += `\n\nবিস্তারিত: ${backendError.details}`;
+          } else if (Array.isArray(backendError.details)) {
+            message += `\n\nবিস্তারিত: ${backendError.details.join(', ')}`;
+          }
+        }
+        
         Swal.fire({
-          title: 'ত্রুটি!',
-          text: message,
+          title: isEmployeesError ? '❌ Backend Configuration Error' : 'ত্রুটি!',
+          html: isEmployeesError ? `<div style="text-align: left; white-space: pre-wrap; font-family: monospace; font-size: 12px;">${message}</div>` : message,
           icon: 'error',
           confirmButtonText: 'ঠিক আছে',
           confirmButtonColor: '#EF4444',
@@ -2891,75 +3056,63 @@ const NewTransaction = () => {
         }`}>
           {/* Mobile Steps */}
           <div className="flex md:hidden items-center justify-between overflow-x-auto">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center min-w-0">
-                <button
-                  onClick={() => goToStep(step.number)}
-                  className={`flex items-center gap-1 p-1 sm:p-2 rounded-lg transition-all duration-300 ${
-                    currentStep === step.number
-                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                      : currentStep > step.number
-                      ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                  } ${currentStep >= step.number ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed'}`}
-                >
-                  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    currentStep > step.number
-                      ? 'bg-green-500 text-white'
-                      : currentStep === step.number
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {currentStep > step.number ? <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3" /> : step.number}
-                  </div>
-                  <div className="hidden sm:block text-left">
-                    <div className="text-xs font-semibold truncate max-w-16">{step.title.split(' ')[0]}</div>
-                  </div>
-                </button>
-                {index < steps.length - 1 && (
-                  <ChevronRight className={`w-3 h-3 sm:w-4 sm:h-4 mx-0.5 sm:mx-1 transition-colors duration-300 ${
-                    currentStep > step.number ? 'text-green-500' : 'text-gray-400'
-                  }`} />
-                )}
-              </div>
-            ))}
+            {steps.map((step, index) => {
+              const isActive = currentStep === step.number;
+              const isCompleted = currentStep > step.number;
+              const stepColor = getStepColor(step.number, isActive, isCompleted);
+              
+              return (
+                <div key={step.number} className="flex items-center min-w-0">
+                  <button
+                    onClick={() => goToStep(step.number)}
+                    className={`flex items-center gap-1 p-1 sm:p-2 rounded-lg transition-all duration-300 ${stepColor.bg} ${stepColor.text} ${currentStep >= step.number ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed'}`}
+                  >
+                    <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold ${stepColor.circle} text-white`}>
+                      {isCompleted ? <CheckCircle className="w-2 h-2 sm:w-3 sm:h-3" /> : step.number}
+                    </div>
+                    <div className="hidden sm:block text-left">
+                      <div className="text-xs font-semibold truncate max-w-16">{step.title.split(' ')[0]}</div>
+                    </div>
+                  </button>
+                  {index < steps.length - 1 && (
+                    <ChevronRight className={`w-3 h-3 sm:w-4 sm:h-4 mx-0.5 sm:mx-1 transition-colors duration-300 ${
+                      isCompleted ? 'text-green-500' : 'text-gray-400'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
           </div>
           
           {/* Desktop Steps */}
           <div className="hidden md:flex items-center justify-between">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center">
-                <button
-                  onClick={() => goToStep(step.number)}
-                  className={`flex items-center gap-2 p-2 rounded-lg transition-all duration-300 ${
-                    currentStep === step.number
-                      ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
-                      : currentStep > step.number
-                      ? 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                  } ${currentStep >= step.number ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed'}`}
-                >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                    currentStep > step.number
-                      ? 'bg-green-500 text-white'
-                      : currentStep === step.number
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400'
-                  }`}>
-                    {currentStep > step.number ? <CheckCircle className="w-3 h-3" /> : step.number}
-                  </div>
-                  <div className="text-left">
-                    <div className="text-sm font-semibold">{step.title}</div>
-                    <div className="text-xs opacity-75">{step.description}</div>
-                  </div>
-                </button>
-                {index < steps.length - 1 && (
-                  <ChevronRight className={`w-4 h-4 mx-1 transition-colors duration-300 ${
-                    currentStep > step.number ? 'text-green-500' : 'text-gray-400'
-                  }`} />
-                )}
-              </div>
-            ))}
+            {steps.map((step, index) => {
+              const isActive = currentStep === step.number;
+              const isCompleted = currentStep > step.number;
+              const stepColor = getStepColor(step.number, isActive, isCompleted);
+              
+              return (
+                <div key={step.number} className="flex items-center">
+                  <button
+                    onClick={() => goToStep(step.number)}
+                    className={`flex items-center gap-2 p-2 rounded-lg transition-all duration-300 ${stepColor.bg} ${stepColor.text} ${currentStep >= step.number ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed'}`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${stepColor.circle} text-white`}>
+                      {isCompleted ? <CheckCircle className="w-3 h-3" /> : step.number}
+                    </div>
+                    <div className="text-left">
+                      <div className="text-sm font-semibold">{step.title}</div>
+                      <div className="text-xs opacity-75">{step.description}</div>
+                    </div>
+                  </button>
+                  {index < steps.length - 1 && (
+                    <ChevronRight className={`w-4 h-4 mx-1 transition-colors duration-300 ${
+                      isCompleted ? 'text-green-500' : 'text-gray-400'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -3098,7 +3251,7 @@ const NewTransaction = () => {
                         placeholder="ডেবিট একাউন্ট খুঁজুন... (নাম, ব্যাংক, একাউন্ট নম্বর)"
                         value={debitAccountSearchTerm}
                         onChange={(e) => setDebitAccountSearchTerm(e.target.value)}
-                        className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                        className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                           isDark 
                             ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                             : 'border-gray-300'
@@ -3113,22 +3266,41 @@ const NewTransaction = () => {
                         onClick={() => handleAccountSelect(account, 'debitAccount')}
                         className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
                           formData.debitAccount?.id === account.id
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                            ? 'border-red-500 bg-red-50 dark:bg-red-900/20'
+                            : 'border-gray-200 dark:border-gray-600 hover:border-red-300'
                         }`}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                           <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            {/* Bank Logo */}
+                            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 ${
                               formData.debitAccount?.id === account.id
-                                ? 'bg-blue-100 dark:bg-blue-800'
-                                : 'bg-gray-100 dark:bg-gray-700'
+                                ? 'border-red-500 ring-2 ring-red-200 dark:ring-red-900'
+                                : 'border-gray-200 dark:border-gray-600'
                             }`}>
-                              <CreditCardIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                                formData.debitAccount?.id === account.id
-                                  ? 'text-blue-600 dark:text-blue-400'
-                                  : 'text-gray-600 dark:text-gray-400'
-                              }`} />
+                              {account.logo ? (
+                                <img 
+                                  src={account.logo} 
+                                  alt={account.bankName || 'Bank Logo'} 
+                                  className="w-full h-full object-cover rounded-full"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              ) : null}
+                              {!account.logo && (
+                                <div className={`w-full h-full rounded-full flex items-center justify-center ${
+                                  formData.debitAccount?.id === account.id
+                                    ? 'bg-red-100 dark:bg-red-800'
+                                    : 'bg-gray-100 dark:bg-gray-700'
+                                }`}>
+                                  <Building2 className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                    formData.debitAccount?.id === account.id
+                                      ? 'text-red-600 dark:text-red-400'
+                                      : 'text-gray-600 dark:text-gray-400'
+                                  }`} />
+                                </div>
+                              )}
                             </div>
                             <div className="text-left min-w-0 flex-1">
                               <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
@@ -3268,7 +3440,7 @@ const NewTransaction = () => {
                       placeholder="ক্রেডিট একাউন্ট খুঁজুন... (নাম, ব্যাংক, একাউন্ট নম্বর)"
                       value={creditAccountSearchTerm}
                       onChange={(e) => setCreditAccountSearchTerm(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
+                      className={`w-full pl-10 pr-4 py-2 sm:py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base ${
                         isDark 
                           ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' 
                           : 'border-gray-300'
@@ -3285,22 +3457,41 @@ const NewTransaction = () => {
                           onClick={() => handleAccountSelect(account, 'creditAccount')}
                           className={`w-full p-3 sm:p-4 rounded-lg border-2 transition-all duration-200 hover:scale-[1.02] ${
                             formData.creditAccount?.id === account.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-600 hover:border-blue-300'
+                              ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+                              : 'border-gray-200 dark:border-gray-600 hover:border-green-300'
                           }`}
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
-                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              {/* Bank Logo */}
+                              <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 ${
                                 formData.creditAccount?.id === account.id
-                                  ? 'bg-blue-100 dark:bg-blue-800'
-                                  : 'bg-gray-100 dark:bg-gray-700'
+                                  ? 'border-green-500 ring-2 ring-green-200 dark:ring-green-900'
+                                  : 'border-gray-200 dark:border-gray-600'
                               }`}>
-                                <CreditCardIcon className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                                  formData.creditAccount?.id === account.id
-                                    ? 'text-blue-600 dark:text-blue-400'
-                                    : 'text-gray-600 dark:text-gray-400'
-                                }`} />
+                                {account.logo ? (
+                                  <img 
+                                    src={account.logo} 
+                                    alt={account.bankName || 'Bank Logo'} 
+                                    className="w-full h-full object-cover rounded-full"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                ) : null}
+                                {!account.logo && (
+                                  <div className={`w-full h-full rounded-full flex items-center justify-center ${
+                                    formData.creditAccount?.id === account.id
+                                      ? 'bg-green-100 dark:bg-green-800'
+                                      : 'bg-gray-100 dark:bg-gray-700'
+                                  }`}>
+                                    <Building2 className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                                      formData.creditAccount?.id === account.id
+                                        ? 'text-green-600 dark:text-green-400'
+                                        : 'text-gray-600 dark:text-gray-400'
+                                    }`} />
+                                  </div>
+                                )}
                               </div>
                               <div className="text-left min-w-0 flex-1">
                                 <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
@@ -6532,18 +6723,62 @@ const NewTransaction = () => {
                     </h3>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                        <h4 className="font-semibold text-red-600 dark:text-red-400 mb-2">ডেবিট একাউন্ট</h4>
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-red-200 dark:border-red-800">
+                        <div className="flex items-center gap-3 mb-3">
+                          {/* Bank Logo */}
+                          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-red-300 dark:border-red-700 flex-shrink-0">
+                            {formData.debitAccount?.logo ? (
+                              <img 
+                                src={formData.debitAccount.logo} 
+                                alt={formData.debitAccount?.bankName || 'Bank Logo'} 
+                                className="w-full h-full object-cover rounded-full"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : null}
+                            {!formData.debitAccount?.logo && (
+                              <div className="w-full h-full rounded-full flex items-center justify-center bg-red-100 dark:bg-red-800">
+                                <Building2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-red-600 dark:text-red-400">ডেবিট একাউন্ট</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{formData.debitAccount?.bankName}</p>
+                          </div>
+                        </div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{formData.debitAccount?.name}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{formData.debitAccount?.bankName}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">A/C: {formData.debitAccount?.accountNumber}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">A/C: {formData.debitAccount?.accountNumber}</p>
                       </div>
                       
-                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4">
-                        <h4 className="font-semibold text-green-600 dark:text-green-400 mb-2">ক্রেডিট একাউন্ট</h4>
+                      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border-2 border-green-200 dark:border-green-800">
+                        <div className="flex items-center gap-3 mb-3">
+                          {/* Bank Logo */}
+                          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-green-300 dark:border-green-700 flex-shrink-0">
+                            {formData.creditAccount?.logo ? (
+                              <img 
+                                src={formData.creditAccount.logo} 
+                                alt={formData.creditAccount?.bankName || 'Bank Logo'} 
+                                className="w-full h-full object-cover rounded-full"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : null}
+                            {!formData.creditAccount?.logo && (
+                              <div className="w-full h-full rounded-full flex items-center justify-center bg-green-100 dark:bg-green-800">
+                                <Building2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-green-600 dark:text-green-400">ক্রেডিট একাউন্ট</h4>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{formData.creditAccount?.bankName}</p>
+                          </div>
+                        </div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{formData.creditAccount?.name}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">{formData.creditAccount?.bankName}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-500">A/C: {formData.creditAccount?.accountNumber}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">A/C: {formData.creditAccount?.accountNumber}</p>
                       </div>
                     </div>
                     

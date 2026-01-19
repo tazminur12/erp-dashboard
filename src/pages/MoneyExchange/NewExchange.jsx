@@ -132,9 +132,11 @@ const NewExchange = () => {
 
   // Handle dilar selection
   const handleDilarSelect = (dilar) => {
+    const dilarId = dilar._id || dilar.contactNo;
     setForm((f) => ({
       ...f,
-      selectedDilarId: dilar._id || dilar.contactNo,
+      selectedDilarId: dilarId,
+      dilarId: dilarId, // Also set dilarId for backend
       fullName: dilar.ownerName || '',
       mobileNumber: dilar.contactNo || '',
       nid: dilar.nid || '',
@@ -215,6 +217,10 @@ const NewExchange = () => {
         ...form,
         quantity: isBuy ? foreignCurrencyAmount : Number(form.quantity), // For Buy, convert BDT to foreign currency
         amount_bdt: amount,
+        // Include dilar-related fields
+        customerType: form.customerType || 'normal',
+        selectedDilarId: form.selectedDilarId || '',
+        dilarId: form.customerType === 'dilar' ? (form.selectedDilarId || form.dilarId) : undefined,
       };
       
       await createExchange.mutateAsync(payload);

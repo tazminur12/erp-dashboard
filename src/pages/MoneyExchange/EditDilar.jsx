@@ -161,7 +161,7 @@ const EditDilar = () => {
   };
 
   const handleCancel = () => {
-    navigate('/money-exchange/dilar-list');
+    navigate('/money-exchange/dealer-list');
   };
 
   const handleSubmit = async (e) => {
@@ -178,7 +178,7 @@ const EditDilar = () => {
       { dilarId: id, dilarData: form },
       {
         onSuccess: () => {
-          navigate('/money-exchange/dilar-list');
+          navigate('/money-exchange/dealer-list');
         }
       }
     );
@@ -206,7 +206,7 @@ const EditDilar = () => {
           </p>
           <button
             onClick={handleCancel}
-            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
           >
             তালিকায় ফিরে যান
           </button>

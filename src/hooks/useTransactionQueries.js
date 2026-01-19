@@ -228,6 +228,7 @@ export const useTransactionAccounts = () => {
           routingNumber: account.routingNumber || '',
           swiftCode: account.swiftCode || '',
           currency: account.currency || 'BDT',
+          logo: account.logo || null, // Bank logo URL
           isActive: account.isActive !== false,
           createdAt: account.createdAt,
           updatedAt: account.updatedAt
@@ -253,8 +254,9 @@ export const useTransactionAccounts = () => {
 };
 
 // Hook to fetch invoices for transactions
-export const useTransactionInvoices = (customerId) => {
+export const useTransactionInvoices = (customerId, options = {}) => {
   const axiosSecure = useAxiosSecure();
+  const { enabled = true } = options;
   
   return useQuery({
     queryKey: [...transactionKeys.invoices(), customerId],
@@ -288,7 +290,7 @@ export const useTransactionInvoices = (customerId) => {
         return [];
       }
     },
-    enabled: !!customerId,
+    enabled: enabled && !!customerId,
     staleTime: 5 * 60 * 1000,
     cacheTime: 10 * 60 * 1000,
     retry: false, // Don't retry if endpoint doesn't exist
@@ -589,6 +591,37 @@ export const useCreateTransaction = () => {
             return hasAirCustomer && hasPartyId;
           }
         });
+      }
+      
+      // Handle employee transactions (Miraj Industries employees - farmEmployees)
+      // Check for employeeReference or customerType indicating employee transaction
+      const employeeReference = variables?.employeeReference || data?.transaction?.employeeReference;
+      const customerType = variables?.customerType || data?.transaction?.customerType;
+      const employeeId = employeeReference?.id || employeeReference?.employeeId || 
+                        (customerType === 'miraj-employee' ? partyId : null);
+      
+      if ((customerType === 'miraj-employee' || customerType === 'mirajIndustries') && employeeId) {
+        const employeeIdStr = String(employeeId);
+        // Invalidate farmEmployees queries only (employees collection removed from backend)
+        queryClient.invalidateQueries({ queryKey: ['farmEmployees'] });
+        queryClient.invalidateQueries({ queryKey: ['farmEmployees', employeeIdStr] });
+        queryClient.invalidateQueries({ queryKey: ['farmEmployees', 'stats'] });
+        // Also invalidate any queries with employeeId in different formats
+        queryClient.invalidateQueries({ 
+          predicate: (query) => {
+            const key = query.queryKey;
+            if (!Array.isArray(key)) return false;
+            const hasFarmEmployee = key.some(k => 
+              typeof k === 'string' && (k === 'farmEmployees' || k.includes('farmEmployee'))
+            );
+            const hasEmployeeId = key.includes(employeeIdStr) || 
+                                 key.includes(employeeId) ||
+                                 (employeeReference?.employeeId && key.includes(String(employeeReference.employeeId)));
+            return hasFarmEmployee && hasEmployeeId;
+          }
+        });
+        // Force refetch farmEmployee detail query to ensure updated balance is shown immediately
+        queryClient.refetchQueries({ queryKey: ['farmEmployees', employeeIdStr] });
       }
       
       // Handle agent party type - invalidate agent queries to refresh agent profile (including hajDue/umrahDue)
@@ -1261,12 +1294,32 @@ export const useCompleteTransaction = () => {
           queryClient.invalidateQueries({ queryKey: vendorKeys.detail(vendorId) });
         }
       }
+      if (data.employee) {
+        // Invalidate farmEmployees queries when employee is updated
+        const employeeId = data.employee.id || data.employee._id;
+        if (employeeId) {
+          const employeeIdStr = String(employeeId);
+          queryClient.invalidateQueries({ queryKey: ['farmEmployees'] });
+          queryClient.invalidateQueries({ queryKey: ['farmEmployees', employeeIdStr] });
+          queryClient.invalidateQueries({ queryKey: ['farmEmployees', 'stats'] });
+          queryClient.refetchQueries({ queryKey: ['farmEmployees', employeeIdStr] });
+        }
+      }
       if (data.invoice) {
         queryClient.invalidateQueries({ queryKey: transactionKeys.invoices() });
       }
     },
     onError: (error) => {
       console.error('Complete transaction error:', error);
+      // Extract error details for better debugging
+      const errorDetails = {
+        message: error?.response?.data?.message || error?.message || 'Unknown error',
+        error: error?.response?.data?.error || error?.error,
+        details: error?.response?.data?.details,
+        status: error?.response?.status,
+        statusText: error?.response?.statusText
+      };
+      console.error('Complete transaction error details:', errorDetails);
       // Error handling is done at the calling component level
     },
   });

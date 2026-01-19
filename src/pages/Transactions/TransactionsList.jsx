@@ -213,6 +213,35 @@ const TransactionsList = () => {
       }
     }
     
+    // Handle Employee transactions (Miraj Industries employees)
+    if (t.customerType === 'miraj-employee' || t.customerType === 'mirajIndustries' || t.employeeReference) {
+      // Check employeeReference object first
+      if (t.employeeReference && typeof t.employeeReference === 'object') {
+        const employeeName = t.employeeReference.name || 
+                           t.employeeReference.employeeName ||
+                           t.employeeReference.fullName ||
+                           '';
+        if (employeeName && employeeName.trim() && employeeName.toLowerCase() !== 'unknown') {
+          return employeeName.trim();
+        }
+      }
+      // Check party object for employee
+      if (t.party && typeof t.party === 'object') {
+        const partyName = t.party.name || t.party.fullName || '';
+        if (partyName && partyName.trim() && partyName.toLowerCase() !== 'unknown') {
+          return partyName.trim();
+        }
+      }
+      // Check partyName field
+      if (t.partyName && t.partyName.trim() && t.partyName.toLowerCase() !== 'unknown') {
+        return t.partyName.trim();
+      }
+      // Fallback: show generic employee label
+      if (t.customerType === 'miraj-employee' || t.employeeReference) {
+        return 'Miraj Employee';
+      }
+    }
+    
     // Handle Office Expenses transactions - show category name
     if (t.customerType === 'office' || t.operatingExpenseCategory || t.operatingExpenseCategoryId) {
       // Check operatingExpenseCategory object

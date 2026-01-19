@@ -13,16 +13,16 @@ import {
   Briefcase,
   Clock
 } from 'lucide-react';
-import useEmployeeQueries from '../../hooks/useEmployeeQueries';
+import useFarmEmployeesQueries from '../../hooks/useFarmEmployeesQueries';
 import Swal from 'sweetalert2';
 import { Helmet } from 'react-helmet-async';
 
 const EditEmployee = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { useGetEmployee, useUpdateEmployee } = useEmployeeQueries();
-  const { data: employee, isLoading: employeeLoading } = useGetEmployee(id);
-  const updateEmployeeMutation = useUpdateEmployee();
+  const { useGetFarmEmployee, useUpdateFarmEmployee } = useFarmEmployeesQueries();
+  const { data: employee, isLoading: employeeLoading } = useGetFarmEmployee(id);
+  const updateEmployeeMutation = useUpdateFarmEmployee();
 
   const positionOptions = [
     'খামার ম্যানেজার',

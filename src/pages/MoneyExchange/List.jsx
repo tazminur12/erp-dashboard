@@ -22,6 +22,34 @@ import {
 import Swal from 'sweetalert2';
 import { useExchanges, useDeleteExchange, useExchangeDashboard } from '../../hooks/useMoneyExchangeQueries';
 
+// Convert Arabic numerals to Bengali numerals
+const toBengaliNumeral = (num) => {
+  if (num === null || num === undefined || num === '...') return num;
+  
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const numStr = String(num);
+  
+  // If it's a formatted number with commas, preserve the commas
+  if (numStr.includes(',')) {
+    return numStr.split(',').map(part => {
+      return part.split('').map(char => {
+        if (char >= '0' && char <= '9') {
+          return bengaliDigits[parseInt(char)];
+        }
+        return char;
+      }).join('');
+    }).join(',');
+  }
+  
+  // Convert each digit (only Arabic digits 0-9, leave other characters unchanged)
+  return numStr.split('').map(char => {
+    if (char >= '0' && char <= '9') {
+      return bengaliDigits[parseInt(char)];
+    }
+    return char;
+  }).join('');
+};
+
 const List = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -88,22 +116,26 @@ const List = () => {
   };
 
   const formatCurrency = (amount, currency) => {
-    return new Intl.NumberFormat('bn-BD-u-nu-latn', {
+    const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 2
     }).format(amount);
+    // Convert to Bengali numerals
+    return toBengaliNumeral(formatted);
   };
 
   const formatNumber = (value, minimumFractionDigits = 2, maximumFractionDigits = 2) => {
     const numericValue = Number.isFinite(value) ? value : Number(value);
     if (!Number.isFinite(numericValue)) {
-      return minimumFractionDigits > 0 ? `0.${'0'.repeat(minimumFractionDigits)}` : '0';
+      return minimumFractionDigits > 0 ? toBengaliNumeral(`0.${'0'.repeat(minimumFractionDigits)}`) : '০';
     }
-    return numericValue.toLocaleString('bn-BD-u-nu-latn', {
+    const formatted = numericValue.toLocaleString('en-US', {
       minimumFractionDigits,
       maximumFractionDigits,
     });
+    // Convert to Bengali numerals
+    return toBengaliNumeral(formatted);
   };
 
   const getStatusColor = (status) => {
@@ -350,7 +382,7 @@ const List = () => {
               <div className="flex-1 min-w-0">
                 <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 truncate">মোট লেনদেন</p>
                 <p className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600 dark:text-purple-400 truncate">
-                  {pagination.total || 0}
+                  {toBengaliNumeral(pagination.total || 0)}
                 </p>
               </div>
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center flex-shrink-0 ml-2">
@@ -436,7 +468,7 @@ const List = () => {
                   value={pageSize}
                   onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
                 >
-                  {[5,10,20,50].map((n) => <option key={n} value={n}>{n}</option>)}
+                  {[5,10,20,50].map((n) => <option key={n} value={n}>{toBengaliNumeral(n)}</option>)}
                 </select>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -715,9 +747,9 @@ const List = () => {
           {/* Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-3 sm:px-4 py-3 bg-gray-50 dark:bg-gray-700/30">
             <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center sm:text-left">
-              Showing <span className="font-medium">{pagination.total === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> to{' '}
-              <span className="font-medium">{Math.min(currentPage * pageSize, pagination.total)}</span> of{' '}
-              <span className="font-medium">{pagination.total}</span> results
+              দেখানো হচ্ছে <span className="font-medium">{toBengaliNumeral(pagination.total === 0 ? 0 : (currentPage - 1) * pageSize + 1)}</span> থেকে{' '}
+              <span className="font-medium">{toBengaliNumeral(Math.min(currentPage * pageSize, pagination.total))}</span> এর{' '}
+              <span className="font-medium">{toBengaliNumeral(pagination.total)}</span> ফলাফল
             </div>
             <div className="inline-flex -space-x-px rounded-md shadow-sm">
               <button
@@ -729,7 +761,7 @@ const List = () => {
                 <span className="sm:hidden">‹</span>
               </button>
               <span className="px-2 sm:px-3 py-1.5 text-xs sm:text-sm border-t border-b bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200">
-                {currentPage} / {totalPages}
+                {toBengaliNumeral(currentPage)} / {toBengaliNumeral(totalPages)}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}

@@ -100,7 +100,7 @@ const DilarList = () => {
             />
           </div>
           <Link
-            to="/money-exchange/dilar/add"
+            to="/money-exchange/dealer/add"
             className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2.5"
           >
             <Plus className="w-4 h-4" /> নতুন ডিলার
@@ -168,14 +168,14 @@ const DilarList = () => {
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => navigate(`/money-exchange/dilar/${d._id || d.dilarId || d.contactNo}/edit`)}
+                        onClick={() => navigate(`/money-exchange/dealer/${d._id || d.dilarId || d.contactNo}/edit`)}
                         className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                         title="সম্পাদনা করুন"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => navigate(`/money-exchange/dilar/${d._id || d.dilarId || d.contactNo}`)}
+                        onClick={() => navigate(`/money-exchange/dealer/${d._id || d.dilarId || d.contactNo}`)}
                         className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
                         title="বিস্তারিত দেখুন"
                       >

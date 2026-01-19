@@ -136,7 +136,7 @@ const AddDilar = () => {
   };
 
   const handleCancel = () => {
-    navigate('/money-exchange/dilar-list');
+    navigate('/money-exchange/dealer-list');
   };
 
   const handleSubmit = async (e) => {
@@ -152,7 +152,7 @@ const AddDilar = () => {
     createDilarMutation.mutate(form, {
       onSuccess: () => {
         handleReset();
-        navigate('/money-exchange/dilar-list');
+        navigate('/money-exchange/dealer-list');
       }
     });
   };

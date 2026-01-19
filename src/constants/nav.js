@@ -259,6 +259,7 @@ export const navigation = [
       // { name: 'Expense Management', href: '/account/expense', icon: TrendingDown },
       // { name: 'Savings & Investments', href: '/account/savings', icon: PiggyBank },
       { name: 'Bank Accounts', href: '/account/bank-accounts', icon: CreditCard },
+      { name: 'Investments', href: '/account/investments', icon: TrendingUp },
       // { name: 'Budget Planning', href: '/account/budget', icon: BarChart3Icon },
       // { name: 'Tax Management', href: '/account/tax', icon: Receipt }
     ]
@@ -297,7 +298,7 @@ export const navigation = [
       { name: 'Dashboard', href: '/money-exchange/dashboard', icon: LayoutDashboard },
       { name: 'New Exchange', href: '/money-exchange/new', icon: Plus },
       { name: 'List', href: '/money-exchange/list', icon: List },
-      { name: 'Dilar List', href: '/money-exchange/dilar-list', icon: List }
+      { name: 'Dealer List', href: '/money-exchange/dealer-list', icon: List }
     ]
   },
   {

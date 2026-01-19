@@ -18,7 +18,7 @@ import {
   Tag,
   Edit
 } from 'lucide-react';
-import useEmployeeQueries from '../../hooks/useEmployeeQueries';
+import useFarmEmployeesQueries from '../../hooks/useFarmEmployeesQueries';
 
 const getStatusClass = (status) => {
   const statusMap = {
@@ -65,9 +65,10 @@ const getAttendanceStatusLabel = (status) => {
 const EmployeeDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { useGetEmployee, useAttendance } = useEmployeeQueries();
-  const { data: employee, isLoading, error } = useGetEmployee(id);
-  const { data: attendanceRecords = [] } = useAttendance({ employeeId: id, limit: 100 });
+  const { useGetFarmEmployee } = useFarmEmployeesQueries();
+  const { data: employee, isLoading, error } = useGetFarmEmployee(id);
+  // Attendance functionality removed - use separate attendance API if needed
+  const attendanceRecords = [];
 
   if (isLoading) {
     return <div className="p-6">লোড হচ্ছে...</div>;
@@ -133,7 +134,7 @@ const EmployeeDetails = () => {
                 <Briefcase className="w-4 h-4" /> {employee.position}
               </span>
               <span className="inline-flex items-center gap-1">
-                <Tag className="w-4 h-4" /> ID: {employee.id}
+                <Tag className="w-4 h-4" /> ID: {employee.id || employee._id || 'N/A'}
               </span>
               <span className="inline-flex items-center gap-1">
                 <Calendar className="w-4 h-4" /> 

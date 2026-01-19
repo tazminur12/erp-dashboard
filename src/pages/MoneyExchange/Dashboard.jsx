@@ -50,34 +50,72 @@ const Dashboard = () => {
     totalCurrencies: 0,
   };
 
+  // Convert Arabic numerals to Bengali numerals
+  const toBengaliNumeral = (num) => {
+    if (num === null || num === undefined || num === '...') return num;
+    
+    const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    const numStr = String(num);
+    
+    // If it's a formatted number with commas, preserve the commas
+    if (numStr.includes(',')) {
+      return numStr.split(',').map(part => {
+        return part.split('').map(char => {
+          if (char >= '0' && char <= '9') {
+            return bengaliDigits[parseInt(char)];
+          }
+          return char;
+        }).join('');
+      }).join(',');
+    }
+    
+    // Convert each digit (only Arabic digits 0-9, leave other characters unchanged)
+    return numStr.split('').map(char => {
+      if (char >= '0' && char <= '9') {
+        return bengaliDigits[parseInt(char)];
+      }
+      return char;
+    }).join('');
+  };
+
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    const formatted = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'BDT',
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
+    // Convert to Bengali numerals
+    return toBengaliNumeral(formatted);
   };
 
   const formatNumberLocal = (num, decimals = 2) => {
-    if (num === 0 || num === null || num === undefined) return '0.00';
-    return Number(num).toLocaleString('en-US', {
+    if (num === 0 || num === null || num === undefined) return '০.০০';
+    const formatted = Number(num).toLocaleString('en-US', {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     });
+    // Convert to Bengali numerals
+    return toBengaliNumeral(formatted);
   };
 
   const handleExportReserves = () => {
-    const headers = ['Currency Code', 'Currency Name', 'Reserve', 'Weighted Avg Purchase Price', 'Current Reserve Value', 'Total Bought', 'Total Sold'];
-    const rows = reserves.map((r) => [
-      r.currencyCode,
-      r.currencyName,
-      r.reserve,
-      r.weightedAveragePurchasePrice,
-      r.currentReserveValue,
-      r.totalBought,
-      r.totalSold,
-    ]);
+    const headers = ['Currency Code', 'Currency Name', 'In (Received)', 'Out (Given)', 'Current Balance', 'Last Buy Rate', 'Last Sell Rate', 'Current Balance (BDT)'];
+    const rows = reserves.map((r) => {
+      const lastBuyRate = r.lastBuyRate || r.weightedAveragePurchasePrice || 0;
+      const lastSellRate = r.lastSellRate || 0;
+      const currentBalanceBDT = r.reserve * (lastSellRate || r.weightedAveragePurchasePrice || 0);
+      return [
+        r.currencyCode,
+        r.currencyName,
+        r.totalBought || 0,
+        r.totalSold || 0,
+        r.reserve || 0,
+        lastBuyRate > 0 ? lastBuyRate : '-',
+        lastSellRate > 0 ? lastSellRate : '-',
+        lastSellRate > 0 ? currentBalanceBDT : (r.currentReserveValue || '-'),
+      ];
+    });
     const csv = [headers, ...rows]
       .map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
       .join('\n');
@@ -221,7 +259,7 @@ const Dashboard = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-600 dark:text-gray-400">মোট মুদ্রা</p>
                     <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
-                      {reservesSummary.totalCurrencies}
+                      {toBengaliNumeral(reservesSummary.totalCurrencies)}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
@@ -287,68 +325,91 @@ const Dashboard = () => {
                           মুদ্রা
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          রিজার্ভ
+                          In (প্রাপ্ত)
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          গড় ক্রয় মূল্য
+                          Out (প্রদান)
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          বর্তমান মান
+                          Current Balance
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          মোট ক্রয়
+                          Last Buy Rate
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          মোট বিক্রয়
+                          Last Sell Rate
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Current Balance (BDT)
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                      {reserves.map((reserve) => (
-                        <tr key={reserve.currencyCode} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div>
+                      {reserves.map((reserve) => {
+                        // Get last buy and sell rates from backend data (if available)
+                        const lastBuyRate = reserve.lastBuyRate || reserve.weightedAveragePurchasePrice || 0;
+                        const lastSellRate = reserve.lastSellRate || 0;
+                        
+                        // Calculate Current Balance (BDT) using last sell rate
+                        // If no last sell rate, use weighted average purchase price
+                        const currentBalanceBDT = reserve.reserve * (lastSellRate || reserve.weightedAveragePurchasePrice || 0);
+                        
+                        return (
+                          <tr key={reserve.currencyCode} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                  {reserve.currencyCode}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {reserve.currencyName}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-1">
+                                <ArrowDownCircle className="w-4 h-4 text-green-600" />
+                                <span className="text-sm text-gray-900 dark:text-white">
+                                  {formatNumberLocal(reserve.totalBought || 0, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-1">
+                                <ArrowUpCircle className="w-4 h-4 text-red-600" />
+                                <span className="text-sm text-gray-900 dark:text-white">
+                                  {formatNumberLocal(reserve.totalSold || 0, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {reserve.currencyCode}
+                                {formatNumberLocal(reserve.reserve || 0, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {reserve.currencyName}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900 dark:text-white">
+                                {lastBuyRate > 0 ? formatCurrency(lastBuyRate) : '-'}
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900 dark:text-white">
-                              {formatNumberLocal(reserve.reserve, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900 dark:text-white">
-                              {formatCurrency(reserve.weightedAveragePurchasePrice)}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="text-sm font-semibold text-green-600 dark:text-green-400">
-                              {formatCurrency(reserve.currentReserveValue)}
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="flex items-center space-x-1">
-                              <ArrowDownCircle className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-gray-900 dark:text-white">
-                                {formatNumberLocal(reserve.totalBought, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="flex items-center space-x-1">
-                              <ArrowUpCircle className="w-4 h-4 text-red-600" />
-                              <span className="text-sm text-gray-900 dark:text-white">
-                                {formatNumberLocal(reserve.totalSold, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900 dark:text-white">
+                                {lastSellRate > 0 ? formatCurrency(lastSellRate) : '-'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="text-sm font-semibold text-green-600 dark:text-green-400">
+                                {lastSellRate > 0 
+                                  ? formatCurrency(currentBalanceBDT)
+                                  : reserve.currentReserveValue 
+                                    ? formatCurrency(reserve.currentReserveValue)
+                                    : '-'
+                                }
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}

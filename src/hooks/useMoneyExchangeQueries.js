@@ -11,6 +11,7 @@ export const exchangeKeys = {
   detail: (id) => [...exchangeKeys.details(), id],
   reserves: () => [...exchangeKeys.all, 'reserves'],
   dashboard: (filters) => [...exchangeKeys.all, 'dashboard', { filters }],
+  dilarExchanges: (dilarId) => [...exchangeKeys.all, 'dilar', dilarId],
 };
 
 // Normalize exchange data from backend
@@ -29,6 +30,10 @@ const normalizeExchange = (doc) => ({
   isActive: doc?.isActive !== false,
   createdAt: doc?.createdAt || null,
   updatedAt: doc?.updatedAt || null,
+  // Dilar-related fields
+  customerType: doc?.customerType || 'normal',
+  dilarId: doc?.dilarId || null,
+  dilarReference: doc?.dilarReference || null,
 });
 
 // Get all exchanges with pagination and filters
@@ -45,6 +50,8 @@ export const useExchanges = (filters = {}) => {
       if (filters.dateFrom) params.append('dateFrom', String(filters.dateFrom));
       if (filters.dateTo) params.append('dateTo', String(filters.dateTo));
       if (filters.search) params.append('search', String(filters.search));
+      if (filters.dilarId) params.append('dilarId', String(filters.dilarId));
+      if (filters.customerType) params.append('customerType', String(filters.customerType));
 
       const qs = params.toString();
       const url = qs ? `/api/exchanges?${qs}` : '/api/exchanges';
@@ -79,6 +86,46 @@ export const useExchange = (id) => {
   });
 };
 
+// Get exchanges for a specific dealer
+// Backend: GET /api/dilars/:dilarId/exchanges
+export const useDilarExchanges = (dilarId, filters = {}) => {
+  const axiosSecure = useSecureAxios();
+  return useQuery({
+    queryKey: [...exchangeKeys.dilarExchanges(dilarId), filters],
+    queryFn: async () => {
+      if (!dilarId) return { data: [], pagination: { page: 1, limit: 10, total: 0, pages: 0 } };
+      
+      const params = new URLSearchParams();
+      if (filters.page) params.append('page', String(filters.page));
+      if (filters.limit) params.append('limit', String(filters.limit));
+      if (filters.type) params.append('type', String(filters.type));
+      if (filters.currencyCode) params.append('currencyCode', String(filters.currencyCode));
+      if (filters.dateFrom) params.append('dateFrom', String(filters.dateFrom));
+      if (filters.dateTo) params.append('dateTo', String(filters.dateTo));
+
+      const qs = params.toString();
+      const url = qs 
+        ? `/api/dilars/${dilarId}/exchanges?${qs}` 
+        : `/api/dilars/${dilarId}/exchanges`;
+      
+      const { data } = await axiosSecure.get(url);
+      
+      return {
+        data: Array.isArray(data?.data) ? data.data.map(normalizeExchange) : [],
+        pagination: data?.pagination || {
+          page: 1,
+          limit: 10,
+          total: 0,
+          pages: 0,
+        },
+      };
+    },
+    enabled: !!dilarId,
+    staleTime: 2 * 60 * 1000,
+    cacheTime: 5 * 60 * 1000,
+  });
+};
+
 // Create exchange
 export const useCreateExchange = () => {
   const axiosSecure = useSecureAxios();
@@ -96,6 +143,10 @@ export const useCreateExchange = () => {
         exchangeRate: Number(payload?.exchangeRate || 0),
         quantity: Number(payload?.quantity || 0),
         amount_bdt: payload?.amount_bdt ? Number(payload.amount_bdt) : undefined,
+        // Dilar-related fields
+        customerType: payload?.customerType || 'normal', // 'normal' or 'dilar'
+        selectedDilarId: payload?.selectedDilarId || '', // Frontend selection
+        dilarId: payload?.dilarId || payload?.selectedDilarId || '', // Backend will use this
       };
 
       const { data } = await axiosSecure.post('/api/exchanges', body);
@@ -290,6 +341,7 @@ const useMoneyExchangeQueries = () => ({
   useDeleteExchange,
   useReserves,
   useExchangeDashboard,
+  useDilarExchanges,
 });
 
 export default useMoneyExchangeQueries;
