@@ -21,7 +21,12 @@ const ExpenseCategoriesPage = () => {
   const { usePersonalCategories, useCreatePersonalCategory } = usePersonalCategoryQueries();
   const { data: categories = [], isLoading } = usePersonalCategories();
   const createMutation = useCreatePersonalCategory();
-  const [categoryForm, setCategoryForm] = useState({ name: '', icon: 'DollarSign', description: '' });
+  const [categoryForm, setCategoryForm] = useState({ 
+    name: '', 
+    icon: 'DollarSign', 
+    description: '',
+    type: 'regular' // 'regular' or 'irregular'
+  });
   const [saving, setSaving] = useState(false);
 
   const handleCreateCategory = async (e) => {
@@ -34,8 +39,13 @@ const ExpenseCategoriesPage = () => {
       }
     try {
       setSaving(true);
-      await createMutation.mutateAsync({ name, icon: categoryForm.icon, description: categoryForm.description.trim() });
-      setCategoryForm({ name: '', icon: 'DollarSign', description: '' });
+      await createMutation.mutateAsync({ 
+        name, 
+        icon: categoryForm.icon, 
+        description: categoryForm.description.trim(),
+        type: categoryForm.type // Include expense type
+      });
+      setCategoryForm({ name: '', icon: 'DollarSign', description: '', type: 'regular' });
       await Swal.fire({ icon: 'success', title: 'ক্যাটাগরি যোগ করা হয়েছে', text: `${name} সফলভাবে তৈরি করা হয়েছে।`, timer: 1200, showConfirmButton: false });
     } catch (err) {
       const message = err?.response?.data?.message || 'ক্যাটাগরি তৈরি করতে ব্যর্থ';
@@ -140,6 +150,45 @@ const ExpenseCategoriesPage = () => {
               className="w-full px-5 py-4 text-lg border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all" 
               placeholder="যেমন: মাসিক খাবারের খরচ, দৈনিক পরিবহন খরচ" 
             />
+          </div>
+
+          {/* Expense Type Selection */}
+          <div>
+            <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              খরচের ধরন <span className="text-red-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setCategoryForm({ ...categoryForm, type: 'regular' })}
+                className={`px-5 py-4 rounded-xl border-2 transition-all font-medium ${
+                  categoryForm.type === 'regular'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 shadow-md'
+                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-lg">📅</span>
+                  <span>নিয়মিত খরচ</span>
+                  <span className="text-xs opacity-75">মাসিক/দৈনিক খরচ</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCategoryForm({ ...categoryForm, type: 'irregular' })}
+                className={`px-5 py-4 rounded-xl border-2 transition-all font-medium ${
+                  categoryForm.type === 'irregular'
+                    ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 shadow-md'
+                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:border-gray-400'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-lg">🎯</span>
+                  <span>অনিয়মিত খরচ</span>
+                  <span className="text-xs opacity-75">এককালীন/বিশেষ খরচ</span>
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Submit Button */}

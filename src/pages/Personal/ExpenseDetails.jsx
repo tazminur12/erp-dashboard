@@ -86,10 +86,22 @@ const ExpenseDetails = () => {
                 <p className="text-gray-900 font-medium mt-1">{category.description}</p>
               </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 rounded-xl bg-white/70">
                 <p className="text-xs text-gray-600">আইকন</p>
                 <p className="text-gray-900 font-medium">{category.icon}</p>
+              </div>
+              <div className="p-4 rounded-xl bg-white/70">
+                <p className="text-xs text-gray-600">খরচের ধরন</p>
+                <div className="mt-1">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                    category.type === 'regular'
+                      ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+                      : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300'
+                  }`}>
+                    {category.type === 'regular' ? '📅 নিয়মিত' : '🎯 অনিয়মিত'}
+                  </span>
+                </div>
               </div>
               <div className="p-4 rounded-xl bg-white/70">
                 <p className="text-xs text-gray-600">মোট খরচ</p>

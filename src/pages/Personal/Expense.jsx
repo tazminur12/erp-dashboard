@@ -26,25 +26,47 @@ const PersonalExpense = () => {
   
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [expenseType, setExpenseType] = useState('regular'); // 'regular' or 'irregular'
   const pageSize = 10;
 
+  // Filter categories based on expense type (regular/irregular) and search query
+  const filtered = useMemo(() => {
+    let filteredByType = Array.isArray(categories) ? categories : [];
+    
+    // Filter by expense type
+    filteredByType = categories.filter(c => {
+      const categoryType = c.type || 'regular'; // Default to 'regular' if type not set
+      return categoryType === expenseType;
+    });
+    
+    // Filter by search query
+    const q = query.trim().toLowerCase();
+    if (q) {
+      filteredByType = filteredByType.filter((c) =>
+        [c.name, c.description]
+          .filter(Boolean)
+          .some((x) => x.toLowerCase().includes(q))
+      );
+    }
+    
+    return filteredByType;
+  }, [query, categories, expenseType]);
+
   const totals = React.useMemo(() => {
-    const grand = (categories || []).reduce((sum, c) => sum + Number(c.totalAmount || 0), 0);
+    // Calculate totals for all categories
+    const allGrand = (categories || []).reduce((sum, c) => sum + Number(c.totalAmount || 0), 0);
     const byName = {};
     for (const c of categories) byName[c.name] = Number(c.totalAmount || 0);
-    return { grand, byName };
-  }, [categories]);
-
-  // Filter categories based on search query
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return Array.isArray(categories) ? categories : [];
-    return Array.isArray(categories) ? categories.filter((c) =>
-      [c.name, c.description]
-        .filter(Boolean)
-        .some((x) => x.toLowerCase().includes(q))
-    ) : [];
-  }, [query, categories]);
+    
+    // Calculate totals for filtered categories (current type)
+    const filteredGrand = (filtered || []).reduce((sum, c) => sum + Number(c.totalAmount || 0), 0);
+    
+    return { 
+      grand: allGrand, 
+      filteredGrand,
+      byName 
+    };
+  }, [categories, filtered]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -116,14 +138,48 @@ const PersonalExpense = () => {
         </div>
       </div>
 
+      {/* Expense Type Tabs */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setExpenseType('regular');
+              setPage(1);
+            }}
+            className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+              expenseType === 'regular'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            নিয়মিত খরচ
+          </button>
+          <button
+            onClick={() => {
+              setExpenseType('irregular');
+              setPage(1);
+            }}
+            className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+              expenseType === 'irregular'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            }`}
+          >
+            অনিয়মিত খরচ
+          </button>
+        </div>
+      </div>
+
       {/* Summary Card */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">মোট ক্যাটাগরি</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {expenseType === 'regular' ? 'নিয়মিত' : 'অনিয়মিত'} ক্যাটাগরি
+              </p>
               <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {categories.length}
+                {filtered.length}
               </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
@@ -134,9 +190,11 @@ const PersonalExpense = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">মোট খরচ</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {expenseType === 'regular' ? 'নিয়মিত' : 'অনিয়মিত'} মোট খরচ
+              </p>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {formatCurrency(totals.grand)}
+                {formatCurrency(totals.filteredGrand)}
               </p>
             </div>
             <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
@@ -149,7 +207,7 @@ const PersonalExpense = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">গড় খরচ</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {categories.length > 0 ? formatCurrency(totals.grand / categories.length) : '৳0'}
+                {filtered.length > 0 ? formatCurrency(totals.filteredGrand / filtered.length) : '৳0'}
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
@@ -183,11 +241,14 @@ const PersonalExpense = () => {
                     </div>
                   </td>
                 </tr>
-              ) : paged.length > 0 ? paged.map((c) => {
+              ) : paged.length > 0 ? (
+                <>
+                  {paged.map((c) => {
                 const name = c.name;
                 const Icon = iconMap[c.icon] || DollarSign;
                 const totalForCategory = Number(c.totalAmount || 0);
-                const percent = totals.grand > 0 ? Math.min(100, Math.round((totalForCategory / totals.grand) * 100)) : 0;
+                // Calculate percentage based on filtered total (current type)
+                const percent = totals.filteredGrand > 0 ? Math.min(100, Math.round((totalForCategory / totals.filteredGrand) * 100)) : 0;
 
                 return (
                   <tr key={c.id || name} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
@@ -251,8 +312,10 @@ const PersonalExpense = () => {
                       </div>
                     </td>
                   </tr>
-                );
-              }) : (
+                  );
+                })}
+                </>
+              ) : (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     {query ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই। নতুন ক্যাটাগরি তৈরি করুন।'}

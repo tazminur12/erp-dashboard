@@ -8,7 +8,8 @@ export const normalizePersonalCategory = (doc) => ({
   icon: doc.icon || 'DollarSign',
   // Backend now sends optional description; color may not exist
   description: doc.description || '',
-  color: doc.color, 
+  color: doc.color,
+  type: doc.type || 'regular', // 'regular' or 'irregular'
   totalAmount: Number(doc.totalAmount || 0),
   lastUpdated: doc.lastUpdated || null,
   createdAt: doc.createdAt || null,
@@ -32,8 +33,13 @@ export const usePersonalCategoryQueries = () => {
 
   const useCreatePersonalCategory = () => {
     return useMutation({
-      mutationFn: async ({ name, icon = 'DollarSign', description = '' }) => {
-        const payload = { name: String(name).trim(), icon, description: String(description || '').trim() };
+      mutationFn: async ({ name, icon = 'DollarSign', description = '', type = 'regular' }) => {
+        const payload = { 
+          name: String(name).trim(), 
+          icon, 
+          description: String(description || '').trim(),
+          type: type === 'regular' || type === 'irregular' ? type : 'regular' // Validate type
+        };
         const { data } = await axiosSecure.post('/api/personal-expenses/categories', payload);
         return normalizePersonalCategory(data);
       },
