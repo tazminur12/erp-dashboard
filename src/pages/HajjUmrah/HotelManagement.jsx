@@ -36,11 +36,9 @@ const HotelManagement = () => {
 
   // Mutations
   const createHotel = useCreateHotel();
-  const updateHotel = useUpdateHotel();
   const deleteHotel = useDeleteHotel();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingHotel, setEditingHotel] = useState(null);
   const [formData, setFormData] = useState({
     area: '',
     hotelName: '',
@@ -63,7 +61,6 @@ const HotelManagement = () => {
       email: '',
       mobileNumber: ''
     });
-    setEditingHotel(null);
   };
 
 
@@ -95,18 +92,20 @@ const HotelManagement = () => {
   };
 
   const handleEdit = (hotel) => {
-    setEditingHotel(hotel);
-    setFormData({
-      area: hotel.area || '',
-      hotelName: hotel.hotelName || '',
-      tasrihNumber: hotel.tasrihNumber || '',
-      tasnifNumber: hotel.tasnifNumber || '',
-      address: hotel.address || '',
-      distanceFromHaram: hotel.distanceFromHaram || '',
-      email: hotel.email || '',
-      mobileNumber: hotel.mobileNumber || ''
-    });
-    setIsModalOpen(true);
+    const hotelId = hotel._id || hotel.id;
+    
+    if (!hotelId) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হোটেল ID পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    
+    navigate(`/hajj-umrah/hotel-management/${hotelId}/edit`);
   };
 
   const handleSubmit = async (e) => {
@@ -135,33 +134,15 @@ const HotelManagement = () => {
         mobileNumber: formData.mobileNumber.trim() || ''
       };
 
-      if (editingHotel) {
-        const result = await updateHotel.mutateAsync({ 
-          id: editingHotel._id || editingHotel.id, 
-          data: payload 
-        });
-        
-        Swal.fire({
-          title: 'সফল!',
-          text: 'হোটেল সফলভাবে আপডেট হয়েছে।',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-        });
-      } else {
-        await createHotel.mutateAsync(payload);
-        
-        Swal.fire({
-          title: 'সফল!',
-          text: 'হোটেল সফলভাবে তৈরি হয়েছে।',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-        });
-
-        handleCloseModal();
-        return;
-      }
+      await createHotel.mutateAsync(payload);
+      
+      Swal.fire({
+        title: 'সফল!',
+        text: 'হোটেল সফলভাবে তৈরি হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
 
       handleCloseModal();
     } catch (error) {
@@ -428,11 +409,11 @@ const HotelManagement = () => {
         pageSize={10}
       />
 
-      {/* Create/Edit Modal */}
+      {/* Create Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
-        title={editingHotel ? 'হোটেল সম্পাদনা করুন' : 'হোটেল যোগ করুন'}
+        title="হোটেল যোগ করুন"
         size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -561,14 +542,10 @@ const HotelManagement = () => {
             </button>
               <button
               type="submit"
-              disabled={createHotel.isPending || updateHotel.isPending}
+              disabled={createHotel.isPending}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {createHotel.isPending || updateHotel.isPending 
-                ? 'সংরক্ষণ হচ্ছে...' 
-                : editingHotel 
-                  ? 'আপডেট করুন' 
-                  : 'সংরক্ষণ করুন'}
+              {createHotel.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
             </button>
           </ModalFooter>
         </form>

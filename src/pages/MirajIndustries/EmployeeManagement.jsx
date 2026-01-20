@@ -20,7 +20,6 @@ import {
   Eye,
   Edit,
   Trash2,
-  Camera,
   FileText,
   TrendingUp,
   Calendar as CalendarIcon,
@@ -34,9 +33,6 @@ const EmployeeManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDate, setFilterDate] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState(null);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
 
   // Load queries
@@ -58,8 +54,6 @@ const EmployeeManagement = () => {
   const employees = employeesData?.employees || [];
   const { data: stats = {}, isLoading: loadingStats } = useFarmEmployeeStats();
 
-  const createEmployeeMutation = useCreateFarmEmployee();
-  const updateEmployeeMutation = useUpdateFarmEmployee();
   const deleteEmployeeMutation = useDeleteFarmEmployee();
 
   // Attendance functionality removed - use separate attendance API if needed
@@ -72,18 +66,6 @@ const EmployeeManagement = () => {
     isPending: false
   };
 
-  const [newEmployee, setNewEmployee] = useState({
-    name: '',
-    position: '',
-    phone: '',
-    email: '',
-    address: '',
-    joinDate: new Date().toISOString().split('T')[0],
-    salary: '',
-    workHours: '',
-    status: 'active',
-    notes: ''
-  });
 
   const [newAttendance, setNewAttendance] = useState({
     employeeId: '',
@@ -133,73 +115,6 @@ const EmployeeManagement = () => {
     }, 0);
   }, [filteredEmployees]);
 
-  const handleAddEmployee = async () => {
-    try {
-      await createEmployeeMutation.mutateAsync({
-        name: newEmployee.name,
-        position: newEmployee.position,
-        phone: newEmployee.phone,
-        email: newEmployee.email || '',
-        address: newEmployee.address || '',
-        joinDate: newEmployee.joinDate,
-        salary: Number(newEmployee.salary),
-        workHours: Number(newEmployee.workHours),
-        status: newEmployee.status,
-        notes: newEmployee.notes || ''
-      });
-      setShowAddModal(false);
-      resetForm();
-    } catch (error) {
-      alert(error.message || 'কর্মচারী যোগ করতে সমস্যা হয়েছে');
-    }
-  };
-
-  const handleEditEmployee = (employee) => {
-    setEditingEmployee(employee);
-    setNewEmployee({
-      name: employee.name || '',
-      position: employee.position || '',
-      phone: employee.phone || '',
-      email: employee.email || '',
-      address: employee.address || '',
-      joinDate: employee.joinDate ? (typeof employee.joinDate === 'string' ? employee.joinDate.split('T')[0] : new Date(employee.joinDate).toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
-      salary: employee.salary || '',
-      workHours: employee.workHours || '',
-      status: employee.status || 'active',
-      notes: employee.notes || ''
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateEmployee = async () => {
-    if (!editingEmployee) return;
-    try {
-      const employeeId = editingEmployee.id || editingEmployee._id;
-      await updateEmployeeMutation.mutateAsync({
-        id: employeeId,
-        name: newEmployee.name,
-        position: newEmployee.position,
-        phone: newEmployee.phone,
-        email: newEmployee.email || '',
-        address: newEmployee.address || '',
-        joinDate: newEmployee.joinDate,
-        salary: Number(newEmployee.salary),
-        workHours: Number(newEmployee.workHours),
-        status: newEmployee.status,
-        notes: newEmployee.notes || ''
-      });
-      setShowEditModal(false);
-      setEditingEmployee(null);
-      resetForm();
-    } catch (error) {
-      Swal.fire({
-        icon: 'error',
-        title: 'ত্রুটি!',
-        text: error.message || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে',
-        confirmButtonText: 'ঠিক আছে'
-      });
-    }
-  };
 
   const handleAddAttendance = async () => {
     try {
@@ -256,20 +171,6 @@ const EmployeeManagement = () => {
     }
   };
 
-  const resetForm = () => {
-    setNewEmployee({
-      name: '',
-      position: '',
-      phone: '',
-      email: '',
-      address: '',
-      joinDate: new Date().toISOString().split('T')[0],
-      salary: '',
-      workHours: '',
-      status: 'active',
-      notes: ''
-    });
-  };
 
   const resetAttendanceForm = () => {
     setNewAttendance({
@@ -332,7 +233,7 @@ const EmployeeManagement = () => {
         </div>
         <div className="flex gap-2">
           <button 
-            onClick={() => setShowAddModal(true)}
+            onClick={() => navigate('/miraj-industries/employee/add')}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
@@ -511,9 +412,17 @@ const EmployeeManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <User className="w-5 h-5 text-gray-500" />
-                          </div>
+                          {employee.image ? (
+                            <img
+                              src={employee.image}
+                              alt={employee.name}
+                              className="h-10 w-10 rounded-full object-cover border-2 border-gray-200"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <User className="w-5 h-5 text-gray-500" />
+                            </div>
+                          )}
                         </div>
                         <div className="ml-3">
                           <div className="text-sm font-medium text-gray-900">{employee.name || 'N/A'}</div>
@@ -681,161 +590,6 @@ const EmployeeManagement = () => {
           </table>
         </div>
       </div>
-
-      {/* Add Employee Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-4 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">নতুন কর্মচারী যোগ করুন</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-gray-700">
-                ✕
-              </button>
-            </div>
-            
-            <form onSubmit={(e) => { e.preventDefault(); handleAddEmployee(); }} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">নাম</label>
-                  <input
-                    type="text"
-                    required
-                    value={newEmployee.name}
-                    onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="কর্মচারীর নাম"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">পদ</label>
-                  <select
-                    required
-                    value={newEmployee.position}
-                    onChange={(e) => setNewEmployee({...newEmployee, position: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">পদ নির্বাচন করুন</option>
-                    {positionOptions.map(position => (
-                      <option key={position} value={position}>{position}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ফোন নম্বর</label>
-                  <input
-                    type="tel"
-                    required
-                    value={newEmployee.phone}
-                    onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="ফোন নম্বর"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ইমেইল</label>
-                  <input
-                    type="email"
-                    value={newEmployee.email}
-                    onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="ইমেইল ঠিকানা"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ঠিকানা</label>
-                  <input
-                    type="text"
-                    value={newEmployee.address}
-                    onChange={(e) => setNewEmployee({...newEmployee, address: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="ঠিকানা"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">যোগদান তারিখ</label>
-                  <input
-                    type="date"
-                    required
-                    value={newEmployee.joinDate}
-                    onChange={(e) => setNewEmployee({...newEmployee, joinDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">বেতন (৳)</label>
-                  <input
-                    type="number"
-                    required
-                    value={newEmployee.salary}
-                    onChange={(e) => setNewEmployee({...newEmployee, salary: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="মাসিক বেতন"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">কাজের সময় (ঘণ্টা)</label>
-                  <input
-                    type="number"
-                    required
-                    value={newEmployee.workHours}
-                    onChange={(e) => setNewEmployee({...newEmployee, workHours: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="প্রতিদিনের কাজের সময়"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">অবস্থা</label>
-                  <select
-                    value={newEmployee.status}
-                    onChange={(e) => setNewEmployee({...newEmployee, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {statusOptions.map(option => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">নোট</label>
-                <textarea
-                  value={newEmployee.notes}
-                  onChange={(e) => setNewEmployee({...newEmployee, notes: e.target.value})}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="অতিরিক্ত তথ্য"
-                />
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  disabled={createEmployeeMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {createEmployeeMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Add Attendance Modal */}
       {showAttendanceModal && (

@@ -91,6 +91,7 @@ const UmrahPackageEdit = React.lazy(() => import('./pages/HajjUmrah').then(modul
 const LicenseManagement = React.lazy(() => import('./pages/HajjUmrah/LicenseManagement'));
 const HotelManagement = React.lazy(() => import('./pages/HajjUmrah/HotelManagement'));
 const HotelDetails = React.lazy(() => import('./pages/HajjUmrah/HotelDetails'));
+const EditHotel = React.lazy(() => import('./pages/HajjUmrah/EditHotel'));
 
 // Air Ticketing pages
 const AirTicketDashboard = React.lazy(() => import('./pages/AirTicketing/Dashboard'));
@@ -148,6 +149,7 @@ const IncomeEditMI = React.lazy(() => import('./pages/MirajIndustries/IncomeEdit
 const CattleDetails = React.lazy(() => import('./pages/MirajIndustries/CattleDetails'));
 const EmployeeDetails = React.lazy(() => import('./pages/MirajIndustries/EmployeeDetails'));
 const EditEmployeeMI = React.lazy(() => import('./pages/MirajIndustries/EditEmployee'));
+const AddEmployeeMI = React.lazy(() => import('./pages/MirajIndustries/AddEmployee'));
 
 
 // Account pages
@@ -169,6 +171,9 @@ const TaxManagement = React.lazy(() => import('./pages/Account/TaxManagement'));
 const PersonalExpense = React.lazy(() => import('./pages/Personal/Expense'));
 const ExpenseCategoriesPage = React.lazy(() => import('./pages/Personal/ExpenseCategories'));
 const PersonalExpenseDetails = React.lazy(() => import('./pages/Personal/ExpenseDetails'));
+const FamilyMembers = React.lazy(() => import('./pages/Personal/FamilyMembers'));
+const AdministrativeExpenses = React.lazy(() => import('./pages/Personal/AdministrativeExpenses'));
+const AdministrativeExpenseCategories = React.lazy(() => import('./pages/Personal/AdministrativeExpenseCategories'));
 
 // Fly Oval Limited pages
 const FlyOvalDashboard = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.FlyOvalDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -635,6 +640,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <HotelDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "hotel-management/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditHotel />
           </Suspense>
         )
       },
@@ -1182,6 +1195,14 @@ const router = createBrowserRouter([
         )
       },
       {
+        path: "employee/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddEmployeeMI />
+          </Suspense>
+        )
+      },
+      {
         path: "employee/:id/edit",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1342,6 +1363,30 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <PersonalExpenseDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "family-members",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FamilyMembers />
+          </Suspense>
+        )
+      },
+      {
+        path: "administrative-expenses",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdministrativeExpenses />
+          </Suspense>
+        )
+      },
+      {
+        path: "administrative-expense-categories",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AdministrativeExpenseCategories />
           </Suspense>
         )
       },

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Save, 
@@ -21,12 +21,10 @@ import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudi
 import Swal from 'sweetalert2';
 import { Helmet } from 'react-helmet-async';
 
-const EditEmployee = () => {
-  const { id } = useParams();
+const AddEmployee = () => {
   const navigate = useNavigate();
-  const { useGetFarmEmployee, useUpdateFarmEmployee } = useFarmEmployeesQueries();
-  const { data: employee, isLoading: employeeLoading } = useGetFarmEmployee(id);
-  const updateEmployeeMutation = useUpdateFarmEmployee();
+  const { useCreateFarmEmployee } = useFarmEmployeesQueries();
+  const createEmployeeMutation = useCreateFarmEmployee();
 
   const positionOptions = [
     'খামার ম্যানেজার',
@@ -52,7 +50,7 @@ const EditEmployee = () => {
     phone: '',
     email: '',
     address: '',
-    joinDate: '',
+    joinDate: new Date().toISOString().split('T')[0],
     salary: '',
     workHours: '',
     status: 'active',
@@ -63,25 +61,6 @@ const EditEmployee = () => {
   const [errors, setErrors] = useState({});
   const [imagePreview, setImagePreview] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-
-  useEffect(() => {
-    if (employee) {
-      setFormData({
-        name: employee.name || '',
-        position: employee.position || '',
-        phone: employee.phone || '',
-        email: employee.email || '',
-        address: employee.address || '',
-        joinDate: employee.joinDate ? new Date(employee.joinDate).toISOString().split('T')[0] : '',
-        salary: employee.salary || '',
-        workHours: employee.workHours || '',
-        status: employee.status || 'active',
-        notes: employee.notes || '',
-        image: employee.image || ''
-      });
-      setImagePreview(employee.image || null);
-    }
-  }, [employee]);
 
   const uploadImageToCloudinary = async (file) => {
     try {
@@ -200,71 +179,72 @@ const EditEmployee = () => {
     }
 
     try {
-      await updateEmployeeMutation.mutateAsync({
-        id,
-        name: formData.name,
-        position: formData.position,
-        phone: formData.phone,
-        email: formData.email || '',
-        address: formData.address || '',
-        joinDate: formData.joinDate,
-        salary: Number(formData.salary),
-        workHours: Number(formData.workHours),
-        status: formData.status,
-        notes: formData.notes || '',
-        image: formData.image || ''
-      });
+      // Prepare payload with proper data types
+      const payload = {
+        name: String(formData.name).trim(),
+        position: String(formData.position).trim(),
+        phone: String(formData.phone).trim(),
+        email: formData.email ? String(formData.email).trim() : '',
+        address: formData.address ? String(formData.address).trim() : '',
+        joinDate: String(formData.joinDate),
+        salary: Number(formData.salary) || 0,
+        workHours: formData.workHours ? Number(formData.workHours) : 0,
+        status: formData.status || 'active',
+        notes: formData.notes ? String(formData.notes).trim() : '',
+        image: formData.image ? String(formData.image).trim() : ''
+      };
+
+      await createEmployeeMutation.mutateAsync(payload);
       
       Swal.fire({
         icon: 'success',
         title: 'সফল!',
-        text: 'কর্মচারী তথ্য সফলভাবে আপডেট করা হয়েছে।',
+        text: 'কর্মচারী সফলভাবে যোগ করা হয়েছে।',
         confirmButtonColor: '#10B981',
         timer: 2000
       }).then(() => {
-        navigate(`/miraj-industries/employee/${id}`);
+        navigate('/miraj-industries/employee-management');
       });
     } catch (error) {
+      console.error('Create employee error:', error);
+      console.error('Error response:', error?.response?.data);
+      
+      // Extract detailed error message
+      const responseData = error?.response?.data;
+      let errorMessage = 'কর্মচারী যোগ করতে সমস্যা হয়েছে';
+      
+      if (responseData) {
+        errorMessage = responseData.details || 
+                      responseData.message || 
+                      responseData.error || 
+                      errorMessage;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       Swal.fire({
         icon: 'error',
         title: 'ত্রুটি!',
-        text: error.message || 'কর্মচারী আপডেট করতে সমস্যা হয়েছে',
-        confirmButtonColor: '#EF4444'
+        html: `<div style="text-align: left;">
+          <p><strong>${errorMessage}</strong></p>
+          ${responseData?.details ? `<p style="font-size: 0.9em; color: #666; margin-top: 8px;">${responseData.details}</p>` : ''}
+        </div>`,
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        width: '500px'
       });
     }
   };
 
   const handleGoBack = () => {
-    navigate(`/miraj-industries/employee/${id}`);
+    navigate('/miraj-industries/employee-management');
   };
-
-  if (employeeLoading) {
-    return (
-      <div className="p-6">
-        <div className="text-center py-12">লোড হচ্ছে...</div>
-      </div>
-    );
-  }
-
-  if (!employee) {
-    return (
-      <div className="p-6">
-        <div className="text-center py-12 text-red-600">কর্মচারী পাওয়া যায়নি</div>
-        <button
-          onClick={() => navigate('/miraj-industries/employees')}
-          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          কর্মচারী তালিকায় ফিরে যান
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       <Helmet>
-        <title>কর্মচারী সম্পাদনা - {employee.name}</title>
-        <meta name="description" content={`${employee.name} এর তথ্য সম্পাদনা করুন`} />
+        <title>নতুন কর্মচারী যোগ করুন</title>
+        <meta name="description" content="নতুন কর্মচারী যোগ করুন" />
       </Helmet>
 
       {/* Header */}
@@ -278,13 +258,13 @@ const EditEmployee = () => {
             ফিরে যান
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">কর্মচারী সম্পাদনা</h1>
-            <p className="text-gray-600 text-sm mt-1">{employee.name} - {employee.position}</p>
+            <h1 className="text-2xl font-bold text-gray-900">নতুন কর্মচারী যোগ করুন</h1>
+            <p className="text-gray-600 text-sm mt-1">খামারের নতুন কর্মচারীর তথ্য যোগ করুন</p>
           </div>
         </div>
       </div>
 
-      {/* Edit Form */}
+      {/* Add Form */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Image Upload */}
@@ -562,11 +542,11 @@ const EditEmployee = () => {
             </button>
             <button
               type="submit"
-              disabled={updateEmployeeMutation.isPending}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              disabled={createEmployeeMutation.isPending || uploadingImage}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
             >
               <Save className="w-4 h-4" />
-              {updateEmployeeMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
+              {createEmployeeMutation.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}
             </button>
           </div>
         </form>
@@ -575,4 +555,4 @@ const EditEmployee = () => {
   );
 };
 
-export default EditEmployee;
+export default AddEmployee;

@@ -102,14 +102,14 @@ const PassengerList = () => {
     },
     { 
       key: 'passenger', 
-      header: 'Passenger', 
+      header: 'যাত্রী', 
       render: (v, item) => {
         const photo = item.customerImage;
         return (
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
               {photo ? (
-                <img src={photo} alt={item.name || 'Passenger'} className="w-full h-full object-cover" />
+                <img src={photo} alt={item.name || 'যাত্রী'} className="w-full h-full object-cover" />
               ) : (
                 <Users className="w-5 h-5 text-blue-600" />
               )}
@@ -124,7 +124,7 @@ const PassengerList = () => {
     },
     { 
       key: 'contact', 
-      header: 'Contact', 
+      header: 'যোগাযোগ', 
       render: (v, item) => (
         <div className="text-sm">
           <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
@@ -140,7 +140,7 @@ const PassengerList = () => {
     },
     { 
       key: 'customerType', 
-      header: 'Type', 
+      header: 'ধরন', 
       sortable: true,
       render: (v) => (
         <span className="px-2 py-1 rounded-full text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
@@ -150,16 +150,16 @@ const PassengerList = () => {
     },
     { 
       key: 'status', 
-      header: 'Status', 
+      header: 'অবস্থা', 
       render: (v, item) => (
         <span className={`px-2 py-1 rounded-full text-xs ${item.isActive !== false ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'}`}>
-          {item.isActive !== false ? 'Active' : 'Inactive'}
+          {item.isActive !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
         </span>
       )
     },
     { 
       key: 'payment', 
-      header: 'Payment', 
+      header: 'পেমেন্ট', 
       render: (v, item) => {
         const total = item.totalAmount || item.calculatedTotalAmount || 0;
         const paid = item.paidAmount || item.calculatedPaidAmount || 0;
@@ -171,7 +171,7 @@ const PassengerList = () => {
               <span>৳{paid.toLocaleString()} / ৳{total.toLocaleString()}</span>
             </div>
             <div className={`text-xs ${due > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
-              Due: ৳{due.toLocaleString()}
+              বকেয়া: ৳{due.toLocaleString()}
             </div>
           </div>
         );
@@ -186,11 +186,11 @@ const PassengerList = () => {
 
   const handleDelete = async (item) => {
     const res = await Swal.fire({
-      title: 'Delete passenger?',
-      text: `${item.name} will be removed from the list.`,
+      title: 'যাত্রী মুছে ফেলবেন?',
+      text: `${item.name} তালিকা থেকে সরানো হবে।`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Delete',
+      confirmButtonText: 'মুছে ফেলুন',
       confirmButtonColor: '#ef4444'
     });
     
@@ -209,11 +209,11 @@ const PassengerList = () => {
     if (selectedIds.length === 0) return;
 
     const res = await Swal.fire({
-      title: 'Are you sure?',
-      text: `You are about to delete ${selectedIds.length} passengers. This cannot be undone.`,
+      title: 'আপনি কি নিশ্চিত?',
+      text: `আপনি ${selectedIds.length} জন যাত্রী মুছে ফেলতে যাচ্ছেন। এটি পূর্বাবস্থায় ফেরানো যাবে না।`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'Yes, delete selected',
+      confirmButtonText: 'হ্যাঁ, নির্বাচিত মুছে ফেলুন',
       confirmButtonColor: '#ef4444'
     });
 
@@ -244,7 +244,7 @@ const PassengerList = () => {
     return (
       <div className="p-6">
         <div className="text-center py-16">
-          <p className="text-red-600 dark:text-red-400">Error loading passengers: {error?.message || 'Unknown error'}</p>
+          <p className="text-red-600 dark:text-red-400">যাত্রী লোড করতে ত্রুটি: {error?.message || 'অজানা ত্রুটি'}</p>
         </div>
       </div>
     );
@@ -253,8 +253,8 @@ const PassengerList = () => {
   return (
     <div className="p-6 space-y-6">
       <Helmet>
-        <title>Air Passenger List</title>
-        <meta name="description" content="Manage and search air passengers in the system." />
+        <title>এয়ার যাত্রী তালিকা</title>
+        <meta name="description" content="সিস্টেমে এয়ার যাত্রীদের পরিচালনা এবং অনুসন্ধান করুন।" />
       </Helmet>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center space-x-3">
@@ -262,21 +262,21 @@ const PassengerList = () => {
             <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Passenger List</h1>
-            <p className="text-gray-600 dark:text-gray-400">Manage and search air passengers {totalPassengers ? `(${totalPassengers} total)` : ''}</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">যাত্রী তালিকা</h1>
+            <p className="text-gray-600 dark:text-gray-400">এয়ার যাত্রীদের পরিচালনা এবং অনুসন্ধান করুন {totalPassengers ? `(মোট ${totalPassengers})` : ''}</p>
           </div>
         </div>
         <div className="flex items-center space-x-3 mt-4 sm:mt-0">
           <button className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
             <Download className="w-4 h-4 mr-2" />
-            Export
+            এক্সপোর্ট
           </button>
           <Link
             to="/air-ticketing/new-passenger"
             className="inline-flex items-center px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm"
           >
             <Plus className="w-4 h-4 mr-2" />
-            New Passenger
+            নতুন যাত্রী
           </Link>
         </div>
       </div>
@@ -285,7 +285,7 @@ const PassengerList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalPassengers}</p>
             </div>
             <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
@@ -294,7 +294,7 @@ const PassengerList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Active</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">সক্রিয়</p>
               <p className="text-2xl font-bold text-green-600 dark:text-green-400">{activeCount}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -303,7 +303,7 @@ const PassengerList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">With Due</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">বকেয়া আছে</p>
               <p className="text-2xl font-bold text-red-600 dark:text-red-400">{dueCount}</p>
             </div>
             <CreditCard className="w-8 h-8 text-red-600 dark:text-red-400" />
@@ -312,7 +312,7 @@ const PassengerList = () => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Page Size</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">পৃষ্ঠার আকার</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{limit}</p>
             </div>
             <Search className="w-8 h-8 text-gray-600 dark:text-gray-300" />
@@ -326,7 +326,7 @@ const PassengerList = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by name, mobile, email, passport number, or customer ID..."
+              placeholder="নাম, মোবাইল, ইমেইল, পাসপোর্ট নম্বর, বা গ্রাহক আইডি দিয়ে অনুসন্ধান করুন..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -337,8 +337,8 @@ const PassengerList = () => {
           </div>
           <FilterBar
             filters={[
-              { key: 'status', label: 'Status', type: 'select', options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }] },
-              { key: 'type', label: 'Customer Type', type: 'select', options: customerTypes }
+              { key: 'status', label: 'অবস্থা', type: 'select', options: [{ value: 'active', label: 'সক্রিয়' }, { value: 'inactive', label: 'নিষ্ক্রিয়' }] },
+              { key: 'type', label: 'গ্রাহকের ধরন', type: 'select', options: customerTypes }
             ]}
             onFilterChange={(vals) => setLocalFilters(vals)}
             className="md:col-span-1"
@@ -356,10 +356,10 @@ const PassengerList = () => {
             </div>
             <div>
               <p className="font-semibold text-blue-900 dark:text-blue-100">
-                {selectedIds.length} items selected
+                {selectedIds.length} টি আইটেম নির্বাচিত
               </p>
               <p className="text-xs text-blue-700 dark:text-blue-300">
-                Select all {totalPassengers} items across all pages?
+                সব পৃষ্ঠায় মোট {totalPassengers} টি আইটেম নির্বাচন করবেন?
               </p>
             </div>
           </div>
@@ -368,14 +368,14 @@ const PassengerList = () => {
               onClick={() => setSelectedIds([])}
               className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
-              Cancel
+              বাতিল
             </button>
             <button
               onClick={handleBulkDelete}
               className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm flex items-center gap-2 transition-all"
             >
               <Trash2 className="w-4 h-4" />
-              Delete Selected
+              নির্বাচিত মুছে ফেলুন
             </button>
           </div>
         </div>
@@ -384,7 +384,7 @@ const PassengerList = () => {
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <span className="ml-3 text-gray-600 dark:text-gray-400">Loading passengers...</span>
+          <span className="ml-3 text-gray-600 dark:text-gray-400">যাত্রী লোড হচ্ছে...</span>
         </div>
       ) : (
         <DataTable
@@ -400,14 +400,14 @@ const PassengerList = () => {
               <button
                 onClick={() => handleView(item)}
                 className="p-2 rounded-full bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300"
-                title="View"
+                title="দেখুন"
               >
                 <Eye className="w-4 h-4" />
               </button>
               <button
                 onClick={() => handleEdit(item)}
                 className="p-2 rounded-full bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 text-amber-600 dark:text-amber-300"
-                title="Edit"
+                title="সম্পাদনা"
               >
                 <Edit className="w-4 h-4" />
               </button>
@@ -415,7 +415,7 @@ const PassengerList = () => {
                 onClick={() => handleDelete(item)}
                 disabled={deleteMutation.isPending}
                 className="p-2 rounded-full bg-red-50 hover:bg-red-100 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-600 dark:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Delete"
+                title="মুছে ফেলুন"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

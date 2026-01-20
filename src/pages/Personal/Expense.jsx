@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
-import { DollarSign, Utensils, Car, ShoppingCart, Gamepad2, Heart, Book, Home, Plus, Trash2, ArrowLeft, Search, Eye, Edit, Loader2 } from 'lucide-react';
+import { DollarSign, Utensils, Car, ShoppingCart, Gamepad2, Heart, Book, Home, Plus, Trash2, ArrowLeft, Search, Eye, Edit, Loader2, Users } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import usePersonalCategoryQueries from '../../hooks/usePersonalCategoryQueries';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -117,6 +117,12 @@ const PersonalExpense = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Link
+            to="/personal/family-members"
+            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2.5"
+          >
+            <Users className="w-4 h-4" /> পারিবারিক সদস্যবৃন্দ
+          </Link>
           <div className="relative flex-1 sm:flex-none">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
               <Search className="h-4 w-4 text-gray-400" />

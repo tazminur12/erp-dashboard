@@ -663,56 +663,67 @@ const VendorDetails = () => {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                      <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</div>
-                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                          ৳{Number(financial.paidAmount || calculatedFinancials.totalPaid || 0).toLocaleString('bn-BD')}
+                <>
+                  {/* Use same calculation as top cards */}
+                  {(() => {
+                    // Use vendor's own financial data (same calculation as top cards)
+                    const paidAmount = Math.max(0, Number(
+                      vendor?.totalPaid ?? 
+                      vendor?.paidAmount ?? 
+                      vendor?.totalPaidAmount ?? 
+                      calculatedFinancials.totalPaid ??
+                      0
+                    ));
+                    const dueAmount = Math.max(0, Number(
+                      vendor?.totalDue ?? 
+                      vendor?.dueAmount ?? 
+                      vendor?.outstandingAmount ?? 
+                      vendor?.totalDueAmount ?? 
+                      calculatedFinancials.totalDue ??
+                      0
+                    ));
+                    const totalBill = Math.max(0, paidAmount + dueAmount);
+                    
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          {/* পরিশোধিত পরিমাণ */}
+                          <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                            <div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">পরিশোধিত পরিমাণ</div>
+                              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                                {formatCurrency(paidAmount)}
+                              </div>
+                            </div>
+                            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+                          </div>
+                          
+                          {/* বকেয়া পরিমাণ */}
+                          <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                            <div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">বকেয়া পরিমাণ</div>
+                              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                                {formatCurrency(dueAmount)}
+                              </div>
+                            </div>
+                            <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          
+                          {/* মোট বিল পরিমাণ */}
+                          <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">মোট বিল পরিমাণ</div>
+                              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                                {formatCurrency(totalBill)}
+                              </div>
+                            </div>
+                            <Receipt className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                          </div>
                         </div>
                       </div>
-                      <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-                      <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">বকেয়া পরিমাণ</div>
-                        <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                          ৳{Number(financial.outstandingAmount || calculatedFinancials.totalDue || 0).toLocaleString('bn-BD')}
-                        </div>
-                      </div>
-                      <AlertCircle className="w-8 h-8 text-orange-600 dark:text-orange-400" />
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">মোট বিল পরিমাণ</div>
-                        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                          ৳{Number(financial.totalAmount || calculatedFinancials.totalBillAmount || 0).toLocaleString('bn-BD')}
-                        </div>
-                      </div>
-                      <Receipt className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    {/* Optional breakdown if available on profile */}
-                    {(vendor?.hajDue !== undefined || vendor?.umrahDue !== undefined) && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                          <div className="text-xs text-gray-600 dark:text-gray-400">হজ্জ বকেয়া</div>
-                          <div className="text-lg font-semibold text-red-600 dark:text-red-400">৳{Number(vendor?.hajDue ?? 0).toLocaleString('bn-BD')}</div>
-                        </div>
-                        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
-                          <div className="text-xs text-gray-600 dark:text-gray-400">উমরাহ বকেয়া</div>
-                          <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">৳{Number(vendor?.umrahDue ?? 0).toLocaleString('bn-BD')}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">ক্রেডিট লিমিট</div>
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">৳{Number(financial.creditLimit ?? 0).toLocaleString('bn-BD')}</div>
-                  </div>
-                </div>
-                </div>
+                    );
+                  })()}
+                </>
               )}
             </div>
           )}

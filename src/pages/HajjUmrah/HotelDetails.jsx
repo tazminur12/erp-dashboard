@@ -8,7 +8,8 @@ import {
   Phone, 
   Mail, 
   FileText,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import Modal, { ModalFooter } from '../../components/common/Modal';
@@ -24,6 +25,8 @@ const HotelDetails = () => {
   const { 
     useGetHotel, 
     useCreateHotelContract,
+    useUpdateHotelContract,
+    useDeleteHotelContract,
     useHotelContractsByHotelId
   } = useHotelQueries();
   
@@ -39,14 +42,36 @@ const HotelDetails = () => {
   // Fetch contracts for this hotel
   const { data: contractsResponse, isLoading: contractsLoading, refetch: refetchContracts } = useHotelContractsByHotelId(id);
   const contracts = useMemo(() => {
-    if (!contractsResponse?.data) return [];
-    return Array.isArray(contractsResponse.data) ? contractsResponse.data : [];
+    // Backend returns: { success: true, data: [...] }
+    // Hook returns: { success: true, data: [...] }
+    if (!contractsResponse) return [];
+    
+    // If response has data property that is an array (main case)
+    if (contractsResponse.data && Array.isArray(contractsResponse.data)) {
+      return contractsResponse.data;
+    }
+    
+    // If response is directly an array (fallback)
+    if (Array.isArray(contractsResponse)) {
+      return contractsResponse;
+    }
+    
+    // If response has contracts property that is an array (fallback)
+    if (Array.isArray(contractsResponse.contracts)) {
+      return contractsResponse.contracts;
+    }
+    
+    return [];
   }, [contractsResponse]);
 
   // Mutations
   const createContract = useCreateHotelContract();
+  const updateContract = useUpdateHotelContract();
+  const deleteContract = useDeleteHotelContract();
 
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingContractId, setEditingContractId] = useState(null);
 
   // Contract form data
   const [contractFormData, setContractFormData] = useState({
@@ -99,7 +124,68 @@ const HotelDetails = () => {
 
   const handleCreateContract = () => {
     resetContractForm();
+    setEditingContractId(null);
     setIsContractModalOpen(true);
+  };
+
+  const handleEditContract = (contract) => {
+    setEditingContractId(contract._id || contract.id);
+    setContractFormData({
+      contractType: contract.contractType || 'হজ্ব',
+      nusukAgencyId: contract.nusukAgencyId || '',
+      requestNumber: contract.requestNumber || '',
+      hotelName: contract.hotelName || hotel?.hotelName || '',
+      contractNumber: contract.contractNumber || '',
+      contractStart: contract.contractStart ? new Date(contract.contractStart).toISOString().split('T')[0] : '',
+      contractEnd: contract.contractEnd ? new Date(contract.contractEnd).toISOString().split('T')[0] : '',
+      hajjiCount: contract.hajjiCount || '',
+      nusukPayment: contract.nusukPayment || '',
+      cashPayment: contract.cashPayment || '',
+      otherBills: contract.otherBills || ''
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteContract = async (contractId) => {
+    const result = await Swal.fire({
+      title: 'আপনি কি নিশ্চিত?',
+      text: 'এই চুক্তি মুছে ফেলা হলে এটি পুনরুদ্ধার করা যাবে না!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'হ্যাঁ, মুছে ফেলুন',
+      cancelButtonText: 'বাতিল',
+      reverseButtons: true
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await deleteContract.mutateAsync(contractId);
+        
+        // Wait a moment for the mutation's onSuccess to complete
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Refetch contracts to update the list
+        await refetchContracts();
+        
+        Swal.fire({
+          title: 'মুছে ফেলা হয়েছে!',
+          text: 'হোটেল চুক্তি সফলভাবে মুছে ফেলা হয়েছে।',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
+      } catch (error) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: error.message || 'হোটেল চুক্তি মুছে ফেলতে সমস্যা হয়েছে।',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+      }
+    }
   };
 
   const handleContractSubmit = async (e) => {
@@ -123,6 +209,9 @@ const HotelDetails = () => {
 
       await createContract.mutateAsync(payload);
       
+      // Wait a moment for the mutation's onSuccess to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       // Refetch contracts to show the new one immediately
       await refetchContracts();
       
@@ -140,6 +229,60 @@ const HotelDetails = () => {
       Swal.fire({
         title: 'ত্রুটি!',
         text: error.message || 'হোটেল চুক্তি সংরক্ষণ করতে সমস্যা হয়েছে।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    }
+  };
+
+  const handleUpdateContract = async (e) => {
+    e.preventDefault();
+    
+    if (!editingContractId) return;
+    
+    try {
+      const payload = {
+        id: editingContractId,
+        data: {
+          hotelId: id,
+          contractType: contractFormData.contractType,
+          nusukAgencyId: contractFormData.nusukAgencyId,
+          requestNumber: contractFormData.requestNumber,
+          hotelName: contractFormData.hotelName,
+          contractNumber: contractFormData.contractNumber,
+          contractStart: contractFormData.contractStart,
+          contractEnd: contractFormData.contractEnd,
+          hajjiCount: contractFormData.hajjiCount,
+          nusukPayment: contractFormData.nusukPayment || 0,
+          cashPayment: contractFormData.cashPayment || 0,
+          otherBills: contractFormData.otherBills || 0
+        }
+      };
+
+      await updateContract.mutateAsync(payload);
+      
+      // Wait a moment for the mutation's onSuccess to complete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refetch contracts to show the updated one immediately
+      await refetchContracts();
+      
+      Swal.fire({
+        title: 'সফল!',
+        text: 'হোটেল চুক্তি সফলভাবে আপডেট হয়েছে।',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+      
+      setIsEditModalOpen(false);
+      setEditingContractId(null);
+      resetContractForm();
+    } catch (error) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.message || 'হোটেল চুক্তি আপডেট করতে সমস্যা হয়েছে।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -277,13 +420,7 @@ const HotelDetails = () => {
               <FileText className="w-5 h-5 text-blue-600" />
               হোটেল চুক্তি
             </h3>
-            <button
-              onClick={handleCreateContract}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              নতুন চুক্তি
-            </button>
+            
           </div>
           
           {/* Contracts List */}
@@ -305,15 +442,31 @@ const HotelDetails = () => {
                         {contract.hotelName}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      contract.contractType === 'হজ্ব' 
-                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-                        : contract.contractType === 'উমরাহ'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                    }`}>
-                      {contract.contractType}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        contract.contractType === 'হজ্ব' 
+                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
+                          : contract.contractType === 'উমরাহ'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                      }`}>
+                        {contract.contractType}
+                      </span>
+                      <button
+                        onClick={() => handleEditContract(contract)}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                        title="সম্পাদনা করুন"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteContract(contract._id || contract.id)}
+                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                        title="মুছে ফেলুন"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
                     <div>
@@ -586,6 +739,247 @@ const HotelDetails = () => {
             >
               <FileText className="w-4 h-4" />
               <span>{createContract.isPending ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ করুন'}</span>
+            </button>
+          </ModalFooter>
+        </form>
+      </Modal>
+
+      {/* Edit Hotel Contract Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingContractId(null);
+          resetContractForm();
+        }}
+        title="হোটেল চুক্তি সম্পাদনা করুন"
+        size="xl"
+      >
+        <form onSubmit={handleUpdateContract} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              হোটেল চুক্তি (হজ্ব / উমরাহ / অন্যান্য) <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={contractFormData.contractType}
+              onChange={(e) => setContractFormData({ ...contractFormData, contractType: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              required
+            >
+              <option value="হজ্ব">হজ্ব</option>
+              <option value="উমরাহ">উমরাহ</option>
+              <option value="অন্যান্য">অন্যান্য</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              নুসুক এজেন্সি <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={contractFormData.nusukAgencyId}
+              onChange={(e) => setContractFormData({ ...contractFormData, nusukAgencyId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              required
+            >
+              <option value="">নুসুক এজেন্সি নির্বাচন করুন</option>
+              {licenses.map((license) => (
+                <option key={license._id || license.id} value={license._id || license.id}>
+                  {license.licenseNumber} - {license.licenseName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              রিকোয়েস্ট নাম্বার <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={contractFormData.requestNumber}
+              onChange={(e) => setContractFormData({ ...contractFormData, requestNumber: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              placeholder="রিকোয়েস্ট নাম্বার লিখুন"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              হোটেল নেম (নুসুক অনুযায়ী) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={contractFormData.hotelName}
+              onChange={(e) => setContractFormData({ ...contractFormData, hotelName: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              placeholder="হোটেল নেম লিখুন"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              চুক্তি নাম্বার <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={contractFormData.contractNumber}
+              onChange={(e) => setContractFormData({ ...contractFormData, contractNumber: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              placeholder="চুক্তি নাম্বার লিখুন"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                চুক্তি শুরু <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={contractFormData.contractStart}
+                onChange={(e) => setContractFormData({ ...contractFormData, contractStart: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                চুক্তি শেষ <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={contractFormData.contractEnd}
+                onChange={(e) => setContractFormData({ ...contractFormData, contractEnd: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              হাজ্বী সংখ্যা <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              value={contractFormData.hajjiCount}
+              onChange={(e) => setContractFormData({ ...contractFormData, hajjiCount: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+              placeholder="হাজ্বী সংখ্যা লিখুন"
+              min="1"
+              step="1"
+              required
+            />
+          </div>
+
+          {/* Payment Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">পেমেন্ট তথ্য</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  নুসুক পেমেন্ট
+                </label>
+                <input
+                  type="number"
+                  value={contractFormData.nusukPayment}
+                  onChange={(e) => setContractFormData({ ...contractFormData, nusukPayment: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="নুসুক পেমেন্ট লিখুন"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  ক্যাশ পেমেন্ট
+                </label>
+                <input
+                  type="number"
+                  value={contractFormData.cashPayment}
+                  onChange={(e) => setContractFormData({ ...contractFormData, cashPayment: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="ক্যাশ পেমেন্ট লিখুন"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  অন্যান্য বিল
+                </label>
+                <input
+                  type="number"
+                  value={contractFormData.otherBills}
+                  onChange={(e) => setContractFormData({ ...contractFormData, otherBills: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                  placeholder="অন্যান্য বিল লিখুন"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Calculated Values */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">গণনা</h3>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">মোট বিল (নুসুক অনুযায়ী):</span>
+                <span className="text-lg font-bold text-gray-900 dark:text-white">
+                  {(
+                    parseFloat(contractFormData.nusukPayment || 0) +
+                    parseFloat(contractFormData.cashPayment || 0) +
+                    parseFloat(contractFormData.otherBills || 0)
+                  ).toLocaleString('bn-BD')} ৳
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">জনপ্রতি:</span>
+                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  {contractFormData.hajjiCount && parseFloat(contractFormData.hajjiCount) > 0
+                    ? (
+                        (
+                          (parseFloat(contractFormData.nusukPayment || 0) +
+                           parseFloat(contractFormData.cashPayment || 0) +
+                           parseFloat(contractFormData.otherBills || 0)) /
+                          parseFloat(contractFormData.hajjiCount)
+                        ).toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      ) + ' ৳'
+                    : '0.00 ৳'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingContractId(null);
+                resetContractForm();
+              }}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              বাতিল
+            </button>
+            <button
+              type="submit"
+              disabled={updateContract.isPending}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              <FileText className="w-4 h-4" />
+              <span>{updateContract.isPending ? 'আপডেট হচ্ছে...' : 'আপডেট করুন'}</span>
             </button>
           </ModalFooter>
         </form>

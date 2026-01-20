@@ -118,8 +118,19 @@ const EmployeeDetails = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center gap-6">
           <div className="flex-shrink-0">
-            <div className="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center">
-              <Camera className="w-12 h-12 text-gray-500" />
+            {employee.image ? (
+              <img
+                src={employee.image}
+                alt={employee.name || 'Employee'}
+                className="h-24 w-24 rounded-full object-cover border-2 border-gray-200"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div className={`h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center ${employee.image ? 'hidden' : 'flex'}`}>
+              <User className="w-12 h-12 text-gray-500" />
             </div>
           </div>
           <div className="flex-1">

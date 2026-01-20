@@ -14,7 +14,7 @@ export const vendorKeys = {
   billsList: (filters) => [...vendorKeys.bills(), 'list', { filters }],
   billDetail: (id) => [...vendorKeys.bills(), 'detail', id],
   vendorBills: (vendorId) => [...vendorKeys.bills(), 'vendor', vendorId],
-  analytics: () => [...vendorKeys.all, 'analytics'],
+  dashboard: (filters) => [...vendorKeys.all, 'dashboard', { filters }],
 };
 
 // Hook to fetch all vendors
@@ -138,7 +138,7 @@ export const useVendor = (vendorId) => {
   });
 };
 
-// Hook to fetch customer types/categories for order types
+// Hook to fetch customer types/categories
 export const useCustomerTypes = () => {
   const axiosSecure = useSecureAxios();
   
@@ -317,12 +317,10 @@ export const useVendorFinancials = (vendorId) => {
         // If API fails, return mock data
         console.warn('Financial API not available, using mock data:', error.message);
         return {
-          totalOrders: Math.floor(Math.random() * 50) + 10,
           totalAmount: Math.floor(Math.random() * 200000) + 50000,
           outstandingAmount: Math.floor(Math.random() * 50000) + 5000,
           paidAmount: Math.floor(Math.random() * 150000) + 30000,
           lastPaymentDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-          averageOrderValue: Math.floor(Math.random() * 10000) + 2000,
           creditLimit: Math.floor(Math.random() * 100000) + 20000,
           paymentTerms: 'Net 30',
           businessType: 'Wholesale',
@@ -338,36 +336,33 @@ export const useVendorFinancials = (vendorId) => {
   });
 };
 
-// Hook to fetch vendor analytics
-// API: GET /vendors/analytics
-// Returns: { success: true, totalVendors, activeVendors, inactiveVendors, newThisMonth, topLocations: [{ location, count }] }
-export const useVendorAnalytics = () => {
+// Hook to fetch vendor dashboard data
+// API: GET /vendors/dashboard
+// Returns: Comprehensive dashboard data including statistics, financials, bills, etc.
+export const useVendorDashboard = (filters = {}) => {
   const axiosSecure = useSecureAxios();
   
   return useQuery({
-    queryKey: vendorKeys.analytics(),
+    queryKey: vendorKeys.dashboard(filters),
     queryFn: async () => {
       try {
-        const response = await axiosSecure.get('/vendors/analytics');
+        const params = new URLSearchParams();
+        if (filters.startDate) params.append('startDate', filters.startDate);
+        if (filters.endDate) params.append('endDate', filters.endDate);
+        if (filters.branchId) params.append('branchId', filters.branchId);
+        
+        const queryString = params.toString();
+        const url = `/vendors/dashboard${queryString ? `?${queryString}` : ''}`;
+        
+        const response = await axiosSecure.get(url);
         
         if (response.data.success) {
-          return {
-            totalVendors: response.data.totalVendors || 0,
-            activeVendors: response.data.activeVendors || 0,
-            inactiveVendors: response.data.inactiveVendors || 0,
-            newThisMonth: response.data.newThisMonth || 0,
-            topLocations: Array.isArray(response.data.topLocations) 
-              ? response.data.topLocations.map(loc => ({
-                  location: loc.location || loc._id || 'Unknown',
-                  count: loc.count || 0
-                }))
-              : []
-          };
+          return response.data.data || {};
         } else {
-          throw new Error(response.data.message || 'Failed to fetch vendor analytics');
+          throw new Error(response.data.message || 'Failed to fetch vendor dashboard');
         }
       } catch (error) {
-        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch vendor analytics';
+        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to fetch vendor dashboard';
         throw new Error(errorMessage);
       }
     },
@@ -400,14 +395,6 @@ export const useVendorActivities = (vendorId) => {
         console.warn('Activities API not available, using mock data:', error.message);
         return [
           {
-            id: '1',
-            type: 'order',
-            title: 'New order created',
-            description: 'Order #ORD-001 for ৳5,000',
-            time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            icon: 'Receipt'
-          },
-          {
             id: '2',
             type: 'payment',
             title: 'Payment received',
@@ -432,47 +419,6 @@ export const useVendorActivities = (vendorId) => {
   });
 };
 
-// Mutation to create an order for a vendor
-export const useCreateVendorOrder = () => {
-  const axiosSecure = useSecureAxios();
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (orderData) => {
-      const response = await axiosSecure.post('/orders', orderData);
-      
-      if (response.data.success) {
-        return response.data;
-      } else {
-        throw new Error(response.data.message || 'Failed to create order');
-      }
-    },
-    onSuccess: (data, variables) => {
-      // Invalidate vendor queries to refresh data
-      queryClient.invalidateQueries({ queryKey: vendorKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: vendorKeys.detail(variables.vendorId) });
-      queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(variables.vendorId), 'financials'] });
-      queryClient.invalidateQueries({ queryKey: [...vendorKeys.detail(variables.vendorId), 'activities'] });
-      
-      // Show success message
-      Swal.fire({
-        icon: 'success',
-        title: 'Order created successfully',
-        text: 'New order has been created successfully.',
-        confirmButtonColor: '#7c3aed'
-      });
-    },
-    onError: (error) => {
-      const message = error?.response?.data?.message || 'Failed to create order. Please try again.';
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed to create order',
-        text: message,
-        confirmButtonColor: '#dc2626'
-      });
-    },
-  });
-};
 
 // Hook to fetch all vendor bills with filters
 export const useVendorBills = (filters = {}) => {

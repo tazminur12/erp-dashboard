@@ -118,15 +118,17 @@ export default function useHotelQueries() {
     });
 
   // GET: Get contracts by hotel ID
-  const useHotelContractsByHotelId = (hotelId) =>
-    useQuery({
-      queryKey: ['hotelContracts', 'hotel', hotelId],
+  const useHotelContractsByHotelId = (hotelId) => {
+    const hotelIdStr = hotelId ? String(hotelId) : null;
+    return useQuery({
+      queryKey: ['hotelContracts', 'hotel', hotelIdStr],
       queryFn: async () => {
         const { data } = await axios.get(`/api/hotels/${hotelId}/contracts`);
         return data;
       },
       enabled: Boolean(hotelId),
     });
+  };
 
   // POST: Create hotel contract
   const useCreateHotelContract = () =>
@@ -139,13 +141,59 @@ export default function useHotelQueries() {
           throw new Error(extractErrorMessage(err));
         }
       },
-      onSuccess: (_data, variables) => {
+      onSuccess: (responseData, variables) => {
         queryClient.invalidateQueries({ queryKey: ['hotelContracts'] });
-        // Invalidate hotel-specific contracts if hotelId is provided
+        // Invalidate and refetch hotel-specific contracts if hotelId is provided
         if (variables.hotelId) {
           const hotelIdStr = String(variables.hotelId);
-          queryClient.invalidateQueries({ queryKey: ['hotelContracts', 'hotel', hotelIdStr] });
+          const queryKey = ['hotelContracts', 'hotel', hotelIdStr];
+          
+          // Invalidate to mark as stale
+          queryClient.invalidateQueries({ queryKey });
           queryClient.invalidateQueries({ queryKey: ['hotelContracts', 'hotel'] });
+          
+          // Optimistic update: Add the new contract to cache
+          // Backend POST returns: { success: true, data: {...contract} }
+          // Backend GET returns: { success: true, data: [...] }
+          if (responseData?.success && responseData?.data) {
+            const newContract = responseData.data;
+            queryClient.setQueryData(queryKey, (oldData) => {
+              // oldData structure: { success: true, data: [...] }
+              if (!oldData || !oldData.data) {
+                // If no old data, return structure matching backend response
+                return {
+                  success: true,
+                  data: [newContract]
+                };
+              }
+              
+              const existingContracts = Array.isArray(oldData.data) ? oldData.data : [];
+              
+              // Check if contract already exists (avoid duplicates)
+              const contractId = newContract._id || newContract.id;
+              const exists = existingContracts.some(c => 
+                String(c._id || c.id) === String(contractId)
+              );
+              
+              if (exists) {
+                // Contract already exists, just return old data
+                return oldData;
+              }
+              
+              // Add new contract to the beginning of the array
+              const updatedContracts = [newContract, ...existingContracts];
+              
+              // Return in the same structure as backend: { success: true, data: [...] }
+              return {
+                ...oldData,
+                success: true,
+                data: updatedContracts
+              };
+            });
+          }
+          
+          // Explicitly refetch to ensure data is updated immediately (this will override optimistic update with fresh data)
+          queryClient.refetchQueries({ queryKey, type: 'active' });
           // Invalidate hotel data to refresh contract count if needed
           queryClient.invalidateQueries({ queryKey: ['hotel', hotelIdStr] });
         }
@@ -168,7 +216,9 @@ export default function useHotelQueries() {
         queryClient.invalidateQueries({ queryKey: ['hotelContract', id] });
         // Invalidate hotel-specific contracts if hotelId is provided
         if (body?.hotelId) {
-          queryClient.invalidateQueries({ queryKey: ['hotelContracts', 'hotel', body.hotelId] });
+          const hotelIdStr = String(body.hotelId);
+          queryClient.invalidateQueries({ queryKey: ['hotelContracts', 'hotel', hotelIdStr] });
+          queryClient.refetchQueries({ queryKey: ['hotelContracts', 'hotel', hotelIdStr], type: 'active' });
         }
       },
     });
@@ -184,8 +234,12 @@ export default function useHotelQueries() {
           throw new Error(extractErrorMessage(err));
         }
       },
-      onSuccess: () => {
+      onSuccess: (_data, contractId) => {
         queryClient.invalidateQueries({ queryKey: ['hotelContracts'] });
+        // Invalidate all hotel-specific contracts queries (since we don't have hotelId here)
+        queryClient.invalidateQueries({ queryKey: ['hotelContracts', 'hotel'] });
+        // Also invalidate the specific contract query
+        queryClient.invalidateQueries({ queryKey: ['hotelContract', contractId] });
       },
     });
 
