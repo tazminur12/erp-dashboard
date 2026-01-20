@@ -172,6 +172,18 @@ const PassengerDetails = () => {
                 <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400 truncate">{passenger.mobile || passenger.phone || 'N/A'}</span>
               </div>
+              {passenger.whatsappNo && (
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <button
+                    onClick={() => handleWhatsAppClick(passenger.whatsappNo)}
+                    className="text-sm sm:text-base text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline truncate"
+                    title="হোয়াটসঅ্যাপ খুলুন"
+                  >
+                    {passenger.whatsappNo}
+                  </button>
+                </div>
+              )}
               <div className="flex items-center space-x-2">
                 <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
                 <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400 truncate">{passenger.email || 'N/A'}</span>
@@ -392,15 +404,19 @@ const PassengerDetails = () => {
           <div>
             <label className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">হোয়াটসঅ্যাপ</label>
             <div className="flex items-center gap-2">
-              <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">{passenger.whatsappNo || 'N/A'}</p>
-              {passenger.whatsappNo && (
-                <button
-                  onClick={() => handleWhatsAppClick(passenger.whatsappNo)}
-                  className="text-green-600 hover:text-green-700 transition-colors"
-                  title="হোয়াটসঅ্যাপ খুলুন"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                </button>
+              {passenger.whatsappNo ? (
+                <>
+                  <button
+                    onClick={() => handleWhatsAppClick(passenger.whatsappNo)}
+                    className="text-sm sm:text-base text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 underline break-all flex items-center gap-2"
+                    title="হোয়াটসঅ্যাপ খুলুন"
+                  >
+                    <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{passenger.whatsappNo}</span>
+                  </button>
+                </>
+              ) : (
+                <p className="text-sm sm:text-base text-gray-900 dark:text-white break-all">N/A</p>
               )}
             </div>
           </div>

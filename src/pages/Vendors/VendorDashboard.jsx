@@ -18,7 +18,7 @@ import {
   TrendingDown
 } from 'lucide-react';
 import CardWidget from '../../components/common/CardWidget';
-import { useVendorDashboard } from '../../hooks/useVendorQueries';
+import { useVendorDashboard, useVendors } from '../../hooks/useVendorQueries';
 import Swal from 'sweetalert2';
 
 const VendorDashboard = () => {
@@ -33,25 +33,42 @@ const VendorDashboard = () => {
     error: dashboardError 
   } = useVendorDashboard();
 
+  // Fetch full vendors list to get logo data
+  const { data: allVendors = [] } = useVendors();
+
   // Extract data from dashboard response
   const statistics = dashboardData?.statistics || {};
   const bills = dashboardData?.bills || {};
   const recentActivity = dashboardData?.recentActivity || {};
   const distribution = dashboardData?.distribution || {};
   
-  // Get vendors from recent activity
+  // Get vendors from recent activity and merge with full vendor data to get logos
   const vendors = useMemo(() => {
     const recentVendors = recentActivity?.vendors || [];
-    return recentVendors.map(v => ({
-      _id: v._id || v.vendorId,
-      vendorId: v.vendorId || v._id,
-      tradeName: v.tradeName || '',
-      tradeLocation: v.tradeLocation || '',
-      ownerName: v.ownerName || '',
-      contactNo: v.contactNo || '',
-      status: 'active' // Recent vendors are typically active
-    }));
-  }, [recentActivity]);
+    
+    // Create a map of vendor IDs to full vendor data (for logo lookup)
+    const vendorMap = new Map();
+    allVendors.forEach(v => {
+      const id = v._id || v.vendorId;
+      if (id) vendorMap.set(String(id), v);
+    });
+    
+    return recentVendors.map(v => {
+      const vendorId = String(v._id || v.vendorId);
+      const fullVendor = vendorMap.get(vendorId);
+      
+      return {
+        _id: v._id || v.vendorId,
+        vendorId: v.vendorId || v._id,
+        tradeName: v.tradeName || '',
+        tradeLocation: v.tradeLocation || '',
+        ownerName: v.ownerName || '',
+        contactNo: v.contactNo || '',
+        logo: v.logo || fullVendor?.logo || v.photo || v.photoUrl || v.image || v.avatar || v.profilePicture || fullVendor?.photo || fullVendor?.photoUrl || fullVendor?.image || fullVendor?.avatar || fullVendor?.profilePicture || null,
+        status: 'active' // Recent vendors are typically active
+      };
+    });
+  }, [recentActivity, allVendors]);
 
   // Show error if dashboard fails to load
   useEffect(() => {
@@ -90,34 +107,31 @@ const VendorDashboard = () => {
     return filtered;
   }, [searchQuery, statusFilter, sortBy, vendors]);
 
-  const byLocation = useMemo(() => {
-    return distribution?.byLocation || [];
-  }, [distribution]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-gradient-to-br from-purple-50/50 via-blue-50/30 to-cyan-50/50 dark:from-gray-900 dark:via-purple-900/10 dark:to-blue-900/10 min-h-screen">
       <Helmet>
         <title>ভেন্ডর ড্যাশবোর্ড</title>
         <meta name="description" content="ভেন্ডর পরিসংখ্যান এবং কার্যক্রমের ওভারভিউ।" />
       </Helmet>
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-2xl p-6 border border-purple-200 dark:border-purple-800">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Building2 className="w-7 h-7 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">ভেন্ডর ও পার্টনার ড্যাশবোর্ড</h1>
-            <p className="text-gray-600 dark:text-gray-400">ভেন্ডর ও পার্টনার সম্পর্ক পরিচালনা এবং পর্যবেক্ষণ করুন</p>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent">ভেন্ডর ও পার্টনার ড্যাশবোর্ড</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">ভেন্ডর ও পার্টনার সম্পর্ক পরিচালনা এবং পর্যবেক্ষণ করুন</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button className="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2.5">
+          <button className="inline-flex items-center gap-2 rounded-lg border-2 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-900/30 px-4 py-2.5 transition-all hover:shadow-md">
             <Download className="w-4 h-4" /> এক্সপোর্ট
           </button>
           <Link
             to="/vendors/add"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2.5 transition-all shadow-lg hover:shadow-xl"
           >
             <Plus className="w-4 h-4" /> ভেন্ডর যোগ করুন
           </Link>
@@ -179,10 +193,13 @@ const VendorDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Vendor List */}
           <div className="lg:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border-2 border-purple-200 dark:border-purple-800 overflow-hidden shadow-lg">
+            <div className="p-6 border-b-2 border-purple-100 dark:border-purple-900 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/10 dark:to-blue-900/10">
               <div className="flex items-center justify-between flex-wrap gap-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">ভেন্ডর ওভারভিউ</h2>
+                <h2 className="text-lg font-semibold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  ভেন্ডর ওভারভিউ
+                </h2>
                 <div className="flex items-center gap-3">
                   {/* Search */}
                   <div className="relative">
@@ -193,7 +210,7 @@ const VendorDashboard = () => {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-64 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-64 rounded-lg border-2 border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-900 pl-9 pr-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                       placeholder="ভেন্ডর খুঁজুন..."
                     />
                   </div>
@@ -201,7 +218,7 @@ const VendorDashboard = () => {
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="rounded-lg border-2 border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                   >
                     <option value="all">সব স্ট্যাটাস</option>
                     <option value="active">সক্রিয়</option>
@@ -211,7 +228,7 @@ const VendorDashboard = () => {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="rounded-lg border-2 border-purple-200 dark:border-purple-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
                   >
                     <option value="tradeName">নাম অনুযায়ী সাজান</option>
                   </select>
@@ -219,23 +236,33 @@ const VendorDashboard = () => {
               </div>
             </div>
 
-            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            <div className="divide-y divide-purple-100 dark:divide-purple-900/50">
               {loading ? (
-                <div className="p-6 text-center text-gray-500 dark:text-gray-400">ভেন্ডর লোড হচ্ছে...</div>
+                <div className="p-6 text-center text-purple-600 dark:text-purple-400 font-medium">ভেন্ডর লোড হচ্ছে...</div>
               ) : filteredVendors.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 dark:text-gray-400">কোনো ভেন্ডর পাওয়া যায়নি</div>
+                <div className="p-6 text-center text-purple-600 dark:text-purple-400 font-medium">কোনো ভেন্ডর পাওয়া যায়নি</div>
               ) : filteredVendors.map((vendor) => (
-                <div key={vendor._id || vendor.vendorId} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors">
+                <div key={vendor._id || vendor.vendorId} className="p-6 hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 dark:hover:from-purple-900/20 dark:hover:to-blue-900/20 transition-all border-l-4 border-transparent hover:border-purple-500">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                      </div>
+                      {vendor.logo ? (
+                        <div className="w-14 h-14 rounded-xl overflow-hidden ring-2 ring-purple-200 dark:ring-purple-800 shadow-md">
+                          <img 
+                            src={vendor.logo} 
+                            alt={vendor.tradeName} 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-400 to-blue-500 flex items-center justify-center flex-shrink-0 shadow-md ring-2 ring-purple-200 dark:ring-purple-800">
+                          <Building2 className="w-7 h-7 text-white" />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Link 
                             to={`/vendors/${vendor._id || vendor.vendorId}`}
-                            className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                            className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
                           >
                             {vendor.tradeName}
                           </Link>
@@ -248,15 +275,15 @@ const VendorDashboard = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 text-purple-600 dark:text-purple-400">
                             <User className="w-4 h-4" />
                             {vendor.ownerName}
                           </span>
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
                             <MapPin className="w-4 h-4" />
                             {vendor.tradeLocation}
                           </span>
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
                             <Phone className="w-4 h-4" />
                             {vendor.contactNo}
                           </span>
@@ -267,14 +294,14 @@ const VendorDashboard = () => {
                       <div className="flex items-center space-x-2">
                         <Link
                           to={`/vendors/${vendor._id || vendor.vendorId}`}
-                          className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                          className="p-2 rounded-lg border-2 border-blue-300 dark:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all hover:shadow-md"
                         >
-                          <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                          <Eye className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         </Link>
-                        <button className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <Edit className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                        <button className="p-2 rounded-lg border-2 border-purple-300 dark:border-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all hover:shadow-md">
+                          <Edit className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                         </button>
-                        <button className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <button className="p-2 rounded-lg border-2 border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all hover:shadow-md">
                           <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         </button>
                       </div>
@@ -286,39 +313,21 @@ const VendorDashboard = () => {
           </div>
         </div>
 
-        {/* By Location & Quick Actions */}
+        {/* Quick Actions */}
         <div className="space-y-6">
-          {/* Vendors by Location */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">অবস্থান অনুযায়ী ভেন্ডর</h3>
-            <div className="space-y-3">
-              {loading ? (
-                <div className="text-gray-500 dark:text-gray-400">লোড হচ্ছে...</div>
-              ) : byLocation.length === 0 ? (
-                <div className="text-gray-500 dark:text-gray-400">কোনো অবস্থান ডেটা নেই</div>
-              ) : byLocation.map((loc, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400">
-                      {loc.count}
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{loc.location || loc._id || 'অজানা'}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">দ্রুত কাজ</h3>
+          <div className="bg-gradient-to-br from-white to-purple-50 dark:from-gray-800 dark:to-purple-900/20 rounded-xl border-2 border-purple-200 dark:border-purple-800 p-6 shadow-lg">
+            <h3 className="text-lg font-semibold text-purple-700 dark:text-purple-300 mb-4 flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              দ্রুত কাজ
+            </h3>
             <div className="space-y-3">
               <Link
                 to="/vendors/add"
-                className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-3 p-3 rounded-lg border-2 border-green-300 dark:border-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 dark:hover:from-green-900/30 dark:hover:to-emerald-900/30 transition-all hover:shadow-md"
               >
-                <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center shadow-md">
+                  <Plus className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">নতুন ভেন্ডর যোগ করুন</div>
@@ -327,19 +336,19 @@ const VendorDashboard = () => {
               </Link>
               <Link
                 to="/vendors"
-                className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-3 p-3 rounded-lg border-2 border-blue-300 dark:border-blue-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 dark:hover:from-blue-900/30 dark:hover:to-cyan-900/30 transition-all hover:shadow-md"
               >
-                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-md">
+                  <Building2 className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">সব ভেন্ডর দেখুন</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">ভেন্ডর তালিকা ব্রাউজ করুন</div>
                 </div>
               </Link>
-              <button className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full">
-                <div className="w-10 h-10 bg-amber-50 dark:bg-amber-900/20 rounded-lg flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              <button className="flex items-center gap-3 p-3 rounded-lg border-2 border-amber-300 dark:border-amber-700 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 dark:hover:from-amber-900/30 dark:hover:to-orange-900/30 transition-all hover:shadow-md w-full">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center shadow-md">
+                  <FileText className="w-5 h-5 text-white" />
                 </div>
                 <div>
                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100">রিপোর্ট তৈরি করুন</div>

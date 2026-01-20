@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Search, 
   User,
+  Users,
   Building,
   Plane,
   Plus,
@@ -423,10 +424,6 @@ const NewTicket = () => {
   // Debounced backend search for employees
   useEffect(() => {
     const q = employeeQuery.trim();
-    if (!q || q.length < 2) {
-      setEmployeeResults([]);
-      return;
-    }
 
     let active = true;
 
@@ -434,8 +431,12 @@ const NewTicket = () => {
       try {
         // Use the same endpoint as EmployeeList.jsx: /api/hr/employers with search parameter
         const params = new URLSearchParams();
-        params.append('search', q);
-        params.append('limit', '100'); // Get more results for better search
+        if (q.length >= 2) {
+          params.append('search', q);
+          params.append('limit', '100'); // Get more results for better search
+        } else {
+          params.append('limit', '10'); // Get initial 10 employees
+        }
         
         const res = await axiosSecure.get(`/api/hr/employers?${params.toString()}`);
         const data = res?.data;
@@ -454,39 +455,77 @@ const NewTicket = () => {
           list = data;
         }
 
-        // Additional client-side filtering for better search results
-        const normalizedQ = q.toLowerCase();
-        const filtered = list.filter((emp) => {
-          const id = String(emp.employeeId || emp.id || emp._id || '').toLowerCase();
-          const firstName = String(emp.firstName || '').toLowerCase();
-          const lastName = String(emp.lastName || '').toLowerCase();
-          const fullName = String(emp.fullName || emp.name || `${firstName} ${lastName}`.trim() || '').toLowerCase();
-          const email = String(emp.email || '').toLowerCase();
-          const phone = String(emp.phone || emp.mobile || emp.contactNo || '');
-          const designation = String(emp.designation || emp.position || '').toLowerCase();
-          return (
-            id.includes(normalizedQ) ||
-            firstName.includes(normalizedQ) ||
-            lastName.includes(normalizedQ) ||
-            fullName.includes(normalizedQ) ||
-            email.includes(normalizedQ) ||
-            phone.includes(q) ||
-            designation.includes(normalizedQ)
-          );
-        });
+        if (q.length >= 2) {
+          // Additional client-side filtering for better search results
+          const normalizedQ = q.toLowerCase();
+          const filtered = list.filter((emp) => {
+            const id = String(emp.employeeId || emp.id || emp._id || '').toLowerCase();
+            const firstName = String(emp.firstName || '').toLowerCase();
+            const lastName = String(emp.lastName || '').toLowerCase();
+            const fullName = String(emp.fullName || emp.name || `${firstName} ${lastName}`.trim() || '').toLowerCase();
+            const email = String(emp.email || '').toLowerCase();
+            const phone = String(emp.phone || emp.mobile || emp.contactNo || '');
+            const designation = String(emp.designation || emp.position || '').toLowerCase();
+            return (
+              id.includes(normalizedQ) ||
+              firstName.includes(normalizedQ) ||
+              lastName.includes(normalizedQ) ||
+              fullName.includes(normalizedQ) ||
+              email.includes(normalizedQ) ||
+              phone.includes(q) ||
+              designation.includes(normalizedQ)
+            );
+          });
 
-        if (active) setEmployeeResults(filtered.slice(0, 10));
+          if (active) setEmployeeResults(filtered.slice(0, 10));
+        } else {
+          // Show first 10 employees when no query
+          if (active) setEmployeeResults(list.slice(0, 10));
+        }
       } catch (err) {
         console.error('Error fetching employees:', err);
         if (active) setEmployeeResults([]);
       }
-    }, 350);
+    }, q.length >= 2 ? 350 : 100); // Faster for initial load
 
     return () => {
       active = false;
       clearTimeout(timer);
     };
   }, [employeeQuery, axiosSecure]);
+
+  // Fetch initial employees when dropdown is shown
+  useEffect(() => {
+    if (showEmployeeDropdown && employeeResults.length === 0 && employeeQuery.length < 2) {
+      // Trigger initial fetch
+      const fetchInitialEmployees = async () => {
+        try {
+          const res = await axiosSecure.get('/api/hr/employers', {
+            params: { limit: 10 }
+          });
+          const data = res?.data;
+          
+          let list = [];
+          if (data?.success && Array.isArray(data.data)) {
+            list = data.data;
+          } else if (data?.success && Array.isArray(data.employees)) {
+            list = data.employees;
+          } else if (Array.isArray(data?.data)) {
+            list = data.data;
+          } else if (Array.isArray(data?.employees)) {
+            list = data.employees;
+          } else if (Array.isArray(data)) {
+            list = data;
+          }
+          
+          setEmployeeResults(list.slice(0, 10));
+        } catch (err) {
+          // Silent fail
+        }
+      };
+      fetchInitialEmployees();
+    }
+  }, [showEmployeeDropdown, employeeResults.length, employeeQuery, axiosSecure]);
 
   const handleSelectEmployee = (employee) => {
     const employeeId = employee.employeeId || employee.id || employee._id || '';
@@ -671,6 +710,7 @@ const NewTicket = () => {
     if (!values.customerId) errs.customerId = 'Customer is required';
     if (!values.date) errs.date = 'Selling date is required';
     if (!values.airline) errs.airline = 'Airline is required';
+    if (!values.segmentCount || values.segmentCount < 1) errs.segmentCount = 'Segment Count is required (minimum 1)';
 
     if (values.tripType === 'multicity') {
       if (!values.segments || values.segments.length < 2) {
@@ -1171,6 +1211,9 @@ const NewTicket = () => {
       if (!formData.airline) {
         errors.push('এয়ারলাইন নির্বাচন করুন');
       }
+      if (!formData.segmentCount || formData.segmentCount < 1) {
+        errors.push('Segment Count প্রয়োজন (সর্বনিম্ন ১)');
+      }
       
       if (formData.tripType === 'multicity') {
         if (!formData.segments || formData.segments.length < 2) {
@@ -1214,6 +1257,7 @@ const NewTicket = () => {
       } else if (currentStep === 2) {
         markTouched('date');
         markTouched('airline');
+        markTouched('segmentCount');
         markTouched('origin');
         markTouched('destination');
         markTouched('flightDate');
@@ -1265,6 +1309,7 @@ const NewTicket = () => {
             } else if (s === 2) {
               markTouched('date');
               markTouched('airline');
+              markTouched('segmentCount');
               markTouched('origin');
               markTouched('destination');
               markTouched('flightDate');
@@ -1299,9 +1344,9 @@ const NewTicket = () => {
   const stepTitles = [
     'গ্রাহক তথ্য',
     'ফ্লাইট তথ্য',
-    'ভেন্ডর খুঁজুন',
     'যাত্রী ও মূল্য',
-    'ভেন্ডর বিবরণ' 
+    'ভেন্ডর বিবরণ',
+    'রিভিউ ও নিশ্চিতকরণ'
   ];
 
   return (
@@ -1799,6 +1844,27 @@ const NewTicket = () => {
                   </button>
                 </div>
               </div>
+              <div>
+                <label htmlFor="segmentCount" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Segment Count *</label>
+                <input
+                  type="number"
+                  name="segmentCount"
+                  id="segmentCount"
+                  value={formData.segmentCount}
+                  onChange={(e) => { 
+                    const value = parseInt(e.target.value) || 1;
+                    handleChange({ target: { name: 'segmentCount', value } }); 
+                    if (touched.segmentCount) setValidationErrors(validate({ ...formData, segmentCount: value })); 
+                  }}
+                  onBlur={() => { markTouched('segmentCount'); setValidationErrors(validate(formData)); }}
+                  min="1"
+                  required
+                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                {touched.segmentCount && validationErrors.segmentCount && (
+                  <p className="mt-1 text-xs text-red-600">{validationErrors.segmentCount}</p>
+                )}
+              </div>
             </div>
 
             {/* Route and Dates */}
@@ -1935,12 +2001,12 @@ const NewTicket = () => {
             </div>
           )}
 
-          {/* Step 4: Passenger Count & Customer Pricing */}
-          {currentStep === 4 && (
+          {/* Step 3: Passenger Count & Customer Pricing */}
+          {currentStep === 3 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                 <User className="w-5 h-5 mr-2 text-orange-600" />
-                Step 4: যাত্রী ও মূল্য
+                Step 3: যাত্রী ও মূল্য
               </h2>
 
             {/* Passenger Types */}
@@ -1989,7 +2055,7 @@ const NewTicket = () => {
             {/* Customer finance */}
             <div className="mt-6">
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Customer Pricing</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Deal</label>
                 <input
@@ -2001,348 +2067,221 @@ const NewTicket = () => {
                   placeholder="0"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Paid</label>
-                <input
-                  type="number"
-                  name="customerPaid"
-                  value={formData.customerPaid}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Customer Due</label>
-                <input
-                  type="number"
-                  name="customerDue"
-                  value={formData.customerDue}
-                  readOnly
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-600 focus:outline-none text-gray-900 dark:text-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Due Date</label>
-                <input
-                  type="date"
-                  name="dueDate"
-                  value={formData.dueDate}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
             </div>
             </div>
             </div>
           )}
 
-          {/* Step 3: Vendor Search */}
-          {currentStep === 3 && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
-                <Building className="w-5 h-5 mr-2 text-purple-600" />
-                Step 3: ভেন্ডর খুঁজুন
-              </h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div>
-                <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Agent Name / ID
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    id="agent"
-                    value={agentQuery}
-                    onChange={(e) => {
-                      setAgentQuery(e.target.value);
-                      setShowAgentDropdown(true);
-                      if (!e.target.value) {
-                        setFormData(prev => ({
-                          ...prev,
-                          agent: '',
-                          agentId: ''
-                        }));
-                        setSelectedAgentId('');
-                      }
-                    }}
-                    onFocus={() => {
-                      setShowAgentDropdown(true);
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => {
-                        setShowAgentDropdown(false);
-                      }, 200);
-                    }}
-                    placeholder="এজেন্ট খুঁজুন... (নাম/ফোন/আইডি)"
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {showAgentDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto p-2">
-                      {agentLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
-                      ) : agentResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          {agentQuery.length < 2 ? 'Type at least 2 characters to search' : 'No agents found'}
-                        </div>
-                      ) : (
-                        agentResults.map((a) => {
-                          const photoUrl = a.photo || a.photoUrl || a.image || a.logo || a.avatar || a.profilePicture || '';
-                          const agentName = a.name || a.tradeName || a.companyName || a.personalName || 'N/A';
-                          const agentPhone = a.mobile || a.phone || a.contactNo || '';
-                          const agentId = a.agentId || a.idCode || a.id || a._id || '';
-                          
-                          return (
-                            <button
-                              key={String(agentId)}
-                              type="button"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => handleSelectAgent(a)}
-                              className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors mb-2 last:mb-0"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                                  {photoUrl ? (
-                                    <img 
-                                      src={photoUrl} 
-                                      alt={agentName} 
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${photoUrl ? 'hidden' : 'flex'}`}>
-                                    <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                                  </div>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-gray-900 dark:text-white text-sm">
-                                    {agentName}
-                                  </div>
-                                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                                    {agentPhone || agentId}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-                {selectedAgentId && (
-                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Selected Agent ID: <span className="font-medium text-gray-900 dark:text-white">{selectedAgentId}</span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Issued By (Employee Search) */}
-              <div>
-                <label htmlFor="issuedBy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Issued By (Office Employee)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    id="issuedBy"
-                    value={employeeQuery}
-                    onChange={(e) => {
-                      setEmployeeQuery(e.target.value);
-                      setShowEmployeeDropdown(true);
-                      if (!e.target.value) {
-                        setFormData(prev => ({
-                          ...prev,
-                          issuedBy: '',
-                          issuedById: ''
-                        }));
-                        setSelectedEmployeeId('');
-                      }
-                    }}
-                    onFocus={() => {
-                      if (employeeResults.length > 0 || employeeQuery.length >= 2) {
-                        setShowEmployeeDropdown(true);
-                      }
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => {
-                        setShowEmployeeDropdown(false);
-                      }, 200);
-                    }}
-                    placeholder="Search employee by name, ID, or designation..."
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {showEmployeeDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
-                      {employeeResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          {employeeQuery.length < 2 ? 'Type at least 2 characters to search' : 'No employees found'}
-                        </div>
-                      ) : (
-                        employeeResults.map((emp) => (
-                          <button
-                            key={String(emp.employeeId || emp.id || emp._id)}
-                            type="button"
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => handleSelectEmployee(emp)}
-                            className="w-full text-left px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <User className="w-4 h-4 text-gray-400" />
-                                <div>
-                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                    {emp.fullName || emp.name || 
-                                      (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}`.trim() : 
-                                      emp.firstName || emp.lastName || 'N/A')}
-                                  </div>
-                                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                                    ID: {emp.employeeId || emp.id || emp._id}
-                                  </div>
-                                  {(emp.designation || emp.position) && (
-                                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      {emp.designation || emp.position}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-300">
-                                {emp.phone || emp.mobile || emp.contactNo || ''}
-                              </div>
-                            </div>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-                {selectedEmployeeId && (
-                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Selected: <span className="font-medium text-gray-900 dark:text-white">{formData.issuedBy}</span>
-                  </div>
-                )}
-              </div>
-              
-              {/* Vendor Search */}
-              <div>
-                <label htmlFor="vendor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Vendor Name / ID
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    id="vendor"
-                    value={vendorQuery}
-                    onChange={(e) => {
-                      setVendorQuery(e.target.value);
-                      setShowVendorDropdown(true);
-                      if (!e.target.value) {
-                        setFormData(prev => ({
-                          ...prev,
-                          vendor: '',
-                          vendorId: ''
-                        }));
-                        setSelectedVendorId('');
-                      }
-                    }}
-                    onFocus={() => {
-                      setShowVendorDropdown(true);
-                    }}
-                    onBlur={() => {
-                      setTimeout(() => {
-                        setShowVendorDropdown(false);
-                      }, 200);
-                    }}
-                    placeholder="ভেন্ডর খুঁজুন... (নাম/ফোন/আইডি)"
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                  {showVendorDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto p-2">
-                      {vendorLoading ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
-                      ) : vendorResults.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                          {vendorQuery.length < 2 ? 'Type at least 2 characters to search' : 'No vendors found'}
-                        </div>
-                      ) : (
-                        vendorResults.map((v) => {
-                          const logoUrl = v.logo || v.photo || v.photoUrl || v.image || v.avatar || v.profilePicture || '';
-                          const vendorName = v.tradeName || v.name || 'N/A';
-                          const vendorPhone = v.contactNo || v.phone || v.contactPhone || '';
-                          const vendorId = v.vendorId || v.id || v._id || '';
-                          
-                          return (
-                            <button
-                              key={String(vendorId)}
-                              type="button"
-                              onMouseDown={(e) => e.preventDefault()}
-                              onClick={() => handleSelectVendor(v)}
-                              className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors mb-2 last:mb-0"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                                  {logoUrl ? (
-                                    <img 
-                                      src={logoUrl} 
-                                      alt={vendorName} 
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.nextSibling.style.display = 'flex';
-                                      }}
-                                    />
-                                  ) : null}
-                                  <div className={`w-full h-full bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center ${logoUrl ? 'hidden' : 'flex'}`}>
-                                    <Building className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                                  </div>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-gray-900 dark:text-white text-sm">
-                                    {vendorName}
-                                  </div>
-                                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                                    {vendorPhone || vendorId}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })
-                      )}
-                    </div>
-                  )}
-                </div>
-                {selectedVendorId && (
-                  <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Selected: <span className="font-medium text-gray-900 dark:text-white">{formData.vendor}</span>
-                  </div>
-                )}
-              </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Agent & Vendor */}
-          {currentStep === 5 && (
+          {/* Step 4: Agent & Vendor */}
+          {currentStep === 4 && (
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
                 <Receipt className="w-5 h-5 mr-2 text-indigo-600" />
-                Step 5: এজেন্ট ও ভেন্ডর
+                Step 4: ভেন্ডর বিবরণ
               </h2>
+
+            {/* Agent and Vendor Selection */}
+            <div className="mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Agent Name / ID */}
+                <div>
+                  <label htmlFor="agent" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Agent Name / ID
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="agent"
+                      value={agentQuery}
+                      onChange={(e) => {
+                        setAgentQuery(e.target.value);
+                        setShowAgentDropdown(true);
+                        if (!e.target.value) {
+                          setFormData(prev => ({
+                            ...prev,
+                            agent: '',
+                            agentId: ''
+                          }));
+                          setSelectedAgentId('');
+                        }
+                      }}
+                      onFocus={() => {
+                        setShowAgentDropdown(true);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setShowAgentDropdown(false);
+                        }, 200);
+                      }}
+                      placeholder="এজেন্ট খুঁজুন... (নাম/ফোন/আইডি)"
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    {showAgentDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto p-2">
+                        {agentLoading ? (
+                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
+                        ) : agentResults.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                            {agentQuery.length < 2 ? 'Type at least 2 characters to search' : 'No agents found'}
+                          </div>
+                        ) : (
+                          agentResults.map((a) => {
+                            const photoUrl = a.photo || a.photoUrl || a.image || a.logo || a.avatar || a.profilePicture || '';
+                            const agentName = a.name || a.tradeName || a.companyName || a.personalName || 'N/A';
+                            const agentPhone = a.mobile || a.phone || a.contactNo || '';
+                            const agentId = a.agentId || a.idCode || a.id || a._id || '';
+                            
+                            return (
+                              <button
+                                key={String(agentId)}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSelectAgent(a)}
+                                className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors mb-2 last:mb-0"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                    {photoUrl ? (
+                                      <img 
+                                        src={photoUrl} 
+                                        alt={agentName} 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div className={`w-full h-full bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center ${photoUrl ? 'hidden' : 'flex'}`}>
+                                      <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-gray-900 dark:text-white text-sm">
+                                      {agentName}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {agentPhone || agentId}
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {selectedAgentId && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      Selected Agent ID: <span className="font-medium text-gray-900 dark:text-white">{selectedAgentId}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Vendor Name / ID */}
+                <div>
+                  <label htmlFor="vendor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Vendor Name / ID
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="vendor"
+                      value={vendorQuery}
+                      onChange={(e) => {
+                        setVendorQuery(e.target.value);
+                        setShowVendorDropdown(true);
+                        if (!e.target.value) {
+                          setFormData(prev => ({
+                            ...prev,
+                            vendor: '',
+                            vendorId: ''
+                          }));
+                          setSelectedVendorId('');
+                        }
+                      }}
+                      onFocus={() => {
+                        setShowVendorDropdown(true);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setShowVendorDropdown(false);
+                        }, 200);
+                      }}
+                      placeholder="ভেন্ডর খুঁজুন... (নাম/ফোন/আইডি)"
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    {showVendorDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto p-2">
+                        {vendorLoading ? (
+                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching...</div>
+                        ) : vendorResults.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                            {vendorQuery.length < 2 ? 'Type at least 2 characters to search' : 'No vendors found'}
+                          </div>
+                        ) : (
+                          vendorResults.map((v) => {
+                            const logoUrl = v.logo || v.photo || v.photoUrl || v.image || v.avatar || v.profilePicture || '';
+                            const vendorName = v.tradeName || v.name || 'N/A';
+                            const vendorPhone = v.contactNo || v.phone || v.contactPhone || '';
+                            const vendorId = v.vendorId || v.id || v._id || '';
+                            
+                            return (
+                              <button
+                                key={String(vendorId)}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSelectVendor(v)}
+                                className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors mb-2 last:mb-0"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                    {logoUrl ? (
+                                      <img 
+                                        src={logoUrl} 
+                                        alt={vendorName} 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div className={`w-full h-full bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center ${logoUrl ? 'hidden' : 'flex'}`}>
+                                      <Building className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-gray-900 dark:text-white text-sm">
+                                      {vendorName}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {vendorPhone || vendorId}
+                                    </div>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {selectedVendorId && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      Selected: <span className="font-medium text-gray-900 dark:text-white">{formData.vendor}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {/* Vendor Amount Breakdown */}
             <div>
@@ -2583,6 +2522,236 @@ const NewTicket = () => {
           </div>
           )}
 
+          {/* Step 5: Review & Confirmation */}
+          {currentStep === 5 && (
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6 flex items-center">
+                <Receipt className="w-5 h-5 mr-2 text-green-600" />
+                Step 5: রিভিউ ও নিশ্চিতকরণ
+              </h2>
+
+              {/* Summary of All Entered Data */}
+              <div className="space-y-6 mb-6">
+                {/* Customer Information */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                    <User className="w-5 h-5 mr-2 text-blue-600" />
+                    গ্রাহক তথ্য
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">গ্রাহক:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.customer || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">বিক্রয় তারিখ:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.date || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Flight Information */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                    <Plane className="w-5 h-5 mr-2 text-purple-600" />
+                    ফ্লাইট তথ্য
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">এয়ারলাইন:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.airline || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">ট্রিপ টাইপ:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.tripType || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">উৎপত্তি:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.origin || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">গন্তব্য:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.destination || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">ফ্লাইট তারিখ:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.flightDate || 'N/A'}</span>
+                    </div>
+                    {formData.returnDate && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">রিটার্ন তারিখ:</span>
+                        <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.returnDate}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Passenger Information */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                    <Users className="w-5 h-5 mr-2 text-orange-600" />
+                    যাত্রী ও মূল্য
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">প্রাপ্তবয়স্ক:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.adultCount || 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">শিশু:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.childCount || 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">শিশু (ইনফ্যান্ট):</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.infantCount || 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">গ্রাহক ডিল:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.customerDeal || 0} BDT</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vendor Information */}
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3 flex items-center">
+                    <Building className="w-5 h-5 mr-2 text-indigo-600" />
+                    ভেন্ডর বিবরণ
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">এজেন্ট:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.agent || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">ভেন্ডর:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.vendor || 'N/A'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">Base Fare:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.baseFare || 0} BDT</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">Taxes:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.taxes || 0} BDT</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-600 dark:text-gray-400">Vendor Amount:</span>
+                      <span className="ml-2 font-medium text-gray-900 dark:text-white">{formData.vendorAmount || 0} BDT</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Issued By (Office Employee) */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Issued By (Office Employee)</h3>
+                <div>
+                  <label htmlFor="issuedBy" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Office Employee
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      id="issuedBy"
+                      value={employeeQuery}
+                      onChange={(e) => {
+                        setEmployeeQuery(e.target.value);
+                        setShowEmployeeDropdown(true);
+                        if (!e.target.value) {
+                          setFormData(prev => ({
+                            ...prev,
+                            issuedBy: '',
+                            issuedById: ''
+                          }));
+                          setSelectedEmployeeId('');
+                        }
+                      }}
+                      onFocus={() => {
+                        setShowEmployeeDropdown(true);
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setShowEmployeeDropdown(false);
+                        }, 200);
+                      }}
+                      placeholder="Search employee by name, ID, or designation..."
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    />
+                    {showEmployeeDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto p-2">
+                        {employeeResults.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+                            {employeeQuery.length < 2 ? 'Type at least 2 characters to search' : 'No employees found'}
+                          </div>
+                        ) : (
+                          employeeResults.map((emp) => {
+                            const photoUrl = emp.photo || emp.photoUrl || emp.image || emp.avatar || emp.profilePicture || '';
+                            const employeeName = emp.fullName || emp.name || 
+                              (emp.firstName && emp.lastName ? `${emp.firstName} ${emp.lastName}`.trim() : 
+                              emp.firstName || emp.lastName || 'N/A');
+                            const employeePhone = emp.phone || emp.mobile || emp.contactNo || '';
+                            const employeeId = emp.employeeId || emp.id || emp._id || '';
+                            
+                            return (
+                              <button
+                                key={String(employeeId)}
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => handleSelectEmployee(emp)}
+                                className="w-full text-left p-3 bg-gray-50 dark:bg-gray-700 rounded-lg shadow-sm hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors mb-2 last:mb-0"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                                    {photoUrl ? (
+                                      <img 
+                                        src={photoUrl} 
+                                        alt={employeeName} 
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                          e.target.style.display = 'none';
+                                          e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div className={`w-full h-full bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center ${photoUrl ? 'hidden' : 'flex'}`}>
+                                      <User className="w-5 h-5 text-green-600 dark:text-green-400" />
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-gray-900 dark:text-white text-sm">
+                                      {employeeName}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {employeePhone || employeeId}
+                                    </div>
+                                    {(emp.designation || emp.position) && (
+                                      <div className="text-xs text-gray-400 dark:text-gray-500">
+                                        {emp.designation || emp.position}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {selectedEmployeeId && (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      Selected: <span className="font-medium text-gray-900 dark:text-white">{formData.issuedBy}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Step Navigation Buttons */}
           <div className="flex items-center justify-between pt-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
             <button
@@ -2706,8 +2875,6 @@ const NewTicket = () => {
               <div className="text-gray-700 dark:text-gray-300">Vendor Paid: {formData.vendorPaidFh}</div>
               <div className="text-gray-700 dark:text-gray-300">Vendor Due: {formData.vendorDue}</div>
               <div className="text-gray-700 dark:text-gray-300">Customer Deal: {formData.customerDeal}</div>
-              <div className="text-gray-700 dark:text-gray-300">Customer Paid: {formData.customerPaid}</div>
-              <div className="text-gray-700 dark:text-gray-300">Customer Due: {formData.customerDue}</div>
               <div className="text-gray-700 dark:text-gray-300">Profit: {formData.profit}</div>
             </div>
           </div>

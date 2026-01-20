@@ -583,6 +583,30 @@ const NewPassenger = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Only allow submission on the last step (ডকুমেন্ট step)
+    if (currentStep !== totalSteps) {
+      // If not on last step, just go to next step
+      nextStep();
+      return;
+    }
+    
+    // Check if any document is currently being uploaded
+    if (imageUploading || passportCopyUploading || nidCopyUploading) {
+      Swal.fire({
+        title: 'অপেক্ষা করুন!',
+        text: 'ডকুমেন্ট আপলোড হচ্ছে। দয়া করে অপেক্ষা করুন।',
+        icon: 'info',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#3B82F6',
+        background: isDark ? '#1F2937' : '#F9FAFB',
+        customClass: {
+          title: 'text-blue-600 font-bold text-xl',
+          popup: 'rounded-2xl shadow-2xl'
+        }
+      });
+      return;
+    }
+    
     // Validate required fields - only name and mobile are mandatory
     if (!(formData.firstName && formData.firstName.trim())) {
       Swal.fire({
@@ -654,11 +678,11 @@ const NewPassenger = () => {
       }
     }
     
-    // Check if image is being uploaded
-    if (imageUploading) {
+    // Check if any document is currently being uploaded
+    if (imageUploading || passportCopyUploading || nidCopyUploading) {
       Swal.fire({
         title: 'অপেক্ষা করুন!',
-        text: 'ছবি আপলোড হচ্ছে। দয়া করে অপেক্ষা করুন।',
+        text: 'ডকুমেন্ট আপলোড হচ্ছে। দয়া করে অপেক্ষা করুন।',
         icon: 'info',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#3B82F6',
@@ -997,7 +1021,17 @@ const NewPassenger = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form 
+          onSubmit={handleSubmit} 
+          className="space-y-4"
+          onKeyDown={(e) => {
+            // Prevent form submission on Enter key unless on last step
+            if (e.key === 'Enter' && currentStep !== totalSteps) {
+              e.preventDefault();
+              nextStep();
+            }
+          }}
+        >
           {/* Step 1: কাস্টমার তথ্য Section */}
           {currentStep === 1 && (
           <div className={`rounded-xl shadow-lg p-4 lg:p-6 border transition-colors duration-300 ${
@@ -1997,7 +2031,11 @@ const NewPassenger = () => {
               {currentStep < totalSteps ? (
                 <button
                   type="button"
-                  onClick={nextStep}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    nextStep();
+                  }}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 flex items-center"
                 >
                   পরবর্তী

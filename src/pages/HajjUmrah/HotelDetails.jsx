@@ -9,7 +9,8 @@ import {
   Mail, 
   FileText,
   Plus,
-  Trash2
+  Trash2,
+  Eye
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import Modal, { ModalFooter } from '../../components/common/Modal';
@@ -71,6 +72,8 @@ const HotelDetails = () => {
 
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [viewingContract, setViewingContract] = useState(null);
   const [editingContractId, setEditingContractId] = useState(null);
 
   // Contract form data
@@ -126,6 +129,11 @@ const HotelDetails = () => {
     resetContractForm();
     setEditingContractId(null);
     setIsContractModalOpen(true);
+  };
+
+  const handleViewContract = (contract) => {
+    setViewingContract(contract);
+    setIsViewModalOpen(true);
   };
 
   const handleEditContract = (contract) => {
@@ -423,77 +431,126 @@ const HotelDetails = () => {
             
           </div>
           
-          {/* Contracts List */}
+          {/* Contracts List - Table Format */}
           {contractsLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-500">চুক্তি লোড হচ্ছে...</p>
             </div>
           ) : contracts.length > 0 ? (
-            <div className="space-y-4">
-              {contracts.map((contract) => (
-                <div key={contract._id || contract.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <h4 className="font-semibold text-gray-900 dark:text-white">
-                        {contract.contractNumber} - {contract.contractType}
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {contract.hotelName}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        contract.contractType === 'হজ্ব' 
-                          ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
-                          : contract.contractType === 'উমরাহ'
-                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-                      }`}>
-                        {contract.contractType}
-                      </span>
-                      <button
-                        onClick={() => handleEditContract(contract)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                        title="সম্পাদনা করুন"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteContract(contract._id || contract.id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                        title="মুছে ফেলুন"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">চুক্তি শুরু</p>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {contract.contractStart ? new Date(contract.contractStart).toLocaleDateString('bn-BD') : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">চুক্তি শেষ</p>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {contract.contractEnd ? new Date(contract.contractEnd).toLocaleDateString('bn-BD') : 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">হাজ্বী সংখ্যা</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{contract.hajjiCount || 0}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">মোট বিল</p>
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        ৳{contract.totalBill?.toLocaleString('bn-BD') || '0'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">হজ্ব/উমরাহ</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">সাল</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">চুক্তি নাম্বার</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">চুক্তি শুরু</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">চুক্তি শেষ</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">বেড সংখ্যা</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">জনপ্রতি বিল</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">মোট বিল</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">স্ট্যাটাস</th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">অ্যাকশন</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
+                  {contracts.map((contract) => {
+                    // Calculate year from contract start date
+                    const contractYear = contract.contractStart 
+                      ? new Date(contract.contractStart).getFullYear() 
+                      : (contract.contractEnd ? new Date(contract.contractEnd).getFullYear() : 'N/A');
+                    
+                    // Calculate total bill
+                    const totalBill = contract.totalBill || 
+                      (parseFloat(contract.nusukPayment || 0) + 
+                       parseFloat(contract.cashPayment || 0) + 
+                       parseFloat(contract.otherBills || 0));
+                    
+                    // Calculate per person bill
+                    const hajjiCount = parseFloat(contract.hajjiCount || 0);
+                    const perPersonBill = hajjiCount > 0 ? (totalBill / hajjiCount) : 0;
+                    
+                    // Determine status (ব্যবহৃত/অব্যবহৃত)
+                    // Logic: If contract end date has passed, it's ব্যবহৃত (used), otherwise অব্যবহৃত (unused)
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const contractEndDate = contract.contractEnd ? new Date(contract.contractEnd) : null;
+                    const isUsed = contractEndDate && contractEndDate < today;
+                    const status = isUsed ? 'ব্যবহৃত' : 'অব্যবহৃত';
+                    const statusColor = isUsed 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+                    
+                    return (
+                      <tr key={contract._id || contract.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            contract.contractType === 'হজ্ব' 
+                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
+                              : contract.contractType === 'উমরাহ'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                          }`}>
+                            {contract.contractType || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {contractYear}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          {contract.contractNumber || 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {contract.contractStart ? new Date(contract.contractStart).toLocaleDateString('bn-BD') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {contract.contractEnd ? new Date(contract.contractEnd).toLocaleDateString('bn-BD') : 'N/A'}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                          {contract.hajjiCount || 0}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                          ৳{perPersonBill.toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
+                          ৳{totalBill.toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColor}`}>
+                            {status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleViewContract(contract)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                              title="ভিউ"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEditContract(contract)}
+                              className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                              title="আপডেট"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteContract(contract._id || contract.id)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                              title="ডিলিট"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
@@ -983,6 +1040,188 @@ const HotelDetails = () => {
             </button>
           </ModalFooter>
         </form>
+      </Modal>
+
+      {/* View Hotel Contract Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => {
+          setIsViewModalOpen(false);
+          setViewingContract(null);
+        }}
+        title="হোটেল চুক্তি বিবরণ"
+        size="xl"
+      >
+        {viewingContract && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  হোটেল চুক্তি (হজ্ব / উমরাহ / অন্যান্য)
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.contractType || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  সাল
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.contractStart 
+                    ? new Date(viewingContract.contractStart).getFullYear() 
+                    : (viewingContract.contractEnd ? new Date(viewingContract.contractEnd).getFullYear() : 'N/A')}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  চুক্তি নাম্বার
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.contractNumber || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  রিকোয়েস্ট নাম্বার
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.requestNumber || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  চুক্তি শুরু
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.contractStart ? new Date(viewingContract.contractStart).toLocaleDateString('bn-BD') : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  চুক্তি শেষ
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.contractEnd ? new Date(viewingContract.contractEnd).toLocaleDateString('bn-BD') : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  বেড সংখ্যা (হাজ্বী সংখ্যা)
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.hajjiCount || 0}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  হোটেল নাম
+                </label>
+                <p className="text-gray-900 dark:text-white font-medium">
+                  {viewingContract.hotelName || 'N/A'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">পেমেন্ট তথ্য</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    নুসুক পেমেন্ট
+                  </label>
+                  <p className="text-gray-900 dark:text-white font-medium">
+                    ৳{parseFloat(viewingContract.nusukPayment || 0).toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    ক্যাশ পেমেন্ট
+                  </label>
+                  <p className="text-gray-900 dark:text-white font-medium">
+                    ৳{parseFloat(viewingContract.cashPayment || 0).toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    অন্যান্য বিল
+                  </label>
+                  <p className="text-gray-900 dark:text-white font-medium">
+                    ৳{parseFloat(viewingContract.otherBills || 0).toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">গণনা</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">জনপ্রতি বিল:</span>
+                  <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                    {(() => {
+                      const hajjiCount = parseFloat(viewingContract.hajjiCount || 0);
+                      const totalBill = parseFloat(viewingContract.totalBill || 0) || 
+                        (parseFloat(viewingContract.nusukPayment || 0) + 
+                         parseFloat(viewingContract.cashPayment || 0) + 
+                         parseFloat(viewingContract.otherBills || 0));
+                      return hajjiCount > 0 
+                        ? `৳${(totalBill / hajjiCount).toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : '৳0.00';
+                    })()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">মোট বিল:</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-white">
+                    {(() => {
+                      const totalBill = parseFloat(viewingContract.totalBill || 0) || 
+                        (parseFloat(viewingContract.nusukPayment || 0) + 
+                         parseFloat(viewingContract.cashPayment || 0) + 
+                         parseFloat(viewingContract.otherBills || 0));
+                      return `৳${totalBill.toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    })()}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">স্ট্যাটাস:</span>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    (() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const contractEndDate = viewingContract.contractEnd ? new Date(viewingContract.contractEnd) : null;
+                      const isUsed = contractEndDate && contractEndDate < today;
+                      return isUsed 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
+                    })()
+                  }`}>
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const contractEndDate = viewingContract.contractEnd ? new Date(viewingContract.contractEnd) : null;
+                      const isUsed = contractEndDate && contractEndDate < today;
+                      return isUsed ? 'ব্যবহৃত' : 'অব্যবহৃত';
+                    })()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <ModalFooter>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setViewingContract(null);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                বন্ধ করুন
+              </button>
+            </ModalFooter>
+          </div>
+        )}
       </Modal>
     </div>
   );
