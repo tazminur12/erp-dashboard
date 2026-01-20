@@ -39,7 +39,7 @@ const formatBDT = (value) =>
 
 const CUSTOMER_TYPES = [
   { value: 'normal', labelBn: 'সাধারণ গ্রাহক (Normal Customer)' },
-  { value: '', labelBn: 'ডিলার (Dealer)' },
+  { value: 'dilar', labelBn: 'ডিলার (Dealer)' },
 ];
 
 const initialForm = {
