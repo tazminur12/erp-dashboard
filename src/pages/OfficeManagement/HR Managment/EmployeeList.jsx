@@ -18,6 +18,19 @@ import {
 import { useEmployees, useDeleteEmployee, useUpdateEmployeeStatus } from '../../../hooks/useHRQueries';
 import Swal from 'sweetalert2';
 
+// Convert English numerals to Bengali numerals
+const toBengaliNumeral = (num) => {
+  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  return String(num).replace(/\d/g, (digit) => bengaliDigits[parseInt(digit)]);
+};
+
+// Format number with Bengali numerals and locale string formatting
+const formatNumberBengali = (value, useCommas = true) => {
+  if (!Number.isFinite(value)) return toBengaliNumeral('0');
+  const formatted = useCommas ? Number(value).toLocaleString('bn-BD') : String(value);
+  return toBengaliNumeral(formatted);
+};
+
 const EmployeeList = () => {
   const navigate = useNavigate();
   
@@ -203,7 +216,7 @@ const EmployeeList = () => {
     const employeeId = employee.id || employee._id || employee.employeeId;
     
     if (!employeeId) {
-      alert('Error: No valid employee ID found');
+      alert('ত্রুটি: কোন বৈধ কর্মচারী ID পাওয়া যায়নি');
       return;
     }
     
@@ -221,6 +234,22 @@ const EmployeeList = () => {
     'Legal',
     'Administration'
   ];
+
+  // Department Bengali labels mapping
+  const getDepartmentLabel = (dept) => {
+    const labelMap = {
+      'Human Resources': 'মানব সম্পদ',
+      'Information Technology': 'তথ্য প্রযুক্তি',
+      'Finance': 'অর্থ',
+      'Marketing': 'বিপণন',
+      'Sales': 'বিক্রয়',
+      'Operations': 'অপারেশন',
+      'Customer Service': 'গ্রাহক সেবা',
+      'Legal': 'আইন',
+      'Administration': 'প্রশাসন'
+    };
+    return labelMap[dept] || dept;
+  };
 
   // Calculate salary statistics
   const calculateSalaryStats = () => {
@@ -303,15 +332,15 @@ const EmployeeList = () => {
         <div className="mb-8">
           <div className="flex justify-between items-center mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Employee Management</h1>
-              <p className="text-gray-600 mt-2">Manage your organization's employees</p>
+              <h1 className="text-3xl font-bold text-gray-900">কর্মচারী ব্যবস্থাপনা</h1>
+              <p className="text-gray-600 mt-2">আপনার প্রতিষ্ঠানের কর্মচারীদের পরিচালনা করুন</p>
             </div>
             <button 
               onClick={() => window.location.href = '/office-management/hr/employee/add'}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
             >
               <Plus className="w-5 h-5" />
-              Add Employee
+              নতুন কর্মচারী যোগ করুন
             </button>
           </div>
         </div>
@@ -321,8 +350,8 @@ const EmployeeList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Employees</p>
-                <p className="text-2xl font-bold text-gray-900">{filteredEmployees.length}</p>
+                <p className="text-gray-600 text-sm">মোট কর্মচারী</p>
+                <p className="text-2xl font-bold text-gray-900">{formatNumberBengali(filteredEmployees.length)}</p>
               </div>
               <div className="bg-blue-100 p-3 rounded-full">
                 <User className="w-6 h-6 text-blue-600" />
@@ -333,9 +362,9 @@ const EmployeeList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Active Employees</p>
+                <p className="text-gray-600 text-sm">সক্রিয় কর্মচারী</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {filteredEmployees.filter(emp => emp.status === 'active' || emp.status === 'Active').length}
+                  {formatNumberBengali(filteredEmployees.filter(emp => emp.status === 'active' || emp.status === 'Active').length)}
                 </p>
               </div>
               <div className="bg-green-100 p-3 rounded-full">
@@ -347,9 +376,9 @@ const EmployeeList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Departments</p>
+                <p className="text-gray-600 text-sm">বিভাগ</p>
                 <p className="text-2xl font-bold text-purple-600">
-                  {new Set(filteredEmployees.map(emp => emp.department)).size}
+                  {formatNumberBengali(new Set(filteredEmployees.map(emp => emp.department)).size)}
                 </p>
               </div>
               <div className="bg-purple-100 p-3 rounded-full">
@@ -361,9 +390,9 @@ const EmployeeList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Avg. Salary</p>
+                <p className="text-gray-600 text-sm">গড় বেতন</p>
                 <p className="text-2xl font-bold text-orange-600">
-                  ৳{filteredEmployees.length > 0 ? Math.round(filteredEmployees.reduce((sum, emp) => sum + (emp.basicSalary || 0), 0) / filteredEmployees.length).toLocaleString() : '0'}
+                  ৳{filteredEmployees.length > 0 ? formatNumberBengali(Math.round(filteredEmployees.reduce((sum, emp) => sum + (emp.basicSalary || 0), 0) / filteredEmployees.length)) : toBengaliNumeral('0')}
                 </p>
               </div>
               <div className="bg-orange-100 p-3 rounded-full">
@@ -378,11 +407,11 @@ const EmployeeList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Paid Salary</p>
+                <p className="text-gray-600 text-sm">মোট প্রদত্ত বেতন</p>
                 <p className="text-2xl font-bold text-indigo-600">
-                  ৳{salaryStats.totalPaidSalary.toLocaleString()}
+                  ৳{formatNumberBengali(salaryStats.totalPaidSalary)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">All time</p>
+                <p className="text-xs text-gray-500 mt-1">সর্বমোট</p>
               </div>
               <div className="bg-indigo-100 p-3 rounded-full">
                 <DollarSign className="w-6 h-6 text-indigo-600" />
@@ -393,11 +422,11 @@ const EmployeeList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">This Month Paid Salary</p>
+                <p className="text-gray-600 text-sm">এই মাসের প্রদত্ত বেতন</p>
                 <p className="text-2xl font-bold text-emerald-600">
-                  ৳{salaryStats.thisMonthPaidSalary.toLocaleString()}
+                  ৳{formatNumberBengali(salaryStats.thisMonthPaidSalary)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                <p className="text-xs text-gray-500 mt-1">{new Date().toLocaleString('bn-BD', { month: 'long', year: 'numeric' })}</p>
               </div>
               <div className="bg-emerald-100 p-3 rounded-full">
                 <DollarSign className="w-6 h-6 text-emerald-600" />
@@ -408,11 +437,11 @@ const EmployeeList = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">This Month Salary Dues</p>
+                <p className="text-gray-600 text-sm">এই মাসের বকেয়া বেতন</p>
                 <p className="text-2xl font-bold text-red-600">
-                  ৳{salaryStats.thisMonthSalaryDues.toLocaleString()}
+                  ৳{formatNumberBengali(salaryStats.thisMonthSalaryDues)}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">Pending payment</p>
+                <p className="text-xs text-gray-500 mt-1">অপেক্ষমান পেমেন্ট</p>
               </div>
               <div className="bg-red-100 p-3 rounded-full">
                 <DollarSign className="w-6 h-6 text-red-600" />
@@ -428,7 +457,7 @@ const EmployeeList = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search employees..."
+                placeholder="কর্মচারী খুঁজুন..."
                 value={filters.search}
                 onChange={handleSearch}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -441,9 +470,9 @@ const EmployeeList = () => {
                 onChange={(e) => handleFilterChange('department', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">All Departments</option>
+                <option value="">সব বিভাগ</option>
                 {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
+                  <option key={dept} value={dept}>{getDepartmentLabel(dept)}</option>
                 ))}
               </select>
             </div>
@@ -454,15 +483,15 @@ const EmployeeList = () => {
                 onChange={(e) => handleFilterChange('status', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
+                <option value="">সব স্ট্যাটাস</option>
+                <option value="active">সক্রিয়</option>
+                <option value="inactive">নিষ্ক্রিয়</option>
               </select>
             </div>
             
             <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
               <Filter className="w-5 h-5" />
-              More Filters
+              আরও ফিল্টার
             </button>
           </div>
         </div>
@@ -473,14 +502,14 @@ const EmployeeList = () => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Employee</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Position</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Department</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Contact</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Join Date</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Salary</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Status</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">Actions</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">কর্মচারী</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">পদ</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বিভাগ</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">যোগাযোগ</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">যোগদানের তারিখ</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">বেতন</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">স্ট্যাটাস</th>
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-700">অ্যাকশন</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -493,7 +522,7 @@ const EmployeeList = () => {
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{employee.firstName} {employee.lastName}</p>
-                          <p className="text-sm text-gray-500">ID: {employee.employeeId}</p>
+                          <p className="text-sm text-gray-500">ID: {employee.employeeId || employee.employerId || 'N/A'}</p>
                         </div>
                       </div>
                     </td>
@@ -502,7 +531,7 @@ const EmployeeList = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {employee.department}
+                        {getDepartmentLabel(employee.department)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -528,7 +557,7 @@ const EmployeeList = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">৳{(employee.basicSalary || 0).toLocaleString()}</p>
+                      <p className="font-medium text-gray-900">৳{formatNumberBengali(employee.basicSalary || 0)}</p>
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -539,7 +568,7 @@ const EmployeeList = () => {
                             : 'bg-red-100 text-red-800 hover:bg-red-200'
                         }`}
                       >
-                        {employee.status === 'active' ? 'Active' : employee.status === 'inactive' ? 'Inactive' : employee.status}
+                        {employee.status === 'active' || employee.status === 'Active' ? 'সক্রিয়' : employee.status === 'inactive' || employee.status === 'Inactive' ? 'নিষ্ক্রিয়' : employee.status}
                       </button>
                     </td>
                     <td className="px-6 py-4">
@@ -547,21 +576,21 @@ const EmployeeList = () => {
                         <button
                           onClick={() => handleView(employee)}
                           className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                          title="View Details"
+                          title="বিস্তারিত দেখুন"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleEdit(employee)}
                           className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
-                          title="Edit Employee"
+                          title="কর্মচারী সম্পাদনা করুন"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(employee.id, `${employee.firstName} ${employee.lastName}`)}
                           className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                          title="Delete Employee"
+                          title="কর্মচারী মুছুন"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -576,9 +605,9 @@ const EmployeeList = () => {
           {filteredEmployees.length === 0 && (
             <div className="text-center py-12">
               <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">No employees found</p>
+              <p className="text-gray-500 text-lg">কোন কর্মচারী পাওয়া যায়নি</p>
               <p className="text-gray-400 text-sm mt-2">
-                Try adjusting your search criteria or add a new employee
+                অনুগ্রহ করে আপনার অনুসন্ধানের মানদণ্ড পরিবর্তন করুন অথবা নতুন কর্মচারী যোগ করুন
               </p>
             </div>
           )}
@@ -588,7 +617,7 @@ const EmployeeList = () => {
         {pagination.totalPages > 1 && (
           <div className="flex justify-between items-center mt-6">
             <p className="text-gray-600">
-              Showing {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} to {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} of {pagination.totalItems} employees
+              দেখানো হচ্ছে {formatNumberBengali(((pagination.currentPage - 1) * pagination.itemsPerPage) + 1)} থেকে {formatNumberBengali(Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems))} এর {formatNumberBengali(pagination.totalItems)} কর্মচারী
             </p>
             <div className="flex gap-2">
               <button 
@@ -596,7 +625,7 @@ const EmployeeList = () => {
                 disabled={pagination.currentPage === 1}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Previous
+                আগে
               </button>
               {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((page) => (
                 <button
@@ -608,7 +637,7 @@ const EmployeeList = () => {
                       : 'border border-gray-300 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  {page}
+                  {formatNumberBengali(page, false)}
                 </button>
               ))}
               <button 
@@ -616,7 +645,7 @@ const EmployeeList = () => {
                 disabled={pagination.currentPage === pagination.totalPages}
                 className="px-3 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Next
+                পরে
               </button>
             </div>
           </div>

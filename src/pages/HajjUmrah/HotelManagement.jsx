@@ -1,27 +1,46 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Building2, MapPin, Phone, Mail, FileText } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, Edit, Trash2, Building2, MapPin, Phone, Mail, Eye } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import DataTable from '../../components/common/DataTable';
-import useLicenseQueries from '../../hooks/useLicenseQueries';
+import useHotelQueries from '../../hooks/useHotelQueries';
 import Swal from 'sweetalert2';
 
 const HotelManagement = () => {
-  // Mock data - Replace with actual API hooks when backend is ready
-  const [hotels, setHotels] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const navigate = useNavigate();
+  
+  // Hotel queries
+  const { 
+    useHotels, 
+    useCreateHotel, 
+    useUpdateHotel, 
+    useDeleteHotel
+  } = useHotelQueries();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [areaFilter, setAreaFilter] = useState('');
+  
+  // Fetch hotels with filters
+  const { data: hotelsResponse, isLoading, error, refetch } = useHotels({
+    page: 1,
+    limit: 1000,
+    search: searchTerm || undefined,
+    area: areaFilter || undefined
+  });
+  
+  const hotels = useMemo(() => {
+    if (!hotelsResponse?.data) return [];
+    return Array.isArray(hotelsResponse.data) ? hotelsResponse.data : [];
+  }, [hotelsResponse]);
+
+  // Mutations
+  const createHotel = useCreateHotel();
+  const updateHotel = useUpdateHotel();
+  const deleteHotel = useDeleteHotel();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [editingHotel, setEditingHotel] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [createdHotelId, setCreatedHotelId] = useState(null);
-  
-  // License queries for Nusuk Agency dropdown
-  const { useLicenses } = useLicenseQueries();
-  const { data: licensesData } = useLicenses();
-  const licenses = useMemo(() => (Array.isArray(licensesData) ? licensesData : licensesData?.data || []), [licensesData]);
   const [formData, setFormData] = useState({
     area: '',
     hotelName: '',
@@ -31,21 +50,6 @@ const HotelManagement = () => {
     distanceFromHaram: '',
     email: '',
     mobileNumber: ''
-  });
-
-  // Contract form data
-  const [contractFormData, setContractFormData] = useState({
-    contractType: 'হজ্ব', // হজ্ব / উমরাহ / অন্যান্য
-    nusukAgencyId: '',
-    requestNumber: '',
-    hotelName: '',
-    contractNumber: '',
-    contractStart: '',
-    contractEnd: '',
-    hajjiCount: '',
-    nusukPayment: '',
-    cashPayment: '',
-    otherBills: ''
   });
 
   const resetForm = () => {
@@ -62,31 +66,6 @@ const HotelManagement = () => {
     setEditingHotel(null);
   };
 
-  const resetContractForm = () => {
-    setContractFormData({
-      contractType: 'হজ্ব',
-      nusukAgencyId: '',
-      requestNumber: '',
-      hotelName: formData.hotelName || '',
-      contractNumber: '',
-      contractStart: '',
-      contractEnd: '',
-      hajjiCount: '',
-      nusukPayment: '',
-      cashPayment: '',
-      otherBills: ''
-    });
-  };
-
-  // Update hotel name in contract form when formData changes
-  useEffect(() => {
-    if (isContractModalOpen && formData.hotelName) {
-      setContractFormData(prev => ({
-        ...prev,
-        hotelName: formData.hotelName
-      }));
-    }
-  }, [isContractModalOpen, formData.hotelName]);
 
   const handleOpenModal = () => {
     resetForm();
@@ -96,6 +75,23 @@ const HotelManagement = () => {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     resetForm();
+  };
+
+  const handleView = (hotel) => {
+    const hotelId = hotel._id || hotel.id;
+    
+    if (!hotelId) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'হোটেল ID পাওয়া যায়নি।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+    
+    navigate(`/hajj-umrah/hotel-management/${hotelId}`);
   };
 
   const handleEdit = (hotel) => {
@@ -116,10 +112,10 @@ const HotelManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.hotelName.trim()) {
+    if (!formData.hotelName.trim() || !formData.area.trim()) {
       Swal.fire({
         title: 'ত্রুটি!',
-        text: 'অনুগ্রহ করে হোটেলের নাম পূরণ করুন।',
+        text: 'অনুগ্রহ করে হোটেলের নাম এবং এলাকা পূরণ করুন।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -128,7 +124,6 @@ const HotelManagement = () => {
     }
 
     try {
-      // TODO: Replace with actual API call when backend is ready
       const payload = {
         area: formData.area.trim(),
         hotelName: formData.hotelName.trim(),
@@ -141,8 +136,10 @@ const HotelManagement = () => {
       };
 
       if (editingHotel) {
-        // TODO: Update hotel API call
-        // await updateHotel.mutateAsync({ id: editingHotel._id || editingHotel.id, data: payload });
+        const result = await updateHotel.mutateAsync({ 
+          id: editingHotel._id || editingHotel.id, 
+          data: payload 
+        });
         
         Swal.fire({
           title: 'সফল!',
@@ -152,13 +149,7 @@ const HotelManagement = () => {
           confirmButtonColor: '#10B981',
         });
       } else {
-        // TODO: Create hotel API call
-        // const result = await createHotel.mutateAsync(payload);
-        // const hotelId = result.data._id || result.data.id;
-        
-        // For now, use a mock ID
-        const mockHotelId = 'hotel_' + Date.now();
-        setCreatedHotelId(mockHotelId);
+        await createHotel.mutateAsync(payload);
         
         Swal.fire({
           title: 'সফল!',
@@ -168,10 +159,7 @@ const HotelManagement = () => {
           confirmButtonColor: '#10B981',
         });
 
-        // Open contract modal after hotel creation
         handleCloseModal();
-        resetContractForm();
-        setIsContractModalOpen(true);
         return;
       }
 
@@ -200,48 +188,32 @@ const HotelManagement = () => {
       cancelButtonText: 'বাতিল',
       confirmButtonColor: '#EF4444',
       cancelButtonColor: '#6B7280',
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        // TODO: Replace with actual API call when backend is ready
-        // deleteHotel.mutate(hotelId, {
-        //   onSuccess: () => {
-        Swal.fire({
-          title: 'সফল!',
-          text: 'হোটেল সফলভাবে মুছে ফেলা হয়েছে।',
-          icon: 'success',
-          confirmButtonText: 'ঠিক আছে',
-          confirmButtonColor: '#10B981',
-        });
-        //   },
-        //   onError: (error) => {
-        //     Swal.fire({
-        //       title: 'ত্রুটি!',
-        //       text: error.message || 'হোটেল মুছতে সমস্যা হয়েছে।',
-        //       icon: 'error',
-        //       confirmButtonText: 'ঠিক আছে',
-        //       confirmButtonColor: '#EF4444',
-        //     });
-        //   }
-        // });
+        try {
+          await deleteHotel.mutateAsync(hotelId);
+          Swal.fire({
+            title: 'সফল!',
+            text: 'হোটেল সফলভাবে মুছে ফেলা হয়েছে।',
+            icon: 'success',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#10B981',
+          });
+        } catch (error) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: error.message || 'হোটেল মুছতে সমস্যা হয়েছে।',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+          });
+        }
       }
     });
   };
 
-  const filteredHotels = useMemo(() => {
-    if (!searchTerm) return hotels;
-    
-    const search = searchTerm.toLowerCase();
-    return hotels.filter(hotel =>
-      (hotel.hotelName && hotel.hotelName.toLowerCase().includes(search)) ||
-      (hotel.area && hotel.area.toLowerCase().includes(search)) ||
-      (hotel.tasrihNumber && hotel.tasrihNumber.toLowerCase().includes(search)) ||
-      (hotel.tasnifNumber && hotel.tasnifNumber.toLowerCase().includes(search)) ||
-      (hotel.address && hotel.address.toLowerCase().includes(search)) ||
-      (hotel.distanceFromHaram && hotel.distanceFromHaram.includes(search)) ||
-      (hotel.mobileNumber && hotel.mobileNumber.includes(search)) ||
-      (hotel.email && hotel.email.toLowerCase().includes(search))
-    );
-  }, [hotels, searchTerm]);
+  // Hotels are already filtered by backend, but we can do client-side filtering if needed
+  const filteredHotels = hotels;
 
   const columns = [
     {
@@ -331,6 +303,13 @@ const HotelManagement = () => {
       render: (value, hotel) => (
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => handleView(hotel)}
+            className="p-2 text-blue-600 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg"
+            title="বিস্তারিত দেখুন"
+          >
+            <Eye className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => handleEdit(hotel)}
             className="p-2 text-green-600 hover:bg-green-100 dark:hover:bg-green-900/20 rounded-lg"
             title="সম্পাদনা করুন"
@@ -414,6 +393,11 @@ const HotelManagement = () => {
           <div>
             <p className="text-sm text-gray-600 dark:text-gray-400">মোট হোটেল</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{hotels.length.toLocaleString('bn-BD')}</p>
+            {hotelsResponse?.pagination && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                মোট: {hotelsResponse.pagination.totalItems}
+              </p>
+            )}
           </div>
           <Building2 className="w-8 h-8 text-blue-600 dark:text-blue-400" />
         </div>
@@ -575,268 +559,21 @@ const HotelManagement = () => {
             >
               বাতিল
             </button>
-            <button
+              <button
               type="submit"
+              disabled={createHotel.isPending || updateHotel.isPending}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {editingHotel ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
+              {createHotel.isPending || updateHotel.isPending 
+                ? 'সংরক্ষণ হচ্ছে...' 
+                : editingHotel 
+                  ? 'আপডেট করুন' 
+                  : 'সংরক্ষণ করুন'}
             </button>
           </ModalFooter>
         </form>
       </Modal>
 
-      {/* Hotel Contract Modal */}
-      <Modal
-        isOpen={isContractModalOpen}
-        onClose={() => {
-          setIsContractModalOpen(false);
-          resetContractForm();
-          setCreatedHotelId(null);
-        }}
-        title="হোটেল চুক্তি"
-        size="xl"
-      >
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          // TODO: Save contract data
-          Swal.fire({
-            title: 'সফল!',
-            text: 'হোটেল চুক্তি সফলভাবে সংরক্ষণ হয়েছে।',
-            icon: 'success',
-            confirmButtonText: 'ঠিক আছে',
-            confirmButtonColor: '#10B981',
-          });
-          setIsContractModalOpen(false);
-          resetContractForm();
-          setCreatedHotelId(null);
-        }} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              হোটেল চুক্তি (হজ্ব / উমরাহ / অন্যান্য) <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={contractFormData.contractType}
-              onChange={(e) => setContractFormData({ ...contractFormData, contractType: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              required
-            >
-              <option value="হজ্ব">হজ্ব</option>
-              <option value="উমরাহ">উমরাহ</option>
-              <option value="অন্যান্য">অন্যান্য</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              নুসুক এজেন্সি <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={contractFormData.nusukAgencyId}
-              onChange={(e) => setContractFormData({ ...contractFormData, nusukAgencyId: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              required
-            >
-              <option value="">নুসুক এজেন্সি নির্বাচন করুন</option>
-              {licenses.map((license) => (
-                <option key={license._id || license.id} value={license._id || license.id}>
-                  {license.licenseNumber} - {license.licenseName}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              রিকোয়েস্ট নাম্বার <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={contractFormData.requestNumber}
-              onChange={(e) => setContractFormData({ ...contractFormData, requestNumber: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="রিকোয়েস্ট নাম্বার লিখুন"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              হোটেল নেম (নুসুক অনুযায়ী) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={contractFormData.hotelName}
-              onChange={(e) => setContractFormData({ ...contractFormData, hotelName: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="হোটেল নেম লিখুন"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              চুক্তি নাম্বার <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={contractFormData.contractNumber}
-              onChange={(e) => setContractFormData({ ...contractFormData, contractNumber: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="চুক্তি নাম্বার লিখুন"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                চুক্তি শুরু <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={contractFormData.contractStart}
-                onChange={(e) => setContractFormData({ ...contractFormData, contractStart: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                চুক্তি শেষ <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={contractFormData.contractEnd}
-                onChange={(e) => setContractFormData({ ...contractFormData, contractEnd: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              হাজ্বী সংখ্যা <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              value={contractFormData.hajjiCount}
-              onChange={(e) => setContractFormData({ ...contractFormData, hajjiCount: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="হাজ্বী সংখ্যা লিখুন"
-              min="1"
-              step="1"
-              required
-            />
-          </div>
-
-          {/* Payment Section */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">পেমেন্ট তথ্য</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  নুসুক পেমেন্ট
-                </label>
-                <input
-                  type="number"
-                  value={contractFormData.nusukPayment}
-                  onChange={(e) => setContractFormData({ ...contractFormData, nusukPayment: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="নুসুক পেমেন্ট লিখুন"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  ক্যাশ পেমেন্ট
-                </label>
-                <input
-                  type="number"
-                  value={contractFormData.cashPayment}
-                  onChange={(e) => setContractFormData({ ...contractFormData, cashPayment: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="ক্যাশ পেমেন্ট লিখুন"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  অন্যান্য বিল
-                </label>
-                <input
-                  type="number"
-                  value={contractFormData.otherBills}
-                  onChange={(e) => setContractFormData({ ...contractFormData, otherBills: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-                  placeholder="অন্যান্য বিল লিখুন"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Calculated Values */}
-          <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">গণনা</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">মোট বিল (নুসুক অনুযায়ী):</span>
-                <span className="text-lg font-bold text-gray-900 dark:text-white">
-                  {(
-                    parseFloat(contractFormData.nusukPayment || 0) +
-                    parseFloat(contractFormData.cashPayment || 0) +
-                    parseFloat(contractFormData.otherBills || 0)
-                  ).toLocaleString('bn-BD')} ৳
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">জনপ্রতি:</span>
-                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  {contractFormData.hajjiCount && parseFloat(contractFormData.hajjiCount) > 0
-                    ? (
-                        (
-                          (parseFloat(contractFormData.nusukPayment || 0) +
-                           parseFloat(contractFormData.cashPayment || 0) +
-                           parseFloat(contractFormData.otherBills || 0)) /
-                          parseFloat(contractFormData.hajjiCount)
-                        ).toLocaleString('bn-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      ) + ' ৳'
-                    : '0.00 ৳'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <ModalFooter>
-            <button
-              type="button"
-              onClick={() => {
-                setIsContractModalOpen(false);
-                resetContractForm();
-                setCreatedHotelId(null);
-              }}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-            >
-              বাতিল
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              <FileText className="w-4 h-4" />
-              <span>সংরক্ষণ করুন</span>
-            </button>
-          </ModalFooter>
-        </form>
-      </Modal>
     </div>
   );
 };

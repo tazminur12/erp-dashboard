@@ -90,6 +90,7 @@ const UmrahPackageCosting = React.lazy(() => import('./pages/HajjUmrah').then(mo
 const UmrahPackageEdit = React.lazy(() => import('./pages/HajjUmrah').then(module => ({ default: module.UmrahPackageEdit })).catch(() => ({ default: () => <div>Component not found</div> })));
 const LicenseManagement = React.lazy(() => import('./pages/HajjUmrah/LicenseManagement'));
 const HotelManagement = React.lazy(() => import('./pages/HajjUmrah/HotelManagement'));
+const HotelDetails = React.lazy(() => import('./pages/HajjUmrah/HotelDetails'));
 
 // Air Ticketing pages
 const AirTicketDashboard = React.lazy(() => import('./pages/AirTicketing/Dashboard'));
@@ -626,6 +627,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <HotelManagement />
+          </Suspense>
+        )
+      },
+      {
+        path: "hotel-management/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <HotelDetails />
           </Suspense>
         )
       },

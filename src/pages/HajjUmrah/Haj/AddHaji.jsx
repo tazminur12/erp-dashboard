@@ -1101,6 +1101,18 @@ useEffect(() => {
               onChange={handleInputChange}
               placeholder="Enter manual serial number"
             />
+            <InputGroup 
+              label="First Name" 
+              name="firstName" 
+              value={formData.firstName}
+              onChange={handleInputChange}
+            />
+            <InputGroup 
+              label="Last Name" 
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleInputChange}
+            />
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 Full Name <span className="text-red-500">*</span>
@@ -1114,18 +1126,6 @@ useEffect(() => {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 cursor-not-allowed"
               />
             </div>
-            <InputGroup 
-              label="First Name" 
-              name="firstName" 
-              value={formData.firstName}
-              onChange={handleInputChange}
-            />
-            <InputGroup 
-              label="Last Name" 
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleInputChange}
-            />
             <InputGroup 
               label="Father's Name" 
               name="fatherName" 

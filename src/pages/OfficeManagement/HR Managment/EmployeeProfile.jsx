@@ -47,7 +47,7 @@ const EmployeeProfile = () => {
       <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading employee profile...</p>
+          <p className="text-gray-600">কর্মচারী প্রোফাইল লোড হচ্ছে...</p>
         </div>
       </div>
     );
@@ -58,13 +58,13 @@ const EmployeeProfile = () => {
       <div className="p-6 bg-gray-50 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Employee Not Found</h2>
-          <p className="text-gray-600 mb-4">The employee you're looking for doesn't exist.</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">কর্মচারী পাওয়া যায়নি</h2>
+          <p className="text-gray-600 mb-4">আপনি যে কর্মচারী খুঁজছেন তিনি বিদ্যমান নেই।</p>
           <button
             onClick={handleGoBack}
             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
           >
-            Back to Employee List
+            কর্মচারী তালিকায় ফিরে যান
           </button>
         </div>
       </div>
@@ -72,9 +72,9 @@ const EmployeeProfile = () => {
   }
 
   const tabs = [
-    { id: 'overview', name: 'Overview', icon: User },
-    { id: 'employment', name: 'Employment', icon: Briefcase },
-    { id: 'documents', name: 'Documents', icon: FileText }
+    { id: 'overview', name: 'সারসংক্ষেপ', icon: User },
+    { id: 'employment', name: 'কর্মসংস্থান', icon: Briefcase },
+    { id: 'documents', name: 'নথিপত্র', icon: FileText }
   ];
 
   const renderOverviewTab = () => (
@@ -83,31 +83,31 @@ const EmployeeProfile = () => {
       <div className="bg-white rounded-xl shadow-sm border p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <User className="w-5 h-5 text-blue-600" />
-          Personal Information
+          ব্যক্তিগত তথ্য
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Full Name</label>
+              <label className="block text-sm font-medium text-gray-700">পূর্ণ নাম</label>
               <p className="text-gray-900">{employee.name || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Date of Birth</label>
-              <p className="text-gray-900">{employee.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString() : 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">জন্ম তারিখ</label>
+              <p className="text-gray-900">{employee.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString('bn-BD') : 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Gender</label>
-              <p className="text-gray-900 capitalize">{employee.gender}</p>
+              <label className="block text-sm font-medium text-gray-700">লিঙ্গ</label>
+              <p className="text-gray-900 capitalize">{employee.gender || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Emergency Contact</label>
-              <p className="text-gray-900">{employee.emergencyContact || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">জরুরি যোগাযোগ</label>
+              <p className="text-gray-900">{employee.emergencyContact || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Emergency Phone</label>
-              <p className="text-gray-900">{employee.emergencyPhone || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">জরুরি ফোন</label>
+              <p className="text-gray-900">{employee.emergencyPhone || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
           </div>
         </div>
@@ -117,21 +117,21 @@ const EmployeeProfile = () => {
       <div className="bg-white rounded-xl shadow-sm border p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Mail className="w-5 h-5 text-green-600" />
-          Contact Information
+          যোগাযোগের তথ্য
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <Mail className="w-5 h-5 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-700">Email</p>
+                <p className="text-sm font-medium text-gray-700">ইমেইল</p>
                 <p className="text-gray-900">{employee.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Phone className="w-5 h-5 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-700">Phone</p>
+                <p className="text-sm font-medium text-gray-700">ফোন</p>
                 <p className="text-gray-900">{employee.phone}</p>
               </div>
             </div>
@@ -140,8 +140,8 @@ const EmployeeProfile = () => {
             <div className="flex items-start gap-3">
               <MapPin className="w-5 h-5 text-gray-400 mt-1" />
               <div>
-                <p className="text-sm font-medium text-gray-700">Address</p>
-                <p className="text-gray-900">{employee.address || 'Not specified'}</p>
+                <p className="text-sm font-medium text-gray-700">ঠিকানা</p>
+                <p className="text-gray-900">{employee.address || 'নির্দিষ্ট করা হয়নি'}</p>
               </div>
             </div>
           </div>
@@ -157,52 +157,52 @@ const EmployeeProfile = () => {
       <div className="bg-white rounded-xl shadow-sm border p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Briefcase className="w-5 h-5 text-blue-600" />
-          Employment Details
+          কর্মসংস্থান বিবরণ
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Employee ID</label>
+              <label className="block text-sm font-medium text-gray-700">কর্মচারী ID</label>
               <p className="text-gray-900 font-mono">{employee.employerId || employee.employeeId}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Position</label>
+              <label className="block text-sm font-medium text-gray-700">পদ</label>
               <p className="text-gray-900">{employee.designation || employee.position}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Department</label>
+              <label className="block text-sm font-medium text-gray-700">বিভাগ</label>
               <p className="text-gray-900">{employee.department}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Manager</label>
-              <p className="text-gray-900">{employee.manager || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">ম্যানেজার</label>
+              <p className="text-gray-900">{employee.manager || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
           </div>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Join Date</label>
-              <p className="text-gray-900">{new Date(employee.joiningDate || employee.joinDate).toLocaleDateString()}</p>
+              <label className="block text-sm font-medium text-gray-700">যোগদানের তারিখ</label>
+              <p className="text-gray-900">{new Date(employee.joiningDate || employee.joinDate).toLocaleDateString('bn-BD')}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Employment Type</label>
-              <p className="text-gray-900">{employee.employmentType || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">কর্মসংস্থানের ধরন</label>
+              <p className="text-gray-900">{employee.employmentType || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Work Location</label>
-              <p className="text-gray-900">{employee.workLocation || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">কর্মস্থল</label>
+              <p className="text-gray-900">{employee.workLocation || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Branch</label>
-              <p className="text-gray-900">{employee.branch || employee.branchId || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">শাখা</label>
+              <p className="text-gray-900">{employee.branch || employee.branchId || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Status</label>
+              <label className="block text-sm font-medium text-gray-700">স্ট্যাটাস</label>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                 (employee.status === 'active' || employee.status === 'Active')
                   ? 'bg-green-100 text-green-800' 
                   : 'bg-red-100 text-red-800'
               }`}>
-                {employee.status === 'active' ? 'Active' : employee.status === 'inactive' ? 'Inactive' : employee.status}
+                {employee.status === 'active' || employee.status === 'Active' ? 'সক্রিয়' : employee.status === 'inactive' || employee.status === 'Inactive' ? 'নিষ্ক্রিয়' : employee.status}
               </span>
             </div>
           </div>
@@ -213,35 +213,35 @@ const EmployeeProfile = () => {
       <div className="bg-white rounded-xl shadow-sm border p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <DollarSign className="w-5 h-5 text-green-600" />
-          Salary Information
+          বেতন তথ্য
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-700">Basic Salary</p>
+            <p className="text-sm font-medium text-gray-700">মূল বেতন</p>
             <p className="text-2xl font-bold text-gray-900">৳{(employee.salary || employee.basicSalary || 0).toLocaleString()}</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-700">Allowances</p>
+            <p className="text-sm font-medium text-gray-700">ভাতা</p>
             <p className="text-2xl font-bold text-gray-900">৳{(employee.allowances || 0).toLocaleString()}</p>
           </div>
           <div className="text-center p-4 bg-gray-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-700">Total</p>
+            <p className="text-sm font-medium text-gray-700">মোট</p>
             <p className="text-2xl font-bold text-blue-600">৳{((employee.basicSalary || 0) + (employee.allowances || 0)).toLocaleString()}</p>
           </div>
         </div>
         <div className="mt-4 space-y-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Benefits</label>
-            <p className="text-gray-900">{employee.benefits || 'Not specified'}</p>
+            <label className="block text-sm font-medium text-gray-700">সুবিধা</label>
+            <p className="text-gray-900">{employee.benefits || 'নির্দিষ্ট করা হয়নি'}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Bank Account</label>
-              <p className="text-gray-900 font-mono">{employee.bankAccount || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">ব্যাংক একাউন্ট</label>
+              <p className="text-gray-900 font-mono">{employee.bankAccount || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Bank Name</label>
-              <p className="text-gray-900">{employee.bankName || 'Not specified'}</p>
+              <label className="block text-sm font-medium text-gray-700">ব্যাংকের নাম</label>
+              <p className="text-gray-900">{employee.bankName || 'নির্দিষ্ট করা হয়নি'}</p>
             </div>
           </div>
         </div>
@@ -262,7 +262,7 @@ const EmployeeProfile = () => {
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600" />
-            Documents
+            নথিপত্র
           </h3>
           <div className="space-y-4">
             {/* Profile Picture */}
@@ -271,8 +271,8 @@ const EmployeeProfile = () => {
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-gray-400" />
                   <div>
-                    <p className="font-medium text-gray-900">Profile Picture</p>
-                    <p className="text-sm text-gray-500">Image • Profile photo</p>
+                    <p className="font-medium text-gray-900">প্রোফাইল ছবি</p>
+                    <p className="text-sm text-gray-500">ছবি • প্রোফাইল ফটো</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ const EmployeeProfile = () => {
                     className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                   >
                     <Download className="w-4 h-4" />
-                    Download
+                    ডাউনলোড
                   </button>
                 </div>
               </div>
@@ -303,8 +303,8 @@ const EmployeeProfile = () => {
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-gray-400" />
                   <div>
-                    <p className="font-medium text-gray-900">NID Copy</p>
-                    <p className="text-sm text-gray-500">Document • National ID copy</p>
+                    <p className="font-medium text-gray-900">জাতীয় পরিচয়পত্র (NID) কপি</p>
+                    <p className="text-sm text-gray-500">নথি • জাতীয় পরিচয়পত্রের কপি</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -321,14 +321,14 @@ const EmployeeProfile = () => {
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                   >
                     <Download className="w-4 h-4" />
-                    Download NID
+                    NID ডাউনলোড
                   </button>
                   <button 
                     onClick={() => window.open(nidCopyUrl, '_blank')}
                     className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
                   >
                     <FileText className="w-4 h-4" />
-                    View
+                    দেখুন
                   </button>
                 </div>
               </div>
@@ -341,8 +341,8 @@ const EmployeeProfile = () => {
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-gray-400" />
                   <div>
-                    <p className="font-medium text-gray-900">{doc.name || `Document ${index + 1}`}</p>
-                    <p className="text-sm text-gray-500">{doc.type || 'Document'} • Additional document</p>
+                    <p className="font-medium text-gray-900">{doc.name || `নথি ${index + 1}`}</p>
+                    <p className="text-sm text-gray-500">{doc.type || 'নথি'} • অতিরিক্ত নথি</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -359,14 +359,14 @@ const EmployeeProfile = () => {
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                   >
                     <Download className="w-4 h-4" />
-                    Download
+                    ডাউনলোড
                   </button>
                   <button 
                     onClick={() => window.open(doc.url || doc.link, '_blank')}
                     className="flex items-center gap-2 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200"
                   >
                     <FileText className="w-4 h-4" />
-                    View
+                    দেখুন
                   </button>
                 </div>
               </div>
@@ -376,9 +376,9 @@ const EmployeeProfile = () => {
           {!profilePictureUrl && !nidCopyUrl && (!employee.otherDocuments || employee.otherDocuments.length === 0) && (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">No documents uploaded</p>
+              <p className="text-gray-500 text-lg">কোন নথি আপলোড করা হয়নি</p>
               <p className="text-gray-400 text-sm mt-2">
-                Documents will appear here once uploaded
+                নথি আপলোড করার পর এখানে দেখা যাবে
               </p>
             </div>
           )}
@@ -424,7 +424,7 @@ const EmployeeProfile = () => {
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 transition-colors"
             >
               <Edit className="w-5 h-5" />
-              Edit Profile
+              প্রোফাইল সম্পাদনা করুন
             </button>
           </div>
         </div>
@@ -458,11 +458,11 @@ const EmployeeProfile = () => {
                     ? 'bg-green-100 text-green-800' 
                     : 'bg-red-100 text-red-800'
                 }`}>
-                  {employee.status === 'active' ? 'Active' : employee.status === 'inactive' ? 'Inactive' : employee.status}
+                  {employee.status === 'active' || employee.status === 'Active' ? 'সক্রিয়' : employee.status === 'inactive' || employee.status === 'Inactive' ? 'নিষ্ক্রিয়' : employee.status}
                 </span>
               </div>
               <p className="text-lg text-gray-600 mb-1">{employee.position}</p>
-              <p className="text-gray-500">{employee.department} • Employee ID: {employee.employeeId}</p>
+              <p className="text-gray-500">{employee.department} • কর্মচারী ID: {employee.employeeId}</p>
               <div className="flex items-center gap-6 mt-3">
                 <div className="flex items-center gap-2 text-gray-600">
                   <Mail className="w-4 h-4" />
@@ -474,7 +474,7 @@ const EmployeeProfile = () => {
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <Calendar className="w-4 h-4" />
-                  Joined {new Date(employee.joinDate).toLocaleDateString()}
+                  যোগদান {new Date(employee.joinDate).toLocaleDateString('bn-BD')}
                 </div>
               </div>
             </div>
