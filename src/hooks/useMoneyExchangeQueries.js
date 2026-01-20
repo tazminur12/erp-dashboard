@@ -278,6 +278,23 @@ export const useDeleteExchange = () => {
   });
 };
 
+// Normalize reserve data from backend (matches backend structure)
+const normalizeReserve = (reserve) => ({
+  currencyCode: reserve?.currencyCode || '',
+  currencyName: reserve?.currencyName || reserve?.currencyCode || '',
+  totalBought: Number(reserve?.totalBought || 0),
+  totalSold: Number(reserve?.totalSold || 0),
+  adjustmentAmount: Number(reserve?.adjustmentAmount || reserve?.adjustment || 0),
+  adjustment: Number(reserve?.adjustmentAmount || reserve?.adjustment || 0), // Alias for compatibility
+  reserve: Number(reserve?.reserve || 0), // Current reserve (includes adjustments)
+  weightedAveragePurchasePrice: Number(reserve?.weightedAveragePurchasePrice || 0),
+  currentReserveValue: Number(reserve?.currentReserveValue || 0),
+  totalPurchaseCost: Number(reserve?.totalPurchaseCost || 0),
+  totalSaleRevenue: Number(reserve?.totalSaleRevenue || 0),
+  lastBuyRate: Number(reserve?.lastBuyRate || 0),
+  lastSellRate: Number(reserve?.lastSellRate || 0),
+});
+
 // Get currency reserves
 export const useReserves = () => {
   const axiosSecure = useSecureAxios();
@@ -285,8 +302,14 @@ export const useReserves = () => {
     queryKey: exchangeKeys.reserves(),
     queryFn: async () => {
       const { data } = await axiosSecure.get('/api/exchanges/reserves');
+      
+      // Normalize reserves data
+      const normalizedData = Array.isArray(data?.data) 
+        ? data.data.map(normalizeReserve)
+        : [];
+      
       return {
-        data: Array.isArray(data?.data) ? data.data : [],
+        data: normalizedData,
         summary: data?.summary || {
           totalCurrencies: 0,
           totalReserveValue: 0,
@@ -297,6 +320,21 @@ export const useReserves = () => {
     cacheTime: 5 * 60 * 1000, // 5 minutes
   });
 };
+
+// Normalize dashboard data from backend (matches backend structure)
+const normalizeDashboardItem = (item) => ({
+  currencyCode: item?.currencyCode || '',
+  currencyName: item?.currencyName || item?.currencyCode || '',
+  totalBought: Number(item?.totalBought || 0),
+  totalSold: Number(item?.totalSold || 0),
+  currentReserve: Number(item?.currentReserve || 0),
+  weightedAveragePurchasePrice: Number(item?.weightedAveragePurchasePrice || 0),
+  realizedProfitLoss: Number(item?.realizedProfitLoss || 0),
+  totalPurchaseCost: Number(item?.totalPurchaseCost || 0),
+  totalSaleRevenue: Number(item?.totalSaleRevenue || 0),
+  averageSellRate: Number(item?.averageSellRate || 0),
+  unrealizedProfitLoss: Number(item?.unrealizedProfitLoss || 0),
+});
 
 // Get exchange dashboard (profit/loss)
 export const useExchangeDashboard = (filters = {}) => {
@@ -313,8 +351,13 @@ export const useExchangeDashboard = (filters = {}) => {
       const url = qs ? `/api/exchanges/dashboard?${qs}` : '/api/exchanges/dashboard';
       const { data } = await axiosSecure.get(url);
 
+      // Normalize dashboard data
+      const normalizedData = Array.isArray(data?.data)
+        ? data.data.map(normalizeDashboardItem)
+        : [];
+
       return {
-        data: Array.isArray(data?.data) ? data.data : [],
+        data: normalizedData,
         summary: data?.summary || {
           totalRealizedProfitLoss: 0,
           totalUnrealizedProfitLoss: 0,

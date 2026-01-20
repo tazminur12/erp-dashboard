@@ -100,7 +100,7 @@ const Dashboard = () => {
   };
 
   const handleExportReserves = () => {
-    const headers = ['Currency Code', 'Currency Name', 'In (Received)', 'Out (Given)', 'Current Balance', 'Last Buy Rate', 'Last Sell Rate', 'Current Balance (BDT)'];
+    const headers = ['মুদ্রা কোড', 'মুদ্রার নাম', 'প্রাপ্ত (In)', 'প্রদান (Out)', 'সামঞ্জস্য পরিমাণ', 'বর্তমান ব্যালেন্স', 'সর্বশেষ ক্রয় মূল্য', 'সর্বশেষ বিক্রয় মূল্য', 'বর্তমান ব্যালেন্স (টাকা)'];
     const rows = reserves.map((r) => {
       const lastBuyRate = r.lastBuyRate || r.weightedAveragePurchasePrice || 0;
       const lastSellRate = r.lastSellRate || 0;
@@ -110,6 +110,7 @@ const Dashboard = () => {
         r.currencyName,
         r.totalBought || 0,
         r.totalSold || 0,
+        r.adjustmentAmount || r.adjustment || 0,
         r.reserve || 0,
         lastBuyRate > 0 ? lastBuyRate : '-',
         lastSellRate > 0 ? lastSellRate : '-',
@@ -131,7 +132,7 @@ const Dashboard = () => {
   };
 
   const handleExportDashboard = () => {
-    const headers = ['Currency Code', 'Currency Name', 'Total Bought', 'Total Sold', 'Current Reserve', 'Weighted Avg Purchase Price', 'Realized Profit/Loss', 'Total Purchase Cost', 'Total Sale Revenue'];
+    const headers = ['মুদ্রা কোড', 'মুদ্রার নাম', 'মোট ক্রয়', 'মোট বিক্রয়', 'বর্তমান রিজার্ভ', 'গড় ক্রয় মূল্য', 'লাভ/ক্ষতি (রিয়েলাইজড)', 'মোট ক্রয় খরচ', 'মোট বিক্রয় আয়'];
     const rows = dashboardItems.map((d) => [
       d.currencyCode,
       d.currencyName,
@@ -461,16 +462,19 @@ const Dashboard = () => {
                           Out (প্রদান)
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Current Balance
+                          সামঞ্জস্য পরিমাণ
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Last Buy Rate
+                          বর্তমান ব্যালেন্স
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Last Sell Rate
+                          সর্বশেষ ক্রয় মূল্য
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Current Balance (BDT)
+                          সর্বশেষ বিক্রয় মূল্য
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          বর্তমান ব্যালেন্স (টাকা)
                         </th>
                       </tr>
                     </thead>
@@ -518,6 +522,11 @@ const Dashboard = () => {
                                 <span className="text-sm text-gray-900 dark:text-white">
                                   {formatNumberLocal(reserve.totalSold || 0, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
                                 </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900 dark:text-white">
+                                {formatNumberLocal(reserve.adjustmentAmount || reserve.adjustment || 0, 2)} <span className="font-medium text-blue-600 dark:text-blue-400">{reserve.currencyCode}</span>
                               </div>
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap">
@@ -723,13 +732,13 @@ const Dashboard = () => {
                           গড় ক্রয় মূল্য
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          লাভ/ক্ষতি
+                          লাভ/ক্ষতি (রিয়েলাইজড)
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          ক্রয় খরচ
+                          মোট ক্রয় খরচ
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          বিক্রয় আয়
+                          মোট বিক্রয় আয়
                         </th>
                       </tr>
                     </thead>
