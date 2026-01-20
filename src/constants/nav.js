@@ -259,7 +259,14 @@ export const navigation = [
       // { name: 'Expense Management', href: '/account/expense', icon: TrendingDown },
       // { name: 'Savings & Investments', href: '/account/savings', icon: PiggyBank },
       { name: 'Bank Accounts', href: '/account/bank-accounts', icon: CreditCard },
-      { name: 'Investments', href: '/account/investments', icon: TrendingUp },
+      {
+        name: 'Investments',
+        icon: TrendingUp,
+        children: [
+          { name: 'IATA & Airlines Capping', href: '/account/investments/iata-airlines-capping', icon: Plane },
+          { name: 'Others Invest', href: '/account/investments/others-invest', icon: TrendingUp }
+        ]
+      },
       // { name: 'Budget Planning', href: '/account/budget', icon: BarChart3Icon },
       // { name: 'Tax Management', href: '/account/tax', icon: Receipt }
     ]

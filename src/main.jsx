@@ -157,6 +157,8 @@ const AccountOverview = React.lazy(() => import('./pages/Account/AccountOverview
 const IncomeManagement = React.lazy(() => import('./pages/Account/IncomeManagement'));
 const ExpenseManagement = React.lazy(() => import('./pages/Account/ExpenseManagement'));
 const SavingsInvestments = React.lazy(() => import('./pages/Account/SavingsInvestments'));
+const IATAAirlinesCapping = React.lazy(() => import('./pages/Account/IATAAirlinesCapping'));
+const OthersInvest = React.lazy(() => import('./pages/Account/OthersInvest'));
 const LoansCredit = React.lazy(() => import('./pages/Account/LoansCredit'));
 const BankAccounts = React.lazy(() => import('./pages/Account/BankAccounts'));
 const BankAccountsProfile = React.lazy(() => import('./pages/Account/BankAccountsProfile'));
@@ -1329,6 +1331,30 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <TaxManagement />
+          </Suspense>
+        )
+      },
+      {
+        path: "investments",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <SavingsInvestments />
+          </Suspense>
+        )
+      },
+      {
+        path: "investments/iata-airlines-capping",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <IATAAirlinesCapping />
+          </Suspense>
+        )
+      },
+      {
+        path: "investments/others-invest",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <OthersInvest />
           </Suspense>
         )
       }
