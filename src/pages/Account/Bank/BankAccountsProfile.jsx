@@ -25,10 +25,10 @@ import {
   Hash,
   Loader2
 } from 'lucide-react';
-import Modal, { ModalFooter } from '../../components/common/Modal';
-import SmallStat from '../../components/common/SmallStat';
-import { useAccountQueries } from '../../hooks/useAccountQueries';
-import { generateBankStatementPDF } from '../../utils/bankpdf';
+import Modal, { ModalFooter } from '../../../components/common/Modal';
+import SmallStat from '../../../components/common/SmallStat';
+import { useAccountQueries } from '../../../hooks/useAccountQueries';
+import { generateBankStatementPDF } from '../../../utils/bankpdf';
 import Swal from 'sweetalert2';
 
 // Transaction History Component

@@ -174,7 +174,7 @@ const NewTransaction = () => {
     transactionType: '',
     
     // Step 2: Customer Type Selection (for credit/debit)
-    selectedCustomerType: '', // 'airCustomer', 'vendor', 'agent', 'haji', 'umrah', 'loan', 'personalExpense', 'mirajIndustries', 'officeExpenses', 'moneyExchange'
+    selectedCustomerType: '', // 'airCustomer', 'vendor', 'agent', 'haji', 'umrah', 'loan', 'personalExpense', 'mirajIndustries', 'officeExpenses', 'moneyExchange', 'investment'
     
     // Step 3: Customer Selection (for credit/debit)
     customerType: 'customer', // 'customer', 'vendor', 'agent', 'haji', 'umrah'
@@ -308,7 +308,9 @@ const NewTransaction = () => {
       direction: '' // 'giving' | 'receiving'
     },
     // Selected money exchange info (when picking from Money Exchange tab)
-    moneyExchangeInfo: null
+    moneyExchangeInfo: null,
+    // Selected investment info (when picking investment)
+    investmentInfo: null
   });
 
   // Invoice query hook (after formData is initialized)
@@ -356,7 +358,8 @@ const NewTransaction = () => {
       'personalExpense': 'personal', // Show personal expense categories
       'mirajIndustries': 'miraj',
       'officeExpenses': 'office',
-      'moneyExchange': 'moneyExchange'
+      'moneyExchange': 'moneyExchange',
+      'investment': 'investment'
     };
     return mapping[formData.selectedCustomerType] || 'airCustomer';
   };
@@ -469,6 +472,54 @@ const NewTransaction = () => {
     ...(selectedSearchType === 'moneyExchange' && searchTerm ? { search: searchTerm } : {})
   });
   const moneyExchangeList = moneyExchangeResponse?.data || [];
+  
+  // Investment search - fetch both IATA & Airlines Capping and Others Invest
+  const shouldSearchInvestments = effectiveSearchType === 'investment';
+  const [investmentSearchData, setInvestmentSearchData] = useState([]);
+  const [investmentLoading, setInvestmentLoading] = useState(false);
+  
+  useEffect(() => {
+    if (shouldSearchInvestments) {
+      setInvestmentLoading(true);
+      // Fetch investments from both endpoints
+      Promise.all([
+        axiosSecure.get('/api/investments/iata-airlines-capping').catch(() => ({ data: { data: [] } })),
+        axiosSecure.get('/api/investments/others-invest').catch(() => ({ data: { data: [] } }))
+      ]).then(([iataResponse, othersResponse]) => {
+        const iataInvestments = (iataResponse?.data?.data || []).map(inv => ({
+          ...inv,
+          id: inv._id || inv.id,
+          name: inv.airlineName || inv.investmentName || 'Investment',
+          investmentCategory: 'IATA & Airlines Capping',
+          type: inv.investmentType || 'IATA'
+        }));
+        const othersInvestments = (othersResponse?.data?.data || []).map(inv => ({
+          ...inv,
+          id: inv._id || inv.id,
+          name: inv.investmentName || 'Investment',
+          investmentCategory: 'Others Invest',
+          type: inv.investmentType || 'Other'
+        }));
+        setInvestmentSearchData([...iataInvestments, ...othersInvestments]);
+        setInvestmentLoading(false);
+      }).catch(() => {
+        setInvestmentSearchData([]);
+        setInvestmentLoading(false);
+      });
+    } else {
+      setInvestmentSearchData([]);
+    }
+  }, [shouldSearchInvestments, axiosSecure]);
+  
+  const filteredInvestments = investmentSearchData.filter(inv => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (inv.name || '').toLowerCase().includes(term) ||
+           (inv.investmentCategory || '').toLowerCase().includes(term) ||
+           (inv.type || '').toLowerCase().includes(term) ||
+           (inv.airlineName || '').toLowerCase().includes(term) ||
+           (inv.investmentName || '').toLowerCase().includes(term);
+  });
   
   // Payment methods
   const paymentMethods = [
@@ -910,6 +961,25 @@ const NewTransaction = () => {
     }));
   };
 
+  const handleInvestmentSelect = (investment) => {
+    setFormData(prev => ({
+      ...prev,
+      customerType: 'investment',
+      customerId: (investment._id || investment.id) ? String(investment._id || investment.id) : '',
+      uniqueId: investment.id || investment._id || '',
+      customerName: investment.name || investment.airlineName || investment.investmentName || 'Investment',
+      customerAddress: '',
+      investmentInfo: {
+        id: investment._id || investment.id,
+        name: investment.name || investment.airlineName || investment.investmentName || 'Investment',
+        category: investment.investmentCategory || 'Investment',
+        type: investment.type || investment.investmentType || 'Other',
+        amount: investment.cappingAmount || investment.investmentAmount || 0
+      }
+    }));
+    setSearchLoading(false);
+  };
+
   const handleInvoiceSelect = (invoice) => {
     setFormData(prev => ({
       ...prev,
@@ -1143,8 +1213,8 @@ const NewTransaction = () => {
             }
             break;
           case 3:
-            // For personal expense or Miraj Industries flow, customer selection is not required
-            if (selectedSearchType !== 'personal' && selectedSearchType !== 'miraj') {
+            // For personal expense, Miraj Industries, or investment flow, customer selection is not required
+            if (selectedSearchType !== 'personal' && selectedSearchType !== 'miraj' && selectedSearchType !== 'investment') {
               if (!formData.customerId) {
                 newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
               }
@@ -1189,9 +1259,10 @@ const NewTransaction = () => {
           }
           break;
           case 3:
-            if (!formData.customerId) {
+            // For investment flow, customer selection is not required (similar to personal/miraj)
+            if (effectiveSearchType !== 'investment' && !formData.customerId) {
               newErrors.customerId = 'কাস্টমার নির্বাচন করুন';
-          }
+            }
           break;
         case 4:
           // Agent/Hajji/Umrah balance step - no validation needed, just display
@@ -1568,6 +1639,7 @@ const NewTransaction = () => {
       if (customerType === 'loan') return 'loan';
       if (customerType === 'airCustomer') return 'customer';
       if (customerType === 'money-exchange' || customerType === 'moneyExchange') return 'money-exchange';
+      if (customerType === 'investment') return 'investment';
       return 'customer';
     };
 
@@ -1614,7 +1686,8 @@ const NewTransaction = () => {
       // For haji/umrah customers, enforce slug
       (formData.customerType === 'haji' ? 'hajj' : (formData.customerType === 'umrah' ? 'umrah' :
       // For loans, map by transaction type
-      (formData.customerType === 'loan' ? (isDebit ? 'loan-giving' : 'loan-repayment') : formData.category))));
+      (formData.customerType === 'loan' ? (isDebit ? 'loan-giving' : 'loan-repayment') : 
+       formData.customerType === 'investment' ? 'investment' : formData.category))));
 
     // Resolve category with fallbacks based on customerType
     const resolvedCategory = 
@@ -1628,6 +1701,7 @@ const NewTransaction = () => {
            formData.customerType === 'office' && formData.operatingExpenseCategory 
              ? `অফিস ব্যয় - ${formData.operatingExpenseCategory.name || formData.operatingExpenseCategory.categoryName || ''}`
              : formData.customerType === 'money-exchange' ? 'মানি এক্সচেঞ্জ' :
+           formData.customerType === 'investment' ? 'বিনিয়োগ' :
            formData.customerType === 'airCustomer' ? 'এয়ার টিকেট' :
            formData.customerType === 'vendor' ? 'ভেন্ডর' :
            formData.customerType === 'agent' ? 'এজেন্ট' :
@@ -1647,6 +1721,19 @@ const NewTransaction = () => {
         exchangeRate: exchange.exchangeRate || null,
         quantity: exchange.quantity || null,
         amount_bdt: exchange.amount_bdt || exchange.amount || amount || null
+      };
+    }
+
+    // Prepare investmentInfo if this is an investment transaction
+    let investmentInfo = null;
+    if (formData.customerType === 'investment' && formData.investmentInfo) {
+      const investment = formData.investmentInfo;
+      investmentInfo = {
+        id: investment.id || formData.customerId || null,
+        name: investment.name || formData.customerName || null,
+        category: investment.category || null,
+        type: investment.type || null,
+        amount: investment.amount || null
       };
     }
 
@@ -1732,7 +1819,9 @@ const NewTransaction = () => {
       operatingExpenseCategoryId: operatingExpenseCategoryId,
       operatingExpenseCategory: operatingExpenseCategory,
       // Money exchange information (for money-exchange party type)
-      moneyExchangeInfo: moneyExchangeInfo
+      moneyExchangeInfo: moneyExchangeInfo,
+      // Investment information (for investment party type)
+      investmentInfo: investmentInfo
     };
 
     // Log the data being sent for debugging
@@ -3355,7 +3444,8 @@ const NewTransaction = () => {
                         { value: 'personalExpense', label: 'ব্যক্তিগত/ পারিবারিক', icon: '💳', color: 'pink' },
                         { value: 'mirajIndustries', label: 'মিরাজ ইন্ডাস্ট্রিজ', icon: '🏭', color: 'orange' },
                         { value: 'officeExpenses', label: 'অফিস ব্যয়', icon: '🏢', color: 'teal' },
-                        { value: 'moneyExchange', label: 'মানি এক্সচেঞ্জ', icon: '💱', color: 'cyan' }
+                        { value: 'moneyExchange', label: 'মানি এক্সচেঞ্জ', icon: '💱', color: 'cyan' },
+                        { value: 'investment', label: 'বিনিয়োগ', icon: '📈', color: 'emerald' }
                       ].map((type) => (
                         <button
                           key={type.value}
@@ -3555,6 +3645,7 @@ const NewTransaction = () => {
                            formData.selectedCustomerType === 'mirajIndustries' ? 'মিরাজ ইন্ডাস্ট্রিজ' :
                            formData.selectedCustomerType === 'officeExpenses' ? 'অফিস ব্যয়' :
                            formData.selectedCustomerType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ' :
+                           formData.selectedCustomerType === 'investment' ? 'বিনিয়োগ' :
                            formData.selectedCustomerType}
                         </span>
                       </p>
@@ -3587,6 +3678,8 @@ const NewTransaction = () => {
                           ? 'Office Expenses – ক্যাটাগরি আইডি/নাম খুঁজুন'
                           : effectiveSearchType === 'moneyExchange'
                           ? 'মানি এক্সচেঞ্জ আইডি/নাম খুঁজুন'
+                          : effectiveSearchType === 'investment'
+                          ? 'বিনিয়োগ খুঁজুন... (নাম/টাইপ/এয়ারলাইন)'
                           : effectiveSearchType === 'miraj'
                           ? 'কর্মচারী খুঁজুন... (নাম/পদ/মোবাইল)'
                           : 'Miraj Industries – ক্যাটাগরি/অপশন খুঁজুন'
@@ -3612,6 +3705,7 @@ const NewTransaction = () => {
                     (effectiveSearchType === 'office' && (opExLoading || searchLoading)) ||
                     (effectiveSearchType === 'moneyExchange' && (moneyExchangeLoading || searchLoading)) ||
                     (effectiveSearchType === 'personal' && (personalCatsLoading || searchLoading)) ||
+                    (effectiveSearchType === 'investment' && (investmentLoading || searchLoading)) ||
                     (effectiveSearchType === 'miraj' && (mirajEmployeesLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
@@ -3625,6 +3719,7 @@ const NewTransaction = () => {
                            effectiveSearchType === 'miraj' ? 'কর্মচারী লোড হচ্ছে...' :
                            effectiveSearchType === 'office' ? 'অফিস খরচ ক্যাটাগরি লোড হচ্ছে...' :
                            effectiveSearchType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ ডেটা লোড হচ্ছে...' :
+                           effectiveSearchType === 'investment' ? 'বিনিয়োগ লোড হচ্ছে...' :
                            'লোন লোড হচ্ছে...'}
                         </span>
                       </div>
@@ -4061,6 +4156,65 @@ const NewTransaction = () => {
                         ))
                       ) : (
                         <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">কোন লোন পাওয়া যায়নি</div>
+                      )
+                    ) : effectiveSearchType === 'investment' ? (
+                      // Investment Results
+                      filteredInvestments.length > 0 ? (
+                        filteredInvestments.map((investment) => (
+                          <button
+                            key={`investment-${investment.id || investment._id}`}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleInvestmentSelect(investment);
+                            }}
+                            className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 text-left hover:scale-[1.01] ${
+                              formData.customerId === String(investment.id || investment._id)
+                                ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
+                                : (isDark ? 'border-gray-600 bg-gray-800 hover:border-emerald-300' : 'border-gray-200 bg-white hover:border-emerald-300')
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-100 dark:bg-emerald-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+                                </div>
+                                <div className="text-left min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                      {investment.name || investment.airlineName || investment.investmentName || 'Investment'}
+                                    </h3>
+                                    <span className={`inline-block px-1.5 py-0.5 text-xs rounded-full ${
+                                      investment.investmentCategory === 'IATA & Airlines Capping'
+                                        ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                                        : 'bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400'
+                                    }`}>
+                                      {investment.investmentCategory === 'IATA & Airlines Capping' ? 'IATA/Airlines' : 'Others'}
+                                    </span>
+                                  </div>
+                                  {investment.type && (
+                                    <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                      {investment.type}
+                                    </p>
+                                  )}
+                                  {(investment.cappingAmount || investment.investmentAmount) && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                      ৳{(investment.cappingAmount || investment.investmentAmount || 0).toLocaleString('bn-BD')}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              {formData.customerId === String(investment.id || investment._id) && (
+                                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500 flex-shrink-0" />
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                          {searchTerm ? 'কোন বিনিয়োগ পাওয়া যায়নি' : 'কোন বিনিয়োগ নেই'}
+                        </div>
                       )
                     ) : effectiveSearchType === 'miraj' ? (
                       // Miraj Industries: show employees, income, and expense categories

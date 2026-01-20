@@ -14,20 +14,31 @@ import {
   Edit,
   Trash2,
   Building2,
-  FileText
+  FileText,
+  Loader2,
+  Upload,
+  Image as ImageIcon,
+  X
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
-import Modal, { ModalFooter } from '../../components/common/Modal';
+import Modal, { ModalFooter } from '../../../components/common/Modal';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
+import { 
+  useIATAAirlinesCappingInvestments,
+  useDeleteIATAAirlinesCappingInvestment,
+  useUpdateIATAAirlinesCappingInvestment
+} from '../../../hooks/useInvestmentQueries';
 import Swal from 'sweetalert2';
 
 const IATAAirlinesCapping = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState(null);
   const [formData, setFormData] = useState({
     investmentType: 'IATA',
     airlineName: '',
@@ -36,69 +47,137 @@ const IATAAirlinesCapping = () => {
     maturityDate: '',
     interestRate: '',
     status: 'active',
-    notes: ''
+    notes: '',
+    logo: null
   });
 
-  // Mock data - replace with actual API calls
-  const [investments, setInvestments] = useState([
-    {
-      id: 1,
-      investmentType: 'IATA',
-      airlineName: 'Biman Bangladesh Airlines',
-      cappingAmount: 500000,
-      investmentDate: '2024-01-15',
-      maturityDate: '2025-01-15',
-      interestRate: 8.5,
-      status: 'active',
-      notes: 'IATA certification investment',
-      createdAt: '2024-01-15'
-    },
-    {
-      id: 2,
-      investmentType: 'Airlines Capping',
-      airlineName: 'US-Bangla Airlines',
-      cappingAmount: 300000,
-      investmentDate: '2024-02-20',
-      maturityDate: '2025-02-20',
-      interestRate: 7.5,
-      status: 'active',
-      notes: 'Airlines capping investment',
-      createdAt: '2024-02-20'
-    }
-  ]);
+  // Fetch investments from API
+  const { data: investmentsData, isLoading: investmentsLoading, refetch } = useIATAAirlinesCappingInvestments({
+    page: 1,
+    limit: 100,
+    ...(filterType !== 'all' && { status: filterType }),
+    ...(searchTerm && { q: searchTerm })
+  });
+  
+  const investments = investmentsData?.data || [];
+  const deleteInvestmentMutation = useDeleteIATAAirlinesCappingInvestment();
 
   const handleAdd = () => {
-    setFormData({
-      investmentType: 'IATA',
-      airlineName: '',
-      cappingAmount: '',
-      investmentDate: '',
-      maturityDate: '',
-      interestRate: '',
-      status: 'active',
-      notes: ''
-    });
-    setShowAddModal(true);
+    navigate('/account/investments/iata-airlines-capping/add');
+  };
+
+  // Cloudinary Upload Function
+  const uploadToCloudinary = async (file) => {
+    try {
+      // Validate Cloudinary configuration first
+      if (!validateCloudinaryConfig()) {
+        throw new Error('Cloudinary configuration is incomplete. Please check your .env.local file.');
+      }
+      
+      setIsUploading(true);
+      
+      // Validate file
+      if (!file || !file.type.startsWith('image/')) {
+        throw new Error('Please select a valid image file');
+      }
+      
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('File size must be less than 5MB');
+      }
+      
+      // Create FormData for Cloudinary upload
+      const cloudinaryFormData = new FormData();
+      cloudinaryFormData.append('file', file);
+      cloudinaryFormData.append('upload_preset', CLOUDINARY_CONFIG.UPLOAD_PRESET);
+      cloudinaryFormData.append('folder', 'investment-logos');
+      
+      // Upload to Cloudinary
+      const response = await fetch(CLOUDINARY_CONFIG.UPLOAD_URL, {
+        method: 'POST',
+        body: cloudinaryFormData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || `Upload failed with status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      // Set uploaded image data - Just the URL
+      const imageUrl = result.secure_url;
+      
+      // Set image states
+      setUploadedImageUrl(imageUrl);
+      
+      // Update form data with image URL
+      setFormData(prev => ({ ...prev, logo: imageUrl }));
+      
+      // Show success message
+      Swal.fire({
+        title: 'সফল!',
+        text: 'লোগো Cloudinary এ আপলোড হয়েছে!',
+        icon: 'success',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#10B981',
+      });
+      
+    } catch (error) {
+      // Show error message
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: error.message || 'লোগো আপলোড করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleLogoUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      uploadToCloudinary(file);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData(prev => ({
+      ...prev,
+      logo: null
+    }));
+    setUploadedImageUrl(null);
   };
 
   const handleEdit = (item) => {
     setSelectedItem(item);
+    // Format dates for input fields (YYYY-MM-DD)
+    const formatDateForInput = (date) => {
+      if (!date) return '';
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return '';
+      return d.toISOString().split('T')[0];
+    };
+    
     setFormData({
       investmentType: item.investmentType || 'IATA',
       airlineName: item.airlineName || '',
       cappingAmount: item.cappingAmount || '',
-      investmentDate: item.investmentDate || '',
-      maturityDate: item.maturityDate || '',
+      investmentDate: formatDateForInput(item.investmentDate),
+      maturityDate: formatDateForInput(item.maturityDate),
       interestRate: item.interestRate || '',
       status: item.status || 'active',
-      notes: item.notes || ''
+      notes: item.notes || '',
+      logo: item.logo || null
     });
+    setUploadedImageUrl(item.logo || null);
     setShowEditModal(true);
   };
 
   const handleView = (item) => {
-    setSelectedItem(item);
-    setShowViewModal(true);
+    navigate(`/account/investments/iata-airlines-capping/${item.id || item._id}`);
   };
 
   const handleDelete = async (id) => {
@@ -115,74 +194,108 @@ const IATAAirlinesCapping = () => {
     });
 
     if (result.isConfirmed) {
-      setInvestments(investments.filter(item => item.id !== id));
-      Swal.fire({
-        title: 'মুছে ফেলা হয়েছে!',
-        text: 'বিনিয়োগ সফলভাবে মুছে ফেলা হয়েছে।',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#10B981',
-      });
+      try {
+        await deleteInvestmentMutation.mutateAsync(id);
+        Swal.fire({
+          title: 'মুছে ফেলা হয়েছে!',
+          text: 'বিনিয়োগ সফলভাবে মুছে ফেলা হয়েছে।',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
+        refetch();
+      } catch (error) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: error.message || 'বিনিয়োগ মুছে ফেলতে সমস্যা হয়েছে',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+      }
     }
   };
 
-  const handleSubmit = (e) => {
+  const updateInvestmentMutation = useUpdateIATAAirlinesCappingInvestment();
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (showAddModal) {
-      const newInvestment = {
-        id: investments.length + 1,
-        ...formData,
-        cappingAmount: parseFloat(formData.cappingAmount),
-        interestRate: parseFloat(formData.interestRate),
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setInvestments([...investments, newInvestment]);
-      Swal.fire({
-        title: 'সফল!',
-        text: 'IATA & Airlines Capping বিনিয়োগ সফলভাবে যোগ করা হয়েছে।',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#10B981',
-      });
-    } else if (showEditModal) {
-      setInvestments(investments.map(item => 
-        item.id === selectedItem.id 
-          ? { ...item, ...formData, cappingAmount: parseFloat(formData.cappingAmount), interestRate: parseFloat(formData.interestRate) }
-          : item
-      ));
-      Swal.fire({
-        title: 'সফল!',
-        text: 'বিনিয়োগ সফলভাবে আপডেট হয়েছে।',
-        icon: 'success',
-        confirmButtonText: 'ঠিক আছে',
-        confirmButtonColor: '#10B981',
-      });
+    if (showEditModal && selectedItem) {
+      try {
+        await updateInvestmentMutation.mutateAsync({
+          id: selectedItem.id || selectedItem._id,
+          ...formData,
+          cappingAmount: parseFloat(formData.cappingAmount),
+          interestRate: parseFloat(formData.interestRate)
+        });
+        
+        Swal.fire({
+          title: 'সফল!',
+          text: 'বিনিয়োগ সফলভাবে আপডেট হয়েছে।',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
+        
+        setShowEditModal(false);
+        setSelectedItem(null);
+        setFormData({
+          investmentType: 'IATA',
+          airlineName: '',
+          cappingAmount: '',
+          investmentDate: '',
+          maturityDate: '',
+          interestRate: '',
+          status: 'active',
+          notes: '',
+          logo: null
+        });
+        setUploadedImageUrl(null);
+        refetch();
+      } catch (error) {
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: error.message || 'বিনিয়োগ আপডেট করতে সমস্যা হয়েছে',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
+      }
     }
-    
-    setShowAddModal(false);
-    setShowEditModal(false);
-    setFormData({
-      investmentType: 'IATA',
-      airlineName: '',
-      cappingAmount: '',
-      investmentDate: '',
-      maturityDate: '',
-      interestRate: '',
-      status: 'active',
-      notes: ''
-    });
   };
 
+  // Filtering is now handled by the API, but we can add client-side filtering if needed
   const filteredInvestments = investments.filter(item => {
-    const matchesSearch = item.airlineName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.investmentType.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterType === 'all' || item.status === filterType;
-    return matchesSearch && matchesFilter;
+    if (searchTerm) {
+      const matchesSearch = (item.airlineName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (item.investmentType || '').toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchesSearch) return false;
+    }
+    if (filterType !== 'all') {
+      return item.status === filterType;
+    }
+    return true;
   });
 
   const totalInvestment = investments.reduce((sum, item) => sum + (item.cappingAmount || 0), 0);
   const activeInvestments = investments.filter(item => item.status === 'active').length;
+  
+  // Loading state
+  if (investmentsLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">বিনিয়োগ লোড হচ্ছে...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
@@ -307,12 +420,11 @@ const IATAAirlinesCapping = () => {
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30">
                 <tr>
+                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">লোগো</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">বিনিয়োগ টাইপ</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">এয়ারলাইন</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">বিনিয়োগ পরিমাণ</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">বিনিয়োগ তারিখ</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">পরিপক্কতার তারিখ</th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">সুদের হার (%)</th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">স্ট্যাটাস</th>
                   <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">অ্যাকশন</th>
                 </tr>
@@ -320,37 +432,50 @@ const IATAAirlinesCapping = () => {
               <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredInvestments.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={7} className="px-6 py-12 text-center">
                       <Plane className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-500 dark:text-gray-400">কোন বিনিয়োগ পাওয়া যায়নি</p>
                     </td>
                   </tr>
                 ) : (
                   filteredInvestments.map((investment) => (
-                    <tr key={investment.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <tr key={investment.id || investment._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="w-12 h-12 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-1 flex items-center justify-center overflow-hidden">
+                          {investment.logo && !imageErrors[investment.id || investment._id] ? (
+                            <img 
+                              src={investment.logo} 
+                              alt={investment.airlineName || 'Logo'} 
+                              className="w-full h-full object-contain"
+                              onError={() => {
+                                setImageErrors(prev => ({
+                                  ...prev,
+                                  [investment.id || investment._id]: true
+                                }));
+                              }}
+                            />
+                          ) : (
+                            <Plane className="w-6 h-6 text-gray-400" />
+                          )}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                           investment.investmentType === 'IATA'
                             ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400'
                             : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
                         }`}>
-                          {investment.investmentType}
+                          {investment.investmentType || 'N/A'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                        {investment.airlineName}
+                        {investment.airlineName || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">
-                        ৳{investment.cappingAmount.toLocaleString('bn-BD')}
+                        ৳{(investment.cappingAmount || 0).toLocaleString('bn-BD')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {investment.investmentDate ? new Date(investment.investmentDate).toLocaleDateString('bn-BD') : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {investment.maturityDate ? new Date(investment.maturityDate).toLocaleDateString('bn-BD') : 'N/A'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                        {investment.interestRate}%
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
@@ -376,15 +501,25 @@ const IATAAirlinesCapping = () => {
                             onClick={() => handleEdit(investment)}
                             className="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                             title="আপডেট"
+                            disabled={updateInvestmentMutation.isPending}
                           >
-                            <Edit className="w-4 h-4" />
+                            {updateInvestmentMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Edit className="w-4 h-4" />
+                            )}
                           </button>
                           <button
-                            onClick={() => handleDelete(investment.id)}
+                            onClick={() => handleDelete(investment.id || investment._id)}
                             className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                             title="ডিলিট"
+                            disabled={deleteInvestmentMutation.isPending}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            {deleteInvestmentMutation.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -396,153 +531,6 @@ const IATAAirlinesCapping = () => {
           </div>
         </div>
       </div>
-
-      {/* Add Modal */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="নতুন IATA & Airlines Capping বিনিয়োগ যোগ করুন"
-        size="lg"
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              বিনিয়োগ টাইপ <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.investmentType}
-              onChange={(e) => setFormData({ ...formData, investmentType: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              required
-            >
-              <option value="IATA">IATA</option>
-              <option value="Airlines Capping">Airlines Capping</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              এয়ারলাইন নাম <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.airlineName}
-              onChange={(e) => setFormData({ ...formData, airlineName: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="এয়ারলাইন নাম লিখুন"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                বিনিয়োগ পরিমাণ (৳) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                value={formData.cappingAmount}
-                onChange={(e) => setFormData({ ...formData, cappingAmount: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="0"
-                min="0"
-                step="0.01"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                সুদের হার (%) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                value={formData.interestRate}
-                onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                placeholder="0.00"
-                min="0"
-                max="100"
-                step="0.01"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                বিনিয়োগ তারিখ <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={formData.investmentDate}
-                onChange={(e) => setFormData({ ...formData, investmentDate: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                পরিপক্কতার তারিখ <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={formData.maturityDate}
-                onChange={(e) => setFormData({ ...formData, maturityDate: e.target.value })}
-                className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              স্ট্যাটাস <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              required
-            >
-              <option value="active">সক্রিয়</option>
-              <option value="matured">পরিপক্ক</option>
-              <option value="closed">বন্ধ</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              নোট
-            </label>
-            <textarea
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={3}
-              className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              placeholder="অতিরিক্ত নোট লিখুন..."
-            />
-          </div>
-
-          <ModalFooter>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(false)}
-              className="px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              বাতিল
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
-            >
-              সংরক্ষণ করুন
-            </button>
-          </ModalFooter>
-        </form>
-      </Modal>
 
       {/* Edit Modal */}
       <Modal
@@ -673,6 +661,75 @@ const IATAAirlinesCapping = () => {
             />
           </div>
 
+          {/* Logo Upload Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              এয়ারলাইন লোগো
+            </label>
+            <div className="flex items-center space-x-4">
+              <div className="flex-shrink-0 relative">
+                {formData.logo || uploadedImageUrl ? (
+                  <div className="relative group">
+                    <img
+                      src={formData.logo || uploadedImageUrl}
+                      alt="Airline Logo Preview"
+                      className="w-20 h-20 rounded-lg object-cover border-2 border-gray-200 dark:border-gray-600 shadow-md"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-lg"
+                      title="লোগো সরান"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 flex items-center justify-center border-2 border-gray-200 dark:border-gray-600">
+                    {isUploading ? (
+                      <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-gray-400" />
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <label
+                  htmlFor="logo-upload-edit"
+                  className={`inline-flex items-center px-4 py-2 border-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isUploading 
+                      ? 'cursor-not-allowed opacity-50 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800'
+                      : 'cursor-pointer border-blue-300 dark:border-blue-600 text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:border-blue-400 dark:hover:border-blue-500'
+                  }`}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      আপলোড হচ্ছে...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {formData.logo || uploadedImageUrl ? 'লোগো পরিবর্তন করুন' : 'লোগো আপলোড করুন'}
+                    </>
+                  )}
+                </label>
+                <input
+                  type="file"
+                  id="logo-upload-edit"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  disabled={isUploading}
+                  className="hidden"
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  PNG, JPG, GIF (সর্বোচ্চ 5MB)
+                </p>
+              </div>
+            </div>
+          </div>
+
           <ModalFooter>
             <button
               type="button"
@@ -691,101 +748,6 @@ const IATAAirlinesCapping = () => {
         </form>
       </Modal>
 
-      {/* View Modal */}
-      <Modal
-        isOpen={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        title="IATA & Airlines Capping বিনিয়োগ বিবরণ"
-        size="lg"
-      >
-        {selectedItem && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  বিনিয়োগ টাইপ
-                </label>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {selectedItem.investmentType}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  এয়ারলাইন নাম
-                </label>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {selectedItem.airlineName}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  বিনিয়োগ পরিমাণ
-                </label>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  ৳{selectedItem.cappingAmount.toLocaleString('bn-BD')}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  সুদের হার
-                </label>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {selectedItem.interestRate}%
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  বিনিয়োগ তারিখ
-                </label>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {selectedItem.investmentDate ? new Date(selectedItem.investmentDate).toLocaleDateString('bn-BD') : 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  পরিপক্কতার তারিখ
-                </label>
-                <p className="text-gray-900 dark:text-white font-medium">
-                  {selectedItem.maturityDate ? new Date(selectedItem.maturityDate).toLocaleDateString('bn-BD') : 'N/A'}
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  স্ট্যাটাস
-                </label>
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                  selectedItem.status === 'active'
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                    : selectedItem.status === 'matured'
-                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                }`}>
-                  {selectedItem.status === 'active' ? 'সক্রিয়' : selectedItem.status === 'matured' ? 'পরিপক্ক' : 'বন্ধ'}
-                </span>
-              </div>
-            </div>
-            {selectedItem.notes && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  নোট
-                </label>
-                <p className="text-gray-900 dark:text-white">
-                  {selectedItem.notes}
-                </p>
-              </div>
-            )}
-            <ModalFooter>
-              <button
-                type="button"
-                onClick={() => setShowViewModal(false)}
-                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
-              >
-                বন্ধ করুন
-              </button>
-            </ModalFooter>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 };

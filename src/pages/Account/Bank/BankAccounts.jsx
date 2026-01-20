@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Banknote, Building2, CreditCard, TrendingUp, AlertCircle, Edit, Trash2, History, Filter, Search, Eye, Copy } from 'lucide-react';
-import DataTable from '../../components/common/DataTable';
-import Modal, { ModalFooter } from '../../components/common/Modal';
-import SmallStat from '../../components/common/SmallStat';
-import { useAccountQueries } from '../../hooks/useAccountQueries';
+import DataTable from '../../../components/common/DataTable';
+import Modal, { ModalFooter } from '../../../components/common/Modal';
+import SmallStat from '../../../components/common/SmallStat';
+import { useAccountQueries } from '../../../hooks/useAccountQueries';
 import Swal from 'sweetalert2';
 
 // Transaction History Component

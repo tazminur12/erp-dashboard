@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Image as ImageIcon, Building2, X, Loader2 } from 'lucide-react';
-import { useAccountQueries } from '../../hooks/useAccountQueries';
-import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary';
+import { useAccountQueries } from '../../../hooks/useAccountQueries';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
 import Swal from 'sweetalert2';
 
 const AddBankAccount = () => {
