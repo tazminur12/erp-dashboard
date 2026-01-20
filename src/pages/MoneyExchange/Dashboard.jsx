@@ -163,6 +163,136 @@ const Dashboard = () => {
     setToDate('');
   };
 
+  // Currency flag/logo mapping
+  const getCurrencyFlag = (currencyCode) => {
+    const flagMap = {
+      'USD': '🇺🇸',
+      'EUR': '🇪🇺',
+      'GBP': '🇬🇧',
+      'SAR': '🇸🇦',
+      'AED': '🇦🇪',
+      'INR': '🇮🇳',
+      'PKR': '🇵🇰',
+      'BDT': '🇧🇩',
+      'QAR': '🇶🇦',
+      'KWD': '🇰🇼',
+      'OMR': '🇴🇲',
+      'BHD': '🇧🇭',
+      'JPY': '🇯🇵',
+      'CNY': '🇨🇳',
+      'AUD': '🇦🇺',
+      'CAD': '🇨🇦',
+      'CHF': '🇨🇭',
+      'SGD': '🇸🇬',
+      'MYR': '🇲🇾',
+      'THB': '🇹🇭',
+      'IDR': '🇮🇩',
+      'PHP': '🇵🇭',
+      'NZD': '🇳🇿',
+      'ZAR': '🇿🇦',
+      'TRY': '🇹🇷',
+      'EGP': '🇪🇬',
+      'LKR': '🇱🇰',
+      'NPR': '🇳🇵',
+      'MMK': '🇲🇲',
+      'VND': '🇻🇳',
+      'KRW': '🇰🇷',
+      'HKD': '🇭🇰',
+      'TWD': '🇹🇼',
+      'BRL': '🇧🇷',
+      'MXN': '🇲🇽',
+      'ARS': '🇦🇷',
+      'CLP': '🇨🇱',
+      'COP': '🇨🇴',
+      'PEN': '🇵🇪',
+      'RUB': '🇷🇺',
+      'PLN': '🇵🇱',
+      'CZK': '🇨🇿',
+      'HUF': '🇭🇺',
+      'RON': '🇷🇴',
+      'BGN': '🇧🇬',
+      'HRK': '🇭🇷',
+      'SEK': '🇸🇪',
+      'NOK': '🇳🇴',
+      'DKK': '🇩🇰',
+      'ILS': '🇮🇱',
+      'JOD': '🇯🇴',
+      'LBP': '🇱🇧',
+      'IQD': '🇮🇶',
+      'IRR': '🇮🇷',
+      'AFN': '🇦🇫',
+      'XOF': '🌍',
+      'XAF': '🌍',
+      'XCD': '🌍',
+    };
+    return flagMap[currencyCode?.toUpperCase()] || '💱'; // Default currency icon
+  };
+
+  // Currency symbol mapping
+  const getCurrencySymbol = (currencyCode) => {
+    const symbolMap = {
+      'USD': '$',
+      'EUR': '€',
+      'GBP': '£',
+      'SAR': '﷼',
+      'AED': 'د.إ',
+      'INR': '₹',
+      'PKR': '₨',
+      'BDT': '৳',
+      'QAR': '﷼',
+      'KWD': 'د.ك',
+      'OMR': 'ر.ع.',
+      'BHD': '.د.ب',
+      'JPY': '¥',
+      'CNY': '¥',
+      'AUD': 'A$',
+      'CAD': 'C$',
+      'CHF': 'CHF',
+      'SGD': 'S$',
+      'MYR': 'RM',
+      'THB': '฿',
+      'IDR': 'Rp',
+      'PHP': '₱',
+      'NZD': 'NZ$',
+      'ZAR': 'R',
+      'TRY': '₺',
+      'EGP': 'E£',
+      'LKR': 'Rs',
+      'NPR': 'Rs',
+      'MMK': 'K',
+      'VND': '₫',
+      'KRW': '₩',
+      'HKD': 'HK$',
+      'TWD': 'NT$',
+      'BRL': 'R$',
+      'MXN': '$',
+      'ARS': '$',
+      'CLP': '$',
+      'COP': '$',
+      'PEN': 'S/',
+      'RUB': '₽',
+      'PLN': 'zł',
+      'CZK': 'Kč',
+      'HUF': 'Ft',
+      'RON': 'lei',
+      'BGN': 'лв',
+      'HRK': 'kn',
+      'SEK': 'kr',
+      'NOK': 'kr',
+      'DKK': 'kr',
+      'ILS': '₪',
+      'JOD': 'د.ا',
+      'LBP': 'ل.ل',
+      'IQD': 'ع.د',
+      'IRR': '﷼',
+      'AFN': '؋',
+      'XOF': 'CFA',
+      'XAF': 'FCFA',
+      'XCD': '$',
+    };
+    return symbolMap[currencyCode?.toUpperCase()] || currencyCode || ''; // Return currency code if symbol not found
+  };
+
   // Get unique currencies from reserves for filter dropdown
   const availableCurrencies = useMemo(() => {
     const currencies = new Set();
@@ -357,12 +487,20 @@ const Dashboard = () => {
                         return (
                           <tr key={reserve.currencyCode} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                             <td className="px-4 py-4 whitespace-nowrap">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                  {reserve.currencyCode}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {reserve.currencyName}
+                              <div className="flex items-center space-x-2">
+                                <span className="text-2xl" title={reserve.currencyName}>
+                                  {getCurrencyFlag(reserve.currencyCode)}
+                                </span>
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1">
+                                    <span>{reserve.currencyCode}</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      ({getCurrencySymbol(reserve.currencyCode)})
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {reserve.currencyName}
+                                  </div>
                                 </div>
                               </div>
                             </td>
@@ -599,12 +737,20 @@ const Dashboard = () => {
                       {dashboardItems.map((item) => (
                         <tr key={item.currencyCode} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="px-4 py-4 whitespace-nowrap">
-                            <div>
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {item.currencyCode}
-                              </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
-                                {item.currencyName}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-2xl" title={item.currencyName}>
+                                {getCurrencyFlag(item.currencyCode)}
+                              </span>
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1">
+                                  <span>{item.currencyCode}</span>
+                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    ({getCurrencySymbol(item.currencyCode)})
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {item.currencyName}
+                                </div>
                               </div>
                             </div>
                           </td>
