@@ -517,8 +517,22 @@ const EmployeeList = () => {
                   <tr key={employee.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-blue-600" />
+                        <div className="relative w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {employee.profilePictureUrl || employee.profilePicture ? (
+                            <img 
+                              src={employee.profilePictureUrl || employee.profilePicture} 
+                              alt={`${employee.firstName} ${employee.lastName}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                const fallback = e.target.parentElement.querySelector('.profile-fallback');
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-full h-full flex items-center justify-center bg-blue-100 profile-fallback ${employee.profilePictureUrl || employee.profilePicture ? 'hidden' : 'flex'}`}>
+                            <User className="w-5 h-5 text-blue-600" />
+                          </div>
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">{employee.firstName} {employee.lastName}</p>

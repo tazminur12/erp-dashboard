@@ -110,6 +110,7 @@ const AirAgentDetails = React.lazy(() => import('./pages/AirTicketing/B2BAirAgen
 const AirAgentEdit = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentEdit'));
 const TicketCheck = React.lazy(() => import('./pages/AirTicketing/TicketCheck'));
 const TicketCheckList = React.lazy(() => import('./pages/AirTicketing/TicketCheckList'));
+const TicketCheckDetails = React.lazy(() => import('./pages/AirTicketing/TicketCheckDetails'));
 const OldTicketReissue = React.lazy(() => import('./pages/AirTicketing/OldTicketReissue'));
 const OldTicketReissueList = React.lazy(() => import('./pages/AirTicketing/OldTicketReissueList'));
 const OldTicketingDashboard = React.lazy(() => import('./pages/AirTicketing/OldTicketingDashboard'));
@@ -906,6 +907,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <TicketCheck />
+          </Suspense>
+        )
+      },
+      {
+        path: "old/ticket-check/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <TicketCheckDetails />
           </Suspense>
         )
       },

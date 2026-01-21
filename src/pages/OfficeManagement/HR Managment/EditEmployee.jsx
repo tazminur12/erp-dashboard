@@ -176,6 +176,9 @@ const EditEmployee = () => {
   // Populate form data when employee data is loaded
   useEffect(() => {
     if (employee) {
+      const profilePicUrl = employee.profilePictureUrl || employee.profilePicture || '';
+      const nidUrl = employee.nidCopyUrl || employee.nidCopy || '';
+      
       setFormData({
         firstName: employee.firstName || '',
         lastName: employee.lastName || '',
@@ -200,10 +203,15 @@ const EditEmployee = () => {
         bankAccount: employee.bankAccount || '',
         bankName: employee.bankName || '',
         profilePicture: employee.profilePicture || null,
-        profilePictureUrl: employee.profilePictureUrl || employee.profilePicture || '',
+        profilePictureUrl: profilePicUrl,
         nidCopy: employee.nidCopy || null,
-        nidCopyUrl: employee.nidCopyUrl || employee.nidCopy || ''
+        nidCopyUrl: nidUrl
       });
+      
+      // Set image preview to existing profile picture if available
+      if (profilePicUrl) {
+        setImagePreview(profilePicUrl);
+      }
     }
   }, [employee]);
 
@@ -853,11 +861,11 @@ const EditEmployee = () => {
                           <span className="text-white text-sm">✓</span>
                         </div>
                         <p className="text-sm text-green-600">Upload successful!</p>
-                        {(formData.profilePicture || imagePreview) && (
+                        {(formData.profilePictureUrl || formData.profilePicture || imagePreview) && (
                           <img 
-                            src={formData.profilePicture || imagePreview} 
+                            src={formData.profilePictureUrl || formData.profilePicture || imagePreview} 
                             alt="Profile preview" 
-                            className="w-16 h-16 rounded-full mx-auto mt-2 object-cover"
+                            className="w-20 h-20 rounded-full mx-auto mt-2 object-cover border-2 border-gray-200"
                           />
                         )}
                       </>
@@ -869,10 +877,21 @@ const EditEmployee = () => {
                         <p className="text-sm text-red-600">Upload failed</p>
                         <p className="text-xs text-red-500 mt-1">{uploadStates.profilePicture.error}</p>
                       </>
+                    ) : (formData.profilePictureUrl || imagePreview) ? (
+                      <>
+                        <img 
+                          src={formData.profilePictureUrl || imagePreview} 
+                          alt="Current profile" 
+                          className="w-20 h-20 rounded-full mx-auto mb-2 object-cover border-2 border-gray-200"
+                        />
+                        <p className="text-sm text-gray-600">Click to change profile picture</p>
+                        <p className="text-xs text-gray-500 mt-1">Current profile picture</p>
+                      </>
                     ) : (
                       <>
                         <Camera className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p className="text-sm text-gray-600">Click to upload new profile picture</p>
+                        <p className="text-sm text-gray-600">Click to upload profile picture</p>
+                        <p className="text-xs text-gray-500 mt-1">JPG, PNG, HEIC, WebP, GIF, BMP, TIFF</p>
                       </>
                     )}
                   </label>

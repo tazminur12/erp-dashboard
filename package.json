@@ -18,6 +18,7 @@
     "jspdf": "^4.0.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.263.1",
+    "mindee": "^4.36.3",
     "mrz": "^4.2.1",
     "react": "^18.3.1",
     "react-datepicker": "^8.7.0",

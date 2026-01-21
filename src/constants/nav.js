@@ -166,7 +166,6 @@ export const navigation = [
     icon: Plane,
     children: [
       { name: 'Dashboard', href: '/air-ticketing/dashboard', icon: LayoutDashboard },
-      { name: 'New Passenger', href: '/air-ticketing/new-passenger', icon: Plus },
       { name: 'Passenger List', href: '/air-ticketing/passengers', icon: Users },
       { name: 'New Ticket Sale', href: '/air-ticketing/new-ticket', icon: Plus },
       { name: 'Manage Booking', href: '/air-ticketing/tickets', icon: List },

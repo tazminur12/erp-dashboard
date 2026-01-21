@@ -336,6 +336,20 @@ const OthersInvestDetails = () => {
             </div>
           </div>
 
+          <div className="bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-xl shadow-lg p-6 border-2 border-teal-200 dark:border-teal-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">রিটার্ন পরিমাণ</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
+                  ৳{(investment.returnAmount || 0).toLocaleString('bn-BD')}
+                </p>
+              </div>
+              <div className="w-14 h-14 bg-gradient-to-br from-teal-500 to-cyan-600 rounded-xl flex items-center justify-center shadow-md">
+                <TrendingUp className="w-7 h-7 text-white" />
+              </div>
+            </div>
+          </div>
+
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl shadow-lg p-6 border-2 border-green-200 dark:border-green-800">
             <div className="flex items-center justify-between">
               <div>

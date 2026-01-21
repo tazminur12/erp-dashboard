@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -19,9 +19,13 @@ import {
   Clock,
   XCircle,
   MoreVertical,
-  Loader2
+  Loader2,
+  DollarSign
 } from 'lucide-react';
 import useTicketCheckQueries from '../../hooks/useTicketCheckQueries';
+import Modal from '../../components/common/Modal';
+import { useEmployees } from '../../hooks/useHRQueries';
+import useAirlineQueries from '../../hooks/useAirlineQueries';
 import Swal from 'sweetalert2';
 
 const TicketCheckList = () => {
@@ -32,7 +36,7 @@ const TicketCheckList = () => {
   const limit = 20;
 
   // Fetch ticket checks
-  const { useTicketChecks, useDeleteTicketCheck } = useTicketCheckQueries();
+  const { useTicketChecks, useDeleteTicketCheck, useUpdateTicketCheck, useTicketCheck } = useTicketCheckQueries();
   const { data, isLoading, refetch } = useTicketChecks({
     page,
     limit,
@@ -40,6 +44,55 @@ const TicketCheckList = () => {
   });
 
   const deleteMutation = useDeleteTicketCheck();
+  const updateMutation = useUpdateTicketCheck();
+  
+  // Edit modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedTicketCheckId, setSelectedTicketCheckId] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Fetch selected ticket check for edit
+  const { data: selectedTicketCheck, isLoading: loadingTicketCheck } = useTicketCheck(selectedTicketCheckId);
+  
+  // Fetch employees for reservation officers
+  const { data: employeesData, isLoading: isLoadingEmployees } = useEmployees({
+    status: 'active',
+    limit: 1000
+  });
+  const employees = employeesData?.employees || [];
+  
+  // Reservation officers list
+  const reservationOfficers = useMemo(() => {
+    if (!employees) return [];
+    return employees.map(emp => ({
+      id: emp._id || emp.id || emp.employeeId,
+      name: `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.fullName || emp.name || emp.employeeId || 'Unknown'
+    }));
+  }, [employees]);
+  
+  // Fetch airlines for dropdown
+  const { useAirlines } = useAirlineQueries();
+  const { data: airlinesData, isLoading: airlinesLoading } = useAirlines({ 
+    limit: 100
+  });
+  
+  const airlinesList = useMemo(() => {
+    if (!airlinesData?.airlines || airlinesData.airlines.length === 0) {
+      return [];
+    }
+    return airlinesData.airlines
+      .filter(airline => {
+        const isActive = airline.status === 'Active' || airline.status === 'active' || airline.isActive === true;
+        return isActive;
+      })
+      .map(airline => {
+        const name = airline.name || airline.airlineName || airline.airline_name || airline.companyName || airline.tradeName;
+        return name;
+      })
+      .filter(Boolean)
+      .sort();
+  }, [airlinesData]);
 
   // Get data from API
   const ticketChecks = data?.ticketChecks || [];
@@ -78,6 +131,103 @@ const TicketCheckList = () => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-GB');
+  };
+  
+  const handleEdit = (ticket) => {
+    const ticketId = ticket._id || ticket.id;
+    setSelectedTicketCheckId(ticketId);
+    
+    // Initialize form data with ticket values
+    const toDateInput = (value) => {
+      if (!value) return '';
+      const dateObj = new Date(value);
+      if (Number.isNaN(dateObj.getTime())) return '';
+      return dateObj.toISOString().split('T')[0];
+    };
+    
+    setEditFormData({
+      passengerName: ticket.passengerName || '',
+      travellingCountry: ticket.travellingCountry || '',
+      passportNo: ticket.passportNo || '',
+      contactNo: ticket.contactNo || '',
+      isWhatsAppSame: ticket.isWhatsAppSame !== false,
+      whatsAppNo: ticket.whatsAppNo || '',
+      airlineName: ticket.airlineName || '',
+      origin: ticket.origin || '',
+      destination: ticket.destination || '',
+      airlinesPnr: ticket.airlinesPnr || ticket.bookingRef || '',
+      issuingAgentName: ticket.issuingAgentName || '',
+      issuingAgentContact: ticket.issuingAgentContact || '',
+      agentEmail: ticket.agentEmail || ticket.email || '',
+      reservationOfficerId: ticket.reservationOfficerId || '',
+      serviceCharge: ticket.serviceCharge || ''
+    });
+    
+    setShowEditModal(true);
+  };
+  
+  // Update form data when selected ticket check loads
+  useEffect(() => {
+    if (selectedTicketCheck && showEditModal) {
+      const toDateInput = (value) => {
+        if (!value) return '';
+        const dateObj = new Date(value);
+        if (Number.isNaN(dateObj.getTime())) return '';
+        return dateObj.toISOString().split('T')[0];
+      };
+      
+      setEditFormData({
+        passengerName: selectedTicketCheck.passengerName || '',
+        travellingCountry: selectedTicketCheck.travellingCountry || '',
+        passportNo: selectedTicketCheck.passportNo || '',
+        contactNo: selectedTicketCheck.contactNo || '',
+        isWhatsAppSame: selectedTicketCheck.isWhatsAppSame !== false,
+        whatsAppNo: selectedTicketCheck.whatsAppNo || '',
+        airlineName: selectedTicketCheck.airlineName || '',
+        origin: selectedTicketCheck.origin || '',
+        destination: selectedTicketCheck.destination || '',
+        airlinesPnr: selectedTicketCheck.airlinesPnr || selectedTicketCheck.bookingRef || '',
+        issuingAgentName: selectedTicketCheck.issuingAgentName || '',
+        issuingAgentContact: selectedTicketCheck.issuingAgentContact || '',
+        agentEmail: selectedTicketCheck.agentEmail || selectedTicketCheck.email || '',
+        reservationOfficerId: selectedTicketCheck.reservationOfficerId || '',
+        serviceCharge: selectedTicketCheck.serviceCharge || ''
+      });
+    }
+  }, [selectedTicketCheck, showEditModal]);
+  
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      // Get reservation officer name
+      const selectedOfficer = reservationOfficers.find(officer => officer.id === editFormData.reservationOfficerId);
+      const reservationOfficerName = selectedOfficer ? selectedOfficer.name : '';
+      
+      // Calculate profit (service charge is completely profit)
+      const serviceCharge = parseFloat(editFormData.serviceCharge) || 0;
+      const profit = serviceCharge;
+      
+      await updateMutation.mutateAsync({
+        id: selectedTicketCheckId,
+        data: {
+          ...editFormData,
+          reservationOfficerName,
+          profit,
+          serviceCharge
+        }
+      });
+      
+      setShowEditModal(false);
+      setSelectedTicketCheckId(null);
+      setEditFormData({});
+      refetch();
+    } catch (error) {
+      console.error('Update error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -261,6 +411,13 @@ const TicketCheckList = () => {
                               <Eye className="w-4 h-4" />
                             </button>
                             <button 
+                              onClick={() => handleEdit(ticket)}
+                              className="p-1 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 rounded"
+                              title="Edit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button 
                               onClick={() => handleDelete(ticket._id)}
                               className="p-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
                               title="Delete"
@@ -326,6 +483,303 @@ const TicketCheckList = () => {
         </div>
 
       </div>
+
+      {/* Edit Ticket Check Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedTicketCheckId(null);
+          setEditFormData({});
+        }}
+        title="টিকেট চেক সম্পাদনা করুন"
+        size="xl"
+      >
+        {loadingTicketCheck ? (
+          <div className="text-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">টিকেট চেক তথ্য লোড হচ্ছে...</p>
+          </div>
+        ) : (
+          <form onSubmit={handleEditSubmit} className="space-y-6">
+            {/* Passenger Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-blue-600" />
+                যাত্রী তথ্য
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    যাত্রীর নাম <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.passengerName || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, passengerName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    পাসপোর্ট নম্বর <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.passportNo || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, passportNo: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    যোগাযোগ নম্বর <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.contactNo || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, contactNo: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    WhatsApp নম্বর
+                  </label>
+                  <input
+                    type="tel"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.whatsAppNo || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, whatsAppNo: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    ভ্রমণের দেশ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.travellingCountry || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, travellingCountry: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Flight Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                <Plane className="w-5 h-5 mr-2 text-green-600" />
+                ফ্লাইট তথ্য
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    এয়ারলাইন <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    list="airlines-list"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.airlineName || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, airlineName: e.target.value })}
+                    required
+                  />
+                  <datalist id="airlines-list">
+                    {airlinesList.map((airline, idx) => (
+                      <option key={idx} value={airline} />
+                    ))}
+                  </datalist>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    এয়ারলাইন্স PNR <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.airlinesPnr || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, airlinesPnr: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    উৎপত্তি <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.origin || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, origin: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    গন্তব্য <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.destination || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, destination: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Agent Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-purple-600" />
+                এজেন্ট তথ্য
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    ইস্যুকারী এজেন্টের নাম <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={editFormData.issuingAgentName || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, issuingAgentName: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    এজেন্ট যোগাযোগ <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.issuingAgentContact || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, issuingAgentContact: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    এজেন্ট ইমেইল
+                  </label>
+                  <input
+                    type="email"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.agentEmail || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, agentEmail: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Reservation Officer */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-indigo-600" />
+                রিজার্ভেশন অফিসার
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  রিজার্ভেশন অফিসার <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  value={editFormData.reservationOfficerId || ''}
+                  onChange={(e) => setEditFormData({ ...editFormData, reservationOfficerId: e.target.value })}
+                  disabled={isLoadingEmployees}
+                  required
+                >
+                  <option value="" disabled>
+                    {isLoadingEmployees ? 'লোড হচ্ছে...' : 'অফিসার নির্বাচন করুন'}
+                  </option>
+                  {reservationOfficers.length > 0 ? (
+                    reservationOfficers.map(officer => (
+                      <option key={officer.id} value={officer.id}>{officer.name}</option>
+                    ))
+                  ) : !isLoadingEmployees ? (
+                    <option value="" disabled>কোন কর্মচারী পাওয়া যায়নি</option>
+                  ) : null}
+                </select>
+              </div>
+            </div>
+
+            {/* Financial Information */}
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                আর্থিক তথ্য
+              </h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                  সার্ভিস চার্জ (BDT) <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full pl-7 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={editFormData.serviceCharge || ''}
+                    onChange={(e) => setEditFormData({ ...editFormData, serviceCharge: e.target.value })}
+                    required
+                  />
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">সার্ভিস চার্জ = সম্পূর্ণ লাভ (Profit)</p>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setSelectedTicketCheckId(null);
+                  setEditFormData({});
+                }}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting || updateMutation.isPending}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center gap-2"
+              >
+                {isSubmitting || updateMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    সংরক্ষণ করা হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    সংরক্ষণ করুন
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </>
   );
 };
