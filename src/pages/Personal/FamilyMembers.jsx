@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
 import Swal from 'sweetalert2';
-import { Users, Plus, Trash2, Camera, X, Loader2, Building2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Users, Plus, Trash2, Camera, X, Loader2, Building2, Eye } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Helmet } from 'react-helmet-async';
 import Modal, { ModalFooter } from '../../components/common/Modal';
 import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary';
+import useFamilyMemberQueries from '../../hooks/useFamilyMemberQueries';
 
 const FamilyMembers = () => {
   const { isDark } = useTheme();
+  const navigate = useNavigate();
+
+  // Family Members Queries
+  const { useFamilyMembers, useCreateFamilyMember, useDeleteFamilyMember } = useFamilyMemberQueries();
+  const { data: familyMembersData, isLoading, error } = useFamilyMembers({ page: 1, limit: 200 });
+  const createFamilyMember = useCreateFamilyMember();
+  const deleteFamilyMember = useDeleteFamilyMember();
+
+  const familyMembers = familyMembersData?.members || [];
 
   // Family Members State
-  const [familyMembers, setFamilyMembers] = useState([]);
   const [isFamilyModalOpen, setIsFamilyModalOpen] = useState(false);
   const [familyFormData, setFamilyFormData] = useState({
     picture: '',
@@ -141,22 +150,16 @@ const FamilyMembers = () => {
     }
 
     try {
-      const newMember = {
-        id: Date.now().toString(), // Temporary ID, will be replaced with backend ID
-        picture: familyFormData.picture,
+      const memberData = {
+        picture: familyFormData.picture || '',
         name: familyFormData.name.trim(),
-        fatherName: familyFormData.fatherName.trim(),
-        motherName: familyFormData.motherName.trim(),
+        fatherName: familyFormData.fatherName ? familyFormData.fatherName.trim() : '',
+        motherName: familyFormData.motherName ? familyFormData.motherName.trim() : '',
         relationship: familyFormData.relationship,
-        mobileNumber: familyFormData.mobileNumber.trim(),
-        createdAt: new Date().toISOString()
+        mobileNumber: familyFormData.mobileNumber ? familyFormData.mobileNumber.trim() : '',
       };
 
-      // TODO: Replace with actual API call
-      // await createFamilyMember.mutateAsync(newMember);
-      
-      // For now, add to local state
-      setFamilyMembers(prev => [...prev, newMember]);
+      await createFamilyMember.mutateAsync(memberData);
       
       Swal.fire({
         title: 'সফল!',
@@ -169,9 +172,11 @@ const FamilyMembers = () => {
       setIsFamilyModalOpen(false);
       resetFamilyForm();
     } catch (error) {
+      console.error('Create family member error:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || 'পারিবারিক সদস্য যোগ করতে সমস্যা হয়েছে।';
       Swal.fire({
         title: 'ত্রুটি!',
-        text: error.message || 'পারিবারিক সদস্য যোগ করতে সমস্যা হয়েছে।',
+        text: errorMessage,
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -194,11 +199,7 @@ const FamilyMembers = () => {
     if (!res.isConfirmed) return;
     
     try {
-      // TODO: Replace with actual API call
-      // await deleteFamilyMember.mutateAsync(id);
-      
-      // For now, remove from local state
-      setFamilyMembers(prev => prev.filter(m => m.id !== id));
+      await deleteFamilyMember.mutateAsync(id);
       
       await Swal.fire({ 
         icon: 'success', 
@@ -207,7 +208,7 @@ const FamilyMembers = () => {
         showConfirmButton: false 
       });
     } catch (err) {
-      const message = err?.response?.data?.message || 'সদস্য মুছে ফেলতে ব্যর্থ';
+      const message = err?.response?.data?.message || err?.message || 'সদস্য মুছে ফেলতে ব্যর্থ';
       await Swal.fire({ 
         icon: 'error', 
         title: 'ত্রুটি', 
@@ -215,6 +216,11 @@ const FamilyMembers = () => {
         confirmButtonColor: '#ef4444' 
       });
     }
+  };
+
+  // Profile Navigation
+  const handleOpenProfile = (member) => {
+    navigate(`/personal/family-members/${member.id}`);
   };
 
   return (
@@ -268,7 +274,16 @@ const FamilyMembers = () => {
 
       {/* Family Members Grid */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        {familyMembers.length > 0 ? (
+        {isLoading ? (
+          <div className="text-center py-12">
+            <Loader2 className="w-8 h-8 text-purple-600 animate-spin mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">লোড হচ্ছে...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-600 dark:text-red-400 mb-2">ত্রুটি: {error.message || 'ডেটা লোড করতে সমস্যা হয়েছে'}</p>
+          </div>
+        ) : familyMembers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {familyMembers.map((member) => (
               <div
@@ -276,7 +291,10 @@ const FamilyMembers = () => {
                 className="bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
+                  <div 
+                    className="flex items-center gap-3 flex-1 cursor-pointer"
+                    onClick={() => handleOpenProfile(member)}
+                  >
                     {member.picture ? (
                       <img
                         src={member.picture}
@@ -293,13 +311,22 @@ const FamilyMembers = () => {
                       <p className="text-sm text-purple-600 dark:text-purple-400">{member.relationship}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleDeleteFamilyMember(member.id)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                    title="মুছে ফেলুন"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenProfile(member)}
+                      className="p-1.5 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors"
+                      title="প্রোফাইল দেখুন"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteFamilyMember(member.id)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                      title="মুছে ফেলুন"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="space-y-2 text-sm">
@@ -474,12 +501,15 @@ const FamilyMembers = () => {
             >
               <option value="">সম্পর্ক নির্বাচন করুন</option>
               <option value="স্ত্রী">স্ত্রী</option>
+              <option value="ভাই">ভাই</option>
+              <option value="বোন">বোন</option>
               <option value="ছেলে">ছেলে</option>
               <option value="মেয়ে">মেয়ে</option>
               <option value="ছেলের বৌ">ছেলের বৌ</option>
               <option value="জামাই">জামাই</option>
               <option value="নাতি">নাতি</option>
               <option value="নাতনি">নাতনি</option>
+              <option value="ফুফি">ফুফি</option>
               <option value="অন্যান্য">অন্যান্য</option>
             </select>
           </div>

@@ -170,6 +170,7 @@ const PersonalExpense = React.lazy(() => import('./pages/Personal/Expense'));
 const ExpenseCategoriesPage = React.lazy(() => import('./pages/Personal/ExpenseCategories'));
 const PersonalExpenseDetails = React.lazy(() => import('./pages/Personal/ExpenseDetails'));
 const FamilyMembers = React.lazy(() => import('./pages/Personal/FamilyMembers'));
+const FamilyMemberProfile = React.lazy(() => import('./pages/Personal/FamilyMemberProfile'));
 const AdministrativeExpenses = React.lazy(() => import('./pages/Personal/AdministrativeExpenses'));
 const AdministrativeExpenseCategories = React.lazy(() => import('./pages/Personal/AdministrativeExpenseCategories'));
 
@@ -1353,6 +1354,14 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <FamilyMembers />
+          </Suspense>
+        )
+      },
+      {
+        path: "family-members/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FamilyMemberProfile />
           </Suspense>
         )
       },

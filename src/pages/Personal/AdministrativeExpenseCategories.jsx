@@ -79,7 +79,8 @@ const ExpenseCategoriesPage = () => {
         showConfirmButton: false 
       });
     } catch (err) {
-      const message = err?.response?.data?.message || 'ক্যাটাগরি তৈরি করতে ব্যর্থ';
+      const message = err?.response?.data?.message || err?.message || 'ক্যাটাগরি তৈরি করতে ব্যর্থ';
+      console.error('Create category error:', err);
       await Swal.fire({ 
         icon: 'error', 
         title: 'ত্রুটি', 

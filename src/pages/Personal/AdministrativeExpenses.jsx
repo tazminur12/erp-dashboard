@@ -108,7 +108,8 @@ const AdministrativeExpenses = () => {
       await deleteCategory.mutateAsync({ name, id });
       await Swal.fire({ icon: 'success', title: 'মুছে ফেলা হয়েছে', timer: 900, showConfirmButton: false });
     } catch (err) {
-      const message = err?.response?.data?.message || 'ক্যাটাগরি মুছে ফেলতে ব্যর্থ';
+      const message = err?.response?.data?.message || err?.message || 'ক্যাটাগরি মুছে ফেলতে ব্যর্থ';
+      console.error('Delete category error:', err);
       await Swal.fire({ icon: 'error', title: 'ত্রুটি', text: message, confirmButtonColor: '#ef4444' });
     }
   };
