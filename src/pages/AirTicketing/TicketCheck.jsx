@@ -1,15 +1,23 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Search, X, Loader2, Plane, DollarSign } from 'lucide-react';
+import { Search, X, Loader2, Plane, DollarSign, ChevronRight, CheckCircle, User, Building2, ArrowLeft } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
+import { useNavigate } from 'react-router-dom';
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 import { useEmployees } from '../../hooks/useHRQueries';
 import useTicketCheckQueries from '../../hooks/useTicketCheckQueries';
 import useAirlineQueries from '../../hooks/useAirlineQueries';
+import Swal from 'sweetalert2';
 
 export default function TicketCheck() {
+  const navigate = useNavigate();
   const { useSearchAirCustomers } = useAirCustomersQueries();
   const { useCreateTicketCheck } = useTicketCheckQueries();
   const createMutation = useCreateTicketCheck();
   const { useAirlines } = useAirlineQueries();
+  
+  // Step-by-step navigation
+  const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 4;
   
   // Fetch active employees for reservation officers
   const { data: employeesData, isLoading: isLoadingEmployees } = useEmployees({
@@ -150,26 +158,143 @@ export default function TicketCheck() {
     const serviceCharge = parseFloat(formValues.serviceCharge) || 0;
     return serviceCharge; // Service Charge is completely profit
   }, [formValues.serviceCharge]);
+  
+  // Step navigation functions
+  const goToStep = (step) => {
+    if (step >= 1 && step <= totalSteps) {
+      setCurrentStep(step);
+    }
+  };
+  
+  const nextStep = () => {
+    if (validateCurrentStep()) {
+      if (currentStep < totalSteps) {
+        setCurrentStep(currentStep + 1);
+      }
+    }
+  };
+  
+  const previousStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+  
+  const validateCurrentStep = () => {
+    switch (currentStep) {
+      case 1: // Passenger Information
+        if (!formValues.passengerName || !formValues.travellingCountry || 
+            !formValues.passportNo || !formValues.contactNo) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: 'অনুগ্রহ করে যাত্রীর সব আবশ্যক তথ্য দিন',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+          });
+          return false;
+        }
+        if (!formValues.isWhatsAppSame && !formValues.whatsAppNo) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: 'WhatsApp নম্বর দিন',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+          });
+          return false;
+        }
+        return true;
+      case 2: // Flight Information
+        if (!formValues.airlineName || !formValues.origin || !formValues.destination || 
+            !formValues.airlinesPnr) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: 'অনুগ্রহ করে সব ফ্লাইট তথ্য দিন',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+          });
+          return false;
+        }
+        return true;
+      case 3: // Agent & Officer
+        if (!formValues.issuingAgentName || !formValues.issuingAgentContact || 
+            !formValues.reservationOfficerId) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: 'অনুগ্রহ করে ইস্যুকারী এজেন্ট এবং রিজার্ভেশন অফিসার নির্বাচন করুন',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+          });
+          return false;
+        }
+        if (formValues.agentEmail && !validateEmail(formValues.agentEmail)) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: 'সঠিক ইমেইল ঠিকানা দিন',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+          });
+          return false;
+        }
+        return true;
+      case 4: // Financial Details
+        if (!formValues.serviceCharge) {
+          Swal.fire({
+            title: 'ত্রুটি!',
+            text: 'অনুগ্রহ করে সার্ভিস চার্জ দিন',
+            icon: 'error',
+            confirmButtonText: 'ঠিক আছে',
+            confirmButtonColor: '#EF4444',
+          });
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
+  
+  // Step definitions
+  const steps = [
+    { number: 1, title: 'যাত্রী তথ্য', description: 'Passenger Information' },
+    { number: 2, title: 'ফ্লাইট তথ্য', description: 'Flight Information' },
+    { number: 3, title: 'এজেন্ট ও অফিসার', description: 'Agent & Officer' },
+    { number: 4, title: 'আর্থিক বিবরণ', description: 'Financial Details' }
+  ];
+  
+  const getStepColor = (step, isActive, isCompleted) => {
+    if (isCompleted) {
+      return {
+        bg: 'bg-green-50 dark:bg-green-900/20',
+        text: 'text-green-700 dark:text-green-400',
+        circle: 'bg-green-600 dark:bg-green-500'
+      };
+    }
+    if (isActive) {
+      return {
+        bg: 'bg-blue-50 dark:bg-blue-900/20',
+        text: 'text-blue-700 dark:text-blue-400',
+        circle: 'bg-blue-600 dark:bg-blue-500'
+      };
+    }
+    return {
+      bg: 'bg-gray-50 dark:bg-gray-800',
+      text: 'text-gray-500 dark:text-gray-400',
+      circle: 'bg-gray-400 dark:bg-gray-600'
+    };
+  };
 
   function handleSubmit(e) {
     e.preventDefault();
-    setSubmittedMessage('');
-
-    if (!formValues.formDate) return setSubmittedMessage('তারিখ প্রয়োজন।');
-    if (!formValues.passengerName) return setSubmittedMessage('যাত্রীর নাম লিখুন।');
-    if (!formValues.travellingCountry) return setSubmittedMessage('ভ্রমণের দেশ লিখুন।');
-    if (!formValues.passportNo) return setSubmittedMessage('পাসপোর্ট নম্বর লিখুন।');
-    if (!formValues.contactNo) return setSubmittedMessage('যোগাযোগ নম্বর লিখুন।');
-    if (!formValues.isWhatsAppSame && !formValues.whatsAppNo) return setSubmittedMessage('WhatsApp নম্বর লিখুন।');
-    if (!formValues.airlineName) return setSubmittedMessage('এয়ারলাইন্সের নাম লিখুন।');
-    if (!formValues.origin) return setSubmittedMessage('উৎপত্তি লিখুন।');
-    if (!formValues.destination) return setSubmittedMessage('গন্তব্য লিখুন।');
-    if (!formValues.airlinesPnr) return setSubmittedMessage('এয়ারলাইন্স PNR লিখুন।');
-    if (!formValues.issuingAgentName) return setSubmittedMessage('ইস্যুকারী এজেন্টের নাম লিখুন।');
-    if (!formValues.issuingAgentContact) return setSubmittedMessage('ইস্যুকারী এজেন্ট যোগাযোগ নম্বর লিখুন।');
-    if (!validateEmail(formValues.agentEmail)) return setSubmittedMessage('সঠিক ইমেইল ঠিকানা লিখুন।');
-    if (!formValues.reservationOfficerId) return setSubmittedMessage('রিজার্ভেশন অফিসার নির্বাচন করুন।');
-    if (!formValues.serviceCharge) return setSubmittedMessage('সার্ভিস চার্জ (BDT) লিখুন।');
+    
+    // Final validation
+    if (!validateCurrentStep()) {
+      return;
+    }
 
     setSubmitting(true);
 
@@ -204,12 +329,26 @@ export default function TicketCheck() {
     createMutation.mutate(payload, {
       onSuccess: () => {
         setSubmitting(false);
-        setSubmittedMessage('Ticket check created successfully!');
+        Swal.fire({
+          title: 'সফল!',
+          text: 'টিকেট চেক সফলভাবে তৈরি হয়েছে!',
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        });
         // Reset form
         handleReset();
+        setCurrentStep(1);
       },
-      onError: () => {
+      onError: (error) => {
         setSubmitting(false);
+        Swal.fire({
+          title: 'ত্রুটি!',
+          text: error.message || 'টিকেট চেক তৈরি করতে সমস্যা হয়েছে',
+          icon: 'error',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#EF4444',
+        });
       }
     });
   }
@@ -237,17 +376,81 @@ export default function TicketCheck() {
     setPassengerSearchTerm('');
     setAirlineSearchTerm('');
     setSubmittedMessage('');
+    setCurrentStep(1);
   }
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">টিকেট চেক</h1>
-        <div className="text-sm text-gray-500 dark:text-gray-400">পুরাতন টিকেটিং সেবা</div>
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+      <Helmet>
+        <title>টিকেট চেক - Ticket Check</title>
+        <meta name="description" content="Create ticket check request" />
+      </Helmet>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Plane className="w-8 h-8 text-blue-600" />
+                  টিকেট চেক
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">Step-by-Step টিকেট চেক প্রক্রিয়া</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <form onSubmit={handleSubmit} onReset={handleReset} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Progress Steps */}
+        <div className="mb-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-4 border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between overflow-x-auto">
+            {steps.map((step, index) => {
+              const isActive = currentStep === step.number;
+              const isCompleted = currentStep > step.number;
+              const stepColor = getStepColor(step.number, isActive, isCompleted);
+              
+              return (
+                <div key={step.number} className="flex items-center min-w-0">
+                  <button
+                    onClick={() => goToStep(step.number)}
+                    className={`flex items-center gap-2 p-2 rounded-lg transition-all duration-300 ${stepColor.bg} ${stepColor.text} ${currentStep >= step.number ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed'}`}
+                  >
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${stepColor.circle} text-white`}>
+                      {isCompleted ? <CheckCircle className="w-3 h-3" /> : step.number}
+                    </div>
+                    <div className="text-left hidden sm:block">
+                      <div className="text-sm font-semibold">{step.title}</div>
+                      <div className="text-xs opacity-75">{step.description}</div>
+                    </div>
+                  </button>
+                  {index < steps.length - 1 && (
+                    <ChevronRight className={`w-4 h-4 mx-1 transition-colors duration-300 ${
+                      isCompleted ? 'text-green-500' : 'text-gray-400'
+                    }`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} onReset={handleReset} className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+          {/* Step 1: Passenger Information */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <User className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">যাত্রী তথ্য</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Date (Auto) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">তারিখ (স্বয়ংক্রিয়)</label>
@@ -285,9 +488,7 @@ export default function TicketCheck() {
                   setShowPassengerResults(value.trim().length >= 2);
                 }}
                 onFocus={() => {
-                  if (passengerSearchTerm.trim().length >= 2 || passengerResults.length > 0) {
-                    setShowPassengerResults(true);
-                  }
+                  setShowPassengerResults(true);
                 }}
                 required
               />
@@ -307,39 +508,41 @@ export default function TicketCheck() {
             </div>
             
             {/* Search Results Dropdown */}
-            {showPassengerResults && (passengerSearchTerm.trim().length >= 2 || passengerResults.length > 0) && (
+            {showPassengerResults && (
               <div
                 ref={resultsRef}
                 className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-auto"
               >
-                {isSearching ? (
-                  <div className="p-4 text-center">
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-blue-600" />
-                    <p className="text-sm text-gray-500 mt-2">Searching...</p>
-                  </div>
-                ) : passengerResults.length > 0 ? (
-                  <ul className="py-1">
-                    {passengerResults.map((passenger) => {
-                      const fullName = passenger.name || `${passenger.firstName || ''} ${passenger.lastName || ''}`.trim();
-                      return (
-                        <li
-                          key={passenger._id || passenger.id || passenger.customerId}
-                          className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                          onClick={() => handlePassengerSelect(passenger)}
-                        >
-                          <div className="font-medium text-gray-900 dark:text-white">{fullName}</div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400">
-                            {passenger.mobile || passenger.phone ? `Phone: ${passenger.mobile || passenger.phone}` : ''}
-                            {passenger.passportNumber ? ` | Passport: ${passenger.passportNumber}` : ''}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : passengerSearchTerm.trim().length >= 2 ? (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    কোন যাত্রী পাওয়া যায়নি
-                  </div>
+                {passengerSearchTerm.trim().length >= 2 ? (
+                  isSearching ? (
+                    <div className="p-4 text-center">
+                      <Loader2 className="h-5 w-5 animate-spin mx-auto text-blue-600" />
+                      <p className="text-sm text-gray-500 mt-2">খোঁজা হচ্ছে...</p>
+                    </div>
+                  ) : passengerResults.length > 0 ? (
+                    <ul className="py-1">
+                      {passengerResults.map((passenger) => {
+                        const fullName = passenger.name || `${passenger.firstName || ''} ${passenger.lastName || ''}`.trim();
+                        return (
+                          <li
+                            key={passenger._id || passenger.id || passenger.customerId}
+                            className="px-4 py-2 hover:bg-blue-50 dark:hover:bg-blue-900/20 cursor-pointer transition-colors"
+                            onClick={() => handlePassengerSelect(passenger)}
+                          >
+                            <div className="font-medium text-gray-900 dark:text-white">{fullName}</div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {passenger.mobile || passenger.phone ? `Phone: ${passenger.mobile || passenger.phone}` : ''}
+                              {passenger.passportNumber ? ` | Passport: ${passenger.passportNumber}` : ''}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      কোন যাত্রী পাওয়া যায়নি
+                    </div>
+                  )
                 ) : null}
               </div>
             )}
@@ -413,239 +616,316 @@ export default function TicketCheck() {
               required
             />
           </div>
+              </div>
+            </div>
+          )}
 
-          {/* Airlines Name (Searchable) */}
-          <div className="relative">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              <Plane className="w-4 h-4" />
-              এয়ারলাইন্সের নাম
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="এয়ারলাইন খুঁজুন..."
-                className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={airlineSearchTerm || formValues.airlineName}
-                onChange={(e) => {
-                  setAirlineSearchTerm(e.target.value);
-                  updateValue('airlineName', e.target.value);
-                  setShowAirlineList(true);
-                }}
-                onFocus={() => setShowAirlineList(true)}
-                required
-              />
-              {airlineSearchTerm && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAirlineSearchTerm('');
-                    updateValue('airlineName', '');
-                    setShowAirlineList(false);
-                  }}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2"
-                >
-                  <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
+          {/* Step 2: Flight Information */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Plane className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">ফ্লাইট তথ্য</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Airlines Name (Searchable) */}
+                <div className="relative">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    <Plane className="w-4 h-4" />
+                    এয়ারলাইন্সের নাম
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="এয়ারলাইন খুঁজুন..."
+                      className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={airlineSearchTerm || formValues.airlineName}
+                      onChange={(e) => {
+                        setAirlineSearchTerm(e.target.value);
+                        updateValue('airlineName', e.target.value);
+                        setShowAirlineList(true);
+                      }}
+                      onFocus={() => setShowAirlineList(true)}
+                      required
+                    />
+                    {airlineSearchTerm && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAirlineSearchTerm('');
+                          updateValue('airlineName', '');
+                          setShowAirlineList(false);
+                        }}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2"
+                      >
+                        <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {showAirlineList && (
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {airlinesLoading ? (
+                        <div className="p-3 text-center text-sm text-gray-500">এয়ারলাইন লোড হচ্ছে...</div>
+                      ) : filteredAirlines.length > 0 ? (
+                        filteredAirlines.map((airline, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => handleAirlineSelect(airline)}
+                            className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0 text-sm"
+                          >
+                            {airline}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-3 text-center text-sm text-gray-500">
+                          {airlinesList.length === 0 
+                            ? 'ডাটাবেসে কোন এয়ারলাইন নেই। Airline List page থেকে এয়ারলাইন যোগ করুন।' 
+                            : 'আপনার অনুসন্ধানের সাথে কোন এয়ারলাইন মিলেনি।'}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Origin */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">উৎপত্তি</label>
+                  <input
+                    type="text"
+                    placeholder="যেমনঃ DAC"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={formValues.origin}
+                    onChange={e => updateValue('origin', e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Destination */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">গন্তব্য</label>
+                  <input
+                    type="text"
+                    placeholder="যেমনঃ RUH"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={formValues.destination}
+                    onChange={e => updateValue('destination', e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Airlines PNR */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">এয়ারলাইন্স PNR</label>
+                  <input
+                    type="text"
+                    placeholder="যেমনঃ ABC123"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={formValues.airlinesPnr}
+                    onChange={e => updateValue('airlinesPnr', e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Agent & Officer */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <User className="w-6 h-6 text-blue-600" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">এজেন্ট ও অফিসার তথ্য</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Issuing Agent Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    ইস্যুকারী এজেন্টের নাম <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="এজেন্টের সম্পূর্ণ নাম"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={formValues.issuingAgentName}
+                    onChange={e => updateValue('issuingAgentName', e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Issuing Agent Contact No */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    ইস্যুকারী এজেন্ট যোগাযোগ নম্বর <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="যেমনঃ +8801XXXXXXXXX"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={formValues.issuingAgentContact}
+                    onChange={e => updateValue('issuingAgentContact', e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Agent Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    এজেন্ট ইমেইল
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="agent@example.com"
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
+                    style={{ fontFamily: "'Google Sans', sans-serif" }}
+                    value={formValues.agentEmail}
+                    onChange={e => updateValue('agentEmail', e.target.value)}
+                  />
+                </div>
+
+                {/* Reservation Officer */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    রিজার্ভেশন অফিসার নির্বাচন করুন <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    value={formValues.reservationOfficerId}
+                    onChange={e => updateValue('reservationOfficerId', e.target.value)}
+                    disabled={isLoadingEmployees}
+                    required
+                  >
+                    <option value="" disabled>
+                      {isLoadingEmployees ? 'লোড হচ্ছে...' : 'অফিসার নির্বাচন করুন'}
+                    </option>
+                    {reservationOfficers.length > 0 ? (
+                      reservationOfficers.map(officer => (
+                        <option key={officer.id} value={officer.id}>{officer.name}</option>
+                      ))
+                    ) : !isLoadingEmployees ? (
+                      <option value="" disabled>কোন কর্মচারী পাওয়া যায়নি</option>
+                    ) : null}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Financial Details */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="w-6 h-6 text-green-600" />
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">আর্থিক বিবরণ</h2>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Service Charge (BDT) - সম্পূর্ণ profit */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+                    <DollarSign className="w-4 h-4" />
+                    সার্ভিস চার্জ (BDT) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
+                    <input
+                      type="number"
+                      placeholder="0.00"
+                      step="0.01"
+                      min="0"
+                      className="w-full pl-7 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 font-english"
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
+                      value={formValues.serviceCharge}
+                      onChange={e => updateValue('serviceCharge', e.target.value)}
+                      required
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">সার্ভিস চার্জ সম্পূর্ণ লাভ</p>
+                </div>
+
+                {/* Profit (Calculated from Service Charge) */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">লাভ (প্রফিট)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
+                    <input
+                      type="text"
+                      className={`w-full pl-7 rounded-md border-2 px-3 py-2 font-semibold font-english ${
+                        profit >= 0 
+                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
+                          : 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                      }`}
+                      style={{ fontFamily: "'Google Sans', sans-serif" }}
+                      value={profit.toFixed(2)}
+                      readOnly
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">সার্ভিস চার্জ = সম্পূর্ণ লাভ</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step Navigation Buttons */}
+          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={previousStep}
+              disabled={currentStep === 1}
+              className={`px-4 py-2 rounded-md border-2 font-medium transition-all duration-200 ${
+                currentStep === 1
+                  ? 'border-gray-300 dark:border-gray-700 text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                  : 'border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+              }`}
+            >
+              <ChevronRight className="w-4 h-4 inline-block rotate-180 mr-2" />
+              পূর্ববর্তী
+            </button>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                ধাপ {currentStep} এর {totalSteps}
+              </span>
             </div>
             
-            {showAirlineList && (
-              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                {airlinesLoading ? (
-                  <div className="p-3 text-center text-sm text-gray-500">এয়ারলাইন লোড হচ্ছে...</div>
-                ) : filteredAirlines.length > 0 ? (
-                  filteredAirlines.map((airline, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleAirlineSelect(airline)}
-                      className="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-0 text-sm"
-                    >
-                      {airline}
-                    </button>
-                  ))
+            {currentStep < totalSteps ? (
+              <button
+                type="button"
+                onClick={nextStep}
+                className="px-6 py-2 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                পরবর্তী
+                <ChevronRight className="w-4 h-4 inline-block ml-2" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={submitting}
+                className="px-6 py-2 rounded-md bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-60"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 inline-block animate-spin mr-2" />
+                    সংরক্ষণ করা হচ্ছে...
+                  </>
                 ) : (
-                  <div className="p-3 text-center text-sm text-gray-500">
-                    {airlinesList.length === 0 
-                      ? 'ডাটাবেসে কোন এয়ারলাইন নেই। Airline List page থেকে এয়ারলাইন যোগ করুন।' 
-                      : 'আপনার অনুসন্ধানের সাথে কোন এয়ারলাইন মিলেনি।'}
-                  </div>
+                  <>
+                    <DollarSign className="w-4 h-4 inline-block mr-2" />
+                    সংরক্ষণ করুন
+                  </>
                 )}
-              </div>
+              </button>
             )}
           </div>
-
-          {/* Origin */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">উৎপত্তি</label>
-            <input
-              type="text"
-              placeholder="যেমনঃ DAC"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
-              style={{ fontFamily: "'Google Sans', sans-serif" }}
-              value={formValues.origin}
-              onChange={e => updateValue('origin', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Destination */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">গন্তব্য</label>
-            <input
-              type="text"
-              placeholder="যেমনঃ RUH"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
-              style={{ fontFamily: "'Google Sans', sans-serif" }}
-              value={formValues.destination}
-              onChange={e => updateValue('destination', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Airlines PNR */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">এয়ারলাইন্স PNR</label>
-            <input
-              type="text"
-              placeholder="যেমনঃ ABC123"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
-              style={{ fontFamily: "'Google Sans', sans-serif" }}
-              value={formValues.airlinesPnr}
-              onChange={e => updateValue('airlinesPnr', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Issuing Agent Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ইস্যুকারী এজেন্টের নাম</label>
-            <input
-              type="text"
-              placeholder="এজেন্টের সম্পূর্ণ নাম"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={formValues.issuingAgentName}
-              onChange={e => updateValue('issuingAgentName', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Issuing Agent Contact No */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">ইস্যুকারী এজেন্ট যোগাযোগ নম্বর</label>
-            <input
-              type="tel"
-              placeholder="যেমনঃ +8801XXXXXXXXX"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
-              style={{ fontFamily: "'Google Sans', sans-serif" }}
-              value={formValues.issuingAgentContact}
-              onChange={e => updateValue('issuingAgentContact', e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Agent Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">এজেন্ট ইমেইল</label>
-            <input
-              type="email"
-              placeholder="agent@example.com"
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
-              style={{ fontFamily: "'Google Sans', sans-serif" }}
-              value={formValues.agentEmail}
-              onChange={e => updateValue('agentEmail', e.target.value)}
-            />
-          </div>
-
-          {/* Reservation Officer */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              রিজার্ভেশন অফিসার নির্বাচন করুন
-            </label>
-            <select
-              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              value={formValues.reservationOfficerId}
-              onChange={e => updateValue('reservationOfficerId', e.target.value)}
-              disabled={isLoadingEmployees}
-              required
-            >
-              <option value="" disabled>
-                {isLoadingEmployees ? 'লোড হচ্ছে...' : 'অফিসার নির্বাচন করুন'}
-              </option>
-              {reservationOfficers.length > 0 ? (
-                reservationOfficers.map(officer => (
-                  <option key={officer.id} value={officer.id}>{officer.name}</option>
-                ))
-              ) : !isLoadingEmployees ? (
-                <option value="" disabled>কোন কর্মচারী পাওয়া যায়নি</option>
-              ) : null}
-            </select>
-          </div>
-
-          {/* Service Charge (BDT) - সম্পূর্ণ profit */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
-              <DollarSign className="w-4 h-4" />
-              সার্ভিস চার্জ (BDT) <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
-              <input
-                type="number"
-                placeholder="0.00"
-                step="0.01"
-                min="0"
-                className="w-full pl-7 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-english"
-                style={{ fontFamily: "'Google Sans', sans-serif" }}
-                value={formValues.serviceCharge}
-                onChange={e => updateValue('serviceCharge', e.target.value)}
-                required
-              />
-            </div>
-            <p className="mt-1 text-xs text-gray-500">সার্ভিস চার্জ সম্পূর্ণ লাভ</p>
-          </div>
-
-          {/* Profit (Calculated from Service Charge) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">লাভ (প্রফিট)</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-english" style={{ fontFamily: "'Google Sans', sans-serif" }}>৳</span>
-              <input
-                type="text"
-                className={`w-full pl-7 rounded-md border-2 px-3 py-2 font-semibold font-english ${
-                  profit >= 0 
-                    ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
-                    : 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-                }`}
-                style={{ fontFamily: "'Google Sans', sans-serif" }}
-                value={profit.toFixed(2)}
-                readOnly
-              />
-            </div>
-            <p className="mt-1 text-xs text-gray-500">সার্ভিস চার্জ = সম্পূর্ণ লাভ</p>
-          </div>
-        </div>
-
-        {submittedMessage && (
-          <div className="mt-4 text-sm text-blue-700 dark:text-blue-300">{submittedMessage}</div>
-        )}
-
-        <div className="mt-6 flex items-center gap-3">
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60"
-            disabled={submitting}
-          >
-            {submitting ? 'সংরক্ষণ করা হচ্ছে...' : 'সংরক্ষণ করুন'}
-          </button>
-          <button
-            type="reset"
-            className="px-4 py-2 rounded-md border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-900"
-          >
-            রিসেট
-          </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
