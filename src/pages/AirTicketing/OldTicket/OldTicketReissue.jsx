@@ -2,11 +2,11 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Search, X, Plane, DollarSign, ChevronRight, CheckCircle, User, Building2, CreditCard, Receipt, ArrowLeft, Loader2, Phone, Mail, MapPin, FileText } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
-import { useVendors, useVendor, useVendorBillsByVendor } from '../../hooks/useVendorQueries';
-import { useEmployees } from '../../hooks/useHRQueries';
-import useAirlineQueries from '../../hooks/useAirlineQueries';
-import useOldTicketReissueQueries from '../../hooks/useOldTicketReissueQueries';
+import useAirCustomersQueries from '../../../hooks/useAirCustomersQueries';
+import { useVendors, useVendor, useVendorBillsByVendor } from '../../../hooks/useVendorQueries';
+import { useEmployees } from '../../../hooks/useHRQueries';
+import useAirlineQueries from '../../../hooks/useAirlineQueries';
+import useOldTicketReissueQueries from '../../../hooks/useOldTicketReissueQueries';
 import Swal from 'sweetalert2';
 
 export default function OldTicketReissue() {

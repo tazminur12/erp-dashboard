@@ -95,27 +95,26 @@ const EditHotel = React.lazy(() => import('./pages/HajjUmrah/EditHotel'));
 
 // Air Ticketing pages
 const AirTicketDashboard = React.lazy(() => import('./pages/AirTicketing/Dashboard'));
-const NewTicket = React.lazy(() => import('./pages/AirTicketing/NewTicket'));
-const TicketList = React.lazy(() => import('./pages/AirTicketing/TicketList'));
-const TicketEdit = React.lazy(() => import('./pages/AirTicketing/TicketEdit'));
-const TicketDetails = React.lazy(() => import('./pages/AirTicketing/TicketDetails'));
-const TicketInvoice = React.lazy(() => import('./pages/AirTicketing/TicketInvoice'));
-const PassengerList = React.lazy(() => import('./pages/AirTicketing/PassengerList'));
-const NewPassenger = React.lazy(() => import('./pages/AirTicketing/NewPassenger'));
-const PassengerEdit = React.lazy(() => import('./pages/AirTicketing/PassengerEdit'));
-const PassengerDetails = React.lazy(() => import('./pages/AirTicketing/PassengerDetails'));
+const NewTicket = React.lazy(() => import('./pages/AirTicketing/Ticket/NewTicket'));
+const TicketList = React.lazy(() => import('./pages/AirTicketing/Ticket/TicketList'));
+const TicketEdit = React.lazy(() => import('./pages/AirTicketing/Ticket/TicketEdit'));
+const TicketDetails = React.lazy(() => import('./pages/AirTicketing/Ticket/TicketDetails'));
+const PassengerList = React.lazy(() => import('./pages/AirTicketing/AirPassenger/PassengerList'));
+const NewPassenger = React.lazy(() => import('./pages/AirTicketing/AirPassenger/NewPassenger'));
+const PassengerEdit = React.lazy(() => import('./pages/AirTicketing/AirPassenger/PassengerEdit'));
+const PassengerDetails = React.lazy(() => import('./pages/AirTicketing/AirPassenger/PassengerDetails'));
 const AgentList = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AgentList'));
 const AirAgentAdd = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentAdd'));
 const AirAgentDetails = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentDetails'));
 const AirAgentEdit = React.lazy(() => import('./pages/AirTicketing/B2BAirAgent/AirAgentEdit'));
-const TicketCheck = React.lazy(() => import('./pages/AirTicketing/TicketCheck'));
-const TicketCheckList = React.lazy(() => import('./pages/AirTicketing/TicketCheckList'));
-const TicketCheckDetails = React.lazy(() => import('./pages/AirTicketing/TicketCheckDetails'));
-const OldTicketReissue = React.lazy(() => import('./pages/AirTicketing/OldTicketReissue'));
-const OldTicketReissueList = React.lazy(() => import('./pages/AirTicketing/OldTicketReissueList'));
-const OldTicketingDashboard = React.lazy(() => import('./pages/AirTicketing/OldTicketingDashboard'));
-const AirlineList = React.lazy(() => import('./pages/AirTicketing/AirlineList'));
-const AirlineDetails = React.lazy(() => import('./pages/AirTicketing/AirlineDetails'));
+const TicketCheck = React.lazy(() => import('./pages/AirTicketing/TicketCheck/TicketCheck'));
+const TicketCheckList = React.lazy(() => import('./pages/AirTicketing/TicketCheck/TicketCheckList'));
+const TicketCheckDetails = React.lazy(() => import('./pages/AirTicketing/TicketCheck/TicketCheckDetails'));
+const OldTicketReissue = React.lazy(() => import('./pages/AirTicketing/OldTicket/OldTicketReissue'));
+const OldTicketReissueList = React.lazy(() => import('./pages/AirTicketing/OldTicket/OldTicketReissueList'));
+const OldTicketingDashboard = React.lazy(() => import('./pages/AirTicketing/OldTicket/OldTicketingDashboard'));
+const AirlineList = React.lazy(() => import('./pages/AirTicketing/Airline/AirlineList'));
+const AirlineDetails = React.lazy(() => import('./pages/AirTicketing/Airline/AirlineDetails'));
 
 // Visa Processing pages
 const VisaProcessingDashboard = React.lazy(() => import('./pages/VisaProcessing').then(module => ({ default: module.VisaProcessingDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -164,6 +163,10 @@ const IATAAirlinesCappingDetails = React.lazy(() => import('./pages/Account/IATA
 const OthersInvest = React.lazy(() => import('./pages/Account/OtherInvest/OthersInvest'));
 const AddOthersInvest = React.lazy(() => import('./pages/Account/OtherInvest/AddOthersInvest'));
 const OthersInvestDetails = React.lazy(() => import('./pages/Account/OtherInvest/OthersInvestDetails'));
+const AssetManagement = React.lazy(() => import('./pages/Account/Asset/AssetManagement'));
+const AddAsset = React.lazy(() => import('./pages/Account/Asset/AddAsset'));
+const EditAsset = React.lazy(() => import('./pages/Account/Asset/EditAsset'));
+const AssetDetails = React.lazy(() => import('./pages/Account/Asset/AssetDetails'));
 
 // Personal pages
 const PersonalExpense = React.lazy(() => import('./pages/Personal/Expense'));
@@ -848,14 +851,6 @@ const router = createBrowserRouter([
         )
       },
       {
-        path: "invoice",
-        element: (
-          <Suspense fallback={<LoadingSpinner />}>
-            <TicketInvoice />
-          </Suspense>
-        )
-      },
-      {
         path: "agent/add",
         element: (
           <Suspense fallback={<LoadingSpinner />}>
@@ -1312,6 +1307,38 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <OthersInvestDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "asset-management",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AssetManagement />
+          </Suspense>
+        )
+      },
+      {
+        path: "asset-management/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddAsset />
+          </Suspense>
+        )
+      },
+      {
+        path: "asset-management/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AssetDetails />
+          </Suspense>
+        )
+      },
+      {
+        path: "asset-management/:id/edit",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <EditAsset />
           </Suspense>
         )
       }

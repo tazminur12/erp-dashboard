@@ -264,8 +264,8 @@ export const navigation = [
           { name: 'Others Invest', href: '/account/investments/others-invest', icon: TrendingUp }
         ]
       },
-      // { name: 'Budget Planning', href: '/account/budget', icon: BarChart3Icon },
-      // { name: 'Tax Management', href: '/account/tax', icon: Receipt }
+      { name : 'Asset Management', href: '/account/asset-management', icon: Building }
+      
     ]
   },
   {

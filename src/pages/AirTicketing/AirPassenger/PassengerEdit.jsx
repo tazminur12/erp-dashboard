@@ -20,10 +20,10 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { useTheme } from '../../contexts/ThemeContext';
-import divisionData from '../../jsondata/AllDivision.json';
-import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
+import { useTheme } from '../../../contexts/ThemeContext.jsx';
+import divisionData from '../../../jsondata/AllDivision.json';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary.js';
+import useAirCustomersQueries from '../../../hooks/useAirCustomersQueries.js';
 
 const PassengerEdit = () => {
   const { id } = useParams();

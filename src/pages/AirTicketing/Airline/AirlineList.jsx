@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Plus, Edit, Trash2, Search, Filter, Eye, Plane, Building, Phone, Mail, Globe, MapPin, Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
-import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary';
-import { useTheme } from '../../contexts/ThemeContext';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary';
+import { useTheme } from '../../../contexts/ThemeContext';
 import Swal from 'sweetalert2';
-import useAirlineQueries from '../../hooks/useAirlineQueries';
+import useAirlineQueries from '../../../hooks/useAirlineQueries';
 
 const AirlineList = () => {
   const { isDark } = useTheme();
+  const navigate = useNavigate();
   const { useAirlines, useCreateAirline, useUpdateAirline, useDeleteAirline } = useAirlineQueries();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -496,6 +497,16 @@ const AirlineList = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              const airlineId = airline._id || airline.airlineId || airline.id;
+                              navigate(`/air-ticketing/airline/${airlineId}`);
+                            }}
+                            className="text-green-600 hover:text-green-900 p-2 hover:bg-green-50 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
                           <button
                             onClick={() => handleEdit(airline)}
                             className="text-blue-600 hover:text-blue-900 p-2 hover:bg-blue-50 rounded-lg transition-colors"

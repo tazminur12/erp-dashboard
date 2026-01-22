@@ -18,9 +18,9 @@ import {
   Plus,
   CheckCircle,
 } from 'lucide-react';
-import Modal, { ModalFooter } from '../../components/common/Modal';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
-import { useCreateAirTicket } from '../../hooks/useAirTicketQueries';
+import Modal, { ModalFooter } from '../../../components/common/Modal';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
+import { useCreateAirTicket } from '../../../hooks/useAirTicketQueries';
 import { useQueryClient } from '@tanstack/react-query';
 import Swal from 'sweetalert2';
 

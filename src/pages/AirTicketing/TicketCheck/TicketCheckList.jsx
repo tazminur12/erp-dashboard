@@ -22,10 +22,10 @@ import {
   Loader2,
   DollarSign
 } from 'lucide-react';
-import useTicketCheckQueries from '../../hooks/useTicketCheckQueries';
-import Modal from '../../components/common/Modal';
-import { useEmployees } from '../../hooks/useHRQueries';
-import useAirlineQueries from '../../hooks/useAirlineQueries';
+import useTicketCheckQueries from '../../../hooks/useTicketCheckQueries';
+import Modal from '../../../components/common/Modal';
+import { useEmployees } from '../../../hooks/useHRQueries';
+import useAirlineQueries from '../../../hooks/useAirlineQueries';
 import Swal from 'sweetalert2';
 
 const TicketCheckList = () => {

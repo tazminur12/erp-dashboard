@@ -24,7 +24,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import useAirlineQueries from '../../hooks/useAirlineQueries';
+import useAirlineQueries from '../../../hooks/useAirlineQueries';
 
 const AirlineDetails = () => {
   const { id } = useParams();
