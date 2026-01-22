@@ -20,15 +20,9 @@ function getKsaNumber(haji) {
 }
 
 function getQRDataUrl(haji) {
-  const payload = {
-    name: haji.name || 'N/A',
-    passport: haji.passportNumber || 'N/A',
-    mobile: haji.mobile || haji.phone || 'N/A',
-    district: haji.district || 'N/A',
-    id: haji.customerId || haji._id || haji.id || 'N/A',
-  };
-  const data = encodeURIComponent(JSON.stringify(payload));
-  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
+  const passportNumber = haji.passportNumber || '';
+  const searchUrl = `https://pilgrim.hajj.gov.bd/web/pilgrim-search?q=${encodeURIComponent(passportNumber)}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(searchUrl)}`;
 }
 
 /**
