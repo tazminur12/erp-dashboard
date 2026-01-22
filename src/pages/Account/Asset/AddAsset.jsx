@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, Building, DollarSign, Calendar, Package, Loader2, Plus } from 'lucide-react';
+import { ArrowLeft, Save, Building, DollarSign, Calendar, Package, Loader2, Plus, CheckCircle, AlertCircle } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import Swal from 'sweetalert2';
 import { useVendors } from '../../../hooks/useVendorQueries';
@@ -15,6 +15,7 @@ const AddAsset = () => {
   const [formData, setFormData] = useState({
     name: '',
     type: '',
+    selectedCustomerType: '', // Customer type selection
     providerCompanyId: '',
     providerCompanyName: '',
     totalPaidAmount: '',

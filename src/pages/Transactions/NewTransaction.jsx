@@ -77,6 +77,7 @@ import { useOpExCategories } from '../../hooks/useOperatingExpensenQuries';
 import { useExchanges } from '../../hooks/useMoneyExchangeQueries';
 import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
 import { useVendorBankAccounts } from '../../hooks/useVendorBankQueries';
+import useAssetQueries from '../../hooks/useAssetQueries';
 
 const NewTransaction = () => {
   const { isDark } = useTheme();
@@ -174,7 +175,7 @@ const NewTransaction = () => {
     transactionType: '',
     
     // Step 2: Customer Type Selection (for credit/debit)
-    selectedCustomerType: '', // 'airCustomer', 'vendor', 'agent', 'haji', 'umrah', 'loan', 'personalExpense', 'mirajIndustries', 'officeExpenses', 'moneyExchange', 'investment'
+    selectedCustomerType: '', // 'airCustomer', 'vendor', 'agent', 'haji', 'umrah', 'loan', 'personalExpense', 'mirajIndustries', 'officeExpenses', 'moneyExchange', 'investment', 'asset'
     
     // Step 3: Customer Selection (for credit/debit)
     customerType: 'customer', // 'customer', 'vendor', 'agent', 'haji', 'umrah'
@@ -359,7 +360,8 @@ const NewTransaction = () => {
       'mirajIndustries': 'miraj',
       'officeExpenses': 'office',
       'moneyExchange': 'moneyExchange',
-      'investment': 'investment'
+      'investment': 'investment',
+      'asset': 'asset'
     };
     return mapping[formData.selectedCustomerType] || 'airCustomer';
   };
@@ -520,6 +522,17 @@ const NewTransaction = () => {
            (inv.airlineName || '').toLowerCase().includes(term) ||
            (inv.investmentName || '').toLowerCase().includes(term);
   });
+  
+  // Asset queries
+  const assetQueries = useAssetQueries();
+  const shouldSearchAssets = effectiveSearchType === 'asset';
+  const { data: assetsData, isLoading: assetsLoading } = assetQueries.useAssets({
+    page: 1,
+    limit: 1000,
+    q: shouldSearchAssets && searchTerm ? searchTerm : '',
+    status: 'active'
+  });
+  const assetsList = assetsData?.assets || [];
   
   // Payment methods
   const paymentMethods = [
@@ -3445,7 +3458,8 @@ const NewTransaction = () => {
                         { value: 'mirajIndustries', label: 'মিরাজ ইন্ডাস্ট্রিজ', icon: '🏭', color: 'orange' },
                         { value: 'officeExpenses', label: 'অফিস ব্যয়', icon: '🏢', color: 'teal' },
                         { value: 'moneyExchange', label: 'মানি এক্সচেঞ্জ', icon: '💱', color: 'cyan' },
-                        { value: 'investment', label: 'বিনিয়োগ', icon: '📈', color: 'emerald' }
+                        { value: 'investment', label: 'বিনিয়োগ', icon: '📈', color: 'emerald' },
+                        { value: 'asset', label: 'সম্পদ', icon: '📦', color: 'slate' }
                       ].map((type) => (
                         <button
                           key={type.value}
@@ -3646,6 +3660,7 @@ const NewTransaction = () => {
                            formData.selectedCustomerType === 'officeExpenses' ? 'অফিস ব্যয়' :
                            formData.selectedCustomerType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ' :
                            formData.selectedCustomerType === 'investment' ? 'বিনিয়োগ' :
+                           formData.selectedCustomerType === 'asset' ? 'সম্পদ' :
                            formData.selectedCustomerType}
                         </span>
                       </p>
@@ -3680,6 +3695,8 @@ const NewTransaction = () => {
                           ? 'মানি এক্সচেঞ্জ আইডি/নাম খুঁজুন'
                           : effectiveSearchType === 'investment'
                           ? 'বিনিয়োগ খুঁজুন... (নাম/টাইপ/এয়ারলাইন)'
+                          : effectiveSearchType === 'asset'
+                          ? 'সম্পদ খুঁজুন... (নাম/টাইপ)'
                           : effectiveSearchType === 'miraj'
                           ? 'কর্মচারী খুঁজুন... (নাম/পদ/মোবাইল)'
                           : 'Miraj Industries – ক্যাটাগরি/অপশন খুঁজুন'
@@ -3706,6 +3723,7 @@ const NewTransaction = () => {
                     (effectiveSearchType === 'moneyExchange' && (moneyExchangeLoading || searchLoading)) ||
                     (effectiveSearchType === 'personal' && (personalCatsLoading || searchLoading)) ||
                     (effectiveSearchType === 'investment' && (investmentLoading || searchLoading)) ||
+                    (effectiveSearchType === 'asset' && (assetsLoading || searchLoading)) ||
                     (effectiveSearchType === 'miraj' && (mirajEmployeesLoading || searchLoading)) ? (
                       <div className="flex items-center justify-center py-6 sm:py-8">
                         <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-blue-500" />
@@ -3720,6 +3738,7 @@ const NewTransaction = () => {
                            effectiveSearchType === 'office' ? 'অফিস খরচ ক্যাটাগরি লোড হচ্ছে...' :
                            effectiveSearchType === 'moneyExchange' ? 'মানি এক্সচেঞ্জ ডেটা লোড হচ্ছে...' :
                            effectiveSearchType === 'investment' ? 'বিনিয়োগ লোড হচ্ছে...' :
+                           effectiveSearchType === 'asset' ? 'সম্পদ লোড হচ্ছে...' :
                            'লোন লোড হচ্ছে...'}
                         </span>
                       </div>
@@ -4214,6 +4233,74 @@ const NewTransaction = () => {
                       ) : (
                         <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
                           {searchTerm ? 'কোন বিনিয়োগ পাওয়া যায়নি' : 'কোন বিনিয়োগ নেই'}
+                        </div>
+                      )
+                    ) : effectiveSearchType === 'asset' ? (
+                      // Asset Results
+                      assetsList.length > 0 ? (
+                        assetsList
+                          .filter(asset => 
+                            !searchTerm || 
+                            asset.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            asset.type?.toLowerCase().includes(searchTerm.toLowerCase())
+                          )
+                          .map((asset) => (
+                            <button
+                              key={`asset-${asset.id || asset._id}`}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleCustomerSelect({
+                                  id: asset.id || asset._id,
+                                  name: asset.name,
+                                  customerType: 'asset',
+                                  assetInfo: asset
+                                });
+                              }}
+                              className={`w-full p-2 sm:p-3 rounded-lg border-2 transition-all duration-200 text-left hover:scale-[1.01] ${
+                                formData.customerId === String(asset.id || asset._id)
+                                  ? 'border-slate-500 bg-slate-50 dark:bg-slate-900/20'
+                                  : (isDark ? 'border-gray-600 bg-gray-800 hover:border-slate-300' : 'border-gray-200 bg-white hover:border-slate-300')
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 dark:bg-slate-900/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Package className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-400" />
+                                  </div>
+                                  <div className="text-left min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <h3 className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">
+                                        {asset.name || 'সম্পদ'}
+                                      </h3>
+                                      {asset.type && (
+                                        <span className="inline-block px-1.5 py-0.5 text-xs rounded-full bg-slate-100 dark:bg-slate-900/20 text-slate-700 dark:text-slate-400">
+                                          {asset.type}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {asset.providerCompanyName && (
+                                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                                        {asset.providerCompanyName}
+                                      </p>
+                                    )}
+                                    {asset.totalPaidAmount > 0 && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
+                                        ৳{asset.totalPaidAmount.toLocaleString('bn-BD')}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                                {formData.customerId === String(asset.id || asset._id) && (
+                                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-slate-500 flex-shrink-0" />
+                                )}
+                              </div>
+                            </button>
+                          ))
+                      ) : (
+                        <div className="text-center py-6 sm:py-8 text-gray-500 dark:text-gray-400 text-sm sm:text-base">
+                          {searchTerm ? 'কোন সম্পদ পাওয়া যায়নি' : 'কোন সম্পদ নেই'}
                         </div>
                       )
                     ) : effectiveSearchType === 'miraj' ? (
