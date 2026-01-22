@@ -27,6 +27,7 @@ import {
 import { useUmrah, useUpdateUmrah, useUmrahList, useAddUmrahRelation, useDeleteUmrahRelation, useUmrahTransactions } from '../../../hooks/UseUmrahQuries';
 import { usePackages, useAssignPackageToPassenger } from '../../../hooks/usePackageQueries';
 import Swal from 'sweetalert2';
+import { generateHajiCardPDF } from '../../../utils/hajiCardPdf';
 
 const UmrahHajiDetails = () => {
   const { id } = useParams();
@@ -47,6 +48,7 @@ const UmrahHajiDetails = () => {
     toDate: '',
     transactionType: ''
   });
+  const [isGeneratingCardPdf, setIsGeneratingCardPdf] = useState(false);
 
   const { data: umrah, isLoading, error } = useUmrah(id);
   const area = umrah?.area ?? umrah?.doc?.area ?? null;
@@ -186,6 +188,46 @@ const UmrahHajiDetails = () => {
       Swal.fire({
         title: 'ত্রুটি!',
         text: 'কপি করা যায়নি। আবার চেষ্টা করুন।',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+        background: isDark ? '#1F2937' : '#FEF2F2',
+      });
+    }
+  };
+
+  const handleDownloadCardPDF = async () => {
+    if (!umrah || isGeneratingCardPdf) return;
+    setIsGeneratingCardPdf(true);
+    const isDark = document.documentElement.classList.contains('dark');
+    Swal.fire({
+      title: 'পিডিএফ তৈরি হচ্ছে...',
+      text: 'BANGLADESH / SALMA AIR কার্ড পিডিএফ ডাউনলোড হচ্ছে',
+      allowOutsideClick: false,
+      didOpen: () => { Swal.showLoading(); },
+      background: isDark ? '#1F2937' : '#F9FAFB',
+    });
+    try {
+      const result = await generateHajiCardPDF(umrah, { download: true, copies: 2 });
+      setIsGeneratingCardPdf(false);
+      if (result.success) {
+        Swal.fire({
+          title: 'ডাউনলোড সম্পন্ন!',
+          text: `পিডিএফ সফলভাবে ডাউনলোড হয়েছে: ${result.filename}`,
+          icon: 'success',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+          background: isDark ? '#1F2937' : '#F9FAFB',
+        });
+      } else {
+        throw new Error(result.error || 'PDF তৈরি ব্যর্থ');
+      }
+    } catch (err) {
+      setIsGeneratingCardPdf(false);
+      console.error('Haji card PDF error:', err);
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: err?.message || 'পিডিএফ তৈরি করতে সমস্যা হয়েছে। আবার চেষ্টা করুন।',
         icon: 'error',
         confirmButtonText: 'ঠিক আছে',
         confirmButtonColor: '#EF4444',
@@ -1687,6 +1729,14 @@ const UmrahHajiDetails = () => {
           <Package className="w-4 h-4" />
           <span className="hidden sm:inline">প্যাকেজ যোগ করুন</span>
         </button>
+          <button
+            onClick={handleDownloadCardPDF}
+            disabled={isGeneratingCardPdf}
+            className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">{isGeneratingCardPdf ? 'তৈরি হচ্ছে...' : 'Name Plate'}</span>
+          </button>
           <button className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-sm sm:text-base">
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">এক্সপোর্ট</span>

@@ -19,6 +19,18 @@ function getKsaNumber(haji) {
   return 'N/A';
 }
 
+function getQRDataUrl(haji) {
+  const payload = {
+    name: haji.name || 'N/A',
+    passport: haji.passportNumber || 'N/A',
+    mobile: haji.mobile || haji.phone || 'N/A',
+    district: haji.district || 'N/A',
+    id: haji.customerId || haji._id || haji.id || 'N/A',
+  };
+  const data = encodeURIComponent(JSON.stringify(payload));
+  return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${data}`;
+}
+
 /**
  * Build HTML for one BANGLADESH / SALMA AIR TRAVELS card.
  * @param {Object} haji - Haji/passenger data
@@ -32,36 +44,38 @@ function buildCardHTML(haji) {
   const mob = formatMobileBd(haji.mobile || haji.phone);
   const ksa = getKsaNumber(haji);
   const photoUrl = haji.photo || haji.photoUrl || haji.image || '';
+  const qrSrc = getQRDataUrl(haji);
 
   return `
     <div class="haji-card" style="
-      width: 340px;
-      min-height: 200px;
+      width: 380px;
+      min-height: 220px;
       border: 2px solid #000;
       background: #fff;
-      padding: 12px 14px;
+      padding: 14px 16px;
       box-sizing: border-box;
-      font-family: Arial, sans-serif;
+      font-family: Arial, 'Noto Sans Bengali', sans-serif;
     ">
-      <div style="margin-bottom: 6px;">
-        <div style="font-size: 22px; font-weight: bold; color: #c00; letter-spacing: 0.5px;">BANGLADESH</div>
-        <div style="font-size: 14px; font-weight: bold; color: #0066cc; letter-spacing: 0.5px;">SALMA AIR TRAVELS</div>
+      <div style="margin-bottom: 8px;">
+        <div style="font-size: 24px; font-weight: bold; color: #c00; letter-spacing: 0.5px;">BANGLADESH</div>
+        <div style="font-size: 15px; font-weight: bold; color: #0066cc; letter-spacing: 0.5px;">SALMA AIR TRAVELS</div>
       </div>
-      <div style="display: flex; justify-content: space-between; gap: 12px;">
+      <div style="display: flex; justify-content: space-between; gap: 14px;">
         <div style="flex: 1; min-width: 0;">
-          <div style="font-size: 12px; font-weight: bold; color: #000; margin-bottom: 2px;">${escapeHtml(name)}</div>
-          <div style="font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px;">P.P NO: ${escapeHtml(ppNo)}</div>
-          <div style="font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px;">P.S: ${escapeHtml(ps)}</div>
-          <div style="font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px;">DIST: ${escapeHtml(dist)}</div>
-          <div style="font-size: 10px; font-weight: bold; color: #000; margin-bottom: 1px;">MOB: ${escapeHtml(mob)}</div>
-          <div style="font-size: 10px; font-weight: bold; color: #c00;">KSA: ${escapeHtml(ksa)}</div>
+          <div style="font-size: 13px; font-weight: bold; color: #000; margin-bottom: 3px;">${escapeHtml(name)}</div>
+          <div style="font-size: 11px; font-weight: bold; color: #000; margin-bottom: 2px;">P.P NO: ${escapeHtml(ppNo)}</div>
+          <div style="font-size: 11px; font-weight: bold; color: #000; margin-bottom: 2px;">P.S: ${escapeHtml(ps)}</div>
+          <div style="font-size: 11px; font-weight: bold; color: #000; margin-bottom: 2px;">DIST: ${escapeHtml(dist)}</div>
+          <div style="font-size: 11px; font-weight: bold; color: #000; margin-bottom: 2px;">MOB: ${escapeHtml(mob)}</div>
+          <div style="font-size: 11px; font-weight: bold; color: #c00;">KSA: ${escapeHtml(ksa)}</div>
         </div>
         <div style="flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 6px;">
-          <img src="${FLAG_URL}" alt="BD Flag" crossorigin="anonymous" style="width: 48px; height: 32px; object-fit: cover; display: block;" />
+          <img src="${FLAG_URL}" alt="BD Flag" crossorigin="anonymous" style="width: 52px; height: 35px; object-fit: cover; display: block;" />
           ${photoUrl
-            ? `<img src="${photoUrl.replace(/"/g, '&quot;')}" alt="Photo" crossorigin="anonymous" style="width: 56px; height: 56px; object-fit: cover; display: block; border: 1px solid #ccc;" />`
-            : `<div style="width: 56px; height: 56px; background: #e5e7eb; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b7280;">No Photo</div>`
+            ? `<img src="${photoUrl.replace(/"/g, '&quot;')}" alt="Photo" crossorigin="anonymous" style="width: 60px; height: 60px; object-fit: cover; display: block; border: 1px solid #ccc;" />`
+            : `<div style="width: 60px; height: 60px; background: #e5e7eb; border: 1px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #6b7280;">No Photo</div>`
           }
+          <img src="${qrSrc}" alt="QR" crossorigin="anonymous" style="width: 44px; height: 44px; display: block; object-fit: contain;" />
         </div>
       </div>
     </div>
@@ -90,30 +104,32 @@ export async function generateHajiCardPDF(haji, opts = {}) {
     position: absolute;
     left: -9999px;
     top: -9999px;
-    width: 360px;
+    width: 420px;
     background: #fff;
-    padding: 20px;
+    padding: 24px;
     box-sizing: border-box;
   `;
   const cards = Array.from({ length: Math.max(1, copies) }, () => cardHtml).join('');
   container.innerHTML = `
     <link href="https://fonts.maateen.me/kalpurush/font.css" rel="stylesheet">
-    <div style="display: flex; flex-direction: column; gap: 12px;">${cards}</div>
+    <div style="display: flex; flex-direction: column; gap: 14px;">${cards}</div>
   `;
   document.body.appendChild(container);
 
   try {
     await document.fonts.ready;
-    await new Promise((r) => setTimeout(r, 800));
+    await new Promise((r) => setTimeout(r, 1000));
 
     const canvas = await html2canvas(container, {
-      scale: 2,
+      scale: 3,
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff',
       logging: false,
       removeContainer: false,
-      imageTimeout: 15000,
+      imageTimeout: 20000,
+      letterRendering: true,
+      pixelRatio: Math.min(window.devicePixelRatio || 2, 3),
       onclone: (doc, el) => {
         el.querySelectorAll('img').forEach((img) => {
           img.setAttribute('crossorigin', 'anonymous');
@@ -123,7 +139,7 @@ export async function generateHajiCardPDF(haji, opts = {}) {
 
     document.body.removeChild(container);
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    const imgData = canvas.toDataURL('image/jpeg', 1);
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pw = pdf.internal.pageSize.getWidth();
     const ph = pdf.internal.pageSize.getHeight();
@@ -140,7 +156,7 @@ export async function generateHajiCardPDF(haji, opts = {}) {
     }
     const x = (pw - w) / 2;
     const y = (ph - h) / 2;
-    pdf.addImage(imgData, 'JPEG', x, y, w, h, undefined, 'FAST');
+    pdf.addImage(imgData, 'JPEG', x, y, w, h, undefined, 'NONE');
 
     const safeName = (haji.name || 'haji').replace(/[^a-zA-Z0-9\u0980-\u09FF\s-]/g, '_').trim().slice(0, 40);
     const filename = `BANGLADESH_SALMA_${safeName}_${new Date().toISOString().split('T')[0]}.pdf`;
