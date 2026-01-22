@@ -1523,10 +1523,13 @@ const NewTransaction = () => {
       };
 
       createPersonalExpenseTxV2.mutate(payload, {
-        onSuccess: () => {
+        onSuccess: (transactionData) => {
           // Also create a bank account transaction to update balance
           const description = `Personal Expense - ${formData.category || 'N/A'}`;
           const reference = formData.paymentDetails?.reference || `PE-${Date.now()}`;
+          
+          // Note: Category invalidation is handled in the mutation's onSuccess callback
+          // The category totalAmount should be updated by the backend
           createBankAccountTransactionMutation.mutate(
             {
               id: formData.sourceAccount.id,

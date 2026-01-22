@@ -272,101 +272,114 @@ const FamilyMembers = () => {
         </div>
       </div>
 
-      {/* Family Members Grid */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-        {isLoading ? (
-          <div className="text-center py-12">
-            <Loader2 className="w-8 h-8 text-purple-600 animate-spin mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">লোড হচ্ছে...</p>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-red-600 dark:text-red-400 mb-2">ত্রুটি: {error.message || 'ডেটা লোড করতে সমস্যা হয়েছে'}</p>
-          </div>
-        ) : familyMembers.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {familyMembers.map((member) => (
-              <div
-                key={member.id}
-                className="bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div 
-                    className="flex items-center gap-3 flex-1 cursor-pointer"
-                    onClick={() => handleOpenProfile(member)}
-                  >
-                    {member.picture ? (
-                      <img
-                        src={member.picture}
-                        alt={member.name}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border-2 border-purple-200 dark:border-purple-800">
-                        <Users className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+      {/* Family Members List Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900/50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ছবি</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">নাম</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">সম্পর্ক</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">পিতার নাম</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মাতার নাম</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মোবাইল</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      লোড হচ্ছে...
+                    </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-red-500 dark:text-red-400">
+                    ত্রুটি: {error.message || 'ডেটা লোড করতে সমস্যা হয়েছে'}
+                  </td>
+                </tr>
+              ) : familyMembers.length > 0 ? (
+                familyMembers.map((member) => (
+                  <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-gray-900/40">
+                    <td className="px-4 py-3">
+                      {member.picture ? (
+                        <img
+                          src={member.picture}
+                          alt={member.name}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border-2 border-purple-200 dark:border-purple-800">
+                          <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {member.name}
                       </div>
-                    )}
-                    <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{member.name}</h3>
-                      <p className="text-sm text-purple-600 dark:text-purple-400">{member.relationship}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                        {member.relationship}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                      {member.fatherName || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                      {member.motherName || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                      {member.mobileNumber || '-'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenProfile(member)}
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/30"
+                          title="প্রোফাইল দেখুন"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFamilyMember(member.id)}
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-red-200 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                          title="মুছে ফেলুন"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                    <div className="flex flex-col items-center gap-3">
+                      <Users className="w-12 h-12 text-gray-400" />
+                      <p className="text-gray-600 dark:text-gray-400 mb-2">কোন পারিবারিক সদস্য নেই</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
+                        নতুন সদস্য যোগ করতে উপরের বাটনে ক্লিক করুন
+                      </p>
+                      <button
+                        onClick={handleAddFamilyMember}
+                        className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2"
+                      >
+                        <Plus className="w-4 h-4" /> নতুন সদস্য যোগ করুন
+                      </button>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleOpenProfile(member)}
-                      className="p-1.5 text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors"
-                      title="প্রোফাইল দেখুন"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFamilyMember(member.id)}
-                      className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                      title="মুছে ফেলুন"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 text-sm">
-                  {member.fatherName && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">পিতার নাম:</span>
-                      <span>{member.fatherName}</span>
-                    </div>
-                  )}
-                  {member.motherName && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">মাতার নাম:</span>
-                      <span>{member.motherName}</span>
-                    </div>
-                  )}
-                  {member.mobileNumber && (
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                      <span className="font-medium">মোবাইল:</span>
-                      <span>{member.mobileNumber}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400 mb-2">কোন পারিবারিক সদস্য নেই</p>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-              নতুন সদস্য যোগ করতে উপরের বাটনে ক্লিক করুন
-            </p>
-            <button
-              onClick={handleAddFamilyMember}
-              className="inline-flex items-center gap-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white px-4 py-2"
-            >
-              <Plus className="w-4 h-4" /> নতুন সদস্য যোগ করুন
-            </button>
-          </div>
-        )}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Family Member Form Modal */}

@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Building2, DollarSign, Plus, Trash2, Search, Eye, Loader2, Calendar, CalendarDays, Users } from 'lucide-react';
+import { Building2, DollarSign, Plus, Trash2, Search, Eye, Loader2, Calendar, CalendarDays, Users, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import usePersonalCategoryQueries from '../../hooks/usePersonalCategoryQueries';
+import useFamilyMemberQueries from '../../hooks/useFamilyMemberQueries';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Helmet } from 'react-helmet-async';
 
@@ -19,6 +20,46 @@ const AdministrativeExpenses = () => {
   const { data: categories = [], isLoading } = usePersonalCategories();
   const deleteCategory = useDeletePersonalCategory();
   
+  // Fetch all family members to map with categories
+  const { useFamilyMembers } = useFamilyMemberQueries();
+  const { data: familyMembersData } = useFamilyMembers({ page: 1, limit: 200 });
+  const familyMembers = familyMembersData?.members || [];
+  
+  // Create a map of family member ID to family member data
+  const familyMemberMap = useMemo(() => {
+    const map = {};
+    familyMembers.forEach(member => {
+      // Support both id and _id
+      const memberId = member.id || member._id;
+      if (memberId) {
+        map[String(memberId)] = member;
+        // Also map by _id if different
+        if (member._id && member._id !== memberId) {
+          map[String(member._id)] = member;
+        }
+      }
+    });
+    return map;
+  }, [familyMembers]);
+  
+  // Enrich categories with family member data
+  const enrichedCategories = useMemo(() => {
+    return categories.map(category => {
+      const familyMemberId = category.familyMemberId || category.familyMember?.id || category.familyMember?._id;
+      if (familyMemberId && familyMemberMap[String(familyMemberId)]) {
+        return {
+          ...category,
+          familyMember: familyMemberMap[String(familyMemberId)]
+        };
+      }
+      // If familyMember is already populated from backend, keep it
+      if (category.familyMember) {
+        return category;
+      }
+      return category;
+    });
+  }, [categories, familyMemberMap]);
+  
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [expenseType, setExpenseType] = useState('regular'); // 'regular' or 'irregular'
@@ -27,25 +68,13 @@ const AdministrativeExpenses = () => {
 
   // Filter categories based on expense type, frequency (for regular), and search query
   const filtered = useMemo(() => {
-    let filteredByType = Array.isArray(categories) ? categories : [];
+    let filteredByType = Array.isArray(enrichedCategories) ? enrichedCategories : [];
     
     // Filter by expense type and extract frequency from description
-    filteredByType = categories.filter(c => {
-      // Check if category name contains administrative expense keywords
-      const categoryName = (c.name || '').toLowerCase();
+    filteredByType = enrichedCategories.filter(c => {
       const categoryDesc = (c.description || '').toLowerCase();
       
-      // Administrative expense keywords
-      const isAdministrative = categoryName.includes('অফিস') || 
-                               categoryName.includes('ভাড়া') || 
-                               categoryName.includes('বিদ্যুৎ') ||
-                               categoryName.includes('ইন্টারনেট') ||
-                               categoryName.includes('লাইসেন্স') ||
-                               categoryName.includes('ডোমেইন') ||
-                               categoryName.includes('পরিচালন');
-      
-      if (!isAdministrative) return false;
-      
+      // Filter by expense type
       const categoryType = c.type || 'regular';
       if (categoryType !== expenseType) return false;
       
@@ -294,6 +323,7 @@ const AdministrativeExpenses = () => {
                 {expenseType === 'regular' && (
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">ফ্রিকোয়েন্সি</th>
                 )}
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">পারিবারিক সদস্য</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">মোট খরচ</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">শতাংশ</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">সর্বশেষ আপডেট</th>
@@ -303,7 +333,7 @@ const AdministrativeExpenses = () => {
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {isLoading ? (
                 <tr>
-                  <td colSpan={expenseType === 'regular' ? 7 : 6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={expenseType === 'regular' ? 8 : 7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     <div className="flex items-center justify-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       লোড হচ্ছে...
@@ -342,6 +372,37 @@ const AdministrativeExpenses = () => {
                             </div>
                           </td>
                         )}
+                        <td className="px-4 py-3">
+                          {(() => {
+                            // Try to get family member from enriched data or direct lookup
+                            const familyMember = c.familyMember || (c.familyMemberId && familyMemberMap[String(c.familyMemberId)]);
+                            
+                            if (familyMember) {
+                              return (
+                                <div className="flex items-center gap-2">
+                                  {familyMember.picture ? (
+                                    <img
+                                      src={familyMember.picture}
+                                      alt={familyMember.name}
+                                      className="w-8 h-8 rounded-full object-cover border border-purple-200 dark:border-purple-800"
+                                    />
+                                  ) : (
+                                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border border-purple-200 dark:border-purple-800">
+                                      <User className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">{familyMember.name || '—'}</p>
+                                    {familyMember.relationship && (
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">{familyMember.relationship}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return <span className="text-sm text-gray-400 dark:text-gray-500">—</span>;
+                          })()}
+                        </td>
                         <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-400">
                           {formatCurrency(totalForCategory)}
                         </td>
@@ -392,7 +453,7 @@ const AdministrativeExpenses = () => {
                 </>
               ) : (
                 <tr>
-                  <td colSpan={expenseType === 'regular' ? 7 : 6} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
+                  <td colSpan={expenseType === 'regular' ? 8 : 7} className="px-4 py-10 text-center text-gray-500 dark:text-gray-400">
                     {query ? 'কোন ক্যাটাগরি পাওয়া যায়নি' : 'কোন ক্যাটাগরি নেই। নতুন ক্যাটাগরি তৈরি করুন।'}
                   </td>
                 </tr>

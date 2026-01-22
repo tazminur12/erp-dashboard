@@ -273,7 +273,7 @@ export const navigation = [
     icon: User,
     children: [
       { name: 'Personal Expense', href: '/personal/expense', icon: TrendingDown },
-      { name: 'Family Assets', href: '/personal/family-members', icon: Building },
+      { name: 'Family Assets', href: '/personal/family-assets', icon: Building },
     ]
   },
   {

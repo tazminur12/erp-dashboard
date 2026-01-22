@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
-import { Building2, DollarSign, Calendar, CalendarDays, ArrowLeft, Plus, RefreshCw } from 'lucide-react';
+import { Building2, DollarSign, Calendar, CalendarDays, ArrowLeft, Plus, RefreshCw, Users, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import usePersonalCategoryQueries from '../../hooks/usePersonalCategoryQueries';
+import useFamilyMemberQueries from '../../hooks/useFamilyMemberQueries';
 
 const ExpenseCategoriesPage = () => {
   const navigate = useNavigate();
@@ -17,14 +18,33 @@ const ExpenseCategoriesPage = () => {
   const { usePersonalCategories, useCreatePersonalCategory } = usePersonalCategoryQueries();
   const { data: categories = [], isLoading } = usePersonalCategories();
   const createMutation = useCreatePersonalCategory();
+  
+  // Family Members Query
+  const { useFamilyMembers } = useFamilyMemberQueries();
+  const { data: familyMembersData, isLoading: familyMembersLoading } = useFamilyMembers({ page: 1, limit: 200 });
+  const familyMembers = familyMembersData?.members || [];
+  const [familyMemberSearchTerm, setFamilyMemberSearchTerm] = useState('');
+  
   const [categoryForm, setCategoryForm] = useState({ 
     name: '', 
     icon: 'Building2', 
     description: '',
     type: 'regular', // 'regular' or 'irregular'
-    frequency: 'monthly' // 'monthly' or 'annual' (only for regular)
+    frequency: 'monthly', // 'monthly' or 'annual' (only for regular)
+    familyMemberId: '' // Selected family member ID
   });
   const [saving, setSaving] = useState(false);
+  
+  // Filter family members based on search term
+  const filteredFamilyMembers = useMemo(() => {
+    if (!familyMemberSearchTerm.trim()) return familyMembers;
+    const searchLower = familyMemberSearchTerm.toLowerCase();
+    return familyMembers.filter(member => 
+      member.name?.toLowerCase().includes(searchLower) ||
+      member.relationship?.toLowerCase().includes(searchLower) ||
+      member.mobileNumber?.includes(familyMemberSearchTerm)
+    );
+  }, [familyMembers, familyMemberSearchTerm]);
 
   const handleCreateCategory = async (e) => {
     e.preventDefault();
@@ -60,7 +80,8 @@ const ExpenseCategoriesPage = () => {
         name, 
         icon: categoryForm.icon, 
         description,
-        type: categoryForm.type
+        type: categoryForm.type,
+        familyMemberId: categoryForm.familyMemberId || null
       });
       
       setCategoryForm({ 
@@ -68,8 +89,10 @@ const ExpenseCategoriesPage = () => {
         icon: 'Building2', 
         description: '', 
         type: 'regular',
-        frequency: 'monthly'
+        frequency: 'monthly',
+        familyMemberId: ''
       });
+      setFamilyMemberSearchTerm('');
       
       await Swal.fire({ 
         icon: 'success', 
@@ -230,6 +253,124 @@ const ExpenseCategoriesPage = () => {
                   }`} />
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Family Member Selection */}
+          <div>
+            <label className="block text-base font-semibold text-gray-700 dark:text-gray-300 mb-3">
+              পারিবারিক সদস্য নির্বাচন করুন (ঐচ্ছিক)
+            </label>
+            <div className="space-y-3">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={familyMemberSearchTerm}
+                  onChange={(e) => setFamilyMemberSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 text-lg border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  placeholder="পারিবারিক সদস্য খুঁজুন... (নাম, সম্পর্ক, মোবাইল)"
+                />
+              </div>
+              
+              {/* Family Member List */}
+              {familyMemberSearchTerm && (
+                <div className="max-h-60 overflow-y-auto border-2 border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-900">
+                  {familyMembersLoading ? (
+                    <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      লোড হচ্ছে...
+                    </div>
+                  ) : filteredFamilyMembers.length > 0 ? (
+                    filteredFamilyMembers.map((member) => (
+                      <button
+                        key={member.id}
+                        type="button"
+                        onClick={() => {
+                          setCategoryForm({ ...categoryForm, familyMemberId: member.id });
+                          setFamilyMemberSearchTerm(member.name);
+                        }}
+                        className={`w-full p-4 text-left border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                          categoryForm.familyMemberId === member.id
+                            ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-l-blue-600'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {member.picture ? (
+                            <img
+                              src={member.picture}
+                              alt={member.name}
+                              className="w-10 h-10 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border-2 border-purple-200 dark:border-purple-800">
+                              <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium text-gray-900 dark:text-white">{member.name}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{member.relationship}</p>
+                            {member.mobileNumber && (
+                              <p className="text-xs text-gray-500 dark:text-gray-500">{member.mobileNumber}</p>
+                            )}
+                          </div>
+                          {categoryForm.familyMemberId === member.id && (
+                            <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                              <Plus className="w-3 h-3 text-white rotate-45" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                      কোন সদস্য পাওয়া যায়নি
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Selected Family Member Display */}
+              {categoryForm.familyMemberId && !familyMemberSearchTerm && (
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-xl">
+                  {(() => {
+                    const selectedMember = familyMembers.find(m => m.id === categoryForm.familyMemberId);
+                    if (!selectedMember) return null;
+                    return (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {selectedMember.picture ? (
+                            <img
+                              src={selectedMember.picture}
+                              alt={selectedMember.name}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-purple-200 dark:border-purple-800"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center border-2 border-purple-200 dark:border-purple-800">
+                              <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{selectedMember.name}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{selectedMember.relationship}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoryForm({ ...categoryForm, familyMemberId: '' });
+                            setFamilyMemberSearchTerm('');
+                          }}
+                          className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                        >
+                          সরান
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 

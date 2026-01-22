@@ -295,13 +295,22 @@ const PersonalExpense = () => {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
                         {c.id && (
-                          <Link
-                            to={`/personal/expense-categories/${c.id}`}
-                            className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                            title="বিস্তারিত দেখুন"
-                          >
-                            <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                          </Link>
+                          <>
+                            <Link
+                              to={`/personal/expense-categories/${c.id}`}
+                              className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                              title="বিস্তারিত দেখুন"
+                            >
+                              <Eye className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                            </Link>
+                            <Link
+                              to={`/personal/expense-categories/${c.id}/edit`}
+                              className="inline-flex items-center justify-center h-9 w-9 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                              title="সম্পাদনা করুন"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Link>
+                          </>
                         )}
                         <button
                           onClick={() => onDelete(name, c.id)}

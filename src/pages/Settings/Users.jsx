@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import useUserRole from '../../hooks/useUserRole';
 import { USER_ROLES, ROLE_DISPLAY_NAMES } from '../../hooks/useUserRole';
 import useAxiosSecure from '../../hooks/UseAxiosSecure';
 import Swal from 'sweetalert2';
+import { Plus, Eye, EyeOff, Mail, Phone, User, MapPin } from 'lucide-react';
+import { signUpWithEmail, signOutUser } from '../../firebase/auth';
 
 const Users = () => {
+  const navigate = useNavigate();
   const { userProfile, token, refreshToken, loading: authLoading } = useAuth();
   const userRole = useUserRole(userProfile?.role);
   
@@ -14,6 +18,7 @@ const Users = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState(USER_ROLES.USER);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -21,6 +26,21 @@ const Users = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(10);
   const [error, setError] = useState(null);
+  const [branches, setBranches] = useState([]);
+  const [loadingBranches, setLoadingBranches] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [createUserForm, setCreateUserForm] = useState({
+    displayName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    role: USER_ROLES.USER,
+    branchId: ''
+  });
+  const [createUserErrors, setCreateUserErrors] = useState({});
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   
   const axiosSecure = useAxiosSecure();
 
@@ -95,6 +115,27 @@ const Users = () => {
     };
 
     loadUsers();
+  }, []);
+
+  // Fetch branches for user creation
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        setLoadingBranches(true);
+        const response = await axiosSecure.get('/api/branches/active');
+        if (response.data?.success && response.data?.branches) {
+          setBranches(response.data.branches);
+        } else if (Array.isArray(response.data)) {
+          setBranches(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch branches:', error);
+        setBranches([]);
+      } finally {
+        setLoadingBranches(false);
+      }
+    };
+    fetchBranches();
   }, []);
 
   const fetchUsers = async () => {
@@ -207,6 +248,148 @@ const Users = () => {
         setShowModal(true);
       }
     });
+  };
+
+  const handleCreateUser = () => {
+    setShowCreateModal(true);
+    setCreateUserForm({
+      displayName: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      role: USER_ROLES.USER,
+      branchId: ''
+    });
+    setCreateUserErrors({});
+  };
+
+  const validateCreateUserForm = () => {
+    const errors = {};
+    
+    if (!createUserForm.displayName.trim()) {
+      errors.displayName = 'নাম আবশ্যক';
+    }
+    
+    if (!createUserForm.email.trim()) {
+      errors.email = 'ইমেইল আবশ্যক';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createUserForm.email)) {
+      errors.email = 'সঠিক ইমেইল ঠিকানা দিন';
+    }
+    
+    if (!createUserForm.phone.trim()) {
+      errors.phone = 'ফোন নম্বর আবশ্যক';
+    } else if (!/^01[3-9]\d{8}$/.test(createUserForm.phone)) {
+      errors.phone = 'সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন: 01712345678)';
+    }
+    
+    if (!createUserForm.password) {
+      errors.password = 'পাসওয়ার্ড আবশ্যক';
+    } else if (createUserForm.password.length < 6) {
+      errors.password = 'পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে';
+    }
+    
+    if (createUserForm.password !== createUserForm.confirmPassword) {
+      errors.confirmPassword = 'পাসওয়ার্ড মিলছে না';
+    }
+    
+    if (!createUserForm.branchId) {
+      errors.branchId = 'শাখা নির্বাচন করুন';
+    }
+    
+    setCreateUserErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreateUserSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateCreateUserForm()) {
+      Swal.fire({
+        title: 'ত্রুটি!',
+        text: 'অনুগ্রহ করে সব আবশ্যক ক্ষেত্র সঠিকভাবে পূরণ করুন',
+        icon: 'error',
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+      return;
+    }
+
+    setIsCreatingUser(true);
+
+    try {
+      // 1. Create user in Firebase first (to get firebaseUid)
+      const firebaseResult = await signUpWithEmail(
+        createUserForm.email,
+        createUserForm.password,
+        createUserForm.displayName
+      );
+
+      if (!firebaseResult.success) {
+        const errMsg = firebaseResult.error || 'Firebase এ ব্যবহারকারী তৈরি করতে ব্যর্থ';
+        throw new Error(
+          errMsg.includes('email-already-in-use') ? 'এই ইমেইল ইতিমধ্যে ব্যবহৃত হচ্ছে' :
+          errMsg.includes('weak-password') ? 'পাসওয়ার্ড আরো শক্তিশালী করুন' : errMsg
+        );
+      }
+
+      const firebaseUid = firebaseResult.user?.uid;
+      if (!firebaseUid) {
+        throw new Error('Firebase UID পাওয়া যায়নি');
+      }
+
+      // 2. Register in backend (email, displayName, branchId, firebaseUid required)
+      const payload = {
+        email: createUserForm.email.trim(),
+        displayName: createUserForm.displayName.trim(),
+        branchId: createUserForm.branchId,
+        firebaseUid,
+        role: createUserForm.role
+      };
+      if (createUserForm.phone?.trim()) {
+        payload.phone = createUserForm.phone.trim();
+      }
+
+      const response = await axiosSecure.post('/users', payload);
+
+      if (response.data?.success) {
+        setShowCreateModal(false);
+        setCreateUserForm({
+          displayName: '',
+          email: '',
+          phone: '',
+          password: '',
+          confirmPassword: '',
+          role: USER_ROLES.USER,
+          branchId: ''
+        });
+        
+        await signOutUser();
+        Swal.fire({
+          icon: 'success',
+          title: 'সফল!',
+          text: 'ব্যবহারকারী তৈরি হয়েছে। নতুন অ্যাকাউন্ট দিয়ে লগইন হওয়ার কারণে আপনাকে আবার লগইন করতে হবে।',
+          confirmButtonText: 'ঠিক আছে',
+          confirmButtonColor: '#10B981',
+        }).then(() => {
+          navigate('/login', { state: { message: 'ব্যবহারকারী তৈরি হয়েছে। আবার লগইন করুন।' } });
+        });
+        return;
+      } else {
+        throw new Error(response.data?.message || 'ব্যবহারকারী তৈরি করতে সমস্যা হয়েছে');
+      }
+    } catch (error) {
+      const errorMessage = error?.response?.data?.message || error?.message || 'ব্যবহারকারী তৈরি করতে সমস্যা হয়েছে';
+      Swal.fire({
+        icon: 'error',
+        title: 'ত্রুটি!',
+        text: errorMessage,
+        confirmButtonText: 'ঠিক আছে',
+        confirmButtonColor: '#EF4444',
+      });
+    } finally {
+      setIsCreatingUser(false);
+    }
   };
 
   const confirmRoleChange = async () => {
@@ -406,22 +589,31 @@ const Users = () => {
             </div>
           </div>
           
-          <button
-            onClick={handleRefresh}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors duration-200 flex items-center"
-          >
-            {loading ? (
-              <svg className="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            )}
-            {loading ? 'লোড হচ্ছে...' : 'রিফ্রেশ'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={handleCreateUser}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              নতুন ব্যবহারকারী যোগ করুন
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors duration-200 flex items-center"
+            >
+              {loading ? (
+                <svg className="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              )}
+              {loading ? 'লোড হচ্ছে...' : 'রিফ্রেশ'}
+            </button>
+          </div>
         </div>
 
 
@@ -851,6 +1043,266 @@ const Users = () => {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create User Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm">
+            <div className="relative top-10 mx-auto p-0 border-0 w-full max-w-2xl shadow-2xl rounded-2xl bg-white dark:bg-gray-800 overflow-hidden">
+              {/* Modal Header */}
+              <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <div className="w-10 h-10 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                      <Plus className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white ml-3">
+                      নতুন ব্যবহারকারী যোগ করুন
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="text-white hover:text-gray-200 transition-colors duration-200"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <form onSubmit={handleCreateUserSubmit} className="px-6 py-6">
+                <div className="space-y-4">
+                  {/* Display Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <User className="w-4 h-4 inline mr-1" />
+                      নাম <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={createUserForm.displayName}
+                      onChange={(e) => {
+                        setCreateUserForm({ ...createUserForm, displayName: e.target.value });
+                        if (createUserErrors.displayName) {
+                          setCreateUserErrors({ ...createUserErrors, displayName: '' });
+                        }
+                      }}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        createUserErrors.displayName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      placeholder="পূর্ণ নাম"
+                    />
+                    {createUserErrors.displayName && (
+                      <p className="mt-1 text-sm text-red-600">{createUserErrors.displayName}</p>
+                    )}
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Mail className="w-4 h-4 inline mr-1" />
+                      ইমেইল <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={createUserForm.email}
+                      onChange={(e) => {
+                        setCreateUserForm({ ...createUserForm, email: e.target.value });
+                        if (createUserErrors.email) {
+                          setCreateUserErrors({ ...createUserErrors, email: '' });
+                        }
+                      }}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        createUserErrors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      placeholder="example@email.com"
+                    />
+                    {createUserErrors.email && (
+                      <p className="mt-1 text-sm text-red-600">{createUserErrors.email}</p>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <Phone className="w-4 h-4 inline mr-1" />
+                      ফোন নম্বর <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={createUserForm.phone}
+                      onChange={(e) => {
+                        setCreateUserForm({ ...createUserForm, phone: e.target.value });
+                        if (createUserErrors.phone) {
+                          setCreateUserErrors({ ...createUserErrors, phone: '' });
+                        }
+                      }}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        createUserErrors.phone ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                      placeholder="01712345678"
+                    />
+                    {createUserErrors.phone && (
+                      <p className="mt-1 text-sm text-red-600">{createUserErrors.phone}</p>
+                    )}
+                  </div>
+
+                  {/* Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      পাসওয়ার্ড <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={createUserForm.password}
+                        onChange={(e) => {
+                          setCreateUserForm({ ...createUserForm, password: e.target.value });
+                          if (createUserErrors.password) {
+                            setCreateUserErrors({ ...createUserErrors, password: '' });
+                          }
+                        }}
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white pr-10 ${
+                          createUserErrors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                        placeholder="পাসওয়ার্ড"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {createUserErrors.password && (
+                      <p className="mt-1 text-sm text-red-600">{createUserErrors.password}</p>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      পাসওয়ার্ড নিশ্চিত করুন <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={createUserForm.confirmPassword}
+                        onChange={(e) => {
+                          setCreateUserForm({ ...createUserForm, confirmPassword: e.target.value });
+                          if (createUserErrors.confirmPassword) {
+                            setCreateUserErrors({ ...createUserErrors, confirmPassword: '' });
+                          }
+                        }}
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white pr-10 ${
+                          createUserErrors.confirmPassword ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                        placeholder="পাসওয়ার্ড নিশ্চিত করুন"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                    {createUserErrors.confirmPassword && (
+                      <p className="mt-1 text-sm text-red-600">{createUserErrors.confirmPassword}</p>
+                    )}
+                  </div>
+
+                  {/* Role */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      রোল <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={createUserForm.role}
+                      onChange={(e) => setCreateUserForm({ ...createUserForm, role: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
+                    >
+                      {Object.entries(ROLE_DISPLAY_NAMES)
+                        .filter(([role]) => role !== USER_ROLES.SUPER_ADMIN)
+                        .map(([role, displayName]) => (
+                          <option key={role} value={role}>{displayName}</option>
+                        ))}
+                    </select>
+                  </div>
+
+                  {/* Branch */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <MapPin className="w-4 h-4 inline mr-1" />
+                      শাখা <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={createUserForm.branchId}
+                      onChange={(e) => {
+                        setCreateUserForm({ ...createUserForm, branchId: e.target.value });
+                        if (createUserErrors.branchId) {
+                          setCreateUserErrors({ ...createUserErrors, branchId: '' });
+                        }
+                      }}
+                      disabled={loadingBranches}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent dark:bg-gray-700 dark:text-white ${
+                        createUserErrors.branchId ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      } ${loadingBranches ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <option value="">
+                        {loadingBranches ? 'শাখা লোড হচ্ছে...' : 'শাখা নির্বাচন করুন'}
+                      </option>
+                      {branches.map((branch) => (
+                        <option key={branch._id || branch.id} value={branch._id || branch.id}>
+                          {branch.name || branch.branchName || branch.title}
+                        </option>
+                      ))}
+                    </select>
+                    {createUserErrors.branchId && (
+                      <p className="mt-1 text-sm text-red-600">{createUserErrors.branchId}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex space-x-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 px-4 py-3 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-medium rounded-xl transition-all duration-200"
+                  >
+                    বাতিল
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingUser}
+                    className={`flex-1 px-4 py-3 text-white font-medium rounded-xl transition-all duration-200 flex items-center justify-center ${
+                      isCreatingUser
+                        ? 'bg-green-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 hover:shadow-lg'
+                    }`}
+                  >
+                    {isCreatingUser ? (
+                      <>
+                        <svg className="w-4 h-4 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        তৈরি করা হচ্ছে...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        ব্যবহারকারী তৈরি করুন
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -8,6 +8,8 @@ export const normalizePersonalCategory = (doc) => ({
   icon: doc.icon || 'DollarSign',
   description: doc.description || '',
   type: doc.type || 'regular', // 'regular' or 'irregular'
+  familyMemberId: doc.familyMemberId || null,
+  familyMember: doc.familyMember || null, // Populated family member data
   totalAmount: Number(doc.totalAmount || 0),
   lastUpdated: doc.lastUpdated || null,
   createdAt: doc.createdAt || null,
@@ -47,13 +49,15 @@ export const usePersonalCategoryQueries = () => {
         const list = Array.isArray(data) ? data : [];
         return list.map(normalizePersonalCategory);
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 1 * 60 * 1000, // 1 minute - reduced for better real-time updates
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+      refetchOnMount: true, // Always refetch on mount
     });
   };
 
   const useCreatePersonalCategory = () => {
     return useMutation({
-      mutationFn: async ({ name, icon = 'DollarSign', description = '', type = 'regular' }) => {
+      mutationFn: async ({ name, icon = 'DollarSign', description = '', type = 'regular', familyMemberId = null }) => {
         try {
           // Validate and prepare payload (matching backend validation)
           if (!name || !String(name).trim()) {
@@ -70,6 +74,11 @@ export const usePersonalCategoryQueries = () => {
             type: validType
           };
 
+          // Add familyMemberId if provided
+          if (familyMemberId && String(familyMemberId).trim()) {
+            payload.familyMemberId = String(familyMemberId).trim();
+          }
+
           const { data } = await axiosSecure.post('/api/personal-expenses/categories', payload);
 
           // Backend returns category directly or error object
@@ -85,7 +94,12 @@ export const usePersonalCategoryQueries = () => {
         }
       },
       onSuccess: () => {
+        // Invalidate all personal expense category queries (with any filters)
         queryClient.invalidateQueries({ queryKey: ['personal-expense-categories'] });
+        // Also invalidate specific category queries
+        queryClient.invalidateQueries({ queryKey: ['personal-expense-category'] });
+        // Force refetch to ensure updated data
+        queryClient.refetchQueries({ queryKey: ['personal-expense-categories'] });
       },
     });
   };
@@ -117,7 +131,17 @@ export const usePersonalCategoryQueries = () => {
             throw new Error('Category ID is required');
           }
 
-          const { data } = await axiosSecure.put(`/api/personal-expenses/categories/${id}`, updates);
+          // Prepare update payload
+          const payload = { ...updates };
+          
+          // Handle familyMemberId - if it's empty string, set to null
+          if ('familyMemberId' in payload) {
+            payload.familyMemberId = payload.familyMemberId && String(payload.familyMemberId).trim() 
+              ? String(payload.familyMemberId).trim() 
+              : null;
+          }
+
+          const { data } = await axiosSecure.put(`/api/personal-expenses/categories/${id}`, payload);
 
           // Backend returns updated category directly or error object
           if (data.error) {
@@ -132,8 +156,11 @@ export const usePersonalCategoryQueries = () => {
         }
       },
       onSuccess: (_, variables) => {
+        // Invalidate all personal expense category queries
         queryClient.invalidateQueries({ queryKey: ['personal-expense-categories'] });
         queryClient.invalidateQueries({ queryKey: ['personal-expense-category', variables.id] });
+        // Force refetch to ensure updated data
+        queryClient.refetchQueries({ queryKey: ['personal-expense-categories'] });
       },
     });
   };
@@ -168,7 +195,11 @@ export const usePersonalCategoryQueries = () => {
         }
       },
       onSuccess: () => {
+        // Invalidate all personal expense category queries
         queryClient.invalidateQueries({ queryKey: ['personal-expense-categories'] });
+        queryClient.invalidateQueries({ queryKey: ['personal-expense-category'] });
+        // Force refetch to ensure updated data
+        queryClient.refetchQueries({ queryKey: ['personal-expense-categories'] });
       },
     });
   };

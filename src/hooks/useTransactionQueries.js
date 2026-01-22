@@ -74,11 +74,27 @@ export const useCreatePersonalExpenseTransactionV2 = () => {
         tags: Array.isArray(tags) ? tags.map((t) => String(t)).filter(Boolean) : [],
       };
       const { data } = await axiosSecure.post('/api/transactions/personal-expense', payload);
-      return normalizePersonalExpenseTxV2(data);
+      // Use categoryId from response if available, otherwise use from payload
+      const responseCategoryId = data?.categoryId || categoryId;
+      return { ...normalizePersonalExpenseTxV2(data), categoryId: String(responseCategoryId || '') };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const categoryId = data?.categoryId;
+      
       queryClient.invalidateQueries({ queryKey: personalExpenseV2Keys.all });
+      
+      // Invalidate all personal expense category queries (with any filters)
       queryClient.invalidateQueries({ queryKey: ['personal-expense-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['personal-expense-category'] });
+      
+      // If we have a categoryId, invalidate and refetch that specific category
+      if (categoryId) {
+        queryClient.invalidateQueries({ queryKey: ['personal-expense-category', categoryId] });
+        queryClient.refetchQueries({ queryKey: ['personal-expense-category', categoryId] });
+      }
+      
+      // Force refetch all categories to ensure updated totals
+      queryClient.refetchQueries({ queryKey: ['personal-expense-categories'] });
     },
   });
 };
@@ -89,12 +105,44 @@ export const useDeletePersonalExpenseTransactionV2 = () => {
   return useMutation({
     mutationFn: async ({ id }) => {
       if (!id) throw new Error('Transaction id is required');
-      await axiosSecure.delete(`/api/transactions/personal-expense/${id}`);
-      return { id };
+      
+      // First, try to get the transaction to extract categoryId
+      let categoryId = null;
+      try {
+        const { data: txData } = await axiosSecure.get(`/api/transactions/personal-expense/${id}`);
+        if (txData && !txData.error && Array.isArray(txData)) {
+          const tx = txData.find(t => String(t._id || t.id) === String(id));
+          categoryId = tx?.categoryId || tx?.category?.id || null;
+        } else if (txData && !txData.error) {
+          categoryId = txData.categoryId || txData.category?.id || null;
+        }
+      } catch (err) {
+        console.warn('Could not fetch transaction before delete:', err);
+      }
+      
+      // Delete the transaction and get categoryId from response if available
+      const { data: deleteResponse } = await axiosSecure.delete(`/api/transactions/personal-expense/${id}`);
+      const responseCategoryId = deleteResponse?.categoryId || categoryId;
+      
+      return { id, categoryId: responseCategoryId };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const categoryId = data?.categoryId;
+      
       queryClient.invalidateQueries({ queryKey: personalExpenseV2Keys.all });
+      
+      // Invalidate all personal expense category queries (with any filters)
       queryClient.invalidateQueries({ queryKey: ['personal-expense-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['personal-expense-category'] });
+      
+      // If we have a categoryId, invalidate and refetch that specific category
+      if (categoryId) {
+        queryClient.invalidateQueries({ queryKey: ['personal-expense-category', categoryId] });
+        queryClient.refetchQueries({ queryKey: ['personal-expense-category', categoryId] });
+      }
+      
+      // Force refetch all categories to ensure updated totals
+      queryClient.refetchQueries({ queryKey: ['personal-expense-categories'] });
     },
   });
 };

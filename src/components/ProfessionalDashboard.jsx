@@ -305,18 +305,6 @@ const ProfessionalDashboard = () => {
       ]
     },
     {
-      title: "গ্রাহক ব্যবস্থাপনা",
-      description: "গ্রাহক তথ্য, যোগাযোগ এবং সম্পর্ক ব্যবস্থাপনা",
-      icon: Users,
-      color: "bg-gradient-to-br from-sky-500 to-blue-600",
-      iconColor: "text-white",
-      routes: [
-        { name: "গ্রাহক তালিকা", path: "/customers", icon: List },
-        { name: "নতুন গ্রাহক", path: "/customers/add", icon: Plus },
-        { name: "গ্রাহক সম্পাদনা", path: "/customers/edit", icon: Edit }
-      ]
-    },
-    {
       title: "বিক্রয় ও ইনভয়েস",
       description: "ইনভয়েস তৈরি, বিক্রয় রেকর্ড এবং পেমেন্ট ট্র্যাকিং",
       icon: Receipt,

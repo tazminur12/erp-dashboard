@@ -100,6 +100,7 @@ export const useAirTickets = (params = {}) => {
     dateFrom,
     dateTo,
     bookingId,
+    issuedById,
   } = params;
 
   return useQuery({
@@ -116,6 +117,7 @@ export const useAirTickets = (params = {}) => {
       dateFrom,
       dateTo,
       bookingId,
+      issuedById,
     }),
     queryFn: async () => {
       try {
@@ -133,6 +135,7 @@ export const useAirTickets = (params = {}) => {
             dateFrom,
             dateTo,
             bookingId,
+            issuedById,
           },
         });
 

@@ -2,14 +2,14 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../contexts/ThemeContext';
 import usePersonalCategoryQueries from '../../hooks/usePersonalCategoryQueries';
-import { ArrowLeft, DollarSign } from 'lucide-react';
+import { ArrowLeft, DollarSign, RefreshCw } from 'lucide-react';
 
 const ExpenseDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isDark } = useTheme();
   const { usePersonalCategoryById } = usePersonalCategoryQueries();
-  const { data: category, isLoading, isError, error } = usePersonalCategoryById(id);
+  const { data: category, isLoading, isError, error, refetch } = usePersonalCategoryById(id);
 
   const Icon = React.useMemo(() => {
     if (!category?.icon) return DollarSign;
@@ -60,6 +60,14 @@ const ExpenseDetails = () => {
           </button>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ক্যাটাগরি বিবরণ</h1>
         </div>
+        <button
+          onClick={() => refetch()}
+          disabled={isLoading}
+          className="p-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="রিফ্রেশ করুন"
+        >
+          <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
       <div className="rounded-2xl p-5 shadow-xl border" style={{ background: `linear-gradient(135deg, ${palette.from}, ${palette.to})`, borderColor: palette.border }}>

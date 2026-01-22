@@ -448,7 +448,7 @@ const HotelDetails = () => {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">চুক্তি শুরু</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">চুক্তি শেষ</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">বেড সংখ্যা</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">জনপ্রতি বিল</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">বেডপ্রতি বিল</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">মোট বিল</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">স্ট্যাটাস</th>
                     <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">অ্যাকশন</th>
@@ -680,14 +680,14 @@ const HotelDetails = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              হাজ্বী সংখ্যা <span className="text-red-500">*</span>
+              বেড সংখ্যা <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
               value={contractFormData.hajjiCount}
               onChange={(e) => setContractFormData({ ...contractFormData, hajjiCount: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="হাজ্বী সংখ্যা লিখুন"
+              placeholder="বেড সংখ্যা লিখুন"
               min="1"
               step="1"
               required
@@ -761,7 +761,7 @@ const HotelDetails = () => {
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">জনপ্রতি:</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">বেডপ্রতি:</span>
                 <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
                   {contractFormData.hajjiCount && parseFloat(contractFormData.hajjiCount) > 0
                     ? (
@@ -920,14 +920,14 @@ const HotelDetails = () => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              হাজ্বী সংখ্যা <span className="text-red-500">*</span>
+              বেড সংখ্যা <span className="text-red-500">*</span>
             </label>
             <input
               type="number"
               value={contractFormData.hajjiCount}
               onChange={(e) => setContractFormData({ ...contractFormData, hajjiCount: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
-              placeholder="হাজ্বী সংখ্যা লিখুন"
+              placeholder="বেড সংখ্যা লিখুন"
               min="1"
               step="1"
               required
@@ -1001,7 +1001,7 @@ const HotelDetails = () => {
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">জনপ্রতি:</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">বেডপ্রতি:</span>
                 <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
                   {contractFormData.hajjiCount && parseFloat(contractFormData.hajjiCount) > 0
                     ? (
@@ -1107,7 +1107,7 @@ const HotelDetails = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  বেড সংখ্যা (হাজ্বী সংখ্যা)
+                  বেড সংখ্যা
                 </label>
                 <p className="text-gray-900 dark:text-white font-medium">
                   {viewingContract.hajjiCount || 0}
@@ -1157,7 +1157,7 @@ const HotelDetails = () => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">গণনা</h3>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">জনপ্রতি বিল:</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">বেডপ্রতি বিল:</span>
                   <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
                     {(() => {
                       const hajjiCount = parseFloat(viewingContract.hajjiCount || 0);

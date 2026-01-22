@@ -149,6 +149,7 @@ const CattleDetails = React.lazy(() => import('./pages/MirajIndustries/CattleDet
 const EmployeeDetails = React.lazy(() => import('./pages/MirajIndustries/EmployeeDetails'));
 const EditEmployeeMI = React.lazy(() => import('./pages/MirajIndustries/EditEmployee'));
 const AddEmployeeMI = React.lazy(() => import('./pages/MirajIndustries/AddEmployee'));
+const FinancialReport = React.lazy(() => import('./pages/MirajIndustries/FinancialReport'));
 
 
 // Account pages
@@ -176,6 +177,9 @@ const FamilyMembers = React.lazy(() => import('./pages/Personal/FamilyMembers'))
 const FamilyMemberProfile = React.lazy(() => import('./pages/Personal/FamilyMemberProfile'));
 const AdministrativeExpenses = React.lazy(() => import('./pages/Personal/AdministrativeExpenses'));
 const AdministrativeExpenseCategories = React.lazy(() => import('./pages/Personal/AdministrativeExpenseCategories'));
+const FamilyAssets = React.lazy(() => import('./pages/Personal/FamilyAssets'));
+const AddFamilyAsset = React.lazy(() => import('./pages/Personal/AddFamilyAsset'));
+const FamilyAssetDetails = React.lazy(() => import('./pages/Personal/FamilyAssetDetails'));
 
 // Fly Oval Limited pages
 const FlyOvalDashboard = React.lazy(() => import('./pages/FlyOval').then(module => ({ default: module.FlyOvalDashboard })).catch(() => ({ default: () => <div>Component not found</div> })));
@@ -1211,6 +1215,14 @@ const router = createBrowserRouter([
             <CattleDetails />
           </Suspense>
         )
+      },
+      {
+        path: "financial-report",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FinancialReport />
+          </Suspense>
+        )
       }
     ]
   },
@@ -1405,6 +1417,30 @@ const router = createBrowserRouter([
         element: (
           <Suspense fallback={<LoadingSpinner />}>
             <AdministrativeExpenseCategories />
+          </Suspense>
+        )
+      },
+      {
+        path: "family-assets",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FamilyAssets />
+          </Suspense>
+        )
+      },
+      {
+        path: "family-assets/add",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <AddFamilyAsset />
+          </Suspense>
+        )
+      },
+      {
+        path: "family-assets/:id",
+        element: (
+          <Suspense fallback={<LoadingSpinner />}>
+            <FamilyAssetDetails />
           </Suspense>
         )
       },

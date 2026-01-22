@@ -24,15 +24,36 @@ import {
   Heart,
   Shield,
   CreditCard,
-  Globe
+  Globe,
+  Plane,
+  Package,
+  Loader2
 } from 'lucide-react';
 import { useEmployee } from '../../../hooks/useHRQueries';
+import { useAirTickets } from '../../../hooks/useAirTicketQueries';
 
 const EmployeeProfile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: employee, isLoading, error } = useEmployee(id);
   const [activeTab, setActiveTab] = useState('overview');
+
+  const empId = employee?.id ?? employee?.employeeId ?? id;
+  const { data: ticketsData } = useAirTickets({
+    issuedById: empId ?? undefined,
+    limit: 5000,
+    page: 1
+  });
+  const allTickets = ticketsData?.data ?? [];
+  const myTickets = allTickets.filter(
+    (t) => String(t.issuedById ?? '') === String(empId ?? '')
+  );
+  const ticketCount = myTickets.length;
+  const ticketSellTotal = myTickets.reduce(
+    (sum, t) => sum + (Number(t.customerDeal) || 0),
+    0
+  );
+  const formatCurrency = (n) => `৳${Number(n || 0).toLocaleString('bn-BD')}`;
 
   const handleGoBack = () => {
     navigate('/office-management/hr/employee/list');
@@ -74,6 +95,7 @@ const EmployeeProfile = () => {
   const tabs = [
     { id: 'overview', name: 'সারসংক্ষেপ', icon: User },
     { id: 'employment', name: 'কর্মসংস্থান', icon: Briefcase },
+    { id: 'tickets-services', name: 'টিকেট ও সেবা', icon: BarChart3 },
     { id: 'documents', name: 'নথিপত্র', icon: FileText }
   ];
 
@@ -250,6 +272,46 @@ const EmployeeProfile = () => {
     </div>
   );
 
+  const renderTicketsServicesTab = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-blue-600" />
+          টিকেট ও সেবা পরিসংখ্যান
+        </h3>
+        <p className="text-gray-600 mb-6">
+          এই কর্মচারীর টিকেট বিক্রয় ও অতিরিক্ত সেবার সংক্ষিপ্ত তথ্য
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center p-6 bg-indigo-50 rounded-xl border border-indigo-100">
+            <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Plane className="w-6 h-6 text-indigo-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-700">টিকেট সংখ্যা</p>
+            <p className="text-2xl font-bold text-indigo-600 mt-1">{ticketCount}</p>
+            <p className="text-xs text-gray-500 mt-1">মোট টিকেট বিক্রয়</p>
+          </div>
+          <div className="text-center p-6 bg-green-50 rounded-xl border border-green-100">
+            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <DollarSign className="w-6 h-6 text-green-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-700">টিকেট বিক্রয় (৳)</p>
+            <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(ticketSellTotal)}</p>
+            <p className="text-xs text-gray-500 mt-1">মোট বিক্রয়</p>
+          </div>
+          <div className="text-center p-6 bg-amber-50 rounded-xl border border-amber-100">
+            <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Package className="w-6 h-6 text-amber-600" />
+            </div>
+            <p className="text-sm font-medium text-gray-700">অতিরিক্ত সেবা সংখ্যা</p>
+            <p className="text-2xl font-bold text-amber-600 mt-1">০</p>
+            <p className="text-xs text-gray-500 mt-1">পাসপোর্ট, ভিসা, ম্যানপাওয়ার ইত্যাদি</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderDocumentsTab = () => {
     // Get document URLs with fallback
     const profilePictureUrl = employee.profilePictureUrl || employee.profilePicture;
@@ -394,6 +456,8 @@ const EmployeeProfile = () => {
         return renderOverviewTab();
       case 'employment':
         return renderEmploymentTab();
+      case 'tickets-services':
+        return renderTicketsServicesTab();
       case 'documents':
         return renderDocumentsTab();
       default:
