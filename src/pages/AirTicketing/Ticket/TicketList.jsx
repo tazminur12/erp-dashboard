@@ -20,9 +20,9 @@ import {
   FileText,
   Loader2
 } from 'lucide-react';
-import { useAirTickets, useDeleteAirTicket, useAirTicket } from '../../hooks/useAirTicketQueries';
-import useAirlineQueries from '../../hooks/useAirlineQueries';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
+import { useAirTickets, useDeleteAirTicket, useAirTicket } from '../../../hooks/useAirTicketQueries';
+import useAirlineQueries from '../../../hooks/useAirlineQueries';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
 import Swal from 'sweetalert2';
 
 const TicketList = () => {

@@ -24,10 +24,10 @@ import {
   CheckCircle
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { useTheme } from '../../contexts/ThemeContext';
-import divisionData from '../../jsondata/AllDivision.json';
-import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../config/cloudinary.js';
-import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
+import { useTheme } from '../../../contexts/ThemeContext';
+import divisionData from '../../../jsondata/AllDivision.json';
+import { CLOUDINARY_CONFIG, validateCloudinaryConfig } from '../../../config/cloudinary.js';
+import useAirCustomersQueries from '../../../hooks/useAirCustomersQueries';
 
 const NewPassenger = () => {
   const navigate = useNavigate();

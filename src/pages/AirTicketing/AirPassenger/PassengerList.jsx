@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
-import DataTable from '../../components/common/DataTable';
-import FilterBar from '../../components/common/FilterBar';
+import DataTable from '../../../components/common/DataTable';
+import FilterBar from '../../../components/common/FilterBar';
 import { Plus, Eye, Edit, Trash2, Loader2, Search, Users, Phone, Mail, CreditCard, CheckCircle, Download } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
+import useAirCustomersQueries from '../../../hooks/useAirCustomersQueries';
 
 const PassengerList = () => {
   const navigate = useNavigate();

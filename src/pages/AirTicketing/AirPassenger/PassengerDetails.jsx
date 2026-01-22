@@ -24,8 +24,8 @@ import {
   Upload,
   ExternalLink
 } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
-import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
+import { useTheme } from '../../../contexts/ThemeContext';
+import useAirCustomersQueries from '../../../hooks/useAirCustomersQueries';
 
 const PassengerDetails = () => {
   const { id } = useParams();

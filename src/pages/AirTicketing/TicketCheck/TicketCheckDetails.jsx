@@ -20,10 +20,10 @@ import {
   CheckCircle,
   Building2
 } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
-import useTicketCheckQueries from '../../hooks/useTicketCheckQueries';
-import { useEmployees } from '../../hooks/useHRQueries';
-import Modal from '../../components/common/Modal';
+import { useTheme } from '../../../contexts/ThemeContext';
+import useTicketCheckQueries from '../../../hooks/useTicketCheckQueries';
+import { useEmployees } from '../../../hooks/useHRQueries';
+import Modal from '../../../components/common/Modal';
 import Swal from 'sweetalert2';
 
 const TicketCheckDetails = () => {

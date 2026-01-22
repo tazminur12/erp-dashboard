@@ -23,7 +23,7 @@ import {
   ArrowUpRight,
   Loader2
 } from 'lucide-react';
-import useOldTicketReissueQueries from '../../hooks/useOldTicketReissueQueries';
+import useOldTicketReissueQueries from '../../../hooks/useOldTicketReissueQueries';
 import Swal from 'sweetalert2';
 
 const OldTicketReissueList = () => {

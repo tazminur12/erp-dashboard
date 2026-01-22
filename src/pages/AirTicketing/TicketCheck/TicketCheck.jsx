@@ -2,10 +2,10 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Search, X, Loader2, Plane, DollarSign, ChevronRight, CheckCircle, User, Building2, ArrowLeft } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useNavigate } from 'react-router-dom';
-import useAirCustomersQueries from '../../hooks/useAirCustomersQueries';
-import { useEmployees } from '../../hooks/useHRQueries';
-import useTicketCheckQueries from '../../hooks/useTicketCheckQueries';
-import useAirlineQueries from '../../hooks/useAirlineQueries';
+import useAirCustomersQueries from '../../../hooks/useAirCustomersQueries';
+import { useEmployees } from '../../../hooks/useHRQueries';
+import useTicketCheckQueries from '../../../hooks/useTicketCheckQueries';
+import useAirlineQueries from '../../../hooks/useAirlineQueries';
 import Swal from 'sweetalert2';
 
 export default function TicketCheck() {

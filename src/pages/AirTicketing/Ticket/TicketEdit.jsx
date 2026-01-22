@@ -16,9 +16,9 @@ import {
   Plane,
   CheckCircle
 } from 'lucide-react';
-import Modal, { ModalFooter } from '../../components/common/Modal';
-import useAxiosSecure from '../../hooks/UseAxiosSecure';
-import { useAirTicket, useUpdateAirTicket } from '../../hooks/useAirTicketQueries';
+import Modal, { ModalFooter } from '../../../components/common/Modal';
+import useAxiosSecure from '../../../hooks/UseAxiosSecure';
+import { useAirTicket, useUpdateAirTicket } from '../../../hooks/useAirTicketQueries';
 
 const TicketEdit = () => {
   const navigate = useNavigate();

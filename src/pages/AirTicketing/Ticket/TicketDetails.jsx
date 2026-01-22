@@ -2,7 +2,7 @@ import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Calendar, Plane, User, ArrowLeft, Edit, Receipt, Phone, MapPin, RefreshCcw } from 'lucide-react';
-import { useAirTicket } from '../../hooks/useAirTicketQueries';
+import { useAirTicket } from '../../../hooks/useAirTicketQueries';
 
 const Field = ({ label, value }) => (
   <div className="flex flex-col space-y-1">
