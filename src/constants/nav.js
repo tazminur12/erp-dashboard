@@ -138,6 +138,7 @@ export const navigation = [
           { name: 'HL Manage', href: '/hajj-umrah/license-management', icon: Shield },
           { name: 'Hotel Management', href: '/hajj-umrah/hotel-management', icon: Building2 },
           { name: 'Haj Package', href: '/hajj-umrah/haj-package-list', icon: List },
+          { name: 'SAR Management (Hajj)', href: '/hajj-umrah/sar-management', icon: Scale }
         ]
       },
       {

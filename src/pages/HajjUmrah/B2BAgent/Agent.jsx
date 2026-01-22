@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Users, Plus, Edit, Trash2, Eye, Search, Filter, Upload, FileSpreadsheet } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Eye, Search, Filter, Upload, FileSpreadsheet, Building2, Wallet, Receipt, AlertCircle } from 'lucide-react';
 import Modal from '../../../components/common/Modal';
 import ExcelUploader from '../../../components/common/ExcelUploader';
 import Swal from 'sweetalert2';
-import { useAgents, useDeleteAgent, useBulkAgentOperation } from '../../../hooks/useAgentQueries';
+import { useAgents, useDeleteAgent, useBulkAgentOperation, useAgentStats } from '../../../hooks/useAgentQueries';
 
 const Agent = () => {
   const navigate = useNavigate();
@@ -27,6 +27,7 @@ const Agent = () => {
 
   // React Query hooks
   const { data: agentsData, isLoading, error } = useAgents(page, limit, searchTerm);
+  const { data: statsData, isLoading: statsLoading } = useAgentStats();
   const deleteAgentMutation = useDeleteAgent();
   const bulkUploadMutation = useBulkAgentOperation();
 
@@ -34,6 +35,15 @@ const Agent = () => {
   const agents = agentsData?.data || [];
   const totalPages = agentsData?.pagination?.totalPages || 1;
   const total = agentsData?.pagination?.total || 0;
+
+  const formatCurrency = (amount) => {
+    const n = Number(amount) || 0;
+    return `৳${n.toLocaleString('bn-BD', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  const totalPaid = statsData?.totalPaid ?? statsData?.totalDeposit ?? 0;
+  const totalBill = statsData?.totalBill ?? statsData?.totalAmount ?? statsData?.totalBills ?? (totalPaid + (statsData?.totalDue ?? 0));
+  const totalDue = statsData?.totalDue ?? 0;
 
   // Client-side filtered list to ensure search works even without API support
   const filteredAgents = useMemo(() => {
@@ -212,6 +222,62 @@ const Agent = () => {
             <Plus className="w-4 h-4" />
             <span className="text-sm sm:text-base">নতুন এজেন্ট যোগ করুন</span>
           </Link>
+        </div>
+      </div>
+
+      {/* Overview Stats - Dashboard style totals */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট এজেন্ট</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {isLoading ? '...' : (total || 0).toLocaleString('bn-BD')}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট পরিশোধ</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {statsLoading ? '...' : formatCurrency(totalPaid)}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
+              <Wallet className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট বিল</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {statsLoading ? '...' : formatCurrency(totalBill)}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
+              <Receipt className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">মোট বকেয়া</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {statsLoading ? '...' : formatCurrency(totalDue)}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900/20 rounded-lg flex items-center justify-center">
+              <AlertCircle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+            </div>
+          </div>
         </div>
       </div>
 

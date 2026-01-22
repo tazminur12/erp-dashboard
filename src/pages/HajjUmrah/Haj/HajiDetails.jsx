@@ -275,6 +275,30 @@ const HajiDetails = () => {
     }
   };
 
+  const handleIdCardClick = () => {
+    const isDark = document.documentElement.classList.contains('dark');
+    Swal.fire({
+      title: 'আইডি কার্ড',
+      text: 'শীঘ্রই উপলব্ধ।',
+      icon: 'info',
+      confirmButtonText: 'ঠিক আছে',
+      confirmButtonColor: '#0891b2',
+      background: isDark ? '#1F2937' : '#F9FAFB',
+    });
+  };
+
+  const handleChuktiPattroClick = () => {
+    const isDark = document.documentElement.classList.contains('dark');
+    Swal.fire({
+      title: 'চুক্তি পত্র',
+      text: 'শীঘ্রই উপলব্ধ।',
+      icon: 'info',
+      confirmButtonText: 'ঠিক আছে',
+      confirmButtonColor: '#d97706',
+      background: isDark ? '#1F2937' : '#F9FAFB',
+    });
+  };
+
   const getStatusBadge = (status, serviceStatus) => {
     const displayStatus = serviceStatus || status;
     if (!displayStatus) {
@@ -2359,7 +2383,21 @@ const HajiDetails = () => {
             className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-sm sm:text-base"
           >
             <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">{isGeneratingCardPdf ? 'তৈরি হচ্ছে...' : 'Name Plate'}</span>
+            <span className="hidden sm:inline">{isGeneratingCardPdf ? 'তৈরি হচ্ছে...' : 'নামপ্লেট'}</span>
+          </button>
+          <button
+            onClick={handleIdCardClick}
+            className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 text-sm sm:text-base"
+          >
+            <CreditCard className="w-4 h-4" />
+            <span className="hidden sm:inline">আইডি কার্ড</span>
+          </button>
+          <button
+            onClick={handleChuktiPattroClick}
+            className="flex items-center space-x-1 sm:space-x-2 px-3 sm:px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm sm:text-base"
+          >
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">চুক্তি পত্র</span>
           </button>
           <button 
             onClick={() => navigate(isUmrah ? `/umrah/haji/${id}/edit` : `/hajj-umrah/haji/${id}/edit`)}
