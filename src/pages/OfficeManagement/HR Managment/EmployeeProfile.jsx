@@ -31,6 +31,8 @@ import {
 } from 'lucide-react';
 import { useEmployee } from '../../../hooks/useHRQueries';
 import { useAirTickets } from '../../../hooks/useAirTicketQueries';
+import { useHajiList } from '../../../hooks/UseHajiQueries';
+import { useUmrahList } from '../../../hooks/UseUmrahQuries';
 
 const EmployeeProfile = () => {
   const { id } = useParams();
@@ -39,6 +41,9 @@ const EmployeeProfile = () => {
   const [activeTab, setActiveTab] = useState('overview');
 
   const empId = employee?.id ?? employee?.employeeId ?? id;
+  const empEmail = employee?.email ?? '';
+  const empName = employee?.name ?? [employee?.firstName, employee?.lastName].filter(Boolean).join(' ') ?? '';
+
   const { data: ticketsData } = useAirTickets({
     issuedById: empId ?? undefined,
     limit: 5000,
@@ -53,6 +58,31 @@ const EmployeeProfile = () => {
     (sum, t) => sum + (Number(t.customerDeal) || 0),
     0
   );
+
+  const { data: hajiResp } = useHajiList({ limit: 5000, page: 1 });
+  const hajiList = hajiResp?.data ?? hajiResp?.hajis ?? [];
+  const hajiCount = hajiList.filter((h) => {
+    const by = h?.createdBy ?? h?.createdByUser;
+    if (!by) return false;
+    const idMatch = String(by?.id ?? by?.userId ?? '') === String(empId ?? '');
+    const emailMatch = !!empEmail && (String(by?.email ?? '') === String(empEmail));
+    const nameMatch = !!empName && (String(by?.name ?? '') === String(empName));
+    return idMatch || emailMatch || nameMatch;
+  }).length;
+
+  const { data: umrahResp } = useUmrahList({ limit: 5000, page: 1 });
+  const umrahList = umrahResp?.data ?? umrahResp?.umrah ?? umrahResp?.pilgrims ?? umrahResp?.list ?? [];
+  const umrahCount = umrahList.filter((u) => {
+    const by = u?.createdBy ?? u?.createdByUser;
+    if (!by) return false;
+    const idMatch = String(by?.id ?? by?.userId ?? '') === String(empId ?? '');
+    const emailMatch = !!empEmail && (String(by?.email ?? '') === String(empEmail));
+    const nameMatch = !!empName && (String(by?.name ?? '') === String(empName));
+    return idMatch || emailMatch || nameMatch;
+  }).length;
+
+  const additionalServiceCount = 0;
+
   const formatCurrency = (n) => `৳${Number(n || 0).toLocaleString('bn-BD')}`;
 
   const handleGoBack = () => {
@@ -95,7 +125,7 @@ const EmployeeProfile = () => {
   const tabs = [
     { id: 'overview', name: 'সারসংক্ষেপ', icon: User },
     { id: 'employment', name: 'কর্মসংস্থান', icon: Briefcase },
-    { id: 'tickets-services', name: 'টিকেট ও সেবা', icon: BarChart3 },
+    { id: 'tickets-services', name: 'টিকেট, হজ্ব, উমরাহ ও সেবা', icon: BarChart3 },
     { id: 'documents', name: 'নথিপত্র', icon: FileText }
   ];
 
@@ -277,12 +307,12 @@ const EmployeeProfile = () => {
       <div className="bg-white rounded-xl shadow-sm border p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-blue-600" />
-          টিকেট ও সেবা পরিসংখ্যান
+          টিকেট, হজ্ব, উমরাহ ও সেবা পরিসংখ্যান
         </h3>
         <p className="text-gray-600 mb-6">
-          এই কর্মচারীর টিকেট বিক্রয় ও অতিরিক্ত সেবার সংক্ষিপ্ত তথ্য
+          এই কর্মচারীর টিকেট বিক্রয়, হজ্ব, উমরাহ ও অতিরিক্ত সেবার সংক্ষিপ্ত তথ্য
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
           <div className="text-center p-6 bg-indigo-50 rounded-xl border border-indigo-100">
             <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <Plane className="w-6 h-6 text-indigo-600" />
@@ -299,12 +329,28 @@ const EmployeeProfile = () => {
             <p className="text-2xl font-bold text-green-600 mt-1">{formatCurrency(ticketSellTotal)}</p>
             <p className="text-xs text-gray-500 mt-1">মোট বিক্রয়</p>
           </div>
+          <div className="text-center p-6 bg-purple-50 rounded-xl border border-purple-100">
+            <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-xl">🕋</span>
+            </div>
+            <p className="text-sm font-medium text-gray-700">হজ্ব</p>
+            <p className="text-2xl font-bold text-purple-600 mt-1">{hajiCount}</p>
+            <p className="text-xs text-gray-500 mt-1">হজ্ব যাত্রী সংখ্যা</p>
+          </div>
+          <div className="text-center p-6 bg-blue-50 rounded-xl border border-blue-100">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-xl">🕋</span>
+            </div>
+            <p className="text-sm font-medium text-gray-700">উমরাহ</p>
+            <p className="text-2xl font-bold text-blue-600 mt-1">{umrahCount}</p>
+            <p className="text-xs text-gray-500 mt-1">উমরাহ যাত্রী সংখ্যা</p>
+          </div>
           <div className="text-center p-6 bg-amber-50 rounded-xl border border-amber-100">
             <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-3">
               <Package className="w-6 h-6 text-amber-600" />
             </div>
-            <p className="text-sm font-medium text-gray-700">অতিরিক্ত সেবা সংখ্যা</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">০</p>
+            <p className="text-sm font-medium text-gray-700">অতিরিক্ত সেবা</p>
+            <p className="text-2xl font-bold text-amber-600 mt-1">{additionalServiceCount}</p>
             <p className="text-xs text-gray-500 mt-1">পাসপোর্ট, ভিসা, ম্যানপাওয়ার ইত্যাদি</p>
           </div>
         </div>
