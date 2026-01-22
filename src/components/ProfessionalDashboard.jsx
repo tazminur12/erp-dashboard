@@ -98,6 +98,34 @@ const ProfessionalDashboard = () => {
   const farm = summary.farm || {};
   const recentActivity = summary.recentActivity || {};
 
+  // Calculate expenses only from transactions (not from employee salaries)
+  // Only show expenses when transactions are explicitly created
+  // This ensures employee creation doesn't automatically add to dashboard expenses
+  const farmExpensesFromTransactions = React.useMemo(() => {
+    // Use transaction-based expenses only, not employee salary totals
+    // This ensures expenses only show when transactions are created
+    return financial.transactions?.totalDebit || 0;
+  }, [financial.transactions?.totalDebit]);
+
+  // Recalculate total expenses to exclude employee salaries
+  // Only include transaction-based expenses
+  const totalExpensesFromTransactions = React.useMemo(() => {
+    // Use transaction debit as the primary expense source
+    // Exclude any employee salary calculations that backend might include
+    const transactionDebit = financial.transactions?.totalDebit || 0;
+    const exchangeBuyAmount = services.exchanges?.buyAmount || 0;
+    // Only sum transaction-based expenses, not employee salaries
+    return transactionDebit + exchangeBuyAmount;
+  }, [financial.transactions?.totalDebit, services.exchanges?.buyAmount]);
+
+  // Recalculate net profit based on transaction-based expenses only
+  // This ensures net profit only reflects actual transactions, not employee salaries
+  const netProfitFromTransactions = React.useMemo(() => {
+    const revenue = grandTotals.totalRevenue || 0;
+    const expenses = totalExpensesFromTransactions || 0;
+    return revenue - expenses;
+  }, [grandTotals.totalRevenue, totalExpensesFromTransactions]);
+
   const huOverview = huDashboardData?.overview || {};
   const huProfitLoss = huDashboardData?.profitLoss || {};
 
@@ -379,7 +407,7 @@ const ProfessionalDashboard = () => {
                     মোট ব্যয়
                   </p>
                   <p className="text-2xl font-semibold text-red-600">
-                    {formatCurrency(grandTotals.totalExpenses || 0)}
+                    {formatCurrency(totalExpensesFromTransactions || 0)}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
@@ -403,12 +431,12 @@ const ProfessionalDashboard = () => {
                     নিট লাভ
                   </p>
                   <p
-                    className={`text-2xl font-semibold ${(grandTotals.netProfit || 0) >= 0
+                    className={`text-2xl font-semibold ${(netProfitFromTransactions || 0) >= 0
                       ? 'text-green-600'
                       : 'text-red-600'
-                      }`}
+                    }`}
                   >
-                    {formatCurrency(grandTotals.netProfit || 0)}
+                    {formatCurrency(netProfitFromTransactions || 0)}
                   </p>
                 </div>
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-4">
@@ -695,7 +723,7 @@ const ProfessionalDashboard = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">মোট ব্যয়</span>
-                <span className="text-lg font-semibold text-red-600">{formatCurrency(grandTotals.totalExpenses || 0)}</span>
+                <span className="text-lg font-semibold text-red-600">{formatCurrency(totalExpensesFromTransactions || 0)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">ডেবিট</span>
@@ -707,7 +735,7 @@ const ProfessionalDashboard = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">ফার্ম ব্যয়</span>
-                <span className="text-sm font-medium text-red-600">{formatCurrency(farm.expenses?.total || 0)}</span>
+                <span className="text-sm font-medium text-red-600">{formatCurrency(farmExpensesFromTransactions || 0)}</span>
               </div>
             </div>
           </div>
@@ -723,8 +751,8 @@ const ProfessionalDashboard = () => {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-400">নিট লাভ</span>
-                <span className={`text-2xl font-bold ${(grandTotals.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(grandTotals.netProfit || 0)}
+                <span className={`text-2xl font-bold ${(netProfitFromTransactions || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(netProfitFromTransactions || 0)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -1156,7 +1184,7 @@ const ProfessionalDashboard = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 dark:text-gray-400">ব্যয়</span>
-                  <span className="font-semibold text-red-600">{formatCurrency(farm.expenses?.total || 0)}</span>
+                  <span className="font-semibold text-red-600">{formatCurrency(farmExpensesFromTransactions || 0)}</span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span className="text-gray-900 dark:text-white font-medium">নিট লাভ</span>
@@ -1278,11 +1306,11 @@ const ProfessionalDashboard = () => {
                   <div 
                     className="h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-end px-2 transition-all duration-500"
                     style={{ 
-                      width: `${Math.min(100, ((grandTotals.totalRevenue || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses) || 1) * 100)}%` 
+                      width: `${Math.min(100, ((grandTotals.totalRevenue || 0) / Math.max(grandTotals.totalRevenue, totalExpensesFromTransactions) || 1) * 100)}%` 
                     }}
                   >
                     <span className="text-xs font-medium text-white">
-                      {((grandTotals.totalRevenue || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100).toFixed(0)}%
+                      {((grandTotals.totalRevenue || 0) / Math.max(grandTotals.totalRevenue, totalExpensesFromTransactions, 1) * 100).toFixed(0)}%
                     </span>
                   </div>
                 </div>
@@ -1295,17 +1323,17 @@ const ProfessionalDashboard = () => {
                     <div className="w-3 h-3 rounded-full bg-red-500"></div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">ব্যয়</span>
                   </div>
-                  <span className="text-sm font-bold text-red-600">{formatCurrency(grandTotals.totalExpenses || 0)}</span>
+                  <span className="text-sm font-bold text-red-600">{formatCurrency(totalExpensesFromTransactions || 0)}</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-red-500 to-rose-600 rounded-full flex items-center justify-end px-2 transition-all duration-500"
                     style={{ 
-                      width: `${Math.min(100, ((grandTotals.totalExpenses || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses) || 1) * 100)}%` 
+                      width: `${Math.min(100, ((totalExpensesFromTransactions || 0) / Math.max(grandTotals.totalRevenue, totalExpensesFromTransactions) || 1) * 100)}%` 
                     }}
                   >
                     <span className="text-xs font-medium text-white">
-                      {((grandTotals.totalExpenses || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100).toFixed(0)}%
+                      {((totalExpensesFromTransactions || 0) / Math.max(grandTotals.totalRevenue, totalExpensesFromTransactions, 1) * 100).toFixed(0)}%
                     </span>
                   </div>
                 </div>
@@ -1315,26 +1343,26 @@ const ProfessionalDashboard = () => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${(grandTotals.netProfit || 0) >= 0 ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                    <div className={`w-3 h-3 rounded-full ${(netProfitFromTransactions || 0) >= 0 ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">নিট লাভ</span>
                   </div>
-                  <span className={`text-sm font-bold ${(grandTotals.netProfit || 0) >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
-                    {formatCurrency(grandTotals.netProfit || 0)}
+                  <span className={`text-sm font-bold ${(netProfitFromTransactions || 0) >= 0 ? 'text-blue-600' : 'text-orange-600'}`}>
+                    {formatCurrency(netProfitFromTransactions || 0)}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
                   <div 
                     className={`h-full rounded-full flex items-center justify-end px-2 transition-all duration-500 ${
-                      (grandTotals.netProfit || 0) >= 0 
+                      (netProfitFromTransactions || 0) >= 0 
                         ? 'bg-gradient-to-r from-blue-500 to-indigo-600' 
                         : 'bg-gradient-to-r from-orange-500 to-red-600'
                     }`}
                     style={{ 
-                      width: `${Math.min(100, Math.abs(grandTotals.netProfit || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100)}%` 
+                      width: `${Math.min(100, Math.abs(netProfitFromTransactions || 0) / Math.max(grandTotals.totalRevenue, totalExpensesFromTransactions, 1) * 100)}%` 
                     }}
                   >
                     <span className="text-xs font-medium text-white">
-                      {(Math.abs(grandTotals.netProfit || 0) / Math.max(grandTotals.totalRevenue, grandTotals.totalExpenses, 1) * 100).toFixed(0)}%
+                      {(Math.abs(netProfitFromTransactions || 0) / Math.max(grandTotals.totalRevenue, totalExpensesFromTransactions, 1) * 100).toFixed(0)}%
                     </span>
                   </div>
                 </div>
@@ -1346,13 +1374,13 @@ const ProfessionalDashboard = () => {
               <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Profit Margin</p>
                 <p className="text-lg font-bold text-green-600">
-                  {((grandTotals.netProfit || 0) / (grandTotals.totalRevenue || 1) * 100).toFixed(1)}%
+                  {((netProfitFromTransactions || 0) / (grandTotals.totalRevenue || 1) * 100).toFixed(1)}%
                 </p>
               </div>
               <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">ROI</p>
                 <p className="text-lg font-bold text-blue-600">
-                  {((grandTotals.netProfit || 0) / (grandTotals.totalExpenses || 1) * 100).toFixed(1)}%
+                  {((netProfitFromTransactions || 0) / (totalExpensesFromTransactions || 1) * 100).toFixed(1)}%
                 </p>
               </div>
             </div>
@@ -1423,7 +1451,7 @@ const ProfessionalDashboard = () => {
                       strokeWidth="12"
                       fill="none"
                       strokeDasharray={`${2 * Math.PI * 70}`}
-                      strokeDashoffset={`${2 * Math.PI * 70 * (1 - ((grandTotals.netProfit || 0) / (grandTotals.totalRevenue || 1)))}`}
+                      strokeDashoffset={`${2 * Math.PI * 70 * (1 - ((netProfitFromTransactions || 0) / (grandTotals.totalRevenue || 1)))}`}
                       strokeLinecap="round"
                       className="transition-all duration-1000"
                     />
@@ -1437,7 +1465,7 @@ const ProfessionalDashboard = () => {
                   {/* Center Text */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {((grandTotals.netProfit || 0) / (grandTotals.totalRevenue || 1) * 100).toFixed(1)}%
+                      {((netProfitFromTransactions || 0) / (grandTotals.totalRevenue || 1) * 100).toFixed(1)}%
                     </span>
                     <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">Profit Ratio</span>
                   </div>
@@ -1460,10 +1488,10 @@ const ProfessionalDashboard = () => {
           <div className="relative h-64">
             {/* Y-axis labels */}
             <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-gray-500 dark:text-gray-400 pr-2">
-              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0))}</span>
-              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0) * 0.75)}</span>
-              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0) * 0.5)}</span>
-              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, grandTotals.totalExpenses || 0) * 0.25)}</span>
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, totalExpensesFromTransactions || 0))}</span>
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, totalExpensesFromTransactions || 0) * 0.75)}</span>
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, totalExpensesFromTransactions || 0) * 0.5)}</span>
+              <span>{formatCurrency(Math.max(grandTotals.totalRevenue || 0, totalExpensesFromTransactions || 0) * 0.25)}</span>
               <span>০</span>
             </div>
             
